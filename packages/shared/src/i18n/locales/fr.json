@@ -1424,7 +1424,20 @@
       "yes": "Oui, {{value}}",
       "no": "Non, plutôt…",
       "proposal": "Je propose : {{value}}. {{because}}",
-      "fallback": "Je continue avec mes questions habituelles, sans l'IA : je ne vous redemande pas ce que vous m'avez déjà dit."
+      "fallback": "Je continue avec mes questions habituelles, sans l'IA : je ne vous redemande pas ce que vous m'avez déjà dit.",
+      "blocks": "Il reste quatre blocs : vos critères, votre parcours, vos compétences et votre présentation.",
+      "blocksLater": "« Continuer plus tard » enregistre vos réponses à tout moment : vous reprendrez au même bloc.",
+      "block": {
+        "criteria": "Bloc un sur quatre : vos critères",
+        "career": "Bloc deux sur quatre : votre parcours",
+        "skills": "Bloc trois sur quatre : vos compétences",
+        "presentation": "Bloc quatre sur quatre : votre présentation"
+      },
+      "resumed": "Reprenons la création de votre profil là où vous l'aviez laissée : vos réponses sont enregistrées."
+    },
+    "later": {
+      "action": "Continuer plus tard",
+      "failed": "Vos réponses n'ont pas pu être enregistrées. Réessayez dans un instant."
     },
     "fromCv": {
       "building": "Profil en construction",

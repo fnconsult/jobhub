@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import type { ContractType, MasterCvContent, Provenance, RemoteWork, SearchCriteria } from "@jobhub/shared";
@@ -18,8 +18,10 @@ import { InWorkPane } from "@/components/WorkPane";
 import { buttonClass } from "@/design/button-class";
 import { Card } from "@/design/Card";
 import { Note } from "@/design/Note";
+import { blockProgress, type InterviewBlock } from "@/onboarding-interview/blocks";
 import {
   answerCounts,
+  canBeBorn,
   foldedProvenance,
   interviewDraft,
   questionnaireDraft,
@@ -42,7 +44,7 @@ import {
   type Questionnaire,
 } from "@/questionnaire";
 import type { UpgradePrompt as Prompt } from "@/billing/upgrade-prompt";
-import type { ProfileOnboarding as OnboardingState } from "@/profiles";
+import type { OnboardingResumePoint, ProfileOnboarding as OnboardingState } from "@/profiles";
 import { routes } from "@/routes";
 import { BLANK_DRAFT, CvReview, CvUpload, type BornProfile, type ReviewEdits } from "./CvDraftForms";
 import type { RefiningCriterion } from "@/ai-activity/followed-search";
@@ -54,6 +56,7 @@ import { OnboardingSummary } from "./OnboardingSummary";
 import { criteriaFieldsOf } from "./SearchCriteriaFields";
 import { UpgradePrompt, upgradePromptIn } from "./UpgradePrompt";
 import "./QuickActions.css";
+import "./ProfileOnboarding.css";
 
 type From = "cv" | "interview" | "questionnaire" | "resumed";
 /** At the review, the summary first (#1004); `saved` once « Cela semble correct » has saved the Profile, at its page. */
@@ -63,10 +66,14 @@ type Step =
   | { kind: "questionnaire" }
   | { kind: "review"; draft: CvDraft; from: From; saved?: string };
 
-/** A Profile born during its onboarding and not finished (#999), resumed at its review on `/profils/nouveau?profil=<id>`. */
+/**
+ * A Profile born during its onboarding and not finished (#999), resumed on `/profils/nouveau?profil=<id>`: at its review,
+ * or, left with « Continuer plus tard » (#1046), in the interview at the block it reached (`resumesAt`).
+ */
 export interface ResumedProfile extends BornProfile {
   masterCv: MasterCvContent;
   searchCriteria: SearchCriteria;
+  resumesAt?: OnboardingResumePoint;
 }
 
 /** The Profile's creation refused by the Plan Quota (409), with its Upgrade Prompt when there is one. */
@@ -85,6 +92,10 @@ interface Interview {
   declining: boolean;
   /** With a CV (#1003): the target role and places it read, to confirm, sent with each turn asked. */
   cv?: CvRead;
+  /** Resumed after « Continuer plus tard » (#1046): the block it reached and the turns asked before, sent with each turn asked. */
+  resumedAt?: OnboardingResumePoint;
+  /** Without a CV, the answers after which the Profile could be born: the rest in 4 blocks is announced there (#1046). */
+  bornAfter?: number;
 }
 
 const IN_PROGRESS: OnboardingState = "in_progress";
@@ -109,6 +120,13 @@ const REVIEW_HREF = `${routes.newProfile}#relecture`;
 const HELP = "help" as const;
 
 const newInterview = (): Interview => ({ draft: interviewDraft(BLANK_DRAFT), exchange: [], turn: null, provenance: null, declining: false });
+
+/** « Reprendre la création » after « Continuer plus tard » (#1046): the interview from what is saved, at the block reached. */
+const resumedInterview = (resumed: ResumedProfile & { resumesAt: OnboardingResumePoint }): Interview => ({
+  ...newInterview(),
+  draft: interviewDraft({ masterCv: resumed.masterCv, searchCriteria: resumed.searchCriteria }),
+  resumedAt: resumed.resumesAt,
+});
 
 /**
  * Creating a Profile under « Conversation au centre » (ADR-0070): the page is a conversation with the AI Coach, its
@@ -138,6 +156,11 @@ const newInterview = (): Interview => ({ draft: interviewDraft(BLANK_DRAFT), exc
  * onboarding in progress, its id kept by the page; a later answer changing its Search Criteria is saved on it, and the
  * review's save finishes it with one Master CV Version (held here until then). A Profile not finished is `resumed` at its
  * review.
+ * Without a CV, once born, the rest goes in 4 blocks (#1046): the coach says so in one line, and the thread marks where
+ * each block starts, a heading in words (« Bloc deux sur quatre : votre parcours »), once per block, never per question.
+ * « Continuer plus tard », above the box from its birth on, saves the answers given (its Search Criteria already are, its
+ * Master CV as a version) and the block reached, then opens the Profile's page; « Reprendre la création » reopens the
+ * interview at that block, the turns before counted in its cap.
  * Born, it gets its first Job Search, offered outside the Plan Quota (#1000), started again once when an answer changes
  * its target role or locations; a coach line in the thread says so, text only. Its progress is AI Activity's: the page
  * follows it (useFollowedSearch), so « En ce moment » counts it « ici », with its run's measures and the Job Offers that
@@ -147,12 +170,17 @@ const newInterview = (): Interview => ({ draft: interviewDraft(BLANK_DRAFT), exc
 export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   const { t, i18n } = useTranslation();
   const id = useId();
+  const router = useRouter();
   const pane = useWorkPane();
   const noteCreation = useAiActivityLive()?.noteCreation;
   const asking = useStreamedAction("onboarding_interview");
-  const [step, setStep] = useState<Step>(() =>
-    resumed ? { kind: "review", draft: { masterCv: resumed.masterCv, searchCriteria: resumed.searchCriteria }, from: "resumed" } : { kind: "choose" },
-  );
+  // Left with « Continuer plus tard » (#1046), it resumes in the interview, at the block reached; else at its review.
+  const resumesAt = resumed?.resumesAt;
+  const [step, setStep] = useState<Step>(() => {
+    if (!resumed) return { kind: "choose" };
+    if (resumed.resumesAt) return { kind: "interview" };
+    return { kind: "review", draft: { masterCv: resumed.masterCv, searchCriteria: resumed.searchCriteria }, from: "resumed" };
+  });
   // The Profile born during the onboarding, once its creation has answered (null: none, or refused); kept across « Recommencer ».
   const [bornAtStart] = useState(() => (resumed ? Promise.resolve<BornProfile | null>({ id: resumed.id, version: resumed.version }) : null));
   const born = useRef<Promise<BornProfile | null> | null>(bornAtStart);
@@ -160,8 +188,11 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   const sentCriteria = useRef(resumed ? criteriaKey(resumed.searchCriteria) : "");
   // Its target role and locations last sent: only a change of them starts the offered Job Search again (#1000).
   const sentTarget = useRef(resumed ? targetKey(resumed.searchCriteria) : "");
+  // Its id once born (ADR-0106, #999): from then on, « Continuer plus tard » (#1046); whether that save failed.
+  const [bornId, setBornId] = useState<string | null>(resumed?.id ?? null);
+  const [later, setLater] = useState<"saving" | "failed" | null>(null);
   const [refused, setRefused] = useState<Refused | null>(null);
-  const [interview, setInterview] = useState<Interview>(newInterview);
+  const [interview, setInterview] = useState<Interview>(() => (resumed?.resumesAt ? resumedInterview({ ...resumed, resumesAt: resumed.resumesAt }) : newInterview()));
   // The interview gave way to the scripted questions (the AI unavailable): they start from what it had.
   const [fellBack, setFellBack] = useState(false);
   // The Job Search the onboarding offers (#1000), once started: told in the thread after the answer that started it
@@ -211,12 +242,21 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
   const reviewShown = pane?.item?.kind === REVIEW && pane.item.href === REVIEW_HREF;
   const language = i18n.language === "en" ? "en" : "fr";
 
-  // A creation starts afresh with the page; one resumed is at its review.
+  // A creation starts afresh with the page; one resumed is at its review, or in its interview (#1046).
   const resumedId = resumed?.id;
+  const resumedInInterview = Boolean(resumesAt);
   useEffect(() => {
     noteCreation?.({ type: "started" });
-    if (resumedId) noteCreation?.({ type: "reviewed" });
-  }, [noteCreation, resumedId]);
+    if (resumedInInterview) noteCreation?.({ type: "interviewed", answered: 0, skipped: 0, provenance: null });
+    else if (resumedId) noteCreation?.({ type: "reviewed" });
+  }, [noteCreation, resumedId, resumedInInterview]);
+  // Resumed in its interview (#1046): the next question at the block reached, asked once.
+  const resuming = useRef(resumedInInterview);
+  useEffect(() => {
+    if (!resuming.current) return;
+    resuming.current = false;
+    void askNext(interview);
+  });
 
   // The next question takes the focus: the box, or a question's first suggestion (a yes-or-no, a proposal, a choice).
   const suggested = question?.kind === "yesNo" || Boolean(turn && (turn.proposal || turn.ask.kind === "choice") && !interview.declining);
@@ -288,7 +328,14 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
     const mine = ++run.current;
     const outcome = await asking.run(INTERVIEW_URL, {
       method: "POST",
-      json: { language, draft: now.draft, exchange: now.exchange, ...(said ? { opener: said } : {}), ...(now.cv ? { cv: now.cv } : {}) },
+      json: {
+        language,
+        draft: now.draft,
+        exchange: now.exchange,
+        ...(said ? { opener: said } : {}),
+        ...(now.cv ? { cv: now.cv } : {}),
+        ...(now.resumedAt ? { resumedAt: now.resumedAt } : {}),
+      },
     });
     if (mine !== run.current) return;
     const next = outcome.ok ? (outcome.body.turn as InterviewTurn | undefined) : undefined;
@@ -330,7 +377,10 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
       ...(current.challenge ? { challenge: current.challenge } : {}),
       reply: reply.kind === "answer" ? { ...reply, text: reply.text.trim(), ...(interview.declining ? { declined: true } : {}) } : reply,
     };
-    const now: Interview = { ...interview, draft, exchange: [...interview.exchange, said], turn: null, declining: false };
+    const exchange = [...interview.exchange, said];
+    // Without a CV, the answer that lets the Profile be born: the rest in 4 blocks is announced after it (#1046).
+    const bornHere = !interview.cv && !interview.resumedAt && interview.bornAfter === undefined && canBeBorn(draft);
+    const now: Interview = { ...interview, draft, exchange, turn: null, declining: false, ...(bornHere ? { bornAfter: exchange.length } : {}) };
     setInterview(now);
     setValue("");
     setError(null);
@@ -374,6 +424,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
     born.current = (born.current ?? Promise.resolve(null)).then(async (profile) => {
       if (!profile) {
         const created = await createProfile(masterCv, searchCriteria);
+        if (created) setBornId(created.id);
         if (created) await startOfferedSearch(created.id, after);
         return created;
       }
@@ -423,6 +474,27 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
       // Not born: the review's save creates it.
     }
     return null;
+  }
+
+  /**
+   * « Continuer plus tard » (#1046): once the Search Criteria answered are saved on the Profile born, the answers given
+   * saved as its Master CV and the block reached; then its page. Not saved, the coach says so and the questions go on.
+   */
+  async function continueLater() {
+    if (later === "saving") return;
+    setLater("saving");
+    const profile = await (born.current ?? Promise.resolve(null));
+    const { masterCv } = fellBack ? scriptedDraft(questionnaire) : interview.draft;
+    const resumeAt: OnboardingResumePoint = { block: blocks.current, turns: (interview.resumedAt?.turns ?? 0) + interview.exchange.length };
+    try {
+      const response = profile
+        ? await fetch(`/api/profiles/${profile.id}/onboarding`, { method: "PUT", headers: JSON_BODY, body: JSON.stringify({ basedOnVersion: profile.version, masterCv, ...resumeAt }) })
+        : null;
+      if (profile && response?.ok) return router.push(routes.profile(profile.id));
+    } catch {
+      // Not saved: said below.
+    }
+    setLater("failed");
   }
 
   /** The scripted questions' draft, with the Search Criteria the interview had before they took over (contracts, Sectors…). */
@@ -498,6 +570,22 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
 
   const answeringNow = question !== null || turn !== null;
 
+  // Without a CV, where the interview stands in its 4 blocks (#1046): the mark before each question that starts one.
+  const withoutCv = cvRead === null && !interview.cv;
+  const blocks = blockProgress([...interview.exchange.map((said) => said.ask.field), ...(turn ? [turn.ask.field] : [])], interview.resumedAt?.block ?? null);
+  const markAt = (index: number): ReactNode => {
+    const block = withoutCv ? blocks.marks[index] : null;
+    return block ? <BlockMark key={`block-${index}`} block={block} /> : null;
+  };
+  // « Continuer plus tard » (#1046): from the Profile's birth on, while the questions go on.
+  const laterButton =
+    withoutCv && bornId !== null && (step.kind === "interview" || step.kind === "questionnaire") ? (
+      <button className={buttonClass({ variant: "secondary", size: "sm" })} type="button" disabled={later === "saving"} onClick={() => void continueLater()}>
+        {t("newProfile.later.action")}
+      </button>
+    ) : null;
+  const ownGroupForLater = laterButton !== null && (step.kind === "interview" ? turn === null : question !== null && question.kind !== "yesNo" && !question.optional);
+
   // The criteria the offered Job Search is counted with: what was answered or validated so far, in « Affinée avec »
   // (#1001); the interview's proposal waiting for its « Oui, … » counted too, said « (supposé) » until it is validated (#1002).
   const answersDraft = fellBack ? scriptedDraft(questionnaire) : interview.draft;
@@ -546,7 +634,11 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
             ) : null}
             {answering ? (
               <>
-                {fromCvInterview ? null : (
+                {fromCvInterview ? null : interview.resumedAt ? (
+                  <CoachLine>
+                    <p>{t("newProfile.interview.resumed")}</p>
+                  </CoachLine>
+                ) : (
                   <>
                     <li className="chat-message chat-candidate">
                       <span className="visually-hidden">{t("questionnaire.you")}</span>
@@ -558,6 +650,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
                   </>
                 )}
                 {interview.exchange.flatMap((said, index) => [
+                  markAt(index),
                   <CoachLine key={`turn-${index}`}>
                     <TurnWords turn={said} />
                   </CoachLine>,
@@ -566,6 +659,14 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
                     <p>{replyText(said)}</p>
                   </li>,
                   ...offeredSearchAfter(index + 1),
+                  ...(interview.bornAfter === index + 1
+                    ? [
+                        <CoachLine key="blocks">
+                          <p>{t("newProfile.interview.blocks")}</p>
+                          {bornId !== null ? <p>{t("newProfile.interview.blocksLater")}</p> : null}
+                        </CoachLine>,
+                      ]
+                    : []),
                 ])}
                 {fellBack ? (
                   <CoachLine>
@@ -600,10 +701,18 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
                 <StreamedActionStatus action={asking} stopLabel={t("aiActivity.live.stop.onboarding_interview")} />
               </CoachLine>
             ) : null}
+            {turn ? markAt(interview.exchange.length) : null}
             {turn ? (
               <CoachLine>
                 <TurnWords turn={turn} />
               </CoachLine>
+            ) : null}
+            {later === "failed" ? (
+              <li className="chat-message chat-card">
+                <Note tone="warn" role="alert">
+                  {t("newProfile.later.failed")}
+                </Note>
+              </li>
             ) : null}
             {question ? (
               <CoachLine>
@@ -660,6 +769,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
               firstRef={firstChoice}
               choiceLabel={choiceLabel}
               onReply={replyToTurn}
+              later={laterButton}
               onDecline={() => {
                 setInterview((now) => ({ ...now, declining: true }));
                 box.current?.focus();
@@ -674,14 +784,17 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
               <button className={buttonClass({ variant: "secondary", size: "sm" })} type="button" onClick={() => reply("no")}>
                 {t("questionnaire.no")}
               </button>
+              {laterButton}
             </Suggestions>
           ) : question?.optional ? (
             <Suggestions label={t("conversationFirst.suggestions")}>
               <button className={buttonClass({ variant: "secondary", size: "sm" })} type="button" onClick={() => reply("")}>
                 {t("questionnaire.skip")}
               </button>
+              {laterButton}
             </Suggestions>
           ) : null}
+          {ownGroupForLater ? <Suggestions label={t("conversationFirst.suggestions")}>{laterButton}</Suggestions> : null}
           {/* The box of every conversation (#997): « Envoyer au coach », the « Coach IA » badge in it. */}
           <form className="coach-panel-form coach-panel-form-inline" onSubmit={submit} noValidate>
             <label className="visually-hidden" htmlFor={id}>
@@ -771,12 +884,14 @@ function TurnSuggestions(props: {
   choiceLabel: (field: InterviewField, choice: string) => string;
   onReply: (reply: InterviewReply) => void;
   onDecline: () => void;
+  /** « Continuer plus tard » (#1046), last, once the Profile is born. */
+  later?: ReactNode;
 }) {
   const { t } = useTranslation();
-  const { turn, declining, firstRef, choiceLabel, onReply, onDecline } = props;
+  const { turn, declining, firstRef, choiceLabel, onReply, onDecline, later } = props;
   const proposed = turn.proposal && !declining;
   const choices = turn.ask.kind === "choice" ? (turn.ask.choices ?? []) : [];
-  if (!proposed && choices.length === 0 && !skippable(turn)) return null;
+  if (!proposed && choices.length === 0 && !skippable(turn) && !later) return null;
   return (
     <Suggestions label={t("conversationFirst.suggestions")}>
       {proposed ? (
@@ -805,7 +920,21 @@ function TurnSuggestions(props: {
           {t("questionnaire.skip")}
         </button>
       ) : null}
+      {later}
     </Suggestions>
+  );
+}
+
+/**
+ * Where a block of the interview starts (#1046): a heading in the thread, in words (« Bloc deux sur quatre : votre
+ * parcours »), read once by a screen reader as the thread's new line, never repeated at each question.
+ */
+function BlockMark({ block }: { block: InterviewBlock }) {
+  const { t } = useTranslation();
+  return (
+    <li className="chat-block">
+      <h2 className="chat-block-mark">{t(`newProfile.interview.block.${block}`)}</h2>
+    </li>
   );
 }
 

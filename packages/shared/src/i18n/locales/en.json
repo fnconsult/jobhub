@@ -1424,7 +1424,20 @@
       "yes": "Yes, {{value}}",
       "no": "No, rather…",
       "proposal": "I suggest: {{value}}. {{because}}",
-      "fallback": "I'll go on with my usual questions, without the AI: I won't ask again what you have already told me."
+      "fallback": "I'll go on with my usual questions, without the AI: I won't ask again what you have already told me.",
+      "blocks": "Four parts are left: your criteria, your career, your skills and your introduction.",
+      "blocksLater": "« Continue later » saves your answers at any time: you will pick up at the same part.",
+      "block": {
+        "criteria": "Part one of four: your criteria",
+        "career": "Part two of four: your career",
+        "skills": "Part three of four: your skills",
+        "presentation": "Part four of four: your introduction"
+      },
+      "resumed": "Let's pick up creating your profile where you left off: your answers are saved."
+    },
+    "later": {
+      "action": "Continue later",
+      "failed": "Your answers could not be saved. Try again in a moment."
     },
     "fromCv": {
       "building": "Profile in progress",

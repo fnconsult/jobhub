@@ -812,6 +812,122 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
     });
   });
 
+  describe("without a CV, the rest in 4 blocks, to continue later (#1046)", () => {
+    type Call = { url: string; method: string; body: Record<string, unknown> };
+    let calls: Call[];
+    let asked: Record<string, unknown>[];
+    let turns: (object | "down")[];
+    const REMOTE = ask("remoteWorkOptions", "Quel rythme de télétravail vous convient ?", { kind: "choice", choices: ["on_site", "hybrid", "full_remote"] });
+    const JOB = ask("experience.title", "Quel est votre dernier poste ?");
+    const EMPLOYER = ask("experience.employer", "Chez quel employeur ?");
+    const SKILLS = ask("skills", "Quelles sont vos compétences clés ?");
+    const blockMarks = () => [...thread().querySelectorAll(".chat-block-mark")].map((mark) => mark.textContent);
+
+    beforeEach(() => {
+      calls = [];
+      asked = [];
+      turns = [];
+      push.mockClear();
+      vi.stubGlobal("fetch", async (url: string, init: RequestInit = {}) => {
+        if (url === "/api/onboarding/interview") {
+          asked.push(JSON.parse(String(init.body)));
+          return interviewReply(turns);
+        }
+        if (url.startsWith("/api/job-searches") || url === "/api/reference-data") return new Response(null, { status: 404 });
+        calls.push({ url, method: init.method ?? "GET", body: JSON.parse(String(init.body ?? "{}")) });
+        if (url === "/api/profiles") return Response.json({ id: "p1" }, { status: 201 });
+        if (url === "/api/profiles/p1/onboarding") return Response.json({ id: "p1", version: 2 });
+        if (url === "/api/profiles/p1/onboarding-search") return Response.json({ error: "used_up" }, { status: 409 });
+        return Response.json({ id: "p1" });
+      });
+    });
+
+    async function toBorn(user: ReturnType<typeof userEvent.setup>) {
+      turns = [ROLE, PLACE, CONTRACT, REMOTE, JOB, EMPLOYER, SKILLS, DONE];
+      renderInFrench(<NewProfilePage />);
+      await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
+      await user.type(await screen.findByLabelText("Votre réponse"), "Directrice financière{Enter}");
+      // Not born yet: nothing to continue later.
+      await within(thread()).findByText(PLACE.ask.question);
+      expect(screen.queryByRole("button", { name: "Continuer plus tard" })).toBeNull();
+      await user.type(await screen.findByLabelText("Votre réponse"), "Lyon{Enter}");
+      await within(thread()).findByText(CONTRACT.ask.question);
+    }
+
+    it("announces the rest in 4 blocks once the target role and place are answered, and marks each block once, in words", async () => {
+      const user = userEvent.setup();
+      await toBorn(user);
+      expect(within(thread()).getByText("Il reste quatre blocs : vos critères, votre parcours, vos compétences et votre présentation.")).toBeTruthy();
+      // A heading in the thread, said once where the block starts, never before the Profile is born.
+      expect(blockMarks()).toEqual(["Bloc un sur quatre : vos critères"]);
+      expect(within(thread()).getByRole("heading", { name: "Bloc un sur quatre : vos critères" })).toBeTruthy();
+      // « Passer cette question » on each optional question of a block.
+      expect(screen.getByRole("button", { name: "Passer cette question" })).toBeTruthy();
+
+      await user.click(screen.getByRole("button", { name: "Oui, CDI" }));
+      await within(thread()).findByText(REMOTE.ask.question);
+      expect(blockMarks()).toEqual(["Bloc un sur quatre : vos critères"]);
+      await user.click(screen.getByRole("button", { name: "Passer cette question" }));
+      await within(thread()).findByText(JOB.ask.question);
+      expect(blockMarks()).toEqual(["Bloc un sur quatre : vos critères", "Bloc deux sur quatre : votre parcours"]);
+      await user.type(await screen.findByLabelText("Votre réponse"), "DAF{Enter}");
+      await within(thread()).findByText(EMPLOYER.ask.question);
+      expect(blockMarks()).toHaveLength(2);
+      // Nothing resumed here.
+      expect(asked.at(-1)).not.toHaveProperty("resumedAt");
+    });
+
+    it("« Continuer plus tard », once the Profile is born, saves the answers given and the block reached, and leaves for the Profile", async () => {
+      const user = userEvent.setup();
+      await toBorn(user);
+      await user.click(screen.getByRole("button", { name: "Oui, CDI" }));
+      await user.click(await screen.findByRole("button", { name: "Passer cette question" }));
+      await user.type(await screen.findByLabelText("Votre réponse"), "DAF{Enter}");
+      await within(thread()).findByText(EMPLOYER.ask.question);
+
+      await user.click(within(conversation()).getByRole("button", { name: "Continuer plus tard" }));
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/profils/p1"));
+      const saved = calls.find((call) => call.method === "PUT")!;
+      expect(saved).toMatchObject({
+        url: "/api/profiles/p1/onboarding",
+        body: { basedOnVersion: 1, block: "career", turns: 5, masterCv: { headline: "Directrice financière", location: "Lyon", experience: [{ title: "DAF" }] } },
+      });
+      // The criteria answered were saved as they were given, before it.
+      expect(calls.findIndex((call) => call.method === "PATCH")).toBeLessThan(calls.indexOf(saved));
+    });
+
+    it("« Reprendre la création » reopens the interview at the block reached, not at the start", async () => {
+      const user = userEvent.setup();
+      turns = [EMPLOYER];
+      const resumed = {
+        id: "p1",
+        version: 2,
+        masterCv: { fullName: "", headline: "Directrice financière", email: "", phone: "", location: "Lyon", summary: "", experience: [{ title: "DAF", employer: "", location: "", period: "", description: "" }], education: [], skills: [], languages: [] },
+        searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"], contractTypes: ["cdi" as const], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] },
+        resumesAt: { block: "career" as const, turns: 5 },
+      };
+      renderInFrench(
+        <AiActivityLiveProvider>
+          <WorkPaneProvider version="1.2.3">
+            <ProfileOnboarding resumed={resumed} />
+            <WorkPane />
+          </WorkPaneProvider>
+        </AiActivityLiveProvider>,
+      );
+      expect(await within(thread()).findByText(EMPLOYER.ask.question)).toBeTruthy();
+      expect(within(thread()).getByText(/Reprenons la création de votre profil là où vous l'aviez laissée : vos réponses sont enregistrées/)).toBeTruthy();
+      expect(blockMarks()).toEqual(["Bloc deux sur quatre : votre parcours"]);
+      expect(within(thread()).queryByText(ROLE.ask.question)).toBeNull();
+      expect(within(thread()).queryByRole("region", { name: "Votre recherche d'offres" })).toBeNull();
+      expect(asked[0]).toMatchObject({ resumedAt: { block: "career", turns: 5 }, exchange: [], draft: { searchCriteria: { contractTypes: ["cdi"] }, masterCv: { experience: [{ title: "DAF" }] } } });
+
+      // Continued later again: from the version it resumed, the turns before counted.
+      await user.click(within(conversation()).getByRole("button", { name: "Continuer plus tard" }));
+      await waitFor(() => expect(push).toHaveBeenCalledWith("/profils/p1"));
+      expect(calls.find((call) => call.method === "PUT")).toMatchObject({ body: { basedOnVersion: 2, block: "career", turns: 5 } });
+    });
+  });
+
   describe("« Modifier »: the summary rewritten in the Candidate's words, translated by the AI into changes to validate (#1005)", () => {
     type Call = { url: string; method: string; body: Record<string, unknown> };
     let calls: Call[];

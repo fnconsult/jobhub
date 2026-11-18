@@ -581,8 +581,9 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
       const saved = await saveOnboardingCv(candidateId, profileId, parsed.data);
       if (!saved.ok) return saved;
       await database.query(`UPDATE profile SET onboarding = 'done', onboarding_resume = NULL WHERE id = $1 AND candidate_id = $2`, [profileId, candidateId]);
-      const { onboardingResumesAt: _resumed, ...profile } = saved.profile;
-      return { ok: true, profile: { ...profile, onboarding: "done" } };
+      const profile: Profile = { ...saved.profile, onboarding: "done" };
+      delete profile.onboardingResumesAt;
+      return { ok: true, profile };
     },
 
     async continueOnboardingLater(candidateId, profileId, input) {

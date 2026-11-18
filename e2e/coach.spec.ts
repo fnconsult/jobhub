@@ -4,7 +4,7 @@ import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 import pg from "pg";
 import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
-import { catalogueStrings, renderedTexts } from "./support/accessibility";
+import { catalogueStrings, fontFloorOf, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { placeNames } from "./support/locations";
 import { newAddress } from "./support/mailbox";
@@ -468,9 +468,10 @@ test.describe("onboarding with the AI Coach", () => {
     allowed.add(interview.role);
     // The Usage Meter's percentage, a catalogue string with the week's number in it.
     allowed.add(fr.usageMeter.percent.replace("{{percent}}", "0"));
+    // The first welcome (#1051): Activité beside the conversation, its metadata (the Context bar's line) at its own floor.
     for (const t of await renderedTexts(page)) {
       expect.soft(allowed.has(t.text), `"${t.text}" comes from the catalogue`).toBe(true);
-      expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
+      expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(fontFloorOf(t));
       expect.soft(t.contrast, `contrast of "${t.text}"`).toBeGreaterThanOrEqual(4.5);
     }
   });

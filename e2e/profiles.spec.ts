@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { docxCv, MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
-import { catalogueStrings, renderedTexts } from "./support/accessibility";
+import { catalogueStrings, fontFloorOf, renderedTexts } from "./support/accessibility";
 import { signInWithMagicLink } from "./support/candidate";
 import { placeInput, placeNames, placeOptions, removePlace } from "./support/locations";
 import { newAddress } from "./support/mailbox";
@@ -262,9 +262,10 @@ test.describe("creating the first Profile from a CV", () => {
     const allowed = new Set(catalogueStrings(fr));
     // The Usage Meter's percentage, a catalogue string with the week's number in it.
     allowed.add(fr.usageMeter.percent.replace("{{percent}}", "0"));
+    // The first welcome (#1051): Activité beside the conversation, its metadata (the Context bar's line) at its own floor.
     for (const t of await renderedTexts(page)) {
       expect.soft(allowed.has(t.text), `"${t.text}" comes from the catalogue`).toBe(true);
-      expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
+      expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(fontFloorOf(t));
       expect.soft(t.contrast, `contrast of "${t.text}"`).toBeGreaterThanOrEqual(4.5);
     }
     await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles(pdfFile(MARIE_DUPONT_CV));
@@ -273,7 +274,7 @@ test.describe("creating the first Profile from a CV", () => {
     await openReviewDetail(page);
     await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();
     for (const t of await renderedTexts(page)) {
-      expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
+      expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(fontFloorOf(t));
       expect.soft(t.contrast, `contrast of "${t.text}"`).toBeGreaterThanOrEqual(4.5);
     }
   });

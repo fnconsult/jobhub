@@ -754,6 +754,39 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
       expect(await limited.create(candidateId, { masterCv: partial, searchCriteria: criteria, onboarding: "in_progress" })).toEqual({ ok: false, error: "plan_quota_reached" });
     });
 
+    describe("« Continuer plus tard » (#1046)", () => {
+      /** Answers given since it was born: a job, skills. */
+      const answered: MasterCvContent = { ...partial, experience: [{ title: "DAF", employer: "Groupe Seb", location: "", period: "", description: "" }], skills: ["IFRS"] };
+
+      it("saves the answers given as its next Master CV Version and the block reached, its onboarding still in progress", async () => {
+        const born = await bornProfile();
+        const later = await profiles.continueOnboardingLater(candidateId, born.id, { basedOnVersion: 1, masterCv: answered, block: "skills", turns: 9 });
+        expect(later).toMatchObject({ ok: true, profile: { onboarding: "in_progress", onboardingResumesAt: { block: "skills", turns: 9 }, masterCv: { version: 2, content: answered } } });
+        expect(await profiles.get(candidateId, born.id)).toMatchObject({ onboarding: "in_progress", onboardingResumesAt: { block: "skills", turns: 9 }, masterCv: { version: 2 } });
+        expect(await profiles.creationToResume(candidateId)).toBe(born.id);
+
+        // Left again with nothing new: no new version, the block reached kept.
+        expect(await profiles.continueOnboardingLater(candidateId, born.id, { basedOnVersion: 2, masterCv: answered, block: "presentation", turns: 11 })).toMatchObject({ ok: true, profile: { masterCv: { version: 2 } } });
+        expect((await profiles.get(candidateId, born.id))?.onboardingResumesAt).toEqual({ block: "presentation", turns: 11 });
+
+        // Finished, it resumes nowhere.
+        await profiles.finishOnboarding(candidateId, born.id, { basedOnVersion: 2, masterCv: answered });
+        expect((await profiles.get(candidateId, born.id))?.onboardingResumesAt).toBeUndefined();
+      });
+
+      it("refuses an unknown block, an outdated version, a finished, archived or someone else's Profile", async () => {
+        const born = await bornProfile();
+        expect(await profiles.continueOnboardingLater(candidateId, born.id, { basedOnVersion: 1, masterCv: answered, block: "hobbies", turns: 3 })).toMatchObject({ ok: false, errors: [{ field: "block" }] });
+        expect(await profiles.continueOnboardingLater(candidateId, born.id, { basedOnVersion: 1, masterCv: answered, block: "skills", turns: -1 })).toMatchObject({ ok: false, errors: [{ field: "turns" }] });
+        expect(await profiles.continueOnboardingLater(candidateId, born.id, { basedOnVersion: 4, masterCv: answered, block: "skills", turns: 3 })).toEqual({ ok: false, conflict: { currentVersion: 1 } });
+        expect(await profiles.continueOnboardingLater(await otherCandidate(), born.id, { basedOnVersion: 1, masterCv: answered, block: "skills", turns: 3 })).toEqual({ ok: false, error: "not_found" });
+        await profiles.archive(candidateId, born.id);
+        expect(await profiles.continueOnboardingLater(candidateId, born.id, { basedOnVersion: 1, masterCv: answered, block: "skills", turns: 3 })).toEqual({ ok: false, error: "archived" });
+        expect(await profiles.continueOnboardingLater(candidateId, (await createdProfile("Contrôleuse de gestion")).id, { basedOnVersion: 1, masterCv: answered, block: "skills", turns: 3 })).toEqual({ ok: false, error: "finished" });
+        expect((await profiles.get(candidateId, born.id))?.onboardingResumesAt).toBeUndefined();
+      });
+    });
+
     it("is created with its onboarding done at the review's save, and without onboarding elsewhere; an unknown state is refused", async () => {
       const done = await profiles.create(candidateId, { masterCv, searchCriteria: criteria, onboarding: "done" });
       expect(done.ok && (await profiles.get(candidateId, done.profile.id))?.onboarding).toBe("done");

@@ -28,32 +28,9 @@ import {
 } from "@jobhub/shared";
 import type { CvDraft } from "@/cv";
 import { language, splitList } from "@/questionnaire";
+import { CRITERIA_FIELDS, type InterviewField } from "./fields";
 
-/** The Search Criteria fields the interview asks or proposes, in the order a Profile needs them. */
-export const CRITERIA_FIELDS = ["targetRole", "locations", "contractTypes", "remoteWorkOptions", "minSalary", "sectors", "subsectors", "domains"] as const;
-/** The Master CV fields; an entry of a section by `section.field` (a new job starts with its title, a new degree with its name). */
-export const CV_FIELDS = [
-  "fullName",
-  "headline",
-  "email",
-  "phone",
-  "location",
-  "summary",
-  "skills",
-  "languages",
-  "experience.title",
-  "experience.employer",
-  "experience.location",
-  "experience.period",
-  "experience.description",
-  "education.degree",
-  "education.institution",
-  "education.year",
-] as const;
-export const INTERVIEW_FIELDS = [...CRITERIA_FIELDS, ...CV_FIELDS] as const;
-export type InterviewField = (typeof INTERVIEW_FIELDS)[number];
-
-export const isInterviewField = (field: unknown): field is InterviewField => typeof field === "string" && (INTERVIEW_FIELDS as readonly string[]).includes(field);
+export { CRITERIA_FIELDS, CV_FIELDS, INTERVIEW_FIELDS, isInterviewField, type InterviewField } from "./fields";
 
 /** What a Profile cannot be born without (#999): never skipped. */
 export const REQUIRED_FIELDS: readonly InterviewField[] = ["targetRole", "locations"];

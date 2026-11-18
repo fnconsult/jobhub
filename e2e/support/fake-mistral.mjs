@@ -112,7 +112,8 @@
 // draft and the exchange it is sent, one field at a time: the target role (a one-word answer is challenged once, « trop
 // vague »), a place, the contract type with a deduction to validate (CDI, from the target role), remote work (a choice),
 // the minimum salary, then it is done. The whole interview fails with a 503 once "E2E_AI_DOWN" is in what it is sent (an
-// answer or the opening line), so tests can watch the scripted questions take over.
+// answer or the opening line), so tests can watch the scripted questions take over. With « (blocs) » in the target role, it
+// goes on in the four blocks (#1046): the criteria, the career, the skills, the presentation, from the block the prompt names.
 const realFetch = globalThis.fetch;
 /** Calls so far per scripted Tailored CV id (E2E_CV_REPLIES). */
 const scriptedCalls = new Map();
@@ -495,6 +496,8 @@ function interviewTurn(prompt) {
   }
   if (!criteria.targetRole) return { ask: ask("targetRole", "Quel poste recherchez-vous ?"), proposal: null, challenge: "", done: false };
   if (!criteria.locations?.length) return { ask: ask("locations", "Dans quelle ville souhaitez-vous travailler ?"), proposal: null, challenge: "", done: false };
+  // « (blocs) » in the target role (#1046): the rest in the four blocks, from the block in progress the prompt names.
+  if (/\(blocs\)/.test(criteria.targetRole)) return blocksTurn(prompt, draft, asked, ask);
   if (!asked.includes("contractTypes")) {
     return {
       ask: ask("contractTypes", "Quel type de contrat recherchez-vous ?", "choice"),
@@ -505,6 +508,33 @@ function interviewTurn(prompt) {
   }
   if (!asked.includes("remoteWorkOptions")) return { ask: ask("remoteWorkOptions", "Quel rythme de télétravail vous convient ?", "choice"), proposal: null, challenge: "", done: false };
   if (!asked.includes("minSalary")) return { ask: ask("minSalary", "Quel salaire annuel brut minimum visez-vous ?"), proposal: null, challenge: "", done: false };
+  return { ask: ask("summary", "Merci, j'ai ce qu'il faut."), proposal: null, challenge: "", done: true };
+}
+
+/**
+ * The interview's turn in four blocks (#1046), for a target role holding « (blocs) »: the prompt says « Bloc en cours : n sur 4 »,
+ * and the question is the first of that block's and the later ones' that was neither asked nor answered; done after the last.
+ */
+const BLOCK_QUESTIONS = [
+  [["contractTypes", "Quel type de contrat recherchez-vous ?", "choice"], ["remoteWorkOptions", "Quel rythme de télétravail vous convient ?", "choice"], ["minSalary", "Quel salaire annuel brut minimum visez-vous ?", "text"]],
+  [["experience.title", "Quel est l'intitulé de votre dernier poste ?", "text"], ["education.degree", "Quelle est votre formation ?", "text"]],
+  [["skills", "Quelles sont vos principales compétences ?", "text"]],
+  [["summary", "Présentez-vous en quelques phrases.", "multiline"]],
+];
+function blocksTurn(prompt, draft, asked, ask) {
+  const current = Number(/Bloc en cours : (\d) sur 4/.exec(prompt)?.[1] ?? 1);
+  const criteria = draft.searchCriteria ?? {};
+  const cv = draft.masterCv ?? {};
+  const known = (field) =>
+    ({ contractTypes: criteria.contractTypes?.length, remoteWorkOptions: criteria.remoteWorkOptions?.length, minSalary: criteria.minSalary, "experience.title": cv.experience?.[0]?.title, "education.degree": cv.education?.[0]?.degree, skills: cv.skills?.length, summary: cv.summary })[field];
+  for (const [index, questions] of BLOCK_QUESTIONS.entries()) {
+    if (index + 1 < current) continue;
+    const next = questions.find(([field]) => !asked.includes(field) && !known(field));
+    if (!next) continue;
+    const [field, question, kind] = next;
+    const proposal = field === "contractTypes" ? { field, value: ["cdi"], because: "Un poste de ce type est le plus souvent proposé en CDI." } : null;
+    return { ask: ask(field, question, kind), proposal, challenge: "", done: false };
+  }
   return { ask: ask("summary", "Merci, j'ai ce qu'il faut."), proposal: null, challenge: "", done: true };
 }
 

@@ -33,6 +33,8 @@ describe("task Playbooks as written in this repo (ADR-0026)", () => {
     expect(interview).toMatchObject({ title: "Mener l'entretien d'accueil", aiTask: "onboarding_interview", agent: true, search: false, validatedAtImport: false });
     expect(interview.instructions).toMatch(/Une seule question à la fois/);
     expect(interview.instructions).toMatch(/D'abord le poste visé \(targetRole\), puis le lieu \(locations\)/);
+    // The rest in 4 blocks, announced once the Profile is born (#1046).
+    expect(interview.instructions).toMatch(/en 4 blocs : critères, parcours, compétences, présentation/);
   });
 
   it("read a text's `## key` sections, a note before the first one left out", () => {

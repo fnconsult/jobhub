@@ -1,7 +1,8 @@
 /**
  * Whether a CV is wholly in its Document Language: the texts it still holds in another language, each as
- * written. A cheap, deterministic check (`textLanguage`): a text too short to tell (a proper noun, a figure,
- * « IFRS ») never counts. Safe to use in the browser.
+ * written, a description's bullets one by one. `propose` asks the AI Coach once more for those it finds (#1077).
+ * A cheap, deterministic check (`textLanguage`): a text too short to tell (a proper noun, a figure, « IFRS »)
+ * never counts. Safe to use in the browser.
  */
 import { textLanguage, type CvContent, type DocumentLanguage } from "@jobhub/shared";
 
@@ -10,7 +11,8 @@ function textsOf(cv: CvContent): string[] {
   return [
     cv.headline,
     cv.summary,
-    ...cv.experience.flatMap((job) => [job.title, job.period, job.description]),
+    // A description is read line by line: each bullet is a text of its own, so one left in French is found.
+    ...cv.experience.flatMap((job) => [job.title, job.period, ...job.description.split("\n")]),
     ...cv.education.map((item) => item.degree),
     ...cv.skills,
     ...cv.languages.flatMap((item) => [item.name, item.level]),

@@ -61,6 +61,7 @@ import type { Profiles } from "../profiles";
 import { routes } from "../routes";
 import { taskRun, type TaskPlaybookReader, type TaskRun } from "../task-playbooks";
 import { documentLanguageOf, keepDocumentLanguage } from "../tailored-documents/document-language";
+import { textsNotIn } from "./language";
 import { fieldErrors, type FieldError } from "../validation";
 import { cvChanges, flagOfferWording, stemOf, withChanges, wordsOf, type CvChange, type CvOrigins } from "./changes";
 import { askForTailoredCv, type AiReply } from "./reply";
@@ -235,7 +236,10 @@ function periodOf(proposed: string | undefined, original: string, language: Docu
  */
 function invents(rephrased: string, masterText: string, keywords: string[]): boolean {
   const said = normalise(rephrased);
-  if (numbersIn(rephrased).some((number) => !masterText.includes(` ${number} `))) return true;
+  // The Master CV's figures read as the rephrasing's are: « +25 % », « 500k€ », « B2B2X » or « 1er » state 25, 500, 2 and 1,
+  // which a translation writes « +25% », « €500k », « B2B2X » or « 1st » (#1077).
+  const figures = new Set(numbersIn(masterText));
+  if (numbersIn(rephrased).some((number) => !figures.has(number))) return true;
   return keywords.some((keyword) => said.includes(normalise(keyword)) && !masterText.includes(normalise(keyword)));
 }
 
@@ -322,6 +326,12 @@ const LANGUAGE: Record<DocumentLanguage, string> = {
   en: `- Write every text of the CV in English: translate each text of their reference CV written in another language (headline, summary, each job's title, period, place and description, degrees, skills, languages and levels). Translating is not adding: change no fact and no figure. Keep proper nouns (employers, schools, products) as they are, and the "id" of each job, degree, language and skill you keep.`,
 };
 
+/** Told when a proposal is left partly in another language than the Document Language: the passages to write again. */
+const NOT_IN: Record<DocumentLanguage, (passages: string[]) => string> = {
+  fr: (passages) => `Ta proposition précédente n'était pas entièrement en français. Propose de nouveau tout le CV en français, en traduisant aussi ces passages, sans rien changer aux faits ni aux chiffres :\n${passages.map((passage) => `« ${passage} »`).join("\n")}`,
+  en: (passages) => `Your previous proposal was not wholly in English. Propose the whole CV again in English, translating these passages too, changing no fact and no figure:\n${passages.map((passage) => `"${passage}"`).join("\n")}`,
+};
+
 /** The reply's shape (`replyIn`), in each Document Language, after the task Playbook's instructions. */
 const SHAPE: Record<DocumentLanguage, string> = {
   fr: `Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experience": [{"id": "", "employer": "", "period": "", "location": "", "title": "", "description": ""}], "education": [{"id": "", "degree": "", "institution": "", "year": ""}], "skills": [{"id": "", "text": ""}], "languages": [{"id": "", "name": "", "level": ""}], "missing": [""]}.`,
@@ -393,21 +403,23 @@ async function offerWording(ai: AiLayer, candidateId: string, master: CvContent,
   const adaptedStems = new Set(wordsOf(cvText(adapted)).map(stemOf));
   const used = offerWords.filter((word) => adaptedStems.has(stemOf(word))).slice(0, MAX_TRANSLATED_WORDS);
   const translations = used.length ? await translateWords(ai, candidateId, used, masterLanguage) : {};
+  // A word whose translation, any of its usual ones, the Master CV says is no word taken from the Job Offer: « manager » is « responsable » (#1077).
   const inMaster = (word: string) => {
     const translation = translations[word];
-    return typeof translation === "string" && wordsOf(translation).some((translated) => masterStems.has(stemOf(translated)));
+    const options = Array.isArray(translation) ? translation : [translation];
+    return options.some((option) => typeof option === "string" && wordsOf(option).some((translated) => masterStems.has(stemOf(translated))));
   };
   return { offerWording: [...new Set(used.filter((word) => !inMaster(word)).map(stemOf))], offerWordingTranslated: true };
 }
 
-/** `words` translated into `language` by the AI Coach, word by word; {} when it gives no usable reply. */
+/** `words` translated into `language` by the AI Coach, word by word, each with its usual translations; {} when it gives no usable reply. */
 async function translateWords(ai: AiLayer, candidateId: string, words: string[], language: DocumentLanguage): Promise<Record<string, unknown>> {
   const into = language === "fr" ? "French" : "English";
   try {
     const { text } = await ai.generate({
       task: "writing",
       candidateId,
-      system: `Translate each word of the list into ${into}, as used in a job offer. Reply with a JSON object only, each word of the list as a key and its translation as the value.`,
+      system: `Translate each word of the list into ${into}, as used in a job offer or a CV. Reply with a JSON object only, each word of the list as a key and, as the value, a list of its usual translations, up to 3 (for "manager": ["responsable", "manager", "gestionnaire"]).`,
       prompt: JSON.stringify(words),
     });
     const json: unknown = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
@@ -497,8 +509,19 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
       const asked = await askForTailoredCv(recorder.ai, { task: "writing", candidateId, system: systemPrompt(run, language), prompt, ...run.agent });
       if (signal?.aborted) return stopped;
       if (!asked.ok) return { ok: false, error: "unavailable", reason: asked.reason };
-      const { reply } = asked;
-      const { content: adapted, origins } = fromMasterCv(master, reply, jobOffer.skills ?? [], language);
+      let { reply } = asked;
+      let { content: adapted, origins } = fromMasterCv(master, reply, jobOffer.skills ?? [], language);
+      // Left partly in another language (a description or bullet kept as the Master CV writes it): asked for once more,
+      // those passages named; the second proposal is kept when it leaves fewer (#1077).
+      const notIn = textsNotIn(adapted, language);
+      if (notIn.length > 0) {
+        const again = await askForTailoredCv(recorder.ai, { task: "writing", candidateId, system: systemPrompt(run, language), prompt: `${prompt}\n\n${NOT_IN[language](notIn)}`, ...run.agent });
+        if (signal?.aborted) return stopped;
+        if (again.ok) {
+          const rebuilt = fromMasterCv(master, again.reply, jobOffer.skills ?? [], language);
+          if (textsNotIn(rebuilt.content, language).length < notIn.length) ({ reply, content: adapted, origins } = { reply: again.reply, ...rebuilt });
+        }
+      }
       const proposal: ProposalRow = {
         language,
         profileId: profile.id,

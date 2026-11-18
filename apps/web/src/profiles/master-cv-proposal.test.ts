@@ -98,6 +98,13 @@ describe("a Master CV change proposed by the AI Coach, reviewed change by change
     expect(masterCvReview(master, [{ kind: "rephrase", section: "skills", item: "Consolidation", text: "Consolidation IFRS" }]).ok).toBe(true);
   });
 
+  it("reads a figure written within a word or with a sign as the Master CV writes it: no invented figure (#1077)", () => {
+    const withFigures = { ...master, experience: [{ ...master.experience[0]!, description: "Réorganisation des flux : +25 % de capacité, 500k€ économisés, SaaS B2B2X." }, master.experience[1]!] };
+    const review = masterCvReview(withFigures, [{ kind: "rephrase", section: "experience", item: "Groupe Seb", description: "Flux réorganisés : +25 % de capacité, 500k€ économisés (SaaS B2B2X)." }]);
+    expect(review.ok).toBe(true);
+    expect(masterCvReview(withFigures, [{ kind: "rephrase", section: "experience", item: "Groupe Seb", description: "Flux réorganisés : +30 % de capacité." }])).toMatchObject({ ok: false, error: "invented_figure" });
+  });
+
   it("proposes nothing when the edits change nothing", () => {
     expect(masterCvReview(master, [{ kind: "rephrase", section: "headline", text: master.headline }])).toEqual({ ok: false, error: "no_change" });
   });

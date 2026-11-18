@@ -595,6 +595,108 @@ Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experi
       expect(result.tailoredCv.proposal.changes.filter((change) => change.kind === "cut")).toEqual([]);
     });
 
+    it("a description of a paragraph and bullets is translated, its figures written as the Master CV writes them (« +25 % », « B2B2X », « 1er », « 500k€ »)", async () => {
+      const application = await createApplications(database, { jobOffers, profiles }).get(candidateId, applicationId);
+      const withBullets: MasterCvContent = {
+        ...frenchCv,
+        experience: [
+          {
+            title: "Responsable Supply Chain et Production",
+            employer: "OSP Holding",
+            location: "Lyon",
+            period: "2020–2022",
+            description:
+              "Sécurisation et optimisation des opérations industrielles et logistiques.\n• Réorganisation des flux et espaces : +25 % de capacité.\n• Sourcing alternatif sur le 1er fournisseur : 500k€ économisés.",
+          },
+          { title: "Fondateur & Architecte produit", employer: "DEVARQ", location: "", period: "2025–présent", description: "• Conception d'une plateforme SaaS B2B2X multi-tenant.\n• Orchestration LLM." },
+        ],
+      };
+      const saved = await profiles.saveMasterCv(candidateId, application!.profile.id, { basedOnVersion: 1, content: withBullets });
+      if (!saved?.ok) throw new Error("fixture Master CV refused");
+      const description = [
+        "Securing and optimising industrial and logistics operations.\n• Reorganised flows and spaces: +25% capacity.\n• Alternative sourcing for the 1st supplier: €500k saved.",
+        "• Designed a multi-tenant B2B2X SaaS platform.\n• LLM orchestration.",
+      ];
+      replies = [
+        {
+          ...translated,
+          experience: [
+            { id: "j0", employer: "OSP Holding", period: "2020–2022", title: "Supply Chain & Production Manager", description: description[0] },
+            { id: "j1", employer: "DEVARQ", period: "2025–present", title: "Founder & Product Architect", description: description[1] },
+          ],
+        },
+      ];
+      reply = {};
+
+      const result = await tailoredCvs.propose(candidateId, applicationId, { language: "en" });
+
+      if (!result.ok || !result.tailoredCv.proposal) throw new Error("no proposal");
+      const { content } = result.tailoredCv.proposal;
+      expect(content.experience.map((job) => job.description)).toEqual(description);
+      expect(textsNotIn(content, "en")).toEqual([]);
+    });
+
+    it("a word that translates the Master CV's own is not flagged as taken from the Job Offer: « Manager » for « Responsable » (#1077)", async () => {
+      const english = await saveApplication({
+        source: { url: "https://jobs.example.com/supply-chain" },
+        title: "Supply Chain Manager",
+        content: "We are looking for a Supply Chain Manager who will lead our logistics operations and our omnichannel distribution.",
+        employer: "Globex Ltd",
+        skills: [],
+      });
+      const application = await createApplications(database, { jobOffers, profiles }).get(candidateId, english);
+      const responsable = { ...frenchCv, experience: [{ ...frenchCv.experience[0]!, title: "Responsable logistique" }, frenchCv.experience[1]!] };
+      const saved = await profiles.saveMasterCv(candidateId, application!.profile.id, { basedOnVersion: 1, content: responsable });
+      if (!saved?.ok) throw new Error("fixture Master CV refused");
+      replies = [{ ...translated, experience: [{ ...translated.experience[0], title: "Logistics Manager, omnichannel distribution" }, translated.experience[1]] }];
+      // Each Job Offer word with its usual translations into the Master CV's language: « manager » is also « responsable ».
+      reply = { manager: ["gestionnaire", "responsable", "manager"], logistics: ["logistique"], omnichannel: ["omnicanal"], distribution: ["distribution"] };
+
+      const result = await tailoredCvs.propose(candidateId, english, { language: "en" });
+
+      if (!result.ok || !result.tailoredCv.proposal) throw new Error("no proposal");
+      expect(provider.calls.at(-1)!.system).toMatch(/up to 3/);
+      const fromOffer = result.tailoredCv.proposal.changes.find((change) => change.id === "experience.rephrased.0")?.fromOffer ?? [];
+      // Only what the Master CV does not say, in no translation: « omnichannel distribution ».
+      expect(fromOffer).toEqual(["omnichannel", "distribution"]);
+    });
+
+    it("a description or bullet the AI Coach leaves in French is asked for once more, those passages named, and the English one kept", async () => {
+      const french = await frenchCvApplication();
+      const kept = { ...translated, experience: [{ ...translated.experience[0], description: frenchCv.experience[0]!.description }, translated.experience[1]] };
+      replies = [kept, translated];
+      reply = {};
+
+      const result = await tailoredCvs.propose(candidateId, french, { language: "en" });
+
+      const asked = provider.calls.filter((call) => !call.system?.startsWith("Translate"));
+      expect(asked).toHaveLength(2);
+      expect(asked[1]!.messages.map((message) => message.content).join("\n")).toContain(frenchCv.experience[0]!.description);
+      if (!result.ok || !result.tailoredCv.proposal) throw new Error("no proposal");
+      expect(textsNotIn(result.tailoredCv.proposal.content, "en")).toEqual([]);
+    });
+
+    it("a proposal wholly in the Document Language is not asked for again", async () => {
+      const french = await frenchCvApplication();
+      replies = [translated];
+      reply = {};
+
+      await tailoredCvs.propose(candidateId, french, { language: "en" });
+
+      expect(provider.calls.filter((call) => !call.system?.startsWith("Translate"))).toHaveLength(1);
+    });
+
+    it("a figure the Master CV does not state still keeps its text, in any language (ADR-0006)", async () => {
+      const french = await frenchCvApplication();
+      replies = [{ ...translated, experience: [{ ...translated.experience[0], description: "IFRS consolidation of 15 subsidiaries and cash management." }, translated.experience[1]] }];
+      reply = {};
+
+      const result = await tailoredCvs.propose(candidateId, french, { language: "en" });
+
+      if (!result.ok || !result.tailoredCv.proposal) throw new Error("no proposal");
+      expect(result.tailoredCv.proposal.content.experience[0]!.description).toBe(frenchCv.experience[0]!.description);
+    });
+
     it("a period the AI Coach leaves in French, or gives other years, is the Master CV's translated: nothing invented", async () => {
       const french = await frenchCvApplication();
       replies = [{ ...translated, experience: [{ ...translated.experience[0], period: "janv. 2005 – aujourd'hui" }, { ...translated.experience[1], period: "Sep 1996 – Dec 2004" }] }];
@@ -679,7 +781,16 @@ Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experi
 
   it("in another Document Language, translating the Job Offer's words is a step of its own, a think (#334)", async () => {
     const english = await saveApplication(ENGLISH_OFFER);
-    replies = [{ ...PROPOSAL, headline: "Chief Financial Officer" }];
+    // Wholly in English: one proposal, asked for once (#1077).
+    replies = [
+      {
+        ...PROPOSAL,
+        headline: "Chief Financial Officer",
+        summary: "Chief Financial Officer since 2005, 12 subsidiaries consolidated.",
+        experience: [{ employer: "Groupe Seb", period: "2005 – 2024", title: "Chief Financial Officer", description: "IFRS consolidation of 12 subsidiaries." }],
+        languages: [{ name: "English", level: "fluent" }],
+      },
+    ];
     reply = { chief: "directrice" };
     const events: ProvenanceEvent[] = [];
 

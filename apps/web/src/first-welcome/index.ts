@@ -4,9 +4,8 @@
  * right, never empty: the Profile in construction before it is born, then the offered Job Search's progress and its Job
  * Offers with their Match Score. On a phone there is no split: once the offered Job Search found Job Offers at the Match
  * Score threshold (FUNNEL_MATCH_SCORE) or above, a card of the first ones shows in the thread. « Ajouter un profil » (a
- * finished Profile exists) keeps the page as it was.
+ * finished Profile exists, Profiles.hasFinished) keeps the page as it was.
  *
- *   isFirstWelcome(profiles)            whether the account has no finished Profile
  *   firstOffers(best)                   the phone card's Job Offers: up to 3 at the threshold or above, the best first
  *   profileBuilding({ creation, … })    the Profile in construction: its CV, target role and places so far
  *
@@ -14,14 +13,6 @@
  */
 import { FUNNEL_MATCH_SCORE } from "@jobhub/shared";
 import type { CreationGiven, EntryOffer } from "../ai-activity/entries";
-
-/** Where a Profile's onboarding stands, as the page reads it: absent or null for one made otherwise (finished). */
-export type ProfileFinish = { onboarding?: "in_progress" | "done" | null };
-
-/** Whether the account has no finished Profile: none at all, or only « Création à terminer » ones. */
-export function isFirstWelcome(profiles: readonly ProfileFinish[]): boolean {
-  return profiles.every((profile) => profile.onboarding === "in_progress");
-}
 
 /** How many Job Offers the phone's card lists. */
 export const FIRST_OFFERS_SHOWN = 3;

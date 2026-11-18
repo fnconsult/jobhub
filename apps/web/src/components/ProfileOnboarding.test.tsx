@@ -7,24 +7,30 @@ import { AiActivityContent, AiActivityProvider } from "./AiActivity";
 import { AiActivityLiveProvider } from "./AiActivityLive";
 import { EnCeMoment } from "./EnCeMoment";
 import { JobSearchNotifications } from "./JobSearchNotifications";
+import { ProfileBuilding } from "./ProfileBuilding";
 import { ProfileOnboarding } from "./ProfileOnboarding";
 import { WorkPane, WorkPaneProvider } from "./WorkPane";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ usePathname: () => "/profils/nouveau", useRouter: () => ({ push, refresh: vi.fn() }) }));
 
-/** /profils/nouveau: the conversation in the page, the Work Pane beside it, and its Activity (#810), fed by the Job Search poll. */
-function NewProfilePage() {
+/**
+ * /profils/nouveau: the conversation in the page, the Work Pane beside it, and its Activity (#810), fed by the Job Search
+ * poll. Outside a FicheProvider, the screen is a phone's (no Activité column to open); `firstWelcome`: no finished Profile (#1051).
+ */
+function NewProfilePage({ firstWelcome = false }: { firstWelcome?: boolean } = {}) {
   return (
     <AiActivityLiveProvider>
       <JobSearchNotifications initial={{ notifications: [], searching: false, running: [] }} everyMs={20} />
       <AiActivityProvider>
         <WorkPaneProvider version="1.2.3">
           <main>
-            <ProfileOnboarding />
+            <ProfileOnboarding firstWelcome={firstWelcome} />
           </main>
           <WorkPane />
           <aside aria-label="Activité">
+            {/* In the first welcome's split (#1051), the Profile in construction first (Fiche). */}
+            {firstWelcome ? <ProfileBuilding /> : null}
             <EnCeMoment />
             <AiActivityContent />
           </aside>
@@ -242,6 +248,8 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
     let turns: (object | "down")[];
     let searches: number;
     let polled: string[];
+    /** The Job Offers the offered Job Search found: o1 and o2 match the criteria answered (Directrice financière, Lyon). */
+    let found: object[];
     const measures = {
       step: "search",
       sources: [
@@ -261,6 +269,10 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       created = 201;
       turns = [];
       searches = 0;
+      found = [
+        { id: "o1", title: "DAF", employer: "Groupe Ferlac", content: "Directrice financière à Lyon.", location: "Lyon", contractType: "cdi" },
+        { id: "o2", title: "DAF", content: "Directrice financière à Lyon.", location: "Lyon", contractType: "cdd" },
+      ];
       vi.stubGlobal("fetch", async (url: string, init: RequestInit = {}) => {
         // The Sectors' and Domains' labels: none here.
         if (url === "/api/reference-data") return new Response(null, { status: 404 });
@@ -280,13 +292,8 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
             id: "s1",
             status: "searching",
             failure: null,
-            live: { ...measures, jobOfferIds: ["o1", "o2"] },
-            jobOffers: url.includes("known=")
-              ? []
-              : [
-                  { id: "o1", title: "DAF", content: "Directrice financière à Lyon.", location: "Lyon", contractType: "cdi" },
-                  { id: "o2", title: "DAF", content: "Directrice financière à Lyon.", location: "Lyon", contractType: "cdd" },
-                ],
+            live: { ...measures, jobOfferIds: found.map((offer) => (offer as { id: string }).id) },
+            jobOffers: url.includes("known=") ? [] : found,
           });
         }
         calls.push({ url, method: init.method ?? "GET", body: JSON.parse(String(init.body ?? "{}")) });
@@ -428,6 +435,81 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       expect(within(entry).getAllByRole("link", { name: "DAF" }).map((link) => link.getAttribute("href"))).toEqual(["/recherches/s1/offres/o1", "/recherches/s1/offres/o2"]);
       expect(within(entry).getByText(/Les offres s'ajoutent à mesure qu'elles sont trouvées/).textContent).toMatch(/une notification vous préviendra/);
 
+    });
+
+    describe("the first welcome on a phone (#1051)", () => {
+      const card = () => within(thread()).queryByRole("region", { name: "Vos premières offres" });
+      const answerRoleAndPlace = async (user: ReturnType<typeof userEvent.setup>) => {
+        await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
+        for (const said of ["Directrice financière", "Lyon", "Marie Dupont"]) await user.type(await screen.findByLabelText("Votre réponse"), `${said}{Enter}`);
+      };
+
+      it("tells Activité the Profile in construction as the Candidate answers, until the offered Job Search takes its place", async () => {
+        searches = 2;
+        const user = userEvent.setup();
+        renderInFrench(<NewProfilePage firstWelcome />);
+        const building = () => within(activity()).getByRole("region", { name: "Profil en construction" });
+        const value = (term: string) => within(building()).getByText(term).nextElementSibling?.textContent;
+        expect(value("Poste visé")).toBe("Pas encore dans votre profil");
+        await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
+        await user.type(await screen.findByLabelText("Votre réponse"), "Directrice financière{Enter}");
+        await waitFor(() => expect(value("Poste visé")).toBe("Directrice financière"));
+        expect(value("Lecture du CV")).toBe("Sans CV : vos réponses le remplacent");
+        expect(value("Lieux")).toBe("Pas encore dans votre profil");
+        await user.type(await screen.findByLabelText("Votre réponse"), "Lyon{Enter}");
+        await waitFor(() => expect(value("Lieux")).toBe("Lyon"));
+      });
+
+      it("shows a card of the first offers in the thread once the offered Job Search found some at the Match Score threshold", async () => {
+        const user = userEvent.setup();
+        renderInFrench(<NewProfilePage firstWelcome />);
+        await answerRoleAndPlace(user);
+        const shown = await waitFor(() => {
+          const region = card();
+          if (!region) throw new Error("no card yet");
+          return region;
+        });
+        const offers = within(shown).getAllByRole("listitem");
+        expect(offers).toHaveLength(2);
+        // Title, employer, place and Match Score, in words: nothing by colour alone.
+        expect(within(offers[0]!).getByRole("link", { name: "DAF" }).getAttribute("href")).toBe("/recherches/s1/offres/o1");
+        expect(offers[0]!.textContent).toMatch(/^DAFGroupe Ferlac · Lyon · Match Score \d+\/100$/);
+        expect(offers[1]!.textContent).toMatch(/^DAFLyon · Match Score \d+\/100$/);
+        expect(within(shown).getByRole("link", { name: "Voir toutes les offres" }).getAttribute("href")).toBe("/recherches/s1");
+        // Said once, by the page, and not again by the thread as it changes.
+        expect(shown.closest("li")!.getAttribute("aria-live")).toBe("off");
+        expect(screen.getByText("Vos premières offres sont arrivées dans la conversation.").getAttribute("aria-live")).toBe("polite");
+      });
+
+      it("lists 3 offers at most, the best first", async () => {
+        found = [1, 2, 3, 4].map((n) => ({ id: `o${n}`, title: `DAF ${n}`, content: "Directrice financière à Lyon.", location: "Lyon", contractType: "cdi" }));
+        const user = userEvent.setup();
+        renderInFrench(<NewProfilePage firstWelcome />);
+        await answerRoleAndPlace(user);
+        await waitFor(() => expect(card()).not.toBeNull());
+        expect(within(card()!).getAllByRole("listitem")).toHaveLength(3);
+      });
+
+      it("shows no card when no offer reaches the threshold: the coach's line on the search stays", async () => {
+        found = [{ id: "o1", title: "Boulanger", content: "Boulangerie à Brest.", location: "Brest", contractType: "interim", requiredExperienceYears: 0 }];
+        const user = userEvent.setup();
+        renderInFrench(<NewProfilePage firstWelcome />);
+        await answerRoleAndPlace(user);
+        await waitFor(() => expect(polled).toContain("/api/job-searches/s1/live"));
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        expect(card()).toBeNull();
+        expect(within(thread()).getByText(/je lance dès maintenant une première recherche d'offres/)).toBeTruthy();
+      });
+
+      it("shows no card for « Ajouter un profil », a finished Profile already there", async () => {
+        const user = userEvent.setup();
+        renderInFrench(<NewProfilePage />);
+        await answerRoleAndPlace(user);
+        await waitFor(() => expect(polled).toContain("/api/job-searches/s1/live"));
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        expect(card()).toBeNull();
+        expect(screen.queryByText("Vos premières offres sont arrivées dans la conversation.")).toBeNull();
+      });
     });
 
     it("closes the review without leaving the page: no new load of it, which would meet the Plan Quota the Profile born counts in", async () => {

@@ -1468,6 +1468,30 @@
         "minSalary": "Quel salaire annuel brut minimum visez-vous ?"
       },
       "reading": "Je lis votre CV. Suivez la lecture dans « Activité » : ce que j'y trouve s'y affiche, et ce qui manque encore."
+    },
+    "firstWelcome": {
+      "building": {
+        "label": "Profil en construction",
+        "intro": "Votre profil se construit ici au fil de vos réponses. Dès qu'il a un poste visé et un lieu, une première recherche d'offres, offerte, démarre et s'affiche ici.",
+        "cv": "Lecture du CV",
+        "cvStates": {
+          "waiting": "Pas encore envoyé",
+          "reading": "Lecture en cours…",
+          "read": "Lu : le détail est dans « Création du profil »",
+          "none": "Sans CV : vos réponses le remplacent"
+        },
+        "targetRole": "Poste visé",
+        "locations": "Lieux",
+        "missing": "Pas encore dans votre profil"
+      },
+      "offers": {
+        "title": "Vos premières offres",
+        "intro": "La recherche offerte a trouvé des offres qui vous correspondent. Les meilleures d'abord :",
+        "matchScore": "Match Score {{score}}/100",
+        "all": "Voir toutes les offres",
+        "announce": "Vos premières offres sont arrivées dans la conversation.",
+        "announceActivity": "Vos premières offres sont arrivées dans « Activité »."
+      }
     }
   },
   "onboardingSearch": {

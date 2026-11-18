@@ -1468,6 +1468,30 @@
         "minSalary": "What minimum gross annual salary are you aiming for?"
       },
       "reading": "I'm reading your CV. Follow the reading in « Activity »: what I find in it shows there, and what is still missing."
+    },
+    "firstWelcome": {
+      "building": {
+        "label": "Profile in progress",
+        "intro": "Your profile takes shape here as you answer. As soon as it has a target role and a location, a first job search, free of charge, starts and shows here.",
+        "cv": "CV reading",
+        "cvStates": {
+          "waiting": "Not sent yet",
+          "reading": "Reading…",
+          "read": "Read: the details are in “Profile creation”",
+          "none": "No CV: your answers take its place"
+        },
+        "targetRole": "Target role",
+        "locations": "Locations",
+        "missing": "Not in your profile yet"
+      },
+      "offers": {
+        "title": "Your first job offers",
+        "intro": "The free job search found offers that match you. The best first:",
+        "matchScore": "Match Score {{score}}/100",
+        "all": "See all job offers",
+        "announce": "Your first job offers have arrived in the conversation.",
+        "announceActivity": "Your first job offers have arrived in Activity."
+      }
     }
   },
   "onboardingSearch": {

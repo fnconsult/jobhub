@@ -204,6 +204,11 @@ export interface Profiles {
    * terminer », #999), the one `/profils/nouveau` resumes when the Plan Quota is reached (#1048); null when none.
    */
   creationToResume(candidateId: string): Promise<string | null>;
+  /**
+   * Whether the Candidate has a finished Profile, archived or not: one whose onboarding is done, or made otherwise (the
+   * extension, a duplicate). Without one, `/profils/nouveau` is their first welcome, split in two on a wide screen (#1051).
+   */
+  hasFinished(candidateId: string): Promise<boolean>;
   /** The Profile, or null if it does not exist or belongs to someone else. */
   get(candidateId: string, profileId: string): Promise<Profile | null>;
   /**
@@ -712,6 +717,14 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
         [candidateId],
       );
       return rows;
+    },
+
+    async hasFinished(candidateId) {
+      const { rows } = await database.query<{ finished: boolean }>(
+        `SELECT EXISTS (SELECT 1 FROM profile WHERE candidate_id = $1 AND onboarding IS DISTINCT FROM 'in_progress') AS finished`,
+        [candidateId],
+      );
+      return rows[0]?.finished === true;
     },
 
     async creationToResume(candidateId) {

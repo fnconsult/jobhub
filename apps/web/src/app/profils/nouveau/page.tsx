@@ -24,6 +24,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * in the Plan Quota already. Any other Profile of theirs opens its own page. Without it, once the Plan allows no more
  * Profiles, their most recent Profile « Création à terminer » resumes there instead of the Upgrade prompt (#1048).
  * A Candidate without any Profile is led here from `/` and `/compte` (#1050), and offered « Plus tard », to Mon compte.
+ * Without any finished Profile, it is their first welcome (#1051): on a wide screen the conversation and Activité split in
+ * two from the first question; on a phone, the offered Job Search's first offers come as a card in the thread.
  */
 export default async function NewProfilePage({ searchParams }: { searchParams: Promise<{ profil?: string | string[] }> }) {
   const candidate = await getCurrentCandidate();
@@ -35,8 +37,10 @@ export default async function NewProfilePage({ searchParams }: { searchParams: P
   const upgradePrompt = start?.start === "upgrade" ? start.prompt : null;
   // « Plus tard » (#1050): offered as the « Entretien d'accueil » opens for a Candidate without any Profile.
   const firstProfile = start?.start === "onboarding" && (await getProfiles().list(candidate.id)).length === 0;
+  // The first welcome (#1051): no finished Profile yet, the interview shown (not the Upgrade prompt).
+  const firstWelcome = !upgradePrompt && !(await getProfiles().hasFinished(candidate.id));
   return (
-    <CandidateLayout candidateId={candidate.id} title={t("newProfile.title")}>
+    <CandidateLayout candidateId={candidate.id} title={t("newProfile.title")} split={firstWelcome}>
       {upgradePrompt ? (
         <section className="page-conversation" aria-label={t("newProfile.conversation")}>
           <div className="page-conversation-thread">
@@ -52,7 +56,7 @@ export default async function NewProfilePage({ searchParams }: { searchParams: P
           </div>
         </section>
       ) : (
-        <ProfileOnboarding key={resumed?.id ?? ""} {...(resumed ? { resumed } : {})} {...(firstProfile ? { postpone: postponeOnboarding } : {})} />
+        <ProfileOnboarding key={resumed?.id ?? ""} {...(resumed ? { resumed } : {})} {...(firstProfile ? { postpone: postponeOnboarding } : {})} firstWelcome={firstWelcome} />
       )}
     </CandidateLayout>
   );

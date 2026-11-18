@@ -1,24 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { EntryOffer } from "@/ai-activity/entries";
-import { firstOffers, FIRST_OFFERS_SHOWN, isFirstWelcome, profileBuilding } from "./index";
+import { firstOffers, FIRST_OFFERS_SHOWN, profileBuilding } from "./index";
 
 const offer = (score: number, title = `Offre ${score}`): EntryOffer => ({ title, employer: "Groupe Ferlac", location: "Lyon", score, href: `/recherches/s/offres/${score}` });
-
-describe("The first welcome (#1051): a Candidate without any finished Profile", () => {
-  it("is the first welcome for an account with no Profile at all", () => {
-    expect(isFirstWelcome([])).toBe(true);
-  });
-
-  it("is still the first welcome while every Profile is « Création à terminer »", () => {
-    expect(isFirstWelcome([{ onboarding: "in_progress" }, { onboarding: "in_progress" }])).toBe(true);
-  });
-
-  it("is not once a Profile is finished, by its onboarding or made otherwise (the extension, a duplicate), archived or not", () => {
-    expect(isFirstWelcome([{ onboarding: "in_progress" }, { onboarding: "done" }])).toBe(false);
-    expect(isFirstWelcome([{}])).toBe(false);
-    expect(isFirstWelcome([{ onboarding: null }])).toBe(false);
-  });
-});
 
 describe("The first offers card on a phone (#1051)", () => {
   it("lists none when no Job Offer reaches the Match Score threshold", () => {

@@ -1862,6 +1862,18 @@ button.coach-panel-badge:hover {
     --fiche-room: calc(100vw - 31rem);
   }
 
+  /* The first welcome's split (#1051): Activité beside the « Entretien d'accueil », half of what they share by default
+     (their 3rem of gutters apart), or as wide as the Candidate dragged it: `--first-welcome-split-width`, remembered apart
+     from the side panel's (panel-width.ts), within the same limits. */
+  .fiche.first-welcome-split {
+    --first-welcome-half: calc((100vw - var(--sidebar-width) - 3rem) / 2);
+    width: clamp(20rem, var(--first-welcome-split-width, var(--first-welcome-half)), var(--fiche-max, min(44rem, 50vw, var(--fiche-room))));
+  }
+
+  html[data-sidebar="closed"] .fiche.first-welcome-split {
+    --first-welcome-half: calc((100vw - 3rem) / 2);
+  }
+
   .workspace:has(> .work-pane) > .fiche {
     --fiche-room: calc(100vw - var(--sidebar-width) - 32rem - clamp(20rem, var(--work-pane-width, clamp(20rem, 32vw, 32rem)), 56rem));
   }

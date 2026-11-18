@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode, type RefObject } from "react";
 import { useFormStatus } from "react-dom";
@@ -52,6 +53,8 @@ import type { RefiningCriterion } from "@/ai-activity/followed-search";
 import { CoachLine, InActivity } from "./CoachLine";
 import { useActivityColumn } from "./activity-column";
 import { readFields, type T as ReadT } from "@/ai-activity/cv-reading";
+import type { EntryOffer } from "@/ai-activity/entries";
+import { firstOffers } from "@/first-welcome";
 import { searchedWith, useFollowedSearch } from "./followed-search";
 import { OnboardingSummary } from "./OnboardingSummary";
 import { criteriaFieldsOf } from "./SearchCriteriaFields";
@@ -103,6 +106,9 @@ const IN_PROGRESS: OnboardingState = "in_progress";
 /** The Job Searches the onboarding offers a Profile (#1000): its first, and one restart. */
 const OFFERED_SEARCHES = 2;
 const JSON_BODY = { "content-type": "application/json" };
+const NO_OFFERS: readonly EntryOffer[] = [];
+/** The first offers' card (#1051) come at the review: after it, at the thread's end. */
+const AT_THE_END = "end";
 const INTERVIEW_URL = "/api/onboarding/interview";
 
 interface Turn {
@@ -167,8 +173,14 @@ const resumedInterview = (resumed: ResumedProfile & { resumesAt: OnboardingResum
  * follows it (useFollowedSearch), so « En ce moment » counts it « ici », with its run's measures and the Job Offers that
  * match the criteria of the moment, and keeps it in the history once over (#1001). Once « Cela semble correct » has saved
  * the Profile, a coach line says the first offers are there and opens Activity on it (#1006).
+ *
+ * `firstWelcome` (#1051): the Candidate has no finished Profile. On a wide screen the layout splits the page in two from
+ * the first question, Activité beside the conversation (FicheProvider's `split`), where the page tells the Profile in
+ * construction (its target role and places so far, the « building » note). On a phone there is no split: once the
+ * offered Job Search found Job Offers at the Match Score threshold or above, a card of the first ones (FirstOffersCard)
+ * joins the thread where it stands then, kept up to date in place, and said once to screen readers, on either width.
  */
-export function ProfileOnboarding({ resumed, postpone }: { resumed?: ResumedProfile; postpone?: () => Promise<void> }) {
+export function ProfileOnboarding({ resumed, postpone, firstWelcome = false }: { resumed?: ResumedProfile; postpone?: () => Promise<void>; firstWelcome?: boolean }) {
   const { t, i18n } = useTranslation();
   const id = useId();
   const router = useRouter();
@@ -595,6 +607,27 @@ export function ProfileOnboarding({ resumed, postpone }: { resumed?: ResumedProf
   // The offered Job Search, live in AI Activity's « En ce moment », counted « ici » (#1001).
   useFollowedSearch({ jobSearchId: followed?.id ?? null, profileId: followed?.profileId ?? null, href: routes.newProfile, assumed: proposed ? [proposed] : [], ...searchedWith(searchedDraft) });
 
+  // The Profile in construction (#1051): its target role and places answered or validated so far, told to Activité.
+  const builtCriteria = step.kind === "review" ? step.draft.searchCriteria : answersDraft.searchCriteria;
+  const buildingKey = JSON.stringify([builtCriteria.targetRole, builtCriteria.locations]);
+  useEffect(() => {
+    const [targetRole, locations] = JSON.parse(buildingKey) as [string, string[]];
+    noteCreation?.({ type: "building", targetRole, locations });
+  }, [buildingKey, noteCreation]);
+
+  // The first welcome's first offers (#1051): the offered Job Search's, at the threshold or above, 3 at most; the card in
+  // the thread on a phone, where it stood when they came (`after` that many answers, or at the end once at the review).
+  const live = useAiActivityLive();
+  const offeredBest = firstWelcome && followed && live?.followed?.jobSearchId === followed.id ? live.followed.best : NO_OFFERS;
+  const firstShown = firstOffers(offeredBest);
+  const answersSoFar = interview.exchange.length + turns.length;
+  const [firstOffersAt, setFirstOffersAt] = useState<{ after: number | "end"; announced: string } | null>(null);
+  if (firstShown.length > 0 && firstOffersAt === null) {
+    setFirstOffersAt({ after: step.kind === "review" ? AT_THE_END : answersSoFar, announced: t(wide ? "newProfile.firstWelcome.offers.announceActivity" : "newProfile.firstWelcome.offers.announce") });
+  }
+  const offersCardAfter = (answers: number | "end"): ReactNode[] =>
+    !wide && followed && firstOffersAt?.after === answers && firstShown.length > 0 ? [<FirstOffersCard key="first-offers" offers={firstShown} jobSearchId={followed.id} />] : [];
+
   /** The Job Search the onboarding offers (#1000), told after the answer that started it (the `after`-th): one line (#1001). */
   const offeredSearchAfter = (answers: number): ReactNode[] =>
     offeredSearch?.after === answers
@@ -660,6 +693,7 @@ export function ProfileOnboarding({ resumed, postpone }: { resumed?: ResumedProf
                     <p>{replyText(said)}</p>
                   </li>,
                   ...offeredSearchAfter(index + 1),
+                  ...offersCardAfter(index + 1),
                   ...(interview.bornAfter === index + 1
                     ? [
                         <CoachLine key="blocks">
@@ -683,6 +717,7 @@ export function ProfileOnboarding({ resumed, postpone }: { resumed?: ResumedProf
                     <p>{answerText(turn)}</p>
                   </li>,
                   ...offeredSearchAfter(interview.exchange.length + index + 1),
+                  ...offersCardAfter(interview.exchange.length + index + 1),
                 ])}
               </>
             ) : null}
@@ -737,6 +772,7 @@ export function ProfileOnboarding({ resumed, postpone }: { resumed?: ResumedProf
             ) : null}
             {/* Saved, the first offers are Activity's (#1006): the end of the offered search's entry, which this line opens. */}
             {step.kind === "review" && step.saved && followed ? <FirstOffersLine /> : null}
+            {offersCardAfter(AT_THE_END)}
             {asides.map((aside, index) => [
               <li key={`aside-${index}`} className="chat-message chat-candidate">
                 <span className="visually-hidden">{t("questionnaire.you")}</span>
@@ -747,6 +783,10 @@ export function ProfileOnboarding({ resumed, postpone }: { resumed?: ResumedProf
               </CoachLine>,
             ])}
           </ol>
+          {/* The first offers said once to screen readers (#1051), whichever width shows them; their card is not read again. */}
+          <p className="visually-hidden" aria-live="polite">
+            {firstOffersAt?.announced ?? ""}
+          </p>
         </div>
         <div className="page-conversation-foot">
           {step.kind === "choose" ? (
@@ -953,6 +993,39 @@ function FirstOffersLine() {
       <p>{t("newProfile.firstOffers")}</p>
       {show ? <InActivity onShow={() => show({ followed: true })} /> : null}
     </CoachLine>
+  );
+}
+
+/**
+ * The first welcome's first offers on a phone (#1051): a card in the thread, where there is no split, as soon as the
+ * offered Job Search found Job Offers at the Match Score threshold or above: up to 3, each its title (to its page in the
+ * Job Search), its employer, its place and its Match Score in words, then « Voir toutes les offres », the Job Search's
+ * page. Updated in place as better ones come, never read out again (`aria-live="off"`): the page says them once.
+ */
+function FirstOffersCard({ offers, jobSearchId }: { offers: readonly EntryOffer[]; jobSearchId: string }) {
+  const { t } = useTranslation();
+  const titleId = useId();
+  return (
+    <li className="chat-message chat-card first-offers-card" aria-live="off">
+      <Card title={t("newProfile.firstWelcome.offers.title")} headingId={titleId}>
+        <p>{t("newProfile.firstWelcome.offers.intro")}</p>
+        <ul className="first-offers-list" aria-labelledby={titleId}>
+          {offers.map((offer) => (
+            <li key={offer.href}>
+              <Link href={offer.href} className="first-offers-title">
+                {offer.title}
+              </Link>
+              <span className="first-offers-meta">
+                {[offer.employer, offer.location, t("newProfile.firstWelcome.offers.matchScore", { score: offer.score })].filter(Boolean).join(" · ")}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p>
+          <Link href={routes.jobSearch(jobSearchId)}>{t("newProfile.firstWelcome.offers.all")}</Link>
+        </p>
+      </Card>
+    </li>
   );
 }
 

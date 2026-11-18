@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
+import pg from "pg";
 import { fromNewAddress, requestSignInLink, setUpTwoStepVerificationIfAsked } from "./support/candidate";
 import { emailsTo, linkIn, newAddress, waitForEmail } from "./support/mailbox";
 import { forgetTwoStepVerification } from "./support/two-step";
@@ -85,6 +86,21 @@ test.describe("the « Entretien d'accueil » from sign-in on (#1050)", () => {
   test("an Administrator without a Profile is not led there", async ({ page }) => {
     await forgetTwoStepVerification(process.env.E2E_DATABASE_URL, ADMINISTRATOR);
     await signInElsewhere(page, ADMINISTRATOR);
+    await setUpTwoStepVerificationIfAsked(page);
+    await expect(page).toHaveURL(`${origin}/compte`);
+    await page.goto("/");
+    await expect(page).toHaveURL(`${origin}/`);
+  });
+  test("a Human Coach without a Profile is not led there", async ({ page }) => {
+    const email = newAddress("accueil-coach");
+    const database = new pg.Client({ connectionString: process.env.E2E_DATABASE_URL });
+    await database.connect();
+    try {
+      await database.query("INSERT INTO human_coach (name, email, booking_url, bio) VALUES ('Sophie Martin', $1, 'https://cal.com/sophie-accueil/seance', 'Ancienne DRH.')", [email]);
+    } finally {
+      await database.end();
+    }
+    await signInElsewhere(page, email);
     await setUpTwoStepVerificationIfAsked(page);
     await expect(page).toHaveURL(`${origin}/compte`);
     await page.goto("/");

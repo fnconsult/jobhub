@@ -194,6 +194,18 @@ describe("the draft Coach Actions (ADR-0109)", () => {
       expect(message.ok && message.data).toContain("Votre poste de Head of BU");
     });
 
+    it("says, in our own words before the draft, that Jobbbox keeps only its current version: asked for « les 2 versions », the AI Coach can say so", async () => {
+      const read = actionOf(world().sources, DRAFT_ACTIONS.read);
+
+      const result = await read.run(read.schema.parse({ document: "cover_letter" }), onApplication());
+
+      if (!result.ok) throw new Error("not read");
+      const said = String(result.data);
+      expect(said.indexOf("seule version")).toBeGreaterThanOrEqual(0);
+      expect(said.indexOf("seule version")).toBeLessThan(said.indexOf("<brouillon>"));
+      expect(said).toMatch(/« Remplacer et rédiger » la remplace/);
+    });
+
     it("says there is none when no Follow-up waits, so the AI Coach says so instead of failing", async () => {
       const { sources, noFollowUp } = world();
       noFollowUp();

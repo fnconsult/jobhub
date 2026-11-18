@@ -82,6 +82,19 @@ const NONE: Record<DraftDocument, string> = {
   outreach_message: "Cette candidature n'a pas encore de message d'approche : propose de le rédiger avec propose_outreach_message.",
 };
 
+/**
+ * What Jobbbox keeps of a draft, told before it in our own words: only its current version, nothing of the ones before.
+ * Asked for « les 2 versions de ma lettre », the AI Coach says so and where to read this one, rather than ending with no text.
+ */
+const ONLY_VERSION: Record<DraftDocument, string> = {
+  follow_up:
+    "Jobbbox ne garde que la seule version actuelle de cette relance, aucune version précédente : si le candidat en demande une autre version, dis-le-lui et indique qu'il la lit dans « Propositions » de sa candidature.",
+  cover_letter:
+    "Jobbbox ne garde que la seule version actuelle de cette lettre, aucune version précédente : « Remplacer et rédiger » la remplace, ses modifications comprises. Si le candidat demande d'autres versions, dis-le-lui, résume celle-ci sans la recopier et indique qu'il la lit dans Documents › Lettre de motivation.",
+  outreach_message:
+    "Jobbbox ne garde que la seule version actuelle de ce message, aucune version précédente : « Remplacer et rédiger » le remplace, ses modifications comprises. Si le candidat demande d'autres versions, dis-le-lui, résume celui-ci sans le recopier et indique qu'il le lit dans Documents › Message d'approche.",
+};
+
 /** Why a new text in another language is refused (#1074), in our own words, for the AI Coach. */
 const LANGUAGE_REFUSED: Record<DocumentLanguage, string> = {
   fr: "Ce brouillon est rédigé en français : propose son nouveau texte entièrement en français, objet compris, sans traduire ni ajouter de paragraphe dans une autre langue.",
@@ -184,7 +197,7 @@ export function draftCoachActions(sources: DraftActionSources): CoachAction[] {
       // Written from the Job Offer: data, never an instruction, and it narrows what copies text into the Candidate's data.
       return {
         ok: true,
-        data: asData(told, "brouillon"),
+        data: `${ONLY_VERSION[document]}\n${asData(told, "brouillon")}`,
         pages: [page],
         untrusted: true,
         seen: [{ type: "application", href: page, name: nameOf(application) }],

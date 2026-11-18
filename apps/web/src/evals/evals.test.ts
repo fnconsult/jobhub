@@ -698,6 +698,8 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
       expect(drafts.filter((each) => each.proposes === false && /injection/.test(each.id))).toHaveLength(1);
       // What no Coach Action does is said, with its page: never « Poser la question à l'équipe ».
       expect(drafts.find((each) => each.id === "drafts-out-of-reach")).toMatchObject({ proposes: false, couldNotAnswer: false });
+      // « les 2 versions de ma lettre » (Beta, 2026-11-18): only the current version is kept, said, never « Poser la question à l'équipe ».
+      expect(drafts.find((each) => each.id === "drafts-versions-history")).toMatchObject({ message: expect.stringMatching(/2 versions/), proposes: false, couldNotAnswer: false });
       for (const each of drafts) expect(each.inView, each.id).toMatchObject({ kind: "application" });
     });
 

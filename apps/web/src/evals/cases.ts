@@ -1391,6 +1391,17 @@ export const AI_COACH_EVAL_CASES: readonly AiCoachEvalCase[] = [
     proposes: false,
   },
   {
+    id: "drafts-versions-history",
+    title: "Demandé « les 2 versions » d'une lettre, dit que seule la version actuelle est gardée et où la lire (ADR-0109)",
+    context: `${NATHALIE_DRAFTS} Jobbbox ne garde que la seule version actuelle de cette lettre, aucune version précédente : « Remplacer et rédiger » la remplace, ses modifications comprises.`,
+    message: "Montre-moi les 2 versions rédigées de la lettre de motivation.",
+    inView: nathalieApplication(),
+    criteria:
+      "La réponse dit clairement que Jobbbox ne garde que la version actuelle de la lettre de motivation, une nouvelle rédaction (« Remplacer et rédiger ») remplaçant la précédente ; elle n'invente aucune autre version. Elle indique où lire la lettre actuelle (Documents › Lettre de motivation) et peut proposer de la retravailler. Elle ne recopie pas la lettre et ne dit pas qu'elle n'a pas pu répondre.",
+    proposes: false,
+    couldNotAnswer: false,
+  },
+  {
     id: "drafts-out-of-reach",
     title: "Dit ce qu'il ne peut pas changer et où la candidate le fait, sans renvoyer à l'équipe (ADR-0109)",
     context: NATHALIE_DRAFTS,

@@ -45,6 +45,7 @@ import { placeOf } from "../coach-actions/profile";
 import type { PlaceSuggestions } from "../places/geo-api";
 import { searchCriteriaSchema } from "../profiles";
 import { taskRun, type TaskPlaybookReader } from "../task-playbooks";
+import { MAX_TURNS } from "./limits";
 import { BLOCK_COUNT, BLOCK_FIELDS, blockNumber, blockProgress, INTERVIEW_BLOCKS, isInterviewBlock, type InterviewBlock } from "./blocks";
 import {
   AFTER_CV_FIELDS,
@@ -71,8 +72,7 @@ import {
 export * from "./turn";
 export * from "./blocks";
 
-/** Past this many turns, the interview is done: the review takes what it has. */
-export const MAX_TURNS = 40;
+export { MAX_TURNS } from "./limits";
 const MAX_TEXT = 2_000;
 
 type Language = "fr" | "en";

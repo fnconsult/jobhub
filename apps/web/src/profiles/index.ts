@@ -10,7 +10,9 @@
  *    Criteria of an active Profile (`changeSearchCriteria`). Every read and change is scoped to the Candidate.
  *    A Profile created during its onboarding (ADR-0106, #999) is born as soon as its target role and a location are
  *    validated (`create` with `onboarding: "in_progress"`), is completed as the answers are validated, and is finished by
- *    one Master CV Version (`finishOnboarding`); until then it is named after its target role.
+ *    one Master CV Version (`finishOnboarding`); until then it is named after its target role. « Continuer plus tard »
+ *    (#1046, `continueOnboardingLater`) saves the answers given as a Master CV Version and the interview's block reached,
+ *    where « Reprendre la création » reopens it.
  *    From a Coach proposal the Candidate applies (#719, ADR-0077), a Master CV Version and the Search Criteria keep
  *    their Origin, and a change is refused as a conflict when they moved on since the version the proposal saw
  *    (`basedOnVersion`; for Search Criteria `basedOn`, their `searchCriteriaVersion`); « Annuler » is a Restore.
@@ -42,6 +44,8 @@ import { countUse, migrateConsumption } from "../consumption";
 import { migrateExtensionEvents, recordExtensionAction, type ExtensionCall } from "../extension-events";
 import { readOrigin, type Origin } from "../origin";
 import { fieldErrors, type FieldError } from "../validation";
+import { isInterviewBlock, type InterviewBlock } from "../onboarding-interview/blocks";
+import { MAX_TURNS } from "../onboarding-interview/limits";
 
 export interface Profile {
   id: string;
@@ -60,10 +64,21 @@ export interface Profile {
    * a duplicate) or before #999.
    */
   onboarding?: ProfileOnboarding;
+  /**
+   * Left with « Continuer plus tard » during its onboarding interview (#1046): the block it reached and the turns asked,
+   * where « Reprendre la création » reopens the interview. Absent otherwise, and once the onboarding is finished.
+   */
+  onboardingResumesAt?: OnboardingResumePoint;
 }
 
 /** Where a Profile's onboarding stands (ADR-0106, #999). */
 export type ProfileOnboarding = "in_progress" | "done";
+
+/** Where « Reprendre la création » reopens the onboarding interview (#1046): its block, and the turns asked before. */
+export interface OnboardingResumePoint {
+  block: InterviewBlock;
+  turns: number;
+}
 
 export interface ProfileSummary {
   id: string;
@@ -204,6 +219,12 @@ export interface Profiles {
    * `{ basedOnVersion, masterCv }`. Refused while archived, and once finished.
    */
   finishOnboarding(candidateId: string, profileId: string, input: unknown): Promise<FinishOnboardingResult>;
+  /**
+   * « Continuer plus tard » during the onboarding interview (#1046): saves the answers given as the Master CV's next
+   * version (none when unchanged) and the interview's resume point, the onboarding still in progress. `input` is
+   * untrusted: `{ basedOnVersion, masterCv, block, turns }`. Refused like `finishOnboarding`.
+   */
+  continueOnboardingLater(candidateId: string, profileId: string, input: unknown): Promise<FinishOnboardingResult>;
   /** Every version of the Profile's Master CV, newest first. Null like `get`. */
   masterCvVersions(candidateId: string, profileId: string): Promise<MasterCvVersion[] | null>;
   /**
@@ -292,6 +313,9 @@ const ONBOARDING_STATES = ["in_progress", "done"] as const satisfies readonly Pr
 const inputSchema = z.object({ masterCv: cvContentSchema, searchCriteria: searchCriteriaSchema, onboarding: z.enum(ONBOARDING_STATES).optional() });
 
 const finishInputSchema = z.object({ basedOnVersion: z.number().int().positive(), masterCv: cvContentSchema });
+const blockSchema = z.string().refine(isInterviewBlock) as unknown as z.ZodType<InterviewBlock>;
+const resumePointSchema = z.object({ block: blockSchema, turns: z.number().int().min(0).max(MAX_TURNS) });
+const laterInputSchema = finishInputSchema.extend(resumePointSchema.shape);
 
 interface ProfileRow {
   id: string;
@@ -309,6 +333,7 @@ interface ProfileRow {
   content: MasterCvContent;
   search_criteria_origin: unknown;
   onboarding: string | null;
+  onboarding_resume?: unknown;
 }
 
 function profileFrom(row: ProfileRow): Profile {
@@ -324,6 +349,7 @@ function profileFrom(row: ProfileRow): Profile {
   if (row.min_salary !== null) searchCriteria.minSalary = row.min_salary;
   const origin = readOrigin(row.search_criteria_origin);
   const onboarding = ONBOARDING_STATES.find((state) => state === row.onboarding);
+  const resumesAt = onboarding === "in_progress" ? resumePointSchema.safeParse(row.onboarding_resume).data : undefined;
   return {
     id: row.id,
     name: row.name,
@@ -332,6 +358,7 @@ function profileFrom(row: ProfileRow): Profile {
     masterCv: { version: row.version, content: row.content },
     ...(origin ? { searchCriteriaOrigin: origin } : {}),
     ...(onboarding ? { onboarding } : {}),
+    ...(resumesAt ? { onboardingResumesAt: resumesAt } : {}),
   };
 }
 
@@ -408,7 +435,7 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
   async function get(candidateId: string, profileId: string): Promise<Profile | null> {
     if (!UUID.test(profileId)) return null;
     const { rows } = await database.query<ProfileRow>(
-      `SELECT p.id, p.name, p.archived_at IS NOT NULL AS archived, p.target_role, p.locations, p.min_salary, p.contract_types, p.remote_work_options, p.sectors, p.subsectors, p.domains, p.search_criteria_origin, p.onboarding, v.version, v.content
+      `SELECT p.id, p.name, p.archived_at IS NOT NULL AS archived, p.target_role, p.locations, p.min_salary, p.contract_types, p.remote_work_options, p.sectors, p.subsectors, p.domains, p.search_criteria_origin, p.onboarding, p.onboarding_resume, v.version, v.content
          FROM profile p
          JOIN master_cv_version v ON v.profile_id = p.id
         WHERE p.id = $1 AND p.candidate_id = $2
@@ -503,6 +530,30 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
     return rowCount === 1;
   }
 
+  /**
+   * The answers given during a Profile's onboarding saved as its Master CV's next version, none when unchanged; refused
+   * once the onboarding is finished, while archived, and from an outdated version.
+   */
+  async function saveOnboardingCv(
+    candidateId: string,
+    profileId: string,
+    { basedOnVersion, masterCv }: { basedOnVersion: number; masterCv: MasterCvContent },
+  ): Promise<FinishOnboardingResult> {
+    const profile = await get(candidateId, profileId);
+    if (!profile) return NOT_FOUND;
+    if (profile.archived) return ARCHIVED;
+    if (profile.onboarding !== "in_progress") return { ok: false, error: "finished" };
+    if (basedOnVersion !== profile.masterCv.version) return { ok: false, conflict: { currentVersion: profile.masterCv.version } };
+    // One Master CV Version at the end of the onboarding (and one at each « Continuer plus tard »), none when unchanged.
+    if (isDeepStrictEqual(masterCv, profile.masterCv.content)) return { ok: true, profile };
+    const saved = { version: basedOnVersion + 1, content: masterCv };
+    if (!(await appendVersion(profileId, saved.version, masterCv, null))) {
+      const current = await get(candidateId, profileId);
+      return { ok: false, conflict: { currentVersion: current!.masterCv.version } };
+    }
+    return { ok: true, profile: { ...profile, masterCv: saved } };
+  }
+
   return {
     get,
 
@@ -527,23 +578,25 @@ export function createProfiles(database: Pool, { profileQuota = async () => null
     async finishOnboarding(candidateId, profileId, input) {
       const parsed = finishInputSchema.safeParse(input, { reportInput: true });
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
-      const profile = await get(candidateId, profileId);
-      if (!profile) return NOT_FOUND;
-      if (profile.archived) return ARCHIVED;
-      if (profile.onboarding !== "in_progress") return { ok: false, error: "finished" };
-      const { basedOnVersion, masterCv } = parsed.data;
-      if (basedOnVersion !== profile.masterCv.version) return { ok: false, conflict: { currentVersion: profile.masterCv.version } };
-      // One Master CV Version for the whole onboarding, none when the reviewed CV is the one it was born with.
-      let saved = profile.masterCv;
-      if (!isDeepStrictEqual(masterCv, profile.masterCv.content)) {
-        saved = { version: basedOnVersion + 1, content: masterCv };
-        if (!(await appendVersion(profileId, saved.version, masterCv, null))) {
-          const current = await get(candidateId, profileId);
-          return { ok: false, conflict: { currentVersion: current!.masterCv.version } };
-        }
-      }
-      await database.query(`UPDATE profile SET onboarding = 'done' WHERE id = $1 AND candidate_id = $2`, [profileId, candidateId]);
-      return { ok: true, profile: { ...profile, masterCv: saved, onboarding: "done" } };
+      const saved = await saveOnboardingCv(candidateId, profileId, parsed.data);
+      if (!saved.ok) return saved;
+      await database.query(`UPDATE profile SET onboarding = 'done', onboarding_resume = NULL WHERE id = $1 AND candidate_id = $2`, [profileId, candidateId]);
+      const { onboardingResumesAt: _resumed, ...profile } = saved.profile;
+      return { ok: true, profile: { ...profile, onboarding: "done" } };
+    },
+
+    async continueOnboardingLater(candidateId, profileId, input) {
+      const parsed = laterInputSchema.safeParse(input, { reportInput: true });
+      if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+      const saved = await saveOnboardingCv(candidateId, profileId, parsed.data);
+      if (!saved.ok) return saved;
+      const resumesAt: OnboardingResumePoint = { block: parsed.data.block, turns: parsed.data.turns };
+      await database.query(`UPDATE profile SET onboarding_resume = $3 WHERE id = $1 AND candidate_id = $2 AND onboarding = 'in_progress'`, [
+        profileId,
+        candidateId,
+        JSON.stringify(resumesAt),
+      ]);
+      return { ok: true, profile: { ...saved.profile, onboardingResumesAt: resumesAt } };
     },
 
     async masterCvVersions(candidateId, profileId) {
@@ -743,6 +796,9 @@ export async function migrateProfiles(database: Pool): Promise<void> {
     -- Where its onboarding stands (ADR-0106, #999): 'in_progress' for a Profile born during it and not finished, 'done'
     -- once finished; null for a Profile created otherwise (the extension, a duplicate) or before.
     ALTER TABLE profile ADD COLUMN IF NOT EXISTS onboarding text;
+    -- Where « Reprendre la création » reopens its onboarding interview (#1046): { block, turns }, set by « Continuer plus
+    -- tard », cleared once the onboarding is finished; null otherwise.
+    ALTER TABLE profile ADD COLUMN IF NOT EXISTS onboarding_resume jsonb;
   `);
   // A Master CV Version, once saved, is never changed (ADR-0012, ADR-0077): every change, the Candidate's or a Coach
   // proposal they applied, is a new version. Refused by the database itself, whoever asks; deleted with its Profile.

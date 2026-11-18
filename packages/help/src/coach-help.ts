@@ -6,6 +6,7 @@
  *   helpForUnanswered(question, "fr") // « Voici ce que l'aide propose »: when the AI Coach could not answer
  *   onThisPage(pathname, "fr")        // « Sur cette page »: the page in view's article and its first paragraph
  *   oftenAsked("fr")                  // « Souvent demandé »: three frequent questions
+ *   gettingStarted(account, reader, "fr") // « Pour bien commencer »: what a new account has not used yet (#1069)
  *
  * Each takes the help's `audience`: `candidate` (the default), whose search covers the Candidate's articles and those
  * of the Help Centre's « extension » topic, never an Administrator's; or `administrator` (the Back Office Assistant,
@@ -15,6 +16,18 @@
 import { article, articleFor, articlesFor, search, type HelpScope } from "./index";
 import type { HelpSettings } from "./requirements";
 import type { HelpArticle, HelpLocale } from "./types";
+
+export {
+  GETTING_STARTED_DAYS,
+  gettingStarted,
+  gettingStartedOpen,
+  installsChromeExtensions,
+  type BrowserTraits,
+  type GettingStartedAccount,
+  type GettingStartedItem,
+  type GettingStartedKey,
+  type GettingStartedReader,
+} from "./getting-started";
 
 /** Fewer characters typed than this, and nothing is suggested yet. */
 export const MIN_SUGGESTION_LENGTH = 3;

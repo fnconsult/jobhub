@@ -1384,6 +1384,10 @@ A Help Article opened in the Work Pane beside a Coach Conversation (ADR-0070; a 
 **Souvent demandé**:
 The three FAQ Help Articles an empty Coach Conversation offers, beside « Comment marche cette page ? », which opens the page's article.
 
+**Pour bien commencer** (Getting started):
+The part of an empty Coach Conversation's help, above « Souvent demandé », that lists the features a new account has not used yet (« L'ATS Score de mon CV », then « Garder une offre vue sur un autre site »), for 14 days after the account is created (ADR-0111). Each item leaves once used; the extension item shows only on a Chromium browser on a computer, never in the apps. Not the Welcome interview (ADR-0106).
+_Avoid_: Onboarding checklist, tour
+
 **HelpTerm**:
 The first mention of a glossary term (Match Score, ATS Score, Propositions, CV de référence, CV adapté, Relance, Plan Quota) in a visible sentence of a page, shown with a dotted underline; it opens that term's Help Article in the Work Pane. Later mentions on the same page are plain text. Never in a Section's heading, which is visually hidden, and absent in the Back Office, which has Explainable labels instead.
 _Avoid_: Tooltip, glossary link

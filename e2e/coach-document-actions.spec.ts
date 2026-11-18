@@ -234,6 +234,23 @@ test.describe("the « Documents » Coach Actions: « Préparer », « Rédiger �
     );
   });
 
+  test("« montre-moi les versions de ma lettre » → the AI Coach reads them, proposes nothing and writes nothing (#1079)", async ({ browser }) => {
+    const { page, applicationId } = await withApplication(browser);
+    const headers = { origin: server.origin };
+    expect((await page.request.post(`/api/applications/${applicationId}/tailored-documents`, { data: { document: "cover_letter" }, headers })).ok()).toBe(true);
+    expect((await page.request.patch(`/api/applications/${applicationId}/tailored-documents`, { data: { document: "cover_letter", text: "Ma lettre, retouchée." }, headers })).ok()).toBe(true);
+    await page.reload();
+
+    await ask(page, "Montre-moi les versions de ma lettre.", "read_document_versions", { document: "cover_letter" });
+    const answer = conversation(page).getByText(/Résultat de l'outil « read_document_versions »/);
+    await expect(answer).toBeVisible({ timeout: 30_000 });
+    // The listing itself is untrusted data, kept out of the reply (its content is checked in coach-actions/versions.test.ts).
+    await expect(conversation(page).getByRole("article")).toHaveCount(0);
+    // Read only: nothing written.
+    expect((await draftsOf(applicationId))[0]?.text).toBe("Ma lettre, retouchée.");
+    expect(await query("SELECT version FROM tailored_document_version WHERE application_id = $1 AND document = 'cover_letter' ORDER BY version", [applicationId])).toEqual([{ version: 1 }, { version: 2 }]);
+  });
+
   test("« montre-moi les versions de ma lettre » → read, then a card that brings the asked one back on « Appliquer » (#1079)", async ({ browser }) => {
     const { page, applicationId } = await withApplication(browser);
     const headers = { origin: server.origin };

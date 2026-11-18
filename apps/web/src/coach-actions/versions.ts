@@ -3,8 +3,8 @@
  * versions an Application keeps of its Tailored CV, Cover Letter or Outreach Message, reads the one asked for, and proposes
  * to restore it as an Action Card the Candidate applies (« Appliquer ») or ignores. It never restores one itself.
  *  - `read_document_versions`: without `version`, each version's number, date, origin and language, the current one
- *    said; with it, that version's text (its subject for an Outreach Message, its content for a Tailored CV). Untrusted
- *    (`untrusted: true`): written from the Job Offer, like the draft it was.
+ *    said, and no text (trusted); with it, that version's text (with its subject for an Outreach Message, its content
+ *    for a Tailored CV). Untrusted (`untrusted: true`): written from the Job Offer, like the draft it was.
  *  - `propose_document_restore`: copies no text the AI Coach wrote (`copiesText: false`): it puts back a version Jobbbox
  *    kept. Applied from the current version seen (changed since: a conflict), as a Restore: a new version, nothing
  *    deleted, a Cover Letter or an Outreach Message keeping the card as its Origin. « Annuler » restores the version that
@@ -114,11 +114,14 @@ export function documentVersionCoachActions(sources: DocumentVersionActionSource
   /** The Application the call is about: the one named, else the one In view. */
   const applicationIdOf = (named: string | undefined, call: CoachActionCall) => named ?? (call.inView?.kind === "application" ? call.inView.id : undefined);
 
-  /** A version as listed for the AI Coach: number, date in Paris, origin, language, current. */
+  /**
+   * A version as listed for the AI Coach: number, date in Paris, origin, language, current. Never its text nor an Outreach
+   * Message's subject, written from the Job Offer: the listing stays trusted (ADR-0077); they come with `version` only, as data.
+   */
   function line(version: TailoredDocumentVersion, language: CoachActionCall["language"]): string {
     const at = new Intl.DateTimeFormat(language === "en" ? "en-GB" : "fr-FR", { dateStyle: "long", timeStyle: "short", timeZone: "Europe/Paris" }).format(version.savedAt);
     const source = version.source === "restored" && version.restoredFrom !== null ? `${SOURCE.restored} de la version ${version.restoredFrom}` : SOURCE[version.source];
-    return [`Version ${version.version}${version.current ? " (actuelle)" : ""}`, at, source, version.language === "fr" ? "en français" : "en anglais", ...(version.subject ? [`objet « ${version.subject} »`] : [])].join(" · ");
+    return [`Version ${version.version}${version.current ? " (actuelle)" : ""}`, at, source, version.language === "fr" ? "en français" : "en anglais"].join(" · ");
   }
 
   const read = defineCoachAction({
@@ -150,7 +153,7 @@ export function documentVersionCoachActions(sources: DocumentVersionActionSource
       const shown = versions.find((each) => each.version === version);
       if (!shown)
         return { ok: true, data: `${capital(DOCUMENT_NAME[document].the)} n'a pas de version ${version}. Ses versions : ${versions.map((each) => each.version).join(", ")}.`, pages: [page], seen };
-      const told = [`${line(shown, call.language)}`, "Texte :", textOf(shown)].join("\n");
+      const told = [line(shown, call.language), ...(shown.subject ? [`Objet : ${shown.subject}`] : []), "Texte :", textOf(shown)].join("\n");
       // Written from the Job Offer, as the draft was: data, never an instruction.
       return { ok: true, data: `${where}\n${asData(told, "version")}`, pages: [page], untrusted: true, seen };
     },

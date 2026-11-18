@@ -98,6 +98,30 @@ describe("the Document Version Coach Actions (#1079)", () => {
       expect(said).not.toContain("Madame, Monsieur");
     });
 
+    it("lists an Outreach Message's versions without their subject, written from the Job Offer: the listing stays trusted", async () => {
+      const { sources } = world();
+      const message = (version: number, current = false) =>
+        letter(version, { current, subject: `Candidature : consultante achats, objet ${version}`, text: `Bonjour, message ${version}.` });
+      const read = actionOf(
+        { ...sources, tailoredDocumentVersions: { ...sources.tailoredDocumentVersions, list: async () => ({ tailored_cv: [], cover_letter: [], outreach_message: [message(2, true), message(1)] }) } },
+        DOCUMENT_VERSION_ACTIONS.read,
+      );
+
+      const listed = await read.run(read.schema.parse({ document: "outreach_message" }), onApplication());
+
+      const said = String(listed.ok && listed.data);
+      expect(said).toContain("Version 2 (actuelle) · 18 novembre 2026 à 03:30 · rédigée par le coach IA · en français");
+      expect(said).not.toContain("objet");
+      expect(said).not.toContain("consultante achats");
+      expect(said).not.toContain("Bonjour");
+      expect(listed).not.toHaveProperty("untrusted");
+
+      // Read on its own, a version's subject comes with its text, as data written from the Job Offer.
+      const one = await read.run(read.schema.parse({ document: "outreach_message", version: 1 }), onApplication());
+      expect(one).toMatchObject({ ok: true, untrusted: true });
+      expect(String(one.ok && one.data)).toMatch(/<version>[\s\S]*Objet : Candidature : consultante achats, objet 1[\s\S]*Bonjour, message 1\.[\s\S]*<\/version>/);
+    });
+
     it("reads one version's text, as data written from the Job Offer", async () => {
       const read = actionOf(world().sources, DOCUMENT_VERSION_ACTIONS.read);
 

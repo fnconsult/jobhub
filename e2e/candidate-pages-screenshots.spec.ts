@@ -15,6 +15,7 @@ import { newAddress } from "./support/mailbox";
 import { subscribe } from "./support/plan";
 import { comparesScreenshots, SCREENSHOT_WIDTHS } from "./support/screenshots";
 import { expectTextContrast, showInTheme, themedName, THEMES } from "./support/theme";
+import { readCv } from "./support/onboarding-summary";
 
 // The Candidate's pages in the Design System (ADR-0053), their screenshot baselines, light and dark (#473), at three widths, in
 // e2e/__screenshots__, failing CI on a visual difference; axe runs on each. Only the page (`#main`) is compared, or one
@@ -693,7 +694,7 @@ test.describe("Candidate pages in the Design System (#468)", () => {
       );
       await check(page, upload, "#main", `upload-chosen-${name}`, width, false);
 
-      await page.getByRole("button", { name: fr.cvUpload.submit }).click();
+      await readCv(page);
       await expect(upload.locator(".ds-upload__step")).toBeVisible();
       await check(
         page,
@@ -730,7 +731,7 @@ test.describe("Candidate pages in the Design System (#468)", () => {
       mimeType: "application/pdf",
       buffer: Buffer.from(pdfCv([...MARIE_DUPONT_CV, "Divers", "E2E_CV_SLOW"])),
     });
-    await page.getByRole("button", { name: fr.cvUpload.submit }).click();
+    await readCv(page);
     // Opened by itself on a wide screen, as for the offered search (#1001).
     await expect(icon).toHaveAttribute("aria-expanded", "true");
     const activity = page.getByRole("complementary", { name: fr.fiche.views.activity, exact: true });

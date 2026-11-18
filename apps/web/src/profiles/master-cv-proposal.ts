@@ -78,8 +78,13 @@ const masterText = (cv: MasterCvContent) =>
 const masterLanguage = (cv: MasterCvContent): DocumentLanguage =>
   jobOfferLanguage({ title: cv.headline, content: [cv.summary, ...cv.experience.flatMap((job) => [job.title, job.description]), ...cv.skills].join(" ") });
 
-/** A figure the text states that the Master CV does not: a fact it lacks. */
-const inventedFigure = (text: string, master: string) => (normalise(text).match(/\d+/g) ?? []).some((figure) => !master.includes(` ${figure} `));
+const figuresIn = (text: string) => normalise(text).match(/\d+/g) ?? [];
+
+/** A figure the text states that the Master CV does not, each read the same way in both (« +25 % », « 500k€ », « 1er »): a fact it lacks. */
+const inventedFigure = (text: string, master: string) => {
+  const stated = new Set(figuresIn(master));
+  return figuresIn(text).some((figure) => !stated.has(figure));
+};
 
 /** What separates the items of a list: a skill rephrased into a list of them adds items. */
 const LIST_SEPARATOR = /[,;•·|\n]/;

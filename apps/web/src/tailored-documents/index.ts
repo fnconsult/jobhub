@@ -42,6 +42,7 @@ import { taskRun, type TaskPlaybookReader, type TaskRun } from "../task-playbook
 import { fieldErrors, type FieldError } from "../validation";
 import { coverLetterBody } from "./cover-letter-body";
 import { documentLanguageOf, keepDocumentLanguage } from "./document-language";
+import { paragraphsNotIn } from "./language";
 
 import { OUTREACH_CHANNELS, TAILORED_DOCUMENTS, type OutreachChannel, type TailoredDocumentKind } from "./kinds";
 
@@ -205,16 +206,41 @@ const PEOPLE: Record<DocumentLanguage, { nobody: string; recipientOnly: string }
   },
 };
 
+/**
+ * The Document Language, in each Document Language, which stays in code: the whole document is written in it,
+ * whatever the language of the Master CV and the Job Offer, and translating is no inventing.
+ */
+const LANGUAGE: Record<DocumentLanguage, Record<TailoredDocumentKind, string>> = {
+  fr: {
+    cover_letter:
+      "Écris toute la lettre en français, même si son CV de référence ou l'offre sont dans une autre langue : traduis ce que tu en reprends (intitulés de poste, diplômes, compétences), sans rien changer aux faits ni aux chiffres. Garde tels quels les noms propres (employeurs, écoles, produits).",
+    outreach_message:
+      "Écris tout le message en français, objet compris, même si son CV de référence ou l'offre sont dans une autre langue : traduis ce que tu en reprends (intitulés de poste, diplômes, compétences), sans rien changer aux faits ni aux chiffres. Garde tels quels les noms propres (employeurs, écoles, produits).",
+  },
+  en: {
+    cover_letter:
+      "Write the whole letter in English, even where their reference CV or the job offer are in another language: translate what you take from them (job titles, degrees, skills), changing no fact and no figure. Keep proper nouns (employers, schools, products) as they are.",
+    outreach_message:
+      "Write the whole message in English, subject included, even where their reference CV or the job offer are in another language: translate what you take from them (job titles, degrees, skills), changing no fact and no figure. Keep proper nouns (employers, schools, products) as they are.",
+  },
+};
+
+/** Told when a draft is left partly in another language than the Document Language: the passages to write again. */
+const NOT_IN: Record<DocumentLanguage, (passages: string[]) => string> = {
+  fr: (passages) => `Ta proposition précédente n'était pas entièrement en français. Réécris tout le document en français, en traduisant ces passages :\n${passages.map((passage) => `« ${passage} »`).join("\n")}`,
+  en: (passages) => `Your previous draft was not wholly in English. Write the whole document again in English, translating these passages:\n${passages.map((passage) => `"${passage}"`).join("\n")}`,
+};
+
 /** The task Playbook writing each document: one for the Cover Letter, one for the Outreach Message (ADR-0026). */
 const TASK_PLAYBOOK = { cover_letter: "cover-letter", outreach_message: "outreach-message" } as const satisfies Record<TailoredDocumentKind, string>;
 
 /**
  * The instructions: the task Playbook's section for the Document Language (and the Outreach Message's
- * channel), then who may be named and the document's format, which stay here.
+ * channel), then who may be named, the Document Language and the document's format, which stay here.
  */
 function systemPrompt(run: TaskRun, language: DocumentLanguage, document: TailoredDocumentKind, channel: OutreachChannel, addressed: boolean): string {
   const section = document === "outreach_message" ? `${language} ${channel}` : language;
-  return [run.text(section), `- ${PEOPLE[language][addressed ? "recipientOnly" : "nobody"]}`, FORMAT[language][document]].join("\n");
+  return [run.text(section), `- ${PEOPLE[language][addressed ? "recipientOnly" : "nobody"]}`, `- ${LANGUAGE[language][document]}`, FORMAT[language][document]].join("\n");
 }
 
 /** Suggested Contact Roles (#17) as job titles. A role not listed here is written as given. */
@@ -336,16 +362,25 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
     const prompt = parts.join("\n\n");
     try {
       const run = await taskRun(deps.taskPlaybooks, TASK_PLAYBOOK[document], deps.ai);
-      const { text } = await recorder.ai.generate({
-        task: "writing",
-        candidateId,
-        system: systemPrompt(run, language, document, channel, document === "outreach_message" && !!contact),
-        ...run.agent,
-        prompt,
-        // The Master CV, identity block included: the draft speaks as the Candidate (ADR-0007).
-        containsIdentity: true,
-      });
-      const written = document === "outreach_message" ? outreachIn(text) : { subject: "", text: coverLetterBody(text, profile.masterCv.content) };
+      const writeDraft = async (asked: string) => {
+        const { text } = await recorder.ai.generate({
+          task: "writing",
+          candidateId,
+          system: systemPrompt(run, language, document, channel, document === "outreach_message" && !!contact),
+          ...run.agent,
+          prompt: asked,
+          // The Master CV, identity block included: the draft speaks as the Candidate (ADR-0007).
+          containsIdentity: true,
+        });
+        return document === "outreach_message" ? outreachIn(text) : { subject: "", text: coverLetterBody(text, profile.masterCv.content) };
+      };
+      let written = await writeDraft(prompt);
+      // Left partly in another language (a French Master CV's lines kept as they are): asked for once more, those passages named.
+      const notIn = [...paragraphsNotIn(written.subject, language), ...paragraphsNotIn(written.text, language)];
+      if (written.text && notIn.length > 0) {
+        const again = await writeDraft(`${prompt}\n\n${NOT_IN[language](notIn)}`);
+        if (again.text) written = again;
+      }
       return written.text ? { ...written, contactRoles: document === "outreach_message" ? contactRoles : [] } : { unavailable: "invalid_reply" };
     } catch (error) {
       const { reason } = failureOf(error);

@@ -10,6 +10,6 @@ Dans la rubrique « Documents » d'une candidature, votre coach rédige la lettr
 - « Rédiger la lettre » prépare une lettre de motivation, signée avec les coordonnées de votre CV de référence.
 - « Rédiger le message » prépare un message court pour un contact chez l'employeur. Choisissez s'il est « Envoyé par » « E-mail » ou « InMail LinkedIn », et son « Destinataire » : l'un de vos contacts enrichis, ou « Personne en particulier (les fonctions à contacter) ».
 
-Modifiez le texte, puis cliquez sur « Enregistrer mes modifications ». « Rédiger à nouveau » remplace le texte actuel, vos modifications comprises. La « Langue des documents » est par défaut celle de l'offre ; elle vaut pour la prochaine rédaction.
+Modifiez le texte, puis cliquez sur « Enregistrer mes modifications ». « Rédiger à nouveau » remplace le texte actuel, vos modifications comprises. La « Langue des documents » est par défaut celle de l'offre ; elle vaut pour la prochaine rédaction. Tout le texte est rédigé dans cette langue, même si votre CV de référence est dans une autre : votre coach traduit ce qu'il en reprend, sans rien inventer.
 
 Jobbbox n'envoie rien à votre place : cliquez sur « Copier le texte », ou sur « Ouvrir dans ma messagerie » pour un e-mail, puis envoyez-le vous-même. La lettre se télécharge aussi en PDF ou en Word.

@@ -61,6 +61,7 @@ import type { Profiles } from "../profiles";
 import { routes } from "../routes";
 import { taskRun, type TaskPlaybookReader, type TaskRun } from "../task-playbooks";
 import { documentLanguageOf, keepDocumentLanguage } from "../tailored-documents/document-language";
+import { keepVersion, migrateTailoredDocumentVersions } from "../tailored-documents/versions";
 import { textsNotIn } from "./language";
 import { fieldErrors, type FieldError } from "../validation";
 import { cvChanges, flagOfferWording, stemOf, withChanges, wordsOf, type CvChange, type CvOrigins } from "./changes";
@@ -590,8 +591,13 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
         ...(proposal.provenance !== undefined ? { provenance: proposal.provenance } : {}),
       };
       // Only the revision the Candidate reviewed: one proposed or answered since, even a moment ago, is not saved unseen.
-      const { rowCount } = await database.query(`UPDATE tailored_cv SET saved = $2, proposal = NULL WHERE application_id = $1 AND md5(proposal::text) = $3`, [application.id, saved, revision]);
-      if (rowCount === 0) return { ok: false, error: "proposal_changed" };
+      const rowCount = await inTransaction(database, async (client) => {
+        const written = await client.query(`UPDATE tailored_cv SET saved = $2, proposal = NULL WHERE application_id = $1 AND md5(proposal::text) = $3`, [application.id, saved, revision]);
+        // The Tailored CV saved before stays in « Versions » (#1079): this one is its next version.
+        if (written.rowCount) await keepVersion(client, application.id, "tailored_cv", { source: "drafted" });
+        return written.rowCount;
+      });
+      if (!rowCount) return { ok: false, error: "proposal_changed" };
       return { ok: true, tailoredCv: await stateOf(candidateId, application) };
     },
   };
@@ -610,4 +616,6 @@ export async function migrateTailoredCvs(database: Pool): Promise<void> {
     -- The Tailored CV the Candidate saved, if any.
     ALTER TABLE tailored_cv ADD COLUMN IF NOT EXISTS saved jsonb;
   `);
+  // Each saved Tailored CV's earlier versions (#1079): the ones already saved become their version 1.
+  await migrateTailoredDocumentVersions(database);
 }

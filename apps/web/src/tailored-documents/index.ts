@@ -7,8 +7,9 @@
  * `createTailoredDocuments(database, { applications, profiles, ai, companyDossiers? })`:
  *  - `get` the Application's Document Language and drafts;
  *  - `draft` (or draft again) the Cover Letter or the Outreach Message: the new
- *    draft replaces the one stored, edits included;
+ *    draft replaces the one stored, which stays in its versions (#1079, `./versions`);
  *  - `edit` a stored draft's text.
+ * Each change keeps the document as it then stands as a Tailored Document Version, in the same transaction.
  *
  * Rules kept here:
  *  - Drafts are written in the Application's Document Language: the Job Offer's
@@ -44,6 +45,7 @@ import { fieldErrors, type FieldError } from "../validation";
 import { coverLetterBody } from "./cover-letter-body";
 import { documentLanguageOf, keepDocumentLanguage } from "./document-language";
 import { paragraphsNotIn } from "./language";
+import { keepVersion, migrateTailoredDocumentVersions } from "./versions";
 
 import { MAX_DRAFT_LENGTH, MAX_SUBJECT_LENGTH, OUTREACH_CHANNELS, TAILORED_DOCUMENTS, type OutreachChannel, type TailoredDocumentKind } from "./kinds";
 
@@ -467,6 +469,8 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
           ],
         );
         await countUse(client, candidateId, "tailoredDocument", new Date());
+        // The draft before stays in « Versions » (#1079): this drafting is the document's next version.
+        await keepVersion(client, application.id, document, { source: "drafted" });
       });
       return { ok: true, drafts: await draftsOf(application) };
     },
@@ -477,11 +481,16 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
       const application = await deps.applications.get(candidateId, applicationId);
       if (!application) return NOT_FOUND;
       const { document, text, subject } = parsed.data;
-      const { rowCount } = await database.query(
-        `UPDATE tailored_document SET text = $3, subject = COALESCE($4, subject), origin = NULL, updated_at = now() WHERE application_id = $1 AND kind = $2`,
-        [application.id, document, text, document === "outreach_message" ? (subject ?? null) : null],
-      );
-      if (rowCount === 0) return NOT_FOUND;
+      const rowCount = await inTransaction(database, async (client) => {
+        const written = await client.query(
+          `UPDATE tailored_document SET text = $3, subject = COALESCE($4, subject), origin = NULL, updated_at = now() WHERE application_id = $1 AND kind = $2`,
+          [application.id, document, text, document === "outreach_message" ? (subject ?? null) : null],
+        );
+        // One save, one version (#1079): however many keystrokes it holds; none when nothing changed.
+        if (written.rowCount) await keepVersion(client, application.id, document, { source: "candidate" });
+        return written.rowCount;
+      });
+      if (!rowCount) return NOT_FOUND;
       return { ok: true, drafts: await draftsOf(application) };
     },
 
@@ -500,6 +509,7 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
           `UPDATE tailored_document SET text = $3, subject = COALESCE($4, subject), origin = $5, updated_at = now() WHERE application_id = $1 AND kind = $2 RETURNING updated_at`,
           [application.id, document, text, document === "outreach_message" ? (subject ?? null) : null, { ...origin, appliedAt: origin.appliedAt.toISOString() }],
         );
+        await keepVersion(client, application.id, document, { source: "coach" });
         const undo = { document, text: before.text, subject: before.subject, origin: before.origin, version: written.rows[0]!.updated_at.toISOString() };
         return { ok: true as const, undo };
       });
@@ -522,6 +532,8 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
           subject,
           origin ?? null,
         ]);
+        // « Annuler » puts the version before back: kept as a Restore of it, the reworked one staying in « Versions ».
+        await keepVersion(client, application.id, document, { source: "restored", restoredFrom: "previous" });
         return { ok: true as const };
       });
     },
@@ -557,4 +569,6 @@ export async function migrateTailoredDocuments(database: Pool): Promise<void> {
     -- The Coach proposal the Candidate applied to its text (ADR-0109), null once they edit it or have it drafted again.
     ALTER TABLE tailored_document ADD COLUMN IF NOT EXISTS origin jsonb;
   `);
+  // Each draft's earlier versions (#1079): the drafts already there become their version 1.
+  await migrateTailoredDocumentVersions(database);
 }

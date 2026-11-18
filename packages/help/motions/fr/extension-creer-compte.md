@@ -1,7 +1,7 @@
 ---
 title: Créer son compte depuis l'extension et garder son travail
 viewer: guest
-routes: [/connexion, /compte, /candidatures/[id]]
+routes: [/connexion, /compte, /profils/nouveau, /candidatures/[id]]
 ---
 ## Votre Match Score, sans compte
 - goto @offre-de-demo

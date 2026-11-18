@@ -48,13 +48,15 @@ export async function signInWithMagicLink(page: Page, email: string, submitLabel
 
 /**
  * After signing in: a new account without any Profile is led into the « Entretien d'accueil » (#1050), where « Plus
- * tard » goes on to Mon compte, the session no longer led there. Leaves `page` on Mon compte either way.
+ * tard » goes on to Mon compte, the session no longer led there. Leaves `page` on Mon compte either way, loaded afresh.
  */
 export async function postponeOnboardingIfLed(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/(compte|profils\/nouveau)$/);
   if (new URL(page.url()).pathname !== "/profils/nouveau") return;
   await page.getByRole("button", { name: /^(Plus tard|Later)$/ }).click();
   await expect(page).toHaveURL(/\/compte$/);
+  // Loaded afresh, as the sign-in left it before #1050: no click behind it (focus rings show for the keyboard alone).
+  await page.reload();
 }
 
 /**

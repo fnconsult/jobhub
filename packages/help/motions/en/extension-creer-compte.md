@@ -1,7 +1,7 @@
 ---
 title: Create your account from the extension and keep your work
 viewer: guest
-routes: [/connexion, /compte, /candidatures/[id]]
+routes: [/connexion, /compte, /profils/nouveau, /candidatures/[id]]
 ---
 ## Your Match Score, without an account
 - goto @offre-de-demo

@@ -364,6 +364,7 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
       "routes": [
         "/connexion",
         "/compte",
+        "/profils/nouveau",
         "/candidatures/[id]"
       ],
       "steps": [
@@ -492,7 +493,7 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
           "narration": "Cliquez sur « Voir ma candidature » pour l'ouvrir dans Jobbbox."
         }
       ],
-      "hash": "9238bc2a9dd6"
+      "hash": "c71f4dfe7a17"
     },
     {
       "id": "postuler-cv-adapte",
@@ -1312,6 +1313,7 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
       "routes": [
         "/connexion",
         "/compte",
+        "/profils/nouveau",
         "/candidatures/[id]"
       ],
       "steps": [
@@ -1440,7 +1442,7 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
           "narration": "Click « See my application » to open it in Jobbbox."
         }
       ],
-      "hash": "9ce0774d5cc2"
+      "hash": "d90aa4e2d0af"
     },
     {
       "id": "postuler-cv-adapte",

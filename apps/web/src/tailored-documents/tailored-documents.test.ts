@@ -361,6 +361,42 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
     });
   });
 
+  describe("a draft's text reworked from a Coach proposal (ADR-0109)", () => {
+    const origin = { origin: "coach_proposal" as const, cardId: "11111111-1111-4111-8111-111111111111", appliedAt: new Date("2026-11-18T13:50:00Z") };
+    const versionOf = async () => (await documents.get(candidateId, applicationId))!.outreachMessage!.updatedAt.toISOString();
+
+    it("takes the new text and subject from the version seen and keeps the Origin; the Candidate's edit drops it; « Annuler » puts the text back", async () => {
+      await documents.draft(candidateId, applicationId, { document: "outreach_message" });
+      const before = (await documents.get(candidateId, applicationId))!.outreachMessage!;
+
+      const reworked = await documents.rework(candidateId, applicationId, { document: "outreach_message", text: "Bonjour, plus court.", subject: "Court" }, { version: before.updatedAt.toISOString(), origin });
+
+      expect(reworked.ok).toBe(true);
+      const after = (await documents.get(candidateId, applicationId))!.outreachMessage!;
+      expect(after).toMatchObject({ text: "Bonjour, plus court.", subject: "Court", origin: { origin: "coach_proposal", cardId: origin.cardId } });
+
+      expect(await documents.unrework(candidateId, applicationId, (reworked as { undo: unknown }).undo)).toEqual({ ok: true });
+      expect((await documents.get(candidateId, applicationId))!.outreachMessage).toMatchObject({ text: before.text, subject: before.subject, origin: null });
+
+      await documents.rework(candidateId, applicationId, { document: "outreach_message", text: "Encore." }, { version: await versionOf(), origin });
+      await documents.edit(candidateId, applicationId, { document: "outreach_message", text: "Ma version." });
+      expect((await documents.get(candidateId, applicationId))!.outreachMessage!.origin).toBeNull();
+    });
+
+    it("refuses a version no longer the draft's, « Annuler » once edited since, no draft and someone else's", async () => {
+      await documents.draft(candidateId, applicationId, { document: "cover_letter" });
+      const version = (await documents.get(candidateId, applicationId))!.coverLetter!.updatedAt.toISOString();
+
+      expect(await documents.rework(candidateId, applicationId, { document: "cover_letter", text: "Court." }, { version: "2020-01-01T00:00:00.000Z", origin })).toEqual({ ok: false, error: "conflict" });
+      expect(await documents.rework(candidateId, applicationId, { document: "outreach_message", text: "Court." }, { version, origin })).toEqual({ ok: false, error: "not_found" });
+      expect(await documents.rework(otherCandidateId, applicationId, { document: "cover_letter", text: "Piraté." }, { version, origin })).toEqual({ ok: false, error: "not_found" });
+
+      const reworked = await documents.rework(candidateId, applicationId, { document: "cover_letter", text: "Court." }, { version, origin });
+      await documents.edit(candidateId, applicationId, { document: "cover_letter", text: "Ma version." });
+      expect(await documents.unrework(candidateId, applicationId, (reworked as { undo: unknown }).undo)).toEqual({ ok: false, error: "conflict" });
+    });
+  });
+
   it("drafting again replaces the stored draft, edits included", async () => {
     await documents.draft(candidateId, applicationId, { document: "cover_letter" });
     await documents.edit(candidateId, applicationId, { document: "cover_letter", text: "Ma version" });

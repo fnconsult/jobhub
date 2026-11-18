@@ -193,6 +193,9 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
 
   const pending = card.status === "pending";
   const shownAfter = card.edited && card.status !== "pending" ? afterEdited(card) : change.after;
+  // A draft's new text (ADR-0109): its form has the text as a textarea, shown in full rather than as « before → after ».
+  const textField = change.fields.find((field) => field.type === "textarea" && field.name === "text");
+  const shownText = textField && card.edited && card.status !== "pending" ? (card.edited[textField.name] ?? change.after) : change.after;
   return (
     <article className="ds-card coach-proposal-card" aria-labelledby={titleId} data-status={card.status}>
       <p className="coach-proposal-card__by">{t("coachProposals.by")}</p>
@@ -203,7 +206,15 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
           {change.target.href ? <Link href={change.target.href}>{change.target.name}</Link> : change.target.name}
         </h4>
       </div>
-      {change.also?.length ? (
+      {textField ? (
+        <div className="coach-proposal-card__texts">
+          <p className="coach-proposal-card__text">{shownText}</p>
+          <details className="coach-proposal-card__current">
+            <summary>{t("coachProposals.currentText")}</summary>
+            <p className="coach-proposal-card__text">{change.before}</p>
+          </details>
+        </div>
+      ) : change.also?.length ? (
         // More than one change on the object (#718): each listed, what it is first.
         <ul className="coach-proposal-card__changes">
           {[{ what: change.what, before: change.before, after: shownAfter }, ...change.also].map((each) => (

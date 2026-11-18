@@ -9,4 +9,6 @@ Un e-mail que votre coach rédige quand une candidature reste « Postulée » ou
 
 Jobbbox n'envoie rien à l'employeur : copiez le texte, envoyez-le depuis votre messagerie, puis marquez-le comme envoyé. La candidature passe alors à « Relancée ».
 
+Vous pouvez demander à votre coach de la retravailler, par exemple pour la rendre plus concise ou plus chaleureuse : il propose le nouveau texte dans la conversation, que vous appliquez ou non.
+
 Le délai avant une relance se règle dans Mon compte, rubrique Relances.

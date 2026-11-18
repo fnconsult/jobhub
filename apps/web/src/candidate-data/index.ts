@@ -507,7 +507,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   interview: "applications[].interviews (with their duration, format, place, date of cancellation and Origin, when a Coach proposal the Candidate applied left it so, #718)",
   interview_reschedule: "applications[].interviews[].reschedules (their Reschedule history)",
   tailored_cv: "applications[].tailoredDocuments (the proposal and the saved one, each with its Provenance)",
-  tailored_document: "applications[].tailoredDocuments (each with its Provenance)",
+  tailored_document: "applications[].tailoredDocuments (each with its Provenance and, its text reworked from a Coach proposal, its Origin, ADR-0109)",
   follow_up_sent: "applications[].followUps",
   coach_review: "applications[].coachReviews",
   enriched_contact: "applications[].enrichedContacts (no provider identifiers)",

@@ -19,7 +19,7 @@ Enter « Your email address », then click « Send me a sign-in link ».
 - open-email « Your Jobbbox sign-in link »
 - click link « Sign in to Jobbbox »
 
-Open the email « Your Jobbbox sign-in link » and click « Sign in to Jobbbox », within 15 minutes. Your account is created, on the Free Plan. If Jobbbox asks you to accept the Terms of use, read them, tick the box then click « Accept and continue ». Jobbbox opens the onboarding interview straight away: your coach welcomes you in the conversation.
+Open the email « Your Jobbbox sign-in link » and click « Sign in to Jobbbox », within 15 minutes. Your account is created, on the Free Plan. If Jobbbox asks you to accept the Terms of use, read them, tick the box then click « Accept and continue ». Jobbbox opens the onboarding interview straight away, on a computer on a split screen: your coach welcomes you in the conversation, on the left, and « Activity », on the right, shows your profile in progress, filled in as you answer.
 
 ## Drop your CV
 - upload label « Your CV » « cv-claire-demo.pdf »

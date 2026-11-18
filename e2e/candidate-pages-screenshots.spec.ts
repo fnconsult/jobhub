@@ -711,6 +711,21 @@ test.describe("Candidate pages in the Design System (#468)", () => {
     });
   }
 
+  // Issue #1052: once « Lire mon CV » is pressed, and before the CV leaves for the AI, the thread proposes the EU AI Consent
+  // in one line of the coach, its two answers of the same weight above the box, neither pre-selected.
+  for (const { name, width, height } of SCREENSHOT_WIDTHS.filter((each) => each.name !== "tablet")) {
+    test(`the EU AI Consent proposed before the CV is read (#1052, ${name})`, async ({ page }) => {
+      await signInWithMagicLink(page, newAddress(`shots-eu-ai-consent-${name}`));
+      await page.setViewportSize({ width, height });
+      await page.goto("/profils/nouveau");
+      await page.waitForLoadState("networkidle");
+      await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles({ name: "CV-Marie-Dupont.pdf", mimeType: "application/pdf", buffer: Buffer.from(pdfCv(MARIE_DUPONT_CV)) });
+      await page.getByRole("button", { name: fr.cvUpload.submit, exact: true }).click();
+      await expect(page.getByRole("button", { name: fr.euAiConsent.notNow, exact: true })).toBeVisible();
+      await check(page, page.locator("#main"), "#main", `eu-ai-consent-offer-${name}`, width, false);
+    });
+  }
+
   // Issue #1003 (ADR-0106): a CV read on « Créer un profil » shows in Activité, not in the thread (which says so in one
   // line of the coach). On a computer, the side panel opens by itself as the reading starts: « Lecture de votre profil »
   // under way in « En ce moment » (the fake reading takes 30 s: E2E_CV_SLOW); once read, « Création du profil »'s part

@@ -1,13 +1,13 @@
 ---
 title: "Getting started: from signing up to your first profile"
 viewer: visitor
-routes: [/, /connexion, /compte, /profils/nouveau, /profils/[id]]
+routes: [/, /connexion, /profils/nouveau, /profils/[id]]
 ---
-## Sign in
+## Create your account
 - goto /en
-- click link « Sign in »
+- click link « Create my account »
 
-Click « Sign in », at the top of every public page.
+On Jobbbox's home page, click « Create my account ».
 
 ## Get your sign-in link
 - fill label « Your email address » « claire.new@motions.jobbbox.test »
@@ -19,12 +19,7 @@ Enter « Your email address », then click « Send me a sign-in link ».
 - open-email « Your Jobbbox sign-in link »
 - click link « Sign in to Jobbbox »
 
-Open the email « Your Jobbbox sign-in link » and click « Sign in to Jobbbox », within 15 minutes. Your account is created, on the Free Plan. If Jobbbox asks you to accept the Terms of use, read them, tick the box then click « Accept and continue ».
-
-## Create your first profile
-- click link « Create my first profile »
-
-In My account, under Profiles, click « Create my first profile ». Your coach welcomes you in the conversation.
+Open the email « Your Jobbbox sign-in link » and click « Sign in to Jobbbox », within 15 minutes. Your account is created, on the Free Plan. If Jobbbox asks you to accept the Terms of use, read them, tick the box then click « Accept and continue ». Jobbbox opens the onboarding interview straight away: your coach welcomes you in the conversation.
 
 ## Drop your CV
 - upload label « Your CV » « cv-claire-demo.pdf »

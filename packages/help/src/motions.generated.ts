@@ -12,13 +12,12 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
       "routes": [
         "/",
         "/connexion",
-        "/compte",
         "/profils/nouveau",
         "/profils/[id]"
       ],
       "steps": [
         {
-          "title": "Se connecter",
+          "title": "Créer votre compte",
           "actions": [
             {
               "action": "goto",
@@ -29,11 +28,11 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
               "target": {
                 "by": "role",
                 "role": "link",
-                "name": "Se connecter"
+                "name": "Créer mon compte"
               }
             }
           ],
-          "narration": "Cliquez sur « Se connecter », en haut de chaque page publique."
+          "narration": "Sur la page d'accueil de Jobbbox, cliquez sur « Créer mon compte »."
         },
         {
           "title": "Recevoir votre lien de connexion",
@@ -73,21 +72,7 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
               }
             }
           ],
-          "narration": "Ouvrez l'e-mail « Votre lien de connexion à Jobbbox » et cliquez sur « Me connecter à Jobbbox », dans les 15 minutes. Votre compte est créé, avec l'offre Gratuit. Si Jobbbox vous demande d'accepter les CGU, lisez-les, cochez la case puis cliquez sur « Accepter et continuer »."
-        },
-        {
-          "title": "Créer votre premier profil",
-          "actions": [
-            {
-              "action": "click",
-              "target": {
-                "by": "role",
-                "role": "link",
-                "name": "Créer mon premier profil"
-              }
-            }
-          ],
-          "narration": "Dans Mon compte, rubrique Profils, cliquez sur « Créer mon premier profil ». Votre coach vous accueille dans la conversation."
+          "narration": "Ouvrez l'e-mail « Votre lien de connexion à Jobbbox » et cliquez sur « Me connecter à Jobbbox », dans les 15 minutes. Votre compte est créé, avec l'offre Gratuit. Si Jobbbox vous demande d'accepter les CGU, lisez-les, cochez la case puis cliquez sur « Accepter et continuer ». Jobbbox vous ouvre aussitôt l'entretien d'accueil : votre coach vous accueille dans la conversation."
         },
         {
           "title": "Déposer votre CV",
@@ -244,7 +229,7 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
           "narration": "Si le résumé est juste, cliquez sur « Cela semble correct ». Vos premières offres s'affichent dans « Activité », à la fin de la recherche offerte que votre coach a lancée : « Dans l'activité » vous y mène. Sans attendre, cliquez sur « Continuer vers mon profil » : votre premier profil est prêt."
         }
       ],
-      "hash": "0dd748997909"
+      "hash": "c5774b1748d2"
     },
     {
       "id": "extension-analyser-offre",
@@ -975,13 +960,12 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
       "routes": [
         "/",
         "/connexion",
-        "/compte",
         "/profils/nouveau",
         "/profils/[id]"
       ],
       "steps": [
         {
-          "title": "Sign in",
+          "title": "Create your account",
           "actions": [
             {
               "action": "goto",
@@ -992,11 +976,11 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
               "target": {
                 "by": "role",
                 "role": "link",
-                "name": "Sign in"
+                "name": "Create my account"
               }
             }
           ],
-          "narration": "Click « Sign in », at the top of every public page."
+          "narration": "On Jobbbox's home page, click « Create my account »."
         },
         {
           "title": "Get your sign-in link",
@@ -1036,21 +1020,7 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
               }
             }
           ],
-          "narration": "Open the email « Your Jobbbox sign-in link » and click « Sign in to Jobbbox », within 15 minutes. Your account is created, on the Free Plan. If Jobbbox asks you to accept the Terms of use, read them, tick the box then click « Accept and continue »."
-        },
-        {
-          "title": "Create your first profile",
-          "actions": [
-            {
-              "action": "click",
-              "target": {
-                "by": "role",
-                "role": "link",
-                "name": "Create my first profile"
-              }
-            }
-          ],
-          "narration": "In My account, under Profiles, click « Create my first profile ». Your coach welcomes you in the conversation."
+          "narration": "Open the email « Your Jobbbox sign-in link » and click « Sign in to Jobbbox », within 15 minutes. Your account is created, on the Free Plan. If Jobbbox asks you to accept the Terms of use, read them, tick the box then click « Accept and continue ». Jobbbox opens the onboarding interview straight away: your coach welcomes you in the conversation."
         },
         {
           "title": "Drop your CV",
@@ -1207,7 +1177,7 @@ export const MOTION_SCRIPTS: Record<HelpLocale, readonly MotionScript[]> = {
           "narration": "If the summary is right, click « That looks right ». Your first job offers show in « Activity », at the end of the search on us your coach started: « In Activity » takes you there. Without waiting, click « Continue to my profile »: your first profile is ready."
         }
       ],
-      "hash": "b8996a3a827b"
+      "hash": "105202aec8c8"
     },
     {
       "id": "extension-analyser-offre",

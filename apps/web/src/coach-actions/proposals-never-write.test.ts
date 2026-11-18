@@ -58,6 +58,7 @@ const CALLS: Record<string, (world: World) => Record<string, unknown>> = {
   propose_interview_change: (w) => ({ applicationId: w.applicationId, interviewId: w.interviewId, place: "Visioconférence" }),
   propose_interview_cancel: (w) => ({ applicationId: w.applicationId, interviewId: w.interviewId }),
   propose_search_criteria: (w) => ({ profileId: w.daf, addLocations: ["Paris"], minSalary: 90000 }),
+  propose_draft_text: (w) => ({ applicationId: w.applicationId, document: "cover_letter", text: "Madame, Monsieur, une lettre courte." }),
   propose_master_cv_changes: (w) => ({
     profileId: w.daf,
     changes: [
@@ -187,9 +188,25 @@ describe.skipIf(!connectionString)("a Coach Action never writes: only the Candid
       },
       jobSearchQuota: async () => ({ used: 0, limit: 5, refusal: null }),
       tailoredCvs: { get: async () => ({ documentLanguage: "fr", proposal: null, saved: null }) },
-      tailoredDocuments: { get: async () => ({ documentLanguage: "fr", coverLetter: null, outreachMessage: null }) },
+      tailoredDocuments: {
+        // A Cover Letter drafted, for its text to be reworked (ADR-0109).
+        get: async () => ({
+          documentLanguage: "fr",
+          coverLetter: { language: "fr", text: "Madame, Monsieur, une lettre longue.", draftedAt: new Date("2026-11-02T09:00:00Z"), updatedAt: new Date("2026-11-02T09:00:00Z"), provenance: null },
+          outreachMessage: null,
+        }),
+        rework: write() as never,
+        unrework: write() as never,
+      },
     };
-    writes = [domain.jobSearches.start, domain.jobSearches.stop, domain.jobDigests.subscribe, domain.jobDigests.unsubscribe] as unknown as ReturnType<typeof vi.fn>[];
+    writes = [
+      domain.jobSearches.start,
+      domain.jobSearches.stop,
+      domain.jobDigests.subscribe,
+      domain.jobDigests.unsubscribe,
+      domain.tailoredDocuments.rework,
+      domain.tailoredDocuments.unrework,
+    ] as unknown as ReturnType<typeof vi.fn>[];
     // A Job Offer is within reach when one of the Candidate's objects shows it: the new one, which her Job Search found.
     const objects: CoachObjectReader = { index: async () => [], read: async (_candidateId, type, id) => (type === "job_offer" && id === world.newOfferId ? ({ text: "" } as never) : null) };
     catalog = shippedCoachActions(objects, domain);

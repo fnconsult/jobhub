@@ -73,6 +73,42 @@ afterEach(() => vi.unstubAllGlobals());
 
 const applied = (more: Partial<Card> = {}): Card => ({ ...PENDING, status: "accepted", decidedAt: "2026-11-04T17:20:00.000Z", undoable: true, ...more });
 
+describe("a draft's new text proposed (ADR-0109)", () => {
+  const TEXT: Card = {
+    ...PENDING,
+    change: {
+      target: { kind: "application", id: "a1", name: "Head Of BU · Fynd Recrutement", href: "/candidatures/a1/propositions" },
+      what: "Relance",
+      before: "Bonjour,\n\nUne relance longue.\n\nCordialement,",
+      after: "Bonjour,\n\nOù en est le recrutement ?\n\nCordialement,",
+      value: { subject: "Relance", text: "Bonjour,\n\nOù en est le recrutement ?\n\nCordialement," },
+      fields: [
+        { name: "subject", label: "Objet", type: "text" },
+        { name: "text", label: "Texte", type: "textarea" },
+      ],
+    },
+  };
+  const textCard = () => screen.getByRole("article", { name: /Relance/ });
+
+  it("shows the new text in full, its lines kept, and the current one folded under « Texte actuel »", () => {
+    renderInFrench(<Thread card={TEXT} />);
+
+    const after = textCard().querySelector(".coach-proposal-card__text");
+    expect(after?.textContent).toBe("Bonjour,\n\nOù en est le recrutement ?\n\nCordialement,");
+    const current = within(textCard()).getByText("Texte actuel");
+    expect(current.closest("details")?.open).toBe(false);
+    expect(current.closest("details")?.textContent).toContain("Une relance longue.");
+    expect(textCard().textContent).not.toContain("→");
+    expect(within(textCard()).getAllByRole("button").map((each) => each.textContent)).toEqual(["Appliquer", "Modifier avant d'appliquer", "Ignorer"]);
+  });
+
+  it("applied after an edit, shows the text the Candidate applied, never its subject glued to it", () => {
+    renderInFrench(<Thread card={applied({ change: TEXT.change, edited: { subject: "Relance", text: "Mon texte à moi." } })} />);
+
+    expect(textCard().querySelector(".coach-proposal-card__text")?.textContent).toBe("Mon texte à moi.");
+  });
+});
+
 describe("a Coach proposal's card in the thread (#715, ADR-0077)", () => {
   it("says what changes on which object, before → after, that the AI Coach proposed it, with its three buttons", () => {
     renderInFrench(<Thread />);

@@ -1615,7 +1615,7 @@
       "proposed": "Je vous propose cette modification ci-dessous : relisez-la, puis appliquez-la ou ignorez-la. Rien ne change sans vous.",
       "masterCvNotProposed": "Je n'ai pas pu préparer cette modification. Je ne propose que ce que votre CV de référence dit déjà, sans élément, compétence ni chiffre qu'il ne contient pas. Pour ajouter des compétences ou des outils, écrivez-les vous-même dans la section « CV de référence » de votre profil, puis enregistrez une nouvelle version.",
       "notProposed": "Je n'ai pas pu préparer cette modification telle quelle. Dites-moi précisément ce que vous voulez changer, ou faites-le depuis la page concernée.",
-      "none": "Je n'ai pas réussi à vous répondre cette fois. Pouvez-vous reformuler votre demande, ou la découper en plusieurs messages ?"
+      "none": "Je n'ai pas pu préparer de réponse à cette demande. Ce que je ne peux pas modifier moi-même se change depuis la page concernée (la candidature et ses sections, votre profil) : dites-moi précisément ce que vous voulez changer, et je vous proposerai ce que je peux."
     },
     "jobOfferLink": {
       "read": "J'ai lu cette offre et je l'ai ajoutée à Jobbbox. Elle est à traiter : ouvrez-la pour voir son score de correspondance et la suivre avec l'un de vos profils.",
@@ -7039,7 +7039,14 @@
       "coachMemory": "À retenir",
       "jobSearch": "Recherche d'offres",
       "jobSearchStop": "Arrêt de la recherche",
-      "jobDigest": "Job Digest"
+      "jobDigest": "Job Digest",
+      "draftSubject": "Objet",
+      "draftText": "Texte",
+      "draft": {
+        "follow_up": "Relance",
+        "cover_letter": "Lettre de motivation",
+        "outreach_message": "Message d'approche"
+      }
     },
     "interview": {
       "none": "Aucun",
@@ -7061,11 +7068,11 @@
       "noDigest": "Pas de Job Digest",
       "noTailoredCv": "Aucun CV adapté",
       "tailoredCvSaved": "CV adapté enregistré le {{date}}, gardé tel quel",
-      "tailoredCvProposal": "Une proposition à relire changement par changement · {{language}}",
+      "tailoredCvProposal": "Une proposition que votre coach IA préparera quand vous la lancerez, à relire changement par changement · {{language}}",
       "noDraft": "Aucun brouillon",
       "draftOf": "Brouillon du {{date}}",
       "draftEdited": "Brouillon du {{date}}, modifié depuis",
-      "newDraft": "Un brouillon rédigé par votre coach IA · {{language}}",
+      "newDraft": "Un nouveau brouillon que votre coach IA rédigera quand vous lancerez la rédaction · {{language}}",
       "replacesDraft": "Votre brouillon actuel sera remplacé, vos modifications comprises.",
       "replacesTailoredCvProposal": "Votre proposition de CV adapté en cours de relecture sera remplacée, vos réponses comprises."
     },
@@ -7089,7 +7096,6 @@
     "confirmReplaceProposal": "Remplacer votre proposition de CV adapté en cours de relecture, vos réponses comprises ?",
     "confirmYesProposal": "Remplacer et préparer",
     "confirmNoProposal": "Garder ma proposition",
-    "runHint": "Le document est dans les documents de la candidature ; arrêté, rien n'a été gardé.",
     "edit": "Modifier avant d'appliquer",
     "dismiss": "Ignorer",
     "undo": "Annuler",
@@ -7130,7 +7136,15 @@
       "save": "Enregistrer les changements acceptés",
       "saved_one": "{{count}} changement enregistré",
       "saved_other": "{{count}} changements enregistrés"
-    }
+    },
+    "currentText": "Texte actuel",
+    "runResult": {
+      "tailored_cv": "La proposition de CV adapté est dans Documents › CV adapté, à relire changement par changement.",
+      "cover_letter": "Votre lettre de motivation est dans Documents › Lettre de motivation.",
+      "outreach_message": "Votre message d'approche est dans Documents › Message d'approche."
+    },
+    "runStopped": "Si vous l'avez arrêtée, rien n'a été gardé.",
+    "openResult": "Ouvrir à côté de la conversation"
   },
   "coachProposalsDisplay": {
     "label": "Propositions du coach",

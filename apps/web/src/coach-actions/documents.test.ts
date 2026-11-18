@@ -87,7 +87,7 @@ describe("the « Documents » Coach Actions (#721)", () => {
         target: { kind: "application", id: "a1", name: "DAF H/F · Acme Industrie", href: "/candidatures/a1/documents?resultat=cv-adapte" },
         what: "CV adapté",
         before: "Aucun CV adapté",
-        after: "Une proposition à relire changement par changement · Français",
+        after: "Une proposition que votre coach IA préparera quand vous la lancerez, à relire changement par changement · Français",
         value: {},
         fields: [],
         version: "none",
@@ -105,7 +105,7 @@ describe("the « Documents » Coach Actions (#721)", () => {
       const change = await proposed(actionOf(sources, DOCUMENT_ACTIONS.tailoredCv), { applicationId: "a1", language: "en" });
 
       expect(change.before).toBe("CV adapté enregistré le 2 novembre 2026, gardé tel quel");
-      expect(change.after).toBe("Une proposition à relire changement par changement · Anglais");
+      expect(change.after).toBe("Une proposition que votre coach IA préparera quand vous la lancerez, à relire changement par changement · Anglais");
       expect(change.runs?.body).toEqual({ language: "en" });
     });
 
@@ -192,7 +192,7 @@ describe("the « Documents » Coach Actions (#721)", () => {
         target: { kind: "application", id: "a1", name: "DAF H/F · Acme Industrie", href: "/candidatures/a1/documents?resultat=lettre" },
         what: "Lettre de motivation",
         before: "Aucun brouillon",
-        after: "Un brouillon rédigé par votre coach IA · Français",
+        after: "Un nouveau brouillon que votre coach IA rédigera quand vous lancerez la rédaction · Français",
         value: {},
         fields: [],
         version: "none",

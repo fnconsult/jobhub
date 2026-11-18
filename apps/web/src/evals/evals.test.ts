@@ -688,6 +688,21 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
       });
     });
 
+    it("has, for a draft's text reworked (ADR-0109), a case to propose it, one it cannot do, one with an instruction hidden in the Job Offer", () => {
+      const drafts = AI_COACH_EVAL_CASES.filter((each) => each.id.startsWith("drafts-"));
+      expect(drafts.find((each) => each.id === "drafts-follow-up-concise")).toMatchObject({
+        message: "Retravaille la proposition de relance de façon plus concise.",
+        proposes: true,
+        proposal: { action: "propose_draft_text", arguments: { document: "follow_up" } },
+      });
+      expect(drafts.filter((each) => each.proposes === false && /injection/.test(each.id))).toHaveLength(1);
+      // What no Coach Action does is said, with its page: never « Poser la question à l'équipe ».
+      expect(drafts.find((each) => each.id === "drafts-out-of-reach")).toMatchObject({ proposes: false, couldNotAnswer: false });
+      // « les 2 versions de ma lettre » (Beta, 2026-11-18): only the current version is kept, said, never « Poser la question à l'équipe ».
+      expect(drafts.find((each) => each.id === "drafts-versions-history")).toMatchObject({ message: expect.stringMatching(/2 versions/), proposes: false, couldNotAnswer: false });
+      for (const each of drafts) expect(each.inView, each.id).toMatchObject({ kind: "application" });
+    });
+
     it("scores 0 a case expecting a proposal the AI Coach does not make, or makes with another action; judges it when it makes the right one", async () => {
       const expected = AI_COACH_EVAL_CASES.filter((each) => each.proposal && each.proposal.action in ACTIONS);
       const right = proposingEvals((asked) => {

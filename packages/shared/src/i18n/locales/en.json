@@ -1615,7 +1615,7 @@
       "proposed": "I propose this change below: review it, then apply or ignore it. Nothing changes without you.",
       "masterCvNotProposed": "I couldn't prepare this change. I only propose what your Master CV already says, never an item, skill or figure it doesn't hold. To add skills or tools, write them yourself in the « Master CV » section of your profile, then save a new version.",
       "notProposed": "I couldn't prepare this change as asked. Tell me precisely what you want to change, or make it from the page concerned.",
-      "none": "I couldn't answer you this time. Could you rephrase your request, or split it into several messages?"
+      "none": "I could not prepare an answer to this request. What I cannot change myself is changed from the page concerned (the application and its sections, your profile): tell me exactly what you want to change, and I will propose what I can."
     },
     "jobOfferLink": {
       "read": "I read this job offer and added it to Jobbbox. It is to be processed: open it to see its Match Score and follow it with one of your profiles.",
@@ -7039,7 +7039,14 @@
       "coachMemory": "To remember",
       "jobSearch": "Job search",
       "jobSearchStop": "Stopping the search",
-      "jobDigest": "Job Digest"
+      "jobDigest": "Job Digest",
+      "draftSubject": "Subject",
+      "draftText": "Text",
+      "draft": {
+        "follow_up": "Follow-up",
+        "cover_letter": "Cover letter",
+        "outreach_message": "Outreach message"
+      }
     },
     "interview": {
       "none": "None",
@@ -7061,11 +7068,11 @@
       "noDigest": "No Job Digest",
       "noTailoredCv": "No tailored CV",
       "tailoredCvSaved": "Tailored CV saved on {{date}}, kept as it is",
-      "tailoredCvProposal": "A proposal to review change by change · {{language}}",
+      "tailoredCvProposal": "A proposal your AI coach will prepare once you start it, to review change by change · {{language}}",
       "noDraft": "No draft",
       "draftOf": "Draft of {{date}}",
       "draftEdited": "Draft of {{date}}, edited since",
-      "newDraft": "A draft written by your AI coach · {{language}}",
+      "newDraft": "A new draft your AI coach will write once you start the drafting · {{language}}",
       "replacesDraft": "Your current draft will be replaced, your edits included.",
       "replacesTailoredCvProposal": "Your Tailored CV proposal under review will be replaced, your answers included."
     },
@@ -7089,7 +7096,6 @@
     "confirmReplaceProposal": "Replace your Tailored CV proposal under review, your answers included?",
     "confirmYesProposal": "Replace and prepare",
     "confirmNoProposal": "Keep my proposal",
-    "runHint": "The document is in the application's documents; if it was stopped, nothing was kept.",
     "edit": "Edit before applying",
     "dismiss": "Ignore",
     "undo": "Undo",
@@ -7130,7 +7136,15 @@
       "save": "Save the accepted changes",
       "saved_one": "{{count}} change saved",
       "saved_other": "{{count}} changes saved"
-    }
+    },
+    "currentText": "Current text",
+    "runResult": {
+      "tailored_cv": "The tailored CV proposal is in Documents › Tailored CV, to review change by change.",
+      "cover_letter": "Your cover letter is in Documents › Cover letter.",
+      "outreach_message": "Your outreach message is in Documents › Outreach message."
+    },
+    "runStopped": "If you stopped it, nothing was kept.",
+    "openResult": "Open beside the conversation"
   },
   "coachProposalsDisplay": {
     "label": "Coach proposals",

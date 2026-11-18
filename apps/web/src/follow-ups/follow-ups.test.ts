@@ -460,6 +460,52 @@ describe.skipIf(!connectionString)("Follow-ups (needs Postgres: DATABASE_URL)", 
     });
   });
 
+  describe("a waiting Follow-up's text reworked from a Coach proposal (ADR-0109)", () => {
+    const origin = { origin: "coach_proposal" as const, cardId: "11111111-1111-4111-8111-111111111111", appliedAt: new Date("2026-11-18T13:50:00Z") };
+
+    it("gives the waiting draft, takes the new subject and text from the version seen, keeps the Origin, and « Annuler » puts the draft back", async () => {
+      await setStatus("applied", day("2026-11-02"));
+      await followUps.proposeDue(day("2026-11-12"));
+      const draft = await followUps.draftOf(candidateId, applicationId);
+      expect(draft).toMatchObject({ subject: expect.any(String), text: expect.any(String), version: expect.stringMatching(/^[0-9a-f]{16}$/) });
+
+      const reworded = await followUps.reword(candidateId, applicationId, { subject: "Ma candidature", text: "Bonjour, où en est le recrutement ? Cordialement," }, { version: draft!.version, origin });
+
+      expect(reworded.ok).toBe(true);
+      const [card] = await pendingCards();
+      expect(card!.body).toBe("Bonjour, où en est le recrutement ? Cordialement,");
+      expect(card!.payload).toMatchObject({ subject: "Ma candidature", text: "Bonjour, où en est le recrutement ? Cordialement,", origin: { origin: "coach_proposal", cardId: origin.cardId } });
+      expect((await followUps.draftOf(candidateId, applicationId))!.version).not.toBe(draft!.version);
+
+      expect(await followUps.unreword(candidateId, applicationId, (reworded as { undo: unknown }).undo)).toEqual({ ok: true });
+      const [back] = await pendingCards();
+      expect(back!.body).toBe(draft!.text);
+      expect(back!.payload).toMatchObject({ subject: draft!.subject, text: draft!.text });
+      expect((back!.payload as Record<string, unknown>).origin).toBeUndefined();
+    });
+
+    it("refuses a version no longer the draft's, and « Annuler » once the Follow-up was sent", async () => {
+      await setStatus("applied", day("2026-11-02"));
+      await followUps.proposeDue(day("2026-11-12"));
+      const draft = (await followUps.draftOf(candidateId, applicationId))!;
+
+      expect(await followUps.reword(candidateId, applicationId, { subject: "S", text: "T" }, { version: "0000000000000000", origin })).toEqual({ ok: false, error: "conflict" });
+
+      const reworded = await followUps.reword(candidateId, applicationId, { subject: "S", text: "T" }, { version: draft.version, origin });
+      await markSentOn(day("2026-11-12"));
+      expect(await followUps.unreword(candidateId, applicationId, (reworded as { undo: unknown }).undo)).toEqual({ ok: false, error: "conflict" });
+    });
+
+    it("finds no waiting Follow-up of someone else's Application", async () => {
+      await setStatus("applied", day("2026-11-02"));
+      await followUps.proposeDue(day("2026-11-12"));
+      const draft = (await followUps.draftOf(candidateId, applicationId))!;
+
+      expect(await followUps.draftOf(otherCandidateId, applicationId)).toBeNull();
+      expect(await followUps.reword(otherCandidateId, applicationId, { subject: "S", text: "T" }, { version: draft.version, origin })).toEqual({ ok: false, error: "not_found" });
+    });
+  });
+
   it("numbers the Follow-ups recorded before #771 in the order they were sent, keeping every one, and can run again", async () => {
     await database.query(`ALTER TABLE follow_up_sent DROP CONSTRAINT follow_up_sent_number_check; DROP INDEX follow_up_sent_number_idx; ALTER TABLE follow_up_sent DROP COLUMN number`);
     for (const on of ["2026-11-12", "2026-11-05", "2026-11-20"]) {

@@ -268,7 +268,9 @@ const COACH_ACTIONS_RULES = `Coach Actions :
 - Une modification du CV de référence ne reprend que ce qu'il dit déjà : jamais un élément, un chiffre ni un fait qu'il ne contient pas ; demande au candidat ce qui manque.
 - Le CV de référence ne se réécrit jamais dans ta réponse, pas même en partie (une rubrique, une liste de compétences) : propose la modification avec l'outil prévu, ou, pour ce que le CV ne dit pas encore (une compétence, un outil), dis au candidat de l'ajouter lui-même dans la section « CV de référence » de son profil.
 - Un CV adapté, une lettre de motivation ou un message d'approche ne s'écrit jamais dans ta réponse, pas même en partie : propose de le préparer avec l'outil prévu ; le candidat le lance sous ta réponse et le relit dans les documents de sa candidature.
-- Un CV, une lettre ou un message dans une autre langue (« mets mon CV en anglais ») se prépare pour une candidature avec l'outil prévu et son argument language : il est alors rédigé entièrement dans cette langue. Le CV de référence reste dans sa langue : ne propose jamais de le traduire par des modifications ; sans candidature consultée, demande pour laquelle, ou explique que la « Langue des documents » se choisit dans les documents d'une candidature.`;
+- Un CV, une lettre ou un message dans une autre langue (« mets mon CV en anglais ») se prépare pour une candidature avec l'outil prévu et son argument language : il est alors rédigé entièrement dans cette langue. Le CV de référence reste dans sa langue : ne propose jamais de le traduire par des modifications ; sans candidature consultée, demande pour laquelle, ou explique que la « Langue des documents » se choisit dans les documents d'une candidature.
+- Pour retravailler un brouillon qui existe (la relance qui attend dans « Propositions », la lettre de motivation, le message d'approche : « plus concis », « ajoute… »), lis-le avec read_draft, puis propose son nouveau texte complet, dans la langue du brouillon, avec propose_draft_text, jamais dans ta réponse : le candidat le relit, le modifie s'il veut et l'applique sous ta réponse.
+- Quand aucun outil ne permet ce que le candidat demande, dis-le en une phrase et indique la page où il peut le faire lui-même. Ne termine jamais ta réponse sans texte.`;
 
 /** Told when untrusted text is In view (#713): the Coach Actions that copy text are not offered. */
 const NARROWED_RULE =
@@ -296,14 +298,16 @@ const MASTER_CV_PROPOSAL = "propose_master_cv_changes";
 /**
  * What a reply says when the model wrote no text (#784, ADR-0077), in the Candidate's language: that the change it proposes is
  * under it, to review and apply; or that the change could not be prepared (a Master CV one: only what the CV already says,
- * the Candidate adds a skill themselves in its section); or that it could not answer, « Poser la question à l'équipe » offered.
+ * the Candidate adds a skill themselves in its section); or that it could not prepare an answer, with where the Candidate
+ * makes the change themselves, « Poser la question à l'équipe » not offered (ADR-0109: only the model's own mark offers it).
  */
 export function emptyReplyText(language: GuardrailLanguage, proposals: readonly CoachProposal[], declined: readonly string[]): { text: string; couldNotAnswer: boolean } {
   const { t } = createI18n(language);
   if (proposals.length > 0) return { text: t("coachPanel.emptyReply.proposed"), couldNotAnswer: false };
   if (declined.includes(MASTER_CV_PROPOSAL)) return { text: t("coachPanel.emptyReply.masterCvNotProposed"), couldNotAnswer: false };
   if (declined.length > 0) return { text: t("coachPanel.emptyReply.notProposed"), couldNotAnswer: false };
-  return { text: t("coachPanel.emptyReply.none"), couldNotAnswer: true };
+  // Not a question it cannot answer (#345), but a request it found no way to carry out (ADR-0109): said, with where to do it.
+  return { text: t("coachPanel.emptyReply.none"), couldNotAnswer: false };
 }
 
 /** The set reply to a Job Offer link, in the Candidate's language: nothing in it comes from the page. */
@@ -466,9 +470,10 @@ export function createCoach(deps: CoachDeps): Coach {
           const { text, ...read } = readReplyMarks(result.text);
           marks = read;
           if (text.trim()) return { text, secrets: prepared.secrets };
-          // No text at all (#784): the model ended on its tool calls, or wrote only the hidden lines. Never an empty reply.
+          // No text at all (#784): the model ended on its tool calls, or wrote only the hidden lines. Never an empty reply,
+          // and never « Poser la question à l'équipe » for it (ADR-0109): only the model's own mark offers that.
           const empty = emptyReplyText(options.language ?? "fr", proposals ?? [], declined);
-          marks = { ...read, couldNotAnswer: empty.couldNotAnswer };
+          marks = { ...read, couldNotAnswer: read.couldNotAnswer && empty.couldNotAnswer };
           return { text: empty.text, secrets: prepared.secrets };
         };
         const latest = messages.at(-1)!.content;

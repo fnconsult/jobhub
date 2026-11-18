@@ -5,3 +5,7 @@ export type TailoredDocumentKind = (typeof TAILORED_DOCUMENTS)[number];
 /** How an Outreach Message reaches the contact: an email, or a LinkedIn InMail the Candidate sends themselves (ADR-0001). */
 export const OUTREACH_CHANNELS = ["email", "inmail"] as const;
 export type OutreachChannel = (typeof OUTREACH_CHANNELS)[number];
+
+/** Longest text kept for a draft, in characters: a long letter is about 4,000. */
+export const MAX_DRAFT_LENGTH = 10_000;
+export const MAX_SUBJECT_LENGTH = 300;

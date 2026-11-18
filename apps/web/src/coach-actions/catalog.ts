@@ -2,7 +2,7 @@
  * The Coach Actions shipped (ADR-0077), group by group as each ticket delivers them, each one built on the domain module
  * its page's route calls, with its Eval Cases: the reads of every group (#714), the Agenda's proposals (#718), the
  * Candidatures proposals (#716), the Profil group's proposals (#719), the Recherches d'offres and Job Digests proposals
- * (#720) and the Documents proposals (#721).
+ * (#720), the Documents proposals (#721) and the drafts reworked from the conversation (ADR-0109).
  *
  *   shippedCoachActions(candidateObjects(sources), domain)   // the app's, over the Candidate's objects
  *   shippedCoachActions(NO_OBJECTS)                          // on no one's data: every read finds nothing, nothing to propose on
@@ -11,6 +11,7 @@ import type { ApplicationChangeResult } from "../applications";
 import { agendaCoachActions, type AgendaApplications } from "./agenda";
 import { applicationCoachActions, type ApplicationActionSources } from "./applications";
 import { documentCoachActions, type DocumentActionSources } from "./documents";
+import { draftCoachActions, type DraftActionSources } from "./drafts";
 import { coachActionCatalog, type CoachAction } from "./index";
 import { profileCoachActions, type ProfileActionSources } from "./profile";
 import { searchCoachActions, type SearchActionSources } from "./job-searches";
@@ -23,7 +24,11 @@ export type CoachActionDomain = Omit<ApplicationActionSources, "applications" | 
     profiles: ApplicationActionSources["profiles"] & SearchActionSources["profiles"];
     /** The Profil group's: Search Criteria, Master CV, archive and restore, Coach Memory. */
     profile: ProfileActionSources;
-  } & Pick<DocumentActionSources, "tailoredCvs" | "tailoredDocuments">;
+  } & Pick<DocumentActionSources, "tailoredCvs"> & {
+    /** The Documents group's: the drafts launched (#721), and reworked from the conversation (ADR-0109). */
+    tailoredDocuments: DocumentActionSources["tailoredDocuments"] & DraftActionSources["tailoredDocuments"];
+    followUps: ApplicationActionSources["followUps"] & DraftActionSources["followUps"];
+  };
 
 export function shippedCoachActions(objects: CoachObjectReader, domain: CoachActionDomain = NO_DOMAIN): readonly CoachAction[] {
   // A Job Offer out of view is within reach when a read finds it: one of the Candidate's objects shows it.
@@ -35,6 +40,7 @@ export function shippedCoachActions(objects: CoachObjectReader, domain: CoachAct
     ...profileCoachActions(domain.profile),
     ...searchCoachActions(domain),
     ...documentCoachActions(domain),
+    ...draftCoachActions(domain),
   ]);
 }
 
@@ -78,8 +84,15 @@ export const NO_DOMAIN: CoachActionDomain = {
   },
   jobSearchQuota: async () => ({ used: 0, limit: 0, refusal: null }),
   tailoredCvs: { get: async () => null },
-  tailoredDocuments: { get: async () => null },
-  followUps: { sentOf: async () => null, markSent: async () => ({ ok: false, error: "not_found" }), unmarkSent: async () => ({ ok: false, error: "not_found" }) },
+  tailoredDocuments: { get: async () => null, rework: async () => ({ ok: false, error: "not_found" }), unrework: async () => ({ ok: false, error: "not_found" }) },
+  followUps: {
+    sentOf: async () => null,
+    markSent: async () => ({ ok: false, error: "not_found" }),
+    unmarkSent: async () => ({ ok: false, error: "not_found" }),
+    draftOf: async () => null,
+    reword: async () => ({ ok: false, error: "not_found" }),
+    unreword: async () => ({ ok: false, error: "not_found" }),
+  },
   profile: {
     profiles: {
       get: async () => null,

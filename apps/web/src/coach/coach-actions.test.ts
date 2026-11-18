@@ -273,14 +273,34 @@ describe("a reply with no text never reaches the Candidate empty (#784)", () => 
     expect(replied.reply).toMatch(/^Je n'ai pas pu préparer cette modification telle quelle\./);
   });
 
-  it("no tool, no text: it says it could not answer, « Poser la question à l'équipe » offered", async () => {
+  it("no tool, no text: it says what it could not do and where the Candidate does it, never « Poser la question à l'équipe » (ADR-0109)", async () => {
     const { coach } = setUp({ turns: [{ text: "" }] });
 
     const replied = await ask(coach);
 
-    expect(replied).toMatchObject({ ok: true, couldNotAnswer: true });
+    expect(replied).toMatchObject({ ok: true, couldNotAnswer: false });
     if (!replied.ok) throw new Error("no reply");
-    expect(replied.reply).toMatch(/^Je n'ai pas réussi à vous répondre cette fois\./);
+    expect(replied.reply).toMatch(/^Je n'ai pas pu préparer de réponse à cette demande\./);
+    expect(replied.reply).toContain("depuis la page concernée");
+  });
+
+  it("reads its drafts, then writes nothing but its hidden lines (as on the Beta): no « Poser la question à l'équipe » either", async () => {
+    const { coach } = setUp({ turns: [{ toolCalls: [{ name: "lire_candidature", arguments: { id: "a1" } }] }, { text: "[jobbbox:non]" }] });
+
+    const replied = await ask(coach, "Retravaille la proposition de relance de façon plus concise.");
+
+    expect(replied).toMatchObject({ ok: true, couldNotAnswer: false, proposals: [] });
+  });
+
+  it("told it to draft or rework a document, it learns read_draft and propose_draft_text, and to name the page for what it cannot do", async () => {
+    const { coach, coachCalls } = setUp({ turns: [{ text: "Voici." }] });
+
+    await ask(coach, "Retravaille la proposition de relance.");
+
+    const system = coachCalls()[0]!.system ?? "";
+    expect(system).toMatch(/read_draft/);
+    expect(system).toMatch(/propose_draft_text/);
+    expect(system).toMatch(/indique la page/);
   });
 });
 

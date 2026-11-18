@@ -40,6 +40,7 @@
  * Every read and change is scoped to the Candidate; inputs are untrusted and
  * problems come back as results (but for `onAccept`, which throws so the card stays pending).
  */
+import { createHash } from "node:crypto";
 import type { AiLayer } from "@jobhub/ai";
 import { jobOfferLanguage, type ApplicationStatus, type DocumentLanguage } from "@jobhub/shared";
 import { createI18n, DEFAULT_LOCALE, isSupportedLocale } from "@jobhub/shared/i18n";
@@ -85,6 +86,8 @@ export interface FollowUpPayload {
   /** The Follow-up email draft (Follow-up cards only), in the Application's Document Language. */
   subject?: string;
   text?: string;
+  /** The Coach proposal the Candidate applied to its subject and text (ADR-0109); absent for the draft as proposed. */
+  origin?: unknown;
 }
 
 /** One Application with a Follow-up or "Abandonnée" suggestion waiting for the Candidate. */
@@ -124,7 +127,36 @@ export interface FollowUps {
   markSent(candidateId: string, applicationId: string, options: { version: string; origin: Origin }): Promise<MarkSentResult>;
   /** « Annuler » (#716): puts back the state before `markSent`, from what it gave back, while nothing moved on since. */
   unmarkSent(candidateId: string, applicationId: string, undo: unknown): Promise<UnmarkSentResult>;
+  /** The Follow-up waiting on the Application (ADR-0109): its card, subject, text and version; null when none waits or it is not the Candidate's. */
+  draftOf(candidateId: string, applicationId: string): Promise<FollowUpDraftState | null>;
+  /**
+   * A Coach proposal's new subject and text for the waiting Follow-up, applied by the Candidate (ADR-0109), from the
+   * version seen (changed or decided since: a `conflict`). The card keeps the proposal as its Origin. `undo`: what
+   * `unreword` needs.
+   */
+  reword(candidateId: string, applicationId: string, draft: { subject: string; text: string }, options: { version: string; origin: Origin }): Promise<RewordResult>;
+  /** « Annuler »: puts the Follow-up's subject and text before `reword` back, while it is still waiting and unchanged since. */
+  unreword(candidateId: string, applicationId: string, undo: unknown): Promise<UnmarkSentResult>;
 }
+
+/** The Follow-up waiting on an Application, as a Coach proposal reworks it (ADR-0109). */
+export interface FollowUpDraftState {
+  cardId: string;
+  subject: string;
+  text: string;
+  /** A fingerprint of its card, subject and text: moves with every change. */
+  version: string;
+}
+
+export type RewordResult = { ok: true; undo: unknown } | { ok: false; error: "not_found" | "conflict" };
+
+/**
+ * A waiting Follow-up's version: 16 hex characters of a SHA-256 of its card, subject and text. Not 32: the reply's key
+ * check (`scrubStoredText`) takes 32 hex characters for a credential.
+ */
+const followUpVersion = (cardId: string, subject: string, text: string) => createHash("sha256").update(`${cardId}\n${subject}\n${text}`).digest("hex").slice(0, 16);
+
+const rewordUndoSchema = z.object({ cardId: z.string(), subject: z.string(), text: z.string(), origin: z.unknown(), version: z.string() });
 
 export interface FollowUpsDeps {
   /** Where the cards are proposed (without handlers: proposing only). */
@@ -442,6 +474,56 @@ export function createFollowUps(database: Pool, deps: FollowUpsDeps): FollowUps 
           restored ? JSON.stringify(restored) : null,
         ]);
         await client.query(`DELETE FROM follow_up_sent WHERE application_id = $1 AND id = ANY($2::uuid[])`, [applicationId, sentIds]);
+        return { ok: true };
+      });
+    },
+
+    async draftOf(candidateId, applicationId) {
+      const card = (await deps.actionCards.pending(candidateId, { kind: "application", id: applicationId })).find((each) => each.kind === FOLLOW_UP_CARD);
+      if (!card) return null;
+      const { subject = "", text = card.body } = payloadOf(card);
+      return { cardId: card.id, subject, text, version: followUpVersion(card.id, subject, text) };
+    },
+
+    async reword(candidateId, applicationId, draft, { version, origin }) {
+      return inTransaction(database, async (client): Promise<RewordResult> => {
+        const { rows } = await client.query<{ id: string; body: string; payload: unknown }>(
+          `SELECT id::text, body, payload FROM action_card
+           WHERE candidate_id = $1 AND kind = $2 AND focus_kind = 'application' AND focus_id = $3 AND status = 'pending' AND reply_seq IS NULL
+           ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,
+          [candidateId, FOLLOW_UP_CARD, applicationId],
+        );
+        const card = rows[0];
+        if (!card) return { ok: false, error: "not_found" };
+        const before = payloadOf(card);
+        const subject = before.subject ?? "";
+        const text = before.text ?? card.body;
+        if (followUpVersion(card.id, subject, text) !== version) return { ok: false, error: "conflict" };
+        const stored = { origin: origin.origin, cardId: origin.cardId, appliedAt: origin.appliedAt.toISOString() };
+        await client.query(`UPDATE action_card SET body = $2, payload = payload || $3::jsonb WHERE id = $1`, [card.id, draft.text, JSON.stringify({ subject: draft.subject, text: draft.text, origin: stored })]);
+        return { ok: true, undo: { cardId: card.id, subject, text, origin: before.origin ?? null, version: followUpVersion(card.id, draft.subject, draft.text) } };
+      });
+    },
+
+    async unreword(candidateId, applicationId, undo) {
+      const kept = rewordUndoSchema.safeParse(undo);
+      if (!kept.success) return { ok: false, error: "not_found" };
+      const { cardId, subject, text, origin, version } = kept.data;
+      return inTransaction(database, async (client): Promise<UnmarkSentResult> => {
+        const { rows } = await client.query<{ id: string; body: string; payload: unknown; status: string }>(
+          `SELECT id::text, body, payload, status FROM action_card WHERE id::text = $1 AND candidate_id = $2 AND kind = $3 AND focus_id = $4 FOR UPDATE`,
+          [cardId, candidateId, FOLLOW_UP_CARD, applicationId],
+        );
+        const card = rows[0];
+        if (!card) return { ok: false, error: "not_found" };
+        const now = payloadOf(card);
+        // Sent, dismissed or changed since: never merged, refused.
+        if (card.status !== "pending" || followUpVersion(card.id, now.subject ?? "", now.text ?? card.body) !== version) return { ok: false, error: "conflict" };
+        await client.query(`UPDATE action_card SET body = $2, payload = (payload - 'origin') || $3::jsonb WHERE id = $1`, [
+          card.id,
+          text,
+          JSON.stringify({ subject, text, ...(readOrigin(origin) ? { origin } : {}) }),
+        ]);
         return { ok: true };
       });
     },

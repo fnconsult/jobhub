@@ -3,11 +3,7 @@ import { readFileSync } from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import pg from "pg";
 import { newAddress } from "./support/mailbox";
-import {
-  signInByEmail,
-  startOwnServer,
-  type OwnServer,
-} from "./support/own-server";
+import { signInByEmail, startOwnServer, type OwnServer } from "./support/own-server";
 
 // ADR-0109: the AI Coach reworks an Application's drafts from the conversation. On the Beta, « Retravaille la
 // proposition de relance de façon plus concise » ended twice on « Je n'ai pas réussi à vous répondre cette fois » and
@@ -17,17 +13,14 @@ import {
 // that ends with no text says what it could not do and where, never « Poser la question à l'équipe ». This spec runs on a
 // server of its own with COACH_ACTIONS_ENABLED on; the AI Coach is faked inside it (fake-mistral.mjs): a message holding
 // `E2E_COACH_TOOL=<name>:<json>` has it call that Coach Action, one a round.
-const fr = JSON.parse(
-  readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"),
-);
+const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const texts = fr.coachProposals;
 /** Inside the suite's own range of derived ports (e2e/support/ports.ts), apart from the other specs' servers. */
 const PORT_OFFSET = 1109;
 const TITLE = "Head Of Business Unit Compte Stratégique - Paris H/F";
 const LONG =
   "Bonjour,\n\nJe me permets de revenir vers vous au sujet de ma candidature au poste de Head Of Business Unit, que je vous ai adressée récemment.\n\nCe rôle de pilotage correspond à mon projet professionnel.\n\nJe serais heureux d'échanger avec vous pour préciser en quoi mon parcours répond aux attentes de ce poste.\n\nCordialement,";
-const SHORT =
-  "Bonjour,\n\nJe reviens vers vous au sujet de ma candidature au poste de Head Of Business Unit. Où en est le recrutement ?\n\nCordialement,";
+const SHORT = "Bonjour,\n\nJe reviens vers vous au sujet de ma candidature au poste de Head Of Business Unit. Où en est le recrutement ?\n\nCordialement,";
 const ASKED = "Retravaille la proposition de relance de façon plus concise";
 
 const masterCv = {
@@ -53,10 +46,7 @@ const masterCv = {
 
 let server: OwnServer;
 
-async function query<T extends pg.QueryResultRow>(
-  sql: string,
-  values: unknown[],
-): Promise<T[]> {
+async function query<T extends pg.QueryResultRow>(sql: string, values: unknown[]): Promise<T[]> {
   const db = new pg.Client({ connectionString: server.databaseUrl });
   await db.connect();
   try {
@@ -67,9 +57,7 @@ async function query<T extends pg.QueryResultRow>(
 }
 
 /** A new Candidate with an Application « Postulée » and its Follow-up waiting in « Propositions »: its page open on its conversation. */
-async function withFollowUp(
-  browser: Browser,
-): Promise<{ page: Page; applicationId: string; cardId: string }> {
+async function withFollowUp(browser: Browser): Promise<{ page: Page; applicationId: string; cardId: string }> {
   const context = await browser.newContext({
     baseURL: server.origin,
     locale: "fr-FR",
@@ -92,8 +80,7 @@ async function withFollowUp(
         url: `https://www.hellowork.com/fr-fr/emplois/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.html`,
       },
       title: TITLE,
-      content:
-        "Fynd Recrutement recrute pour son client un Head of Business Unit compte stratégique à Paris.",
+      content: "Fynd Recrutement recrute pour son client un Head of Business Unit compte stratégique à Paris.",
       skills: ["Management", "Grands comptes"],
       employer: "Fynd Recrutement",
       location: "Paris",
@@ -130,34 +117,18 @@ async function withFollowUp(
   return { page, applicationId, cardId: card!.id };
 }
 
-const conversation = (page: Page) =>
-  page.getByRole("region", { name: fr.conversationFirst.label });
+const conversation = (page: Page) => page.getByRole("region", { name: fr.conversationFirst.label });
 
 /** Asks the AI Coach from the Application's conversation, having it call each of `tools` in turn. */
-async function ask(
-  page: Page,
-  message: string,
-  tools: { name: string; args: object }[],
-  more = "",
-) {
-  const markers = tools
-    .map(({ name, args }) => `E2E_COACH_TOOL=${name}:${JSON.stringify(args)}`)
-    .join("\n");
+async function ask(page: Page, message: string, tools: { name: string; args: object }[], more = "") {
+  const markers = tools.map(({ name, args }) => `E2E_COACH_TOOL=${name}:${JSON.stringify(args)}`).join("\n");
   await conversation(page)
     .getByLabel(fr.coachPanel.messageLabel)
     .fill(`${message}\n${more ? `${more}\n` : ""}${markers}`);
-  await conversation(page)
-    .getByRole("button", { name: fr.coachPanel.send, exact: true })
-    .click();
+  await conversation(page).getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
 }
 
-const followUpBody = async (cardId: string) =>
-  (
-    await query<{ body: string }>(
-      "SELECT body FROM action_card WHERE id::text = $1",
-      [cardId],
-    )
-  )[0]!.body;
+const followUpBody = async (cardId: string) => (await query<{ body: string }>("SELECT body FROM action_card WHERE id::text = $1", [cardId]))[0]!.body;
 
 test.describe.configure({ mode: "serial" });
 
@@ -184,13 +155,7 @@ test.describe("the AI Coach reworks an Application's drafts: « Propositions »,
       STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_coaching_session_premium",
       STRIPE_API_URL: process.env.E2E_STRIPE_URL,
       COACH_ACTIONS_ENABLED: "true",
-      NODE_OPTIONS: [
-        "fake-google.mjs",
-        "fake-mistral.mjs",
-        "fake-reference-data.mjs",
-      ]
-        .map((fake) => `--import=${path.resolve("e2e/support", fake)}`)
-        .join(" "),
+      NODE_OPTIONS: ["fake-google.mjs", "fake-mistral.mjs", "fake-reference-data.mjs"].map((fake) => `--import=${path.resolve("e2e/support", fake)}`).join(" "),
     });
   });
 
@@ -198,9 +163,7 @@ test.describe("the AI Coach reworks an Application's drafts: « Propositions »,
     await server?.stop();
   });
 
-  test("« plus concise » → a card with the new Follow-up → « Appliquer » changes it in « Propositions » → « Annuler » puts it back", async ({
-    browser,
-  }) => {
+  test("« plus concise » → a card with the new Follow-up → « Appliquer » changes it in « Propositions » → « Annuler » puts it back", async ({ browser }) => {
     const { page, applicationId, cardId } = await withFollowUp(browser);
 
     await ask(page, ASKED, [
@@ -215,39 +178,26 @@ test.describe("the AI Coach reworks an Application's drafts: « Propositions »,
       .last();
     await expect(card).toBeVisible({ timeout: 30_000 });
     await expect(card).toContainText(texts.by);
-    await expect(card.locator(".coach-proposal-card__text").first()).toHaveText(
-      SHORT,
-    );
+    await expect(card.locator(".coach-proposal-card__text").first()).toHaveText(SHORT);
     await expect(card.getByText(texts.currentText)).toBeVisible();
-    await expect(
-      card.getByRole("link", { name: `${TITLE} · Fynd Recrutement` }),
-    ).toHaveAttribute("href", `/candidatures/${applicationId}/propositions`);
+    await expect(card.getByRole("link", { name: `${TITLE} · Fynd Recrutement` })).toHaveAttribute("href", `/candidatures/${applicationId}/propositions`);
     // Proposed, nothing changed yet.
     expect(await followUpBody(cardId)).toBe(LONG);
 
     await card.getByRole("button", { name: texts.apply, exact: true }).click();
-    await expect(card.getByRole("status").first()).toContainText(
-      texts.applied.replace(" à {{time}}", ""),
-      { timeout: 30_000 },
-    );
+    await expect(card.getByRole("status").first()).toContainText(texts.applied.replace(" à {{time}}", ""), { timeout: 30_000 });
     expect(await followUpBody(cardId)).toBe(SHORT);
 
     // The Section shows the Follow-up as it now is.
     await page.goto(`/candidatures/${applicationId}/propositions`);
-    await expect(
-      page.getByText("Où en est le recrutement ?").first(),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("Où en est le recrutement ?").first()).toBeVisible({ timeout: 30_000 });
 
     await page.goto(`/candidatures/${applicationId}`);
     const applied = conversation(page)
       .getByRole("article", { name: new RegExp(texts.fields.draft.follow_up) })
       .last();
-    await applied
-      .getByRole("button", { name: texts.undo, exact: true })
-      .click();
-    await expect
-      .poll(() => followUpBody(cardId), { timeout: 30_000 })
-      .toBe(LONG);
+    await applied.getByRole("button", { name: texts.undo, exact: true }).click();
+    await expect.poll(() => followUpBody(cardId), { timeout: 30_000 }).toBe(LONG);
   });
 
   test("the Beta's turn: drafts read, then no text written → it says what it could not do and where, no « Poser la question à l'équipe »", async ({
@@ -255,28 +205,13 @@ test.describe("the AI Coach reworks an Application's drafts: « Propositions »,
   }) => {
     const { page } = await withFollowUp(browser);
 
-    await ask(
-      page,
-      ASKED,
-      [{ name: "read_draft", args: { document: "follow_up" } }],
-      "E2E_COACH_SILENT",
-    );
-    const reply = conversation(page)
-      .locator(".chat-candidate + .chat-coach")
-      .last();
+    await ask(page, ASKED, [{ name: "read_draft", args: { document: "follow_up" } }], "E2E_COACH_SILENT");
+    const reply = conversation(page).locator(".chat-candidate + .chat-coach").last();
     await expect(reply).toContainText(fr.coachPanel.emptyReply.none, {
       timeout: 30_000,
     });
-    await expect(
-      conversation(page).getByText(
-        fr.coachPanel.emptyReply.none.split(".")[0]!,
-      ),
-    ).toBeVisible();
-    await expect(
-      conversation(page).getByRole("button", { name: fr.coachPanel.team.ask }),
-    ).toHaveCount(0);
-    await expect(
-      conversation(page).getByRole("link", { name: fr.coachPanel.team.ask }),
-    ).toHaveCount(0);
+    await expect(conversation(page).getByText(fr.coachPanel.emptyReply.none.split(".")[0]!)).toBeVisible();
+    await expect(conversation(page).getByRole("button", { name: fr.coachPanel.team.ask })).toHaveCount(0);
+    await expect(conversation(page).getByRole("link", { name: fr.coachPanel.team.ask })).toHaveCount(0);
   });
 });

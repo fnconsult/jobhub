@@ -705,7 +705,7 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
       const expected = AI_COACH_EVAL_CASES.filter((each) => each.proposal && each.proposal.action in ACTIONS);
       const right = proposingEvals((asked) => {
         const each = expected.find((one) => asked.includes(one.message));
-        return each ? { name: each.proposal!.action, arguments: {} } : null;
+        return each ? { name: each.proposal!.action, arguments: each.proposal!.arguments ?? {} } : null;
       }, expected);
       const wrong = proposingEvals((asked) => {
         const each = expected.find((one) => asked.includes(one.message));
@@ -714,7 +714,9 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
 
       const [none, judged, other] = [await playing(expected).runAiCoach(claire), await right.runAiCoach(claire), await wrong.runAiCoach(claire)];
 
-      expect(expected.length).toBe(3);
+      // Each document asked for, and each asked for in English (#1073).
+      expect(expected.length).toBe(6);
+      expect(expected.filter((each) => each.proposal!.arguments?.language === "en").map((each) => each.proposal!.action).sort()).toEqual(["propose_cover_letter", "propose_outreach_message", "propose_tailored_cv"]);
       for (const each of expected) {
         expect(none.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0, reason: expect.stringMatching(/aucune modification/) });
         expect(judged.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0.8 });

@@ -10,6 +10,6 @@ In an application's « Documents » section, your coach drafts the cover letter 
 - « Draft the letter » prepares a cover letter, signed with your Master CV's contact details.
 - « Draft the message » prepares a short message to a contact at the employer. Choose whether it is « Sent by » « Email » or « LinkedIn InMail », and its « Recipient »: one of your Enriched Contacts, or « No one in particular (the roles to contact) ».
 
-Edit the text, then click « Save my changes ». « Draft again » replaces the current text, your changes included. The « Document language » is by default the job offer's; it applies to the next draft.
+Edit the text, then click « Save my changes ». « Draft again » replaces the current text, your changes included. The « Document language » is by default the job offer's; it applies to the next draft. The whole text is written in that language, even when your Master CV is in another: your coach translates what it takes from it, and invents nothing.
 
 Jobbbox sends nothing on your behalf: click « Copy the text », or « Open in my mail app » for an email, then send it yourself. The letter also downloads as PDF or Word.

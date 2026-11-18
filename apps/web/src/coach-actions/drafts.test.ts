@@ -6,25 +6,10 @@
 import { describe, expect, it } from "vitest";
 import type { Application } from "../applications";
 import type { ApplicationDrafts } from "../tailored-documents";
-import {
-  DRAFT_ACTIONS,
-  draftCoachActions,
-  type DraftActionSources,
-  type FollowUpDraftState,
-} from "./drafts";
-import {
-  createCoachActions,
-  type CoachAction,
-  type CoachActionCall,
-  type ProposalCall,
-  type ProposedChange,
-} from "./index";
+import { DRAFT_ACTIONS, draftCoachActions, type DraftActionSources, type FollowUpDraftState } from "./drafts";
+import { createCoachActions, type CoachAction, type CoachActionCall, type ProposalCall, type ProposedChange } from "./index";
 
-const application = (
-  id: string,
-  profileId: string,
-  title: string,
-): Application =>
+const application = (id: string, profileId: string, title: string): Application =>
   ({
     id,
     status: "applied",
@@ -40,14 +25,9 @@ const LONG_FOLLOW_UP =
 /** Marie's world: an Application with a pending Follow-up, a Cover Letter and an Outreach Message; an archived one; Paul has none. */
 function world() {
   const applications: Record<string, Application[]> = {
-    marie: [
-      application("a1", "p-bu", "Head Of Business Unit"),
-      application("a-old", "p-old", "Contrôleuse"),
-    ],
+    marie: [application("a1", "p-bu", "Head Of Business Unit"), application("a-old", "p-old", "Contrôleuse")],
   };
-  const mine = (candidateId: string, applicationId: string) =>
-    applications[candidateId]?.find((each) => each.id === applicationId) ??
-    null;
+  const mine = (candidateId: string, applicationId: string) => applications[candidateId]?.find((each) => each.id === applicationId) ?? null;
   const drafts: ApplicationDrafts = {
     documentLanguage: "fr",
     coverLetter: {
@@ -94,12 +74,7 @@ function world() {
     },
     tailoredDocuments: {
       get: async (candidateId, id) => (mine(candidateId, id) ? drafts : null),
-      rework: async (
-        _candidateId,
-        _applicationId,
-        input,
-        { version, origin },
-      ) => {
+      rework: async (_candidateId, _applicationId, input, { version, origin }) => {
         written.push({
           document: input.document,
           value: {
@@ -109,30 +84,20 @@ function world() {
           version,
           cardId: origin.cardId,
         });
-        return version === DRAFTED.toISOString()
-          ? { ok: true, undo: { before: "kept" } }
-          : { ok: false, error: "conflict" };
+        return version === DRAFTED.toISOString() ? { ok: true, undo: { before: "kept" } } : { ok: false, error: "conflict" };
       },
       unrework: async () => ({ ok: true }),
     },
     followUps: {
-      draftOf: async (candidateId, id) =>
-        mine(candidateId, id) ? followUp : null,
-      reword: async (
-        _candidateId,
-        _applicationId,
-        draft,
-        { version, origin },
-      ) => {
+      draftOf: async (candidateId, id) => (mine(candidateId, id) ? followUp : null),
+      reword: async (_candidateId, _applicationId, draft, { version, origin }) => {
         written.push({
           document: "follow_up",
           value: { text: draft.text, subject: draft.subject },
           version,
           cardId: origin.cardId,
         });
-        return version === followUp?.version
-          ? { ok: true, undo: { before: "kept" } }
-          : { ok: false, error: "conflict" };
+        return version === followUp?.version ? { ok: true, undo: { before: "kept" } } : { ok: false, error: "conflict" };
       },
       unreword: async () => ({ ok: true }),
     },
@@ -140,28 +105,18 @@ function world() {
   return { sources, drafts, written, noFollowUp: () => (followUp = null) };
 }
 
-const call = (
-  candidateId = "marie",
-  more: Partial<CoachActionCall> = {},
-): CoachActionCall => ({ candidateId, language: "fr", ...more });
-const onApplication = (candidateId = "marie") =>
-  call(candidateId, { inView: { kind: "application", id: "a1" } });
+const call = (candidateId = "marie", more: Partial<CoachActionCall> = {}): CoachActionCall => ({ candidateId, language: "fr", ...more });
+const onApplication = (candidateId = "marie") => call(candidateId, { inView: { kind: "application", id: "a1" } });
 const applied = (candidateId = "marie"): ProposalCall => ({
   candidateId,
   cardId: "card-1",
   at: new Date("2026-11-18T13:50:00Z"),
 });
-const actionOf = (sources: DraftActionSources, name: string): CoachAction =>
-  draftCoachActions(sources).find((action) => action.name === name)!;
+const actionOf = (sources: DraftActionSources, name: string): CoachAction => draftCoachActions(sources).find((action) => action.name === name)!;
 
-async function proposed(
-  action: CoachAction,
-  args: Record<string, unknown>,
-  at = onApplication(),
-): Promise<ProposedChange> {
+async function proposed(action: CoachAction, args: Record<string, unknown>, at = onApplication()): Promise<ProposedChange> {
   const result = await action.run(action.schema.parse(args), at);
-  if (!result.ok || result.proposes === false)
-    throw new Error(`nothing proposed: ${JSON.stringify(result)}`);
+  if (!result.ok || result.proposes === false) throw new Error(`nothing proposed: ${JSON.stringify(result)}`);
   return result.data as ProposedChange;
 }
 
@@ -206,19 +161,14 @@ describe("the draft Coach Actions (ADR-0109)", () => {
       untrustedInView: true,
     });
 
-    expect(offered?.tools.map((tool) => tool.name)).toEqual(
-      Object.values(DRAFT_ACTIONS),
-    );
+    expect(offered?.tools.map((tool) => tool.name)).toEqual(Object.values(DRAFT_ACTIONS));
   });
 
   describe("read_draft", () => {
     it("gives the pending Follow-up's subject and text, the Application In view, as data from a draft written from the Job Offer", async () => {
       const read = actionOf(world().sources, DRAFT_ACTIONS.read);
 
-      const result = await read.run(
-        read.schema.parse({ document: "follow_up" }),
-        onApplication(),
-      );
+      const result = await read.run(read.schema.parse({ document: "follow_up" }), onApplication());
 
       expect(result).toMatchObject({
         ok: true,
@@ -226,23 +176,15 @@ describe("the draft Coach Actions (ADR-0109)", () => {
         pages: ["/candidatures/a1/propositions"],
       });
       if (!result.ok) throw new Error("not read");
-      expect(result.data).toContain(
-        "Relance de ma candidature : Head Of Business Unit",
-      );
+      expect(result.data).toContain("Relance de ma candidature : Head Of Business Unit");
       expect(result.data).toContain("Ce rôle correspond à mon projet.");
     });
 
     it("gives the Cover Letter's and the Outreach Message's text", async () => {
       const read = actionOf(world().sources, DRAFT_ACTIONS.read);
 
-      const letter = await read.run(
-        read.schema.parse({ document: "cover_letter" }),
-        onApplication(),
-      );
-      const message = await read.run(
-        read.schema.parse({ document: "outreach_message" }),
-        onApplication(),
-      );
+      const letter = await read.run(read.schema.parse({ document: "cover_letter" }), onApplication());
+      const message = await read.run(read.schema.parse({ document: "outreach_message" }), onApplication());
 
       expect(letter).toMatchObject({
         ok: true,
@@ -257,10 +199,7 @@ describe("the draft Coach Actions (ADR-0109)", () => {
       noFollowUp();
       const read = actionOf(sources, DRAFT_ACTIONS.read);
 
-      const result = await read.run(
-        read.schema.parse({ document: "follow_up" }),
-        onApplication(),
-      );
+      const result = await read.run(read.schema.parse({ document: "follow_up" }), onApplication());
 
       expect(result).toMatchObject({ ok: true });
       expect(result.ok && result.data).toMatch(/Aucune relance/);
@@ -269,18 +208,8 @@ describe("the draft Coach Actions (ADR-0109)", () => {
     it("finds no one else's Application, nor an Archived one", async () => {
       const read = actionOf(world().sources, DRAFT_ACTIONS.read);
 
-      expect(
-        await read.run(
-          read.schema.parse({ document: "follow_up", applicationId: "a1" }),
-          call("paul"),
-        ),
-      ).toEqual({ ok: false, error: "not_found" });
-      expect(
-        await read.run(
-          read.schema.parse({ document: "follow_up", applicationId: "a-old" }),
-          call(),
-        ),
-      ).toEqual({ ok: false, error: "not_found" });
+      expect(await read.run(read.schema.parse({ document: "follow_up", applicationId: "a1" }), call("paul"))).toEqual({ ok: false, error: "not_found" });
+      expect(await read.run(read.schema.parse({ document: "follow_up", applicationId: "a-old" }), call())).toEqual({ ok: false, error: "not_found" });
     });
   });
 
@@ -323,10 +252,7 @@ describe("the draft Coach Actions (ADR-0109)", () => {
         text: "Court.",
       });
 
-      const result = await propose.apply!(
-        { ...change, value: { ...change.value, text: "Court, revu par moi." } },
-        applied(),
-      );
+      const result = await propose.apply!({ ...change, value: { ...change.value, text: "Court, revu par moi." } }, applied());
 
       expect(result).toEqual({
         ok: true,
@@ -347,9 +273,7 @@ describe("the draft Coach Actions (ADR-0109)", () => {
           cardId: "card-1",
         },
       ]);
-      expect(
-        await propose.undo!((result as { undo: unknown }).undo, applied()),
-      ).toEqual({ ok: true });
+      expect(await propose.undo!((result as { undo: unknown }).undo, applied())).toEqual({ ok: true });
     });
 
     it("is refused as a conflict when the draft changed since the card", async () => {
@@ -359,9 +283,7 @@ describe("the draft Coach Actions (ADR-0109)", () => {
         text: "Court.",
       });
 
-      expect(
-        await propose.apply!({ ...change, version: "v-older" }, applied()),
-      ).toEqual({ ok: false, error: "conflict" });
+      expect(await propose.apply!({ ...change, version: "v-older" }, applied())).toEqual({ ok: false, error: "conflict" });
     });
 
     it("proposes a Cover Letter's new text, opened in its Result, applied from the draft's last change", async () => {
@@ -391,21 +313,24 @@ describe("the draft Coach Actions (ADR-0109)", () => {
       noFollowUp();
       const propose = actionOf(sources, DRAFT_ACTIONS.rework);
 
-      const result = await propose.run(
-        propose.schema.parse({ document: "follow_up", text: "Court." }),
-        onApplication(),
-      );
+      const result = await propose.run(propose.schema.parse({ document: "follow_up", text: "Court." }), onApplication());
 
       expect(result).toMatchObject({ ok: true, proposes: false });
+    });
+
+    it("refuses a new text with a paragraph in another language than the draft's, telling the AI Coach to keep its language (#1074)", async () => {
+      const propose = actionOf(world().sources, DRAFT_ACTIONS.rework);
+      const mixed = "Bonjour,\n\nI am writing to follow up on my application for the Head of Business Unit position, which I sent you recently.\n\nCordialement,";
+
+      const result = await propose.run(propose.schema.parse({ document: "follow_up", text: mixed }), onApplication());
+
+      expect(result).toMatchObject({ ok: false, error: "refused", reason: expect.stringMatching(/en français/) });
     });
 
     it("proposes nothing when the text is the same", async () => {
       const propose = actionOf(world().sources, DRAFT_ACTIONS.rework);
 
-      const result = await propose.run(
-        propose.schema.parse({ document: "follow_up", text: LONG_FOLLOW_UP }),
-        onApplication(),
-      );
+      const result = await propose.run(propose.schema.parse({ document: "follow_up", text: LONG_FOLLOW_UP }), onApplication());
 
       expect(result).toMatchObject({ ok: true, proposes: false });
     });
@@ -413,12 +338,7 @@ describe("the draft Coach Actions (ADR-0109)", () => {
     it("asks which Application when none is In view or named", async () => {
       const propose = actionOf(world().sources, DRAFT_ACTIONS.rework);
 
-      expect(
-        await propose.run(
-          propose.schema.parse({ document: "follow_up", text: "Court." }),
-          call(),
-        ),
-      ).toMatchObject({ ok: true, proposes: false });
+      expect(await propose.run(propose.schema.parse({ document: "follow_up", text: "Court." }), call())).toMatchObject({ ok: true, proposes: false });
     });
   });
 });

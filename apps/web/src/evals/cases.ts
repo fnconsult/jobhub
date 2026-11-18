@@ -1240,6 +1240,48 @@ export const AI_COACH_EVAL_CASES: readonly AiCoachEvalCase[] = [
     proposes: true,
     proposal: { action: "propose_tailored_cv" },
   },
+  // A document in another language (#1073): proposed in that Document Language, wholly written in it; the Master CV is never
+  // translated piecemeal through its changes, which would leave its diplomas, languages and dates in French.
+  {
+    id: "documents-tailored-cv-in-english",
+    title: "« Mon CV en anglais » : propose le CV adapté en anglais, sans traduire le CV de référence (#1073)",
+    context: NATHALIE,
+    message: "Pouvez-vous me faire une version anglaise de mon CV pour cette mission ?",
+    inView: nathalieApplication(),
+    criteria: `La réponse propose de préparer le CV adapté de la candidature chez Exemple Conseil en anglais, entièrement rédigé dans cette langue à partir de son CV de référence, sans rien y ajouter. Elle ne traduit elle-même aucune partie du CV dans la réponse et ne propose pas de modifier ni de traduire le CV de référence. ${PROPOSED_NOT_DONE}`,
+    proposes: true,
+    proposal: { action: "propose_tailored_cv", arguments: { language: "en" } },
+  },
+  {
+    id: "documents-cover-letter-in-english",
+    title: "« Ma lettre en anglais » : propose de rédiger la lettre en anglais (#1073)",
+    context: NATHALIE,
+    message: "Écrivez ma lettre de motivation pour cette mission, mais en anglais.",
+    inView: nathalieApplication(),
+    criteria: `La réponse propose de rédiger la lettre de motivation de la candidature chez Exemple Conseil en anglais. Elle ne contient aucune lettre, ni en anglais ni en français. ${PROPOSED_NOT_DONE}`,
+    proposes: true,
+    proposal: { action: "propose_cover_letter", arguments: { language: "en" } },
+  },
+  {
+    id: "documents-outreach-message-in-english",
+    title: "« Mon message en anglais » : propose de rédiger le message d'approche en anglais (#1073)",
+    context: NATHALIE,
+    message: "Préparez-moi le message d'approche pour cette mission, en anglais s'il vous plaît.",
+    inView: nathalieApplication(),
+    criteria: `La réponse propose de rédiger le message d'approche de la candidature chez Exemple Conseil en anglais. Elle n'écrit pas le message elle-même dans la réponse. ${PROPOSED_NOT_DONE}`,
+    proposes: true,
+    proposal: { action: "propose_outreach_message", arguments: { language: "en" } },
+  },
+  {
+    id: "coach-action-profile-master-cv-translate",
+    title: "« Traduisez mon CV de référence en anglais » : pas de traduction partielle par modifications (#1073)",
+    context: HELENE,
+    message: "Traduisez mon CV de référence en anglais.",
+    inView: HELENE_PROFILE,
+    criteria:
+      "La réponse ne propose pas de modifier le CV de référence pour le traduire, même en partie, et ne contient aucune traduction du CV. Elle explique qu'un CV en anglais se prépare pour une candidature, en choisissant l'anglais comme langue des documents, et qu'il est alors rédigé entièrement en anglais à partir du CV de référence ; elle peut demander pour quelle candidature.",
+    proposes: false,
+  },
   {
     id: "documents-tailored-cv-not-asked",
     title: "Conseille quoi mettre en avant sans préparer de CV adapté (#721)",

@@ -9,6 +9,7 @@ import {
   foldedProvenance,
   interviewDraft,
   interviewInputSchema,
+  MAX_TURNS,
   nextInterviewTurn,
   replied,
   salaryNamed,
@@ -190,6 +191,35 @@ describe("the next turn from the AI (#1002): task onboarding_interview, its Prov
     const ai = createAiLayer({ providers: [provider], routes: { onboarding_interview: "mistral" }, usage });
     expect((await nextInterviewTurn(long, { ai: () => ai, candidateId: "cand-1", places, industries: async () => NO_INDUSTRY_REFERENCE }))?.turn.done).toBe(true);
     expect(provider.calls).toHaveLength(0);
+  });
+
+  it("tells the AI, once the Profile is born, the rest in 4 blocks and the block in progress (#1046); none before", async () => {
+    const block = (exchange: unknown[], draft: InterviewDraft, resumedAt?: unknown) => {
+      const provider = createFakeProvider({ id: "mistral", reply: '{"ask":{"field":"skills","question":"Vos compétences ?","kind":"text"},"done":false}' });
+      const ai = createAiLayer({ providers: [provider], routes: { onboarding_interview: "mistral" }, usage });
+      const parsed = interviewInputSchema.parse({ language: "fr", draft, exchange, ...(resumedAt ? { resumedAt } : {}) });
+      return nextInterviewTurn(parsed, { ai: () => ai, candidateId: "cand-1", places, industries: async () => NO_INDUSTRY_REFERENCE }).then(() => JSON.stringify(provider.calls[0]));
+    };
+    const before = await block([], BLANK);
+    expect(before).not.toContain("Bloc en cours");
+    const first = await block([], BORN);
+    expect(first).toContain("Le reste se fait en 4 blocs");
+    expect(first).toContain("Bloc en cours : 1 sur 4, critères");
+    const career = await block([{ ask: { field: "experience.title", question: "Votre dernier poste ?" }, reply: { kind: "answer", text: "DAF" } }], BORN);
+    expect(career).toContain("Bloc en cours : 2 sur 4, parcours");
+    // « Reprendre la création » (#1046): the block it was left at.
+    expect(await block([], BORN, { block: "skills", turns: 12 })).toContain("Bloc en cours : 3 sur 4, compétences");
+  });
+
+  it("counts the turns before « Continuer plus tard » in its cap, unchanged at 40 (#1046)", async () => {
+    const resumed = interviewInputSchema.parse({ language: "fr", draft: BORN, exchange: [], resumedAt: { block: "career", turns: 40 } });
+    const provider = createFakeProvider({ id: "mistral", reply: "{}" });
+    const ai = createAiLayer({ providers: [provider], routes: { onboarding_interview: "mistral" }, usage });
+    expect((await nextInterviewTurn(resumed, { ai: () => ai, candidateId: "cand-1", places, industries: async () => NO_INDUSTRY_REFERENCE }))?.turn.done).toBe(true);
+    expect(provider.calls).toHaveLength(0);
+    expect(MAX_TURNS).toBe(40);
+    // A block it does not know is read as none.
+    expect(interviewInputSchema.parse({ language: "fr", draft: BORN, exchange: [], resumedAt: { block: "hobbies", turns: 3 } }).resumedAt).toBeUndefined();
   });
 
   it("refuses an exchange whose field it does not know", () => {

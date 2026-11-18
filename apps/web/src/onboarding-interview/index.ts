@@ -20,6 +20,11 @@
  * the Match Score weighs (AFTER_CV_FIELDS: contracts, remote work, minimum salary), each once and each skippable, proposing
  * a deduction from the career when it can; done once they are asked. When the AI gives no turn, the code asks the next one
  * itself, without a proposal, rather than handing over to the scripted questionnaire.
+ *
+ * Without a CV, once the Profile is born, the rest goes in four blocks (#1046, `./blocks`): the AI is told them and the
+ * block in progress, never back to an earlier one. « Continuer plus tard » keeps the block reached and the turns asked;
+ * « Reprendre la création » sends them back (`resumedAt`): the interview goes on at that block, the turns before counted
+ * in its cap (MAX_TURNS, unchanged).
  */
 import { createProvenanceRecorder, type AiLayer } from "@jobhub/ai";
 import {
@@ -40,6 +45,7 @@ import { placeOf } from "../coach-actions/profile";
 import type { PlaceSuggestions } from "../places/geo-api";
 import { searchCriteriaSchema } from "../profiles";
 import { taskRun, type TaskPlaybookReader } from "../task-playbooks";
+import { BLOCK_COUNT, BLOCK_FIELDS, blockNumber, blockProgress, INTERVIEW_BLOCKS, isInterviewBlock, type InterviewBlock } from "./blocks";
 import {
   AFTER_CV_FIELDS,
   CHOICES,
@@ -63,6 +69,7 @@ import {
 } from "./turn";
 
 export * from "./turn";
+export * from "./blocks";
 
 /** Past this many turns, the interview is done: the review takes what it has. */
 export const MAX_TURNS = 40;
@@ -117,6 +124,11 @@ export const interviewInputSchema = z.object({
   opener: z.string().max(MAX_TEXT).optional(),
   /** With a CV (#1003): the target role and places it read, to confirm; the draft holds the Master CV it read. */
   cv: z.object({ targetRole: text(300), locations: z.array(z.string().max(200)).max(MAX_SEARCH_LOCATIONS).catch([]) }).optional(),
+  /** « Reprendre la création » (#1046): the block « Continuer plus tard » left it at, and the turns asked before. */
+  resumedAt: z
+    .object({ block: z.string().refine(isInterviewBlock) as unknown as z.ZodType<InterviewBlock>, turns: z.number().int().min(0).max(MAX_TURNS) })
+    .optional()
+    .catch(undefined),
 });
 export type InterviewInput = z.output<typeof interviewInputSchema>;
 
@@ -211,6 +223,22 @@ function exchangeInWords(exchange: readonly ExchangeTurn[], opener: string | und
   return lines.length > 0 ? lines.join("\n") : "(aucun échange : pose la première question)";
 }
 
+/** The block names as the AI reads them. */
+const BLOCK_WORDS: Record<InterviewBlock, string> = { criteria: "critères", career: "parcours", skills: "compétences", presentation: "présentation" };
+
+/** Without a CV, once the Profile is born (#1046): the rest in 4 blocks, in order, and the block in progress. */
+function blocksInWords(input: InterviewInput): string {
+  const block = blockProgress(
+    input.exchange.map((turn) => turn.ask.field),
+    input.resumedAt?.block ?? null,
+  ).current;
+  const each = INTERVIEW_BLOCKS.map((one) => `${blockNumber(one)}. ${BLOCK_WORDS[one]} (${BLOCK_FIELDS[one].join(", ")})`);
+  return [
+    `Le profil est créé. Le reste se fait en ${BLOCK_COUNT} blocs, dans cet ordre : ${each.join(" ; ")}.`,
+    `Bloc en cours : ${blockNumber(block)} sur ${BLOCK_COUNT}, ${BLOCK_WORDS[block]}. Pose tes questions dans ce bloc ; passe au suivant quand il est complet ou que le candidat passe ses questions ; ne reviens pas à un bloc précédent.`,
+  ].join("\n");
+}
+
 function promptOf(input: InterviewInput, draft: InterviewDraft): string {
   const left = input.cv ? leftAfterCv(draft, input.exchange) : [];
   return [
@@ -230,6 +258,7 @@ function promptOf(input: InterviewInput, draft: InterviewDraft): string {
             .join(" "),
         ]
       : []),
+    ...(!input.cv && canBeBorn(draft) ? [blocksInWords(input)] : []),
     `Échange :\n${exchangeInWords(input.exchange, input.opener)}`,
   ].join("\n\n");
 }
@@ -400,13 +429,14 @@ export interface InterviewDeps {
  * The next turn of the interview, with its Provenance; null when the AI cannot give one (a failed call, a reply that is
  * not a turn, an invalid AI configuration, a Stop: the caller tells a Stop by the signal): the scripted questions take
  * over at the next question. A failed or unusable call is recorded with `onboarding_interview_fallback` (#260).
- * Past `MAX_TURNS`, it is done without calling the AI.
+ * Past `MAX_TURNS`, those before a resume included, it is done without calling the AI.
  */
 export async function nextInterviewTurn(input: InterviewInput, deps: InterviewDeps): Promise<{ turn: InterviewTurn; provenance: Provenance | null } | null> {
   const draft = input.draft as InterviewDraft;
   const industries = await deps.industries().catch(() => NO_INDUSTRY_REFERENCE);
   const check: CheckDeps = { places: deps.places, industries, language: input.language };
-  if (input.exchange.length >= MAX_TURNS && canBeBorn(draft)) {
+  // The turns before « Continuer plus tard » count too (#1046): the cap is the whole interview's.
+  if (input.exchange.length + (input.resumedAt?.turns ?? 0) >= MAX_TURNS && canBeBorn(draft)) {
     return { turn: { ask: scriptedAsk("targetRole", draft, input.language), done: true }, provenance: null };
   }
   // With a CV (#1003), the code asks itself what needs no AI: a target role or place read, to confirm; done once

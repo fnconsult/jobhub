@@ -239,7 +239,12 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
       </p>
       {card.status === "accepted" && change.launches && !run ? <p className="hint">{t("coachProposals.launchedHint")}</p> : null}
       {card.status === "accepted" && run ? <LiveActionStatus action={live} /> : null}
-      {card.status === "accepted" && run && !live.live ? <p className="hint">{t("coachProposals.runHint")}</p> : null}
+      {card.status === "accepted" && run && !live.live ? (
+        // Where the Result is (ADR-0109): its Section and name, and a link opening it in the Work Pane beside the conversation.
+        <p className="hint">
+          {t(`coachProposals.runResult.${resultOf(run)}`)} <Link href={run.opens} scroll={false}>{t("coachProposals.openResult")}</Link> {t("coachProposals.runStopped")}
+        </p>
+      ) : null}
       {pending && change.replaces ? <p className="notice">{change.replaces}</p> : null}
       {problem && !formShown ? <ProblemNote problem={problem} /> : null}
       {pending && change.quota?.prompt ? <UpgradePrompt prompt={change.quota.prompt} /> : null}
@@ -302,6 +307,12 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
       {pending && !pane && inlineForm ? form : null}
     </article>
   );
+}
+
+/** The Result a launched run produces: a Tailored CV, or the Tailored Document its body names. */
+function resultOf(run: NonNullable<Card["change"]["runs"]>): "tailored_cv" | "cover_letter" | "outreach_message" {
+  if (run.kind === "tailored_cv") return "tailored_cv";
+  return run.body.document === "outreach_message" ? "outreach_message" : "cover_letter";
 }
 
 /** One change, before → after, read out as « Avant : … , après : … ». */

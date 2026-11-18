@@ -234,10 +234,21 @@ describe("a « Documents » proposal's card (#721)", () => {
     });
   });
 
-  it("launched before, the card says where the document is", () => {
+  it("launched before, the card says where the document is, and opens it beside the conversation", () => {
     renderInFrench(<Thread card={accepted(LETTER)} />);
+    const card = cardNamed(/Lettre de motivation/);
 
-    expect(cardNamed(/Lettre de motivation/).textContent).toContain("Le document est dans les documents de la candidature");
-    expect(buttonsOf(cardNamed(/Lettre de motivation/))).toEqual([]);
+    expect(card.textContent).toContain("Votre lettre de motivation est dans Documents › Lettre de motivation.");
+    expect(within(card).getByRole("link", { name: "Ouvrir à côté de la conversation" }).getAttribute("href")).toBe(OPENS_LETTER);
+    expect(card.textContent).toContain("Si vous l'avez arrêtée, rien n'a été gardé.");
+    expect(buttonsOf(card)).toEqual([]);
+  });
+
+  it("launched before, a Tailored CV's says where its proposal waits for the review", () => {
+    renderInFrench(<Thread card={accepted(TAILORED_CV)} />);
+    const card = cardNamed(/CV adapté/);
+
+    expect(card.textContent).toContain("La proposition de CV adapté est dans Documents › CV adapté, à relire changement par changement.");
+    expect(within(card).getByRole("link", { name: "Ouvrir à côté de la conversation" }).getAttribute("href")).toBe(OPENS_CV);
   });
 });

@@ -7068,11 +7068,11 @@
       "noDigest": "Pas de Job Digest",
       "noTailoredCv": "Aucun CV adapté",
       "tailoredCvSaved": "CV adapté enregistré le {{date}}, gardé tel quel",
-      "tailoredCvProposal": "Une proposition à relire changement par changement · {{language}}",
+      "tailoredCvProposal": "Une proposition que votre coach IA préparera quand vous la lancerez, à relire changement par changement · {{language}}",
       "noDraft": "Aucun brouillon",
       "draftOf": "Brouillon du {{date}}",
       "draftEdited": "Brouillon du {{date}}, modifié depuis",
-      "newDraft": "Un brouillon rédigé par votre coach IA · {{language}}",
+      "newDraft": "Un nouveau brouillon que votre coach IA rédigera quand vous lancerez la rédaction · {{language}}",
       "replacesDraft": "Votre brouillon actuel sera remplacé, vos modifications comprises.",
       "replacesTailoredCvProposal": "Votre proposition de CV adapté en cours de relecture sera remplacée, vos réponses comprises."
     },
@@ -7096,7 +7096,6 @@
     "confirmReplaceProposal": "Remplacer votre proposition de CV adapté en cours de relecture, vos réponses comprises ?",
     "confirmYesProposal": "Remplacer et préparer",
     "confirmNoProposal": "Garder ma proposition",
-    "runHint": "Le document est dans les documents de la candidature ; arrêté, rien n'a été gardé.",
     "edit": "Modifier avant d'appliquer",
     "dismiss": "Ignorer",
     "undo": "Annuler",
@@ -7138,7 +7137,14 @@
       "saved_one": "{{count}} changement enregistré",
       "saved_other": "{{count}} changements enregistrés"
     },
-    "currentText": "Texte actuel"
+    "currentText": "Texte actuel",
+    "runResult": {
+      "tailored_cv": "La proposition de CV adapté est dans Documents › CV adapté, à relire changement par changement.",
+      "cover_letter": "Votre lettre de motivation est dans Documents › Lettre de motivation.",
+      "outreach_message": "Votre message d'approche est dans Documents › Message d'approche."
+    },
+    "runStopped": "Si vous l'avez arrêtée, rien n'a été gardé.",
+    "openResult": "Ouvrir à côté de la conversation"
   },
   "coachProposalsDisplay": {
     "label": "Propositions du coach",

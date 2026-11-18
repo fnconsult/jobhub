@@ -186,6 +186,11 @@ const resumedInterview = (resumed: ResumedProfile & { resumesAt: OnboardingResum
  * construction (its target role and places so far, the « building » note). On a phone there is no split: once the
  * offered Job Search found Job Offers at the Match Score threshold or above, a card of the first ones (FirstOffersCard)
  * joins the thread where it stands then, kept up to date in place, and said once to screen readers, on either width.
+ *
+ * « Et maintenant ? » (#1053): once « Cela semble correct » saved the Profile, the thread ends on two actions, « Voir mes
+ * offres à traiter » and « Continuer vers mon profil », and a line to the Coach Panel's help (OnboardingNext). The page then
+ * becomes the Profile's own Coach Conversation (CoachConversationPage, its Subject the Profile): the thread so far leads it
+ * (`lead`, `continues`), and the box at the foot sends to the AI Coach, which really answers, no longer a scripted line.
  */
 export function ProfileOnboarding({ resumed, postpone, firstWelcome = false }: { resumed?: ResumedProfile; postpone?: () => Promise<void>; firstWelcome?: boolean }) {
   const { t, i18n } = useTranslation();

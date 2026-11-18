@@ -19,7 +19,7 @@ export const twoStepSetup = (page: Page) => page.locator("[data-two-step-setup]"
 export async function setUpTwoStepVerification(page: Page): Promise<{ secret: string; codes: string[] }> {
   const setup = twoStepSetup(page);
   const secret = (await setup.locator("[data-two-step-key]").innerText()).replace(/\s/g, "");
-  await setup.getByLabel(/^(Code affiché par l'application|Code the app shows)$/).fill(totpAt(secret, new Date()));
+  await setup.getByLabel(/^(Code affiché par l'application|Code the app shows)$/).fill(totpAt(secret, (globalThis as Record<symbol, (() => Date) | undefined>)[Symbol.for("jobbbox.e2e.now")]?.() ?? new Date()));
   await setup.getByRole("button", { name: /^(Confirmer|Confirm)$/ }).click();
   const codes = setup.locator("[data-backup-codes] li");
   // The codes show once the server confirmed the code; allInnerTexts does not wait for them.

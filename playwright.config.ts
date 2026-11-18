@@ -61,7 +61,7 @@ if (!process.env.E2E_DATABASE_URL) {
 }
 
 /** The Human Coach epic's specs (#867), run with « Espace coach v2 » on, in the coach-v2 project. */
-const COACH_SPACE_V2_SPECS = /\/(coach-v2\/[^/]+|coach-enrolments|coach-contracts|coach-associations|coach-pages|coaching-connect|coaching-earnings|coaching-booking|coaching-cancellations|coaching-notifications|coaching-content-reports)\.spec\.ts$/;
+const COACH_SPACE_V2_SPECS = /\/(coach-v2\/[^/]+|coach-enrolments|coach-contracts|coach-associations|coach-pages|coaching-connect|coaching-dac7|coaching-earnings|coaching-booking|coaching-cancellations|coaching-notifications|coaching-content-reports)\.spec\.ts$/;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -83,13 +83,15 @@ export default defineConfig({
   projects: [
     // « Espace coach v2 » (ADR-0107): the Human Coach epic's specs, with the setting on. It is global to the suite's
     // database, so the project runs after every web spec (CI gives it a shard of its own), between its setup
-    // and teardown, which turn it on and back off. Every other project runs with it off, as before the epic.
-    { name: "coach-v2-setup", testMatch: /coach-v2\/coach-space-v2\.setup\.ts/, teardown: "coach-v2-teardown" },
+    // and teardown, which turn it on and back off. Every other project runs with it off, as before the epic. Locally the
+    // setup itself waits for the web project: a project with no dependencies starts first, and the setting went on as the
+    // suite began, under every web spec (e2e/support/coach-space-v2-order.test.ts).
+    { name: "coach-v2-setup", testMatch: /coach-v2\/coach-space-v2\.setup\.ts/, teardown: "coach-v2-teardown", dependencies: process.env.CI ? [] : ["web"] },
     { name: "coach-v2-teardown", testMatch: /coach-v2\/coach-space-v2\.teardown\.ts/ },
     {
       name: "coach-v2",
       testMatch: COACH_SPACE_V2_SPECS,
-      dependencies: process.env.CI ? ["coach-v2-setup"] : ["web", "coach-v2-setup"],
+      dependencies: ["coach-v2-setup"],
       workers: 1,
       use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" },
     },

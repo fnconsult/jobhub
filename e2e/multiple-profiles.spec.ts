@@ -189,7 +189,7 @@ test.describe("several Profiles per Candidate", () => {
     await page.getByLabel(fr.coachPanel.messageLabel).fill("Je n'ai pas de CV à jour E2E_AI_DOWN");
     await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
     await expect(thread).toContainText(fr.newProfile.interview.fallback);
-    for (const said of ["Marie Dupont", "Consultante transformation", "Paris"]) {
+    for (const said of ["Consultante transformation", "Paris", "Marie Dupont"]) {
       const answered = await thread.locator("li.chat-candidate").count();
       await page.getByLabel(fr.questionnaire.answerLabel).fill(said);
       await page.getByRole("button", { name: fr.coachPanel.send, exact: true }).click();

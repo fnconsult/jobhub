@@ -218,11 +218,13 @@ test.describe("The onboarding interview in four blocks (#1046)", () => {
     await expect(transcript(page)).toContainText(interview.fallback);
     const q = fr.questionnaire.questions;
     await expect(later(page)).toHaveCount(0);
-    await reply(page, q.fullName, "Marie Dupont");
+    // The target role and the place first (#1047): the Profile is born on them, and « Continuer plus tard » comes with it.
     await reply(page, q.targetRole, "Directrice financière");
     await reply(page, q.location, "Lyon");
-    await expect(lastLine(page)).toContainText(q.email);
+    await expect(lastLine(page)).toContainText(q.fullName);
     await expect(later(page)).toBeVisible();
+    await reply(page, q.fullName, "Marie Dupont");
+    await expect(lastLine(page)).toContainText(q.email);
     await expect(skip(page)).toBeVisible();
     // No block mark in the scripted questions.
     await expect(blockMarks(page)).toHaveCount(0);

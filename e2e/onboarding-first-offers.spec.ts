@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import pg from "pg";
 import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { signInWithMagicLink } from "./support/candidate";
-import { activityOf, closeActivity, unfoldedEntryOf } from "./support/conversation";
+import { activityOf, closeActivity, openActivity, unfoldedEntryOf } from "./support/conversation";
 import { newAddress } from "./support/mailbox";
 import { onboardingSummary, throughCvInterview } from "./support/onboarding-summary";
 
@@ -165,7 +165,8 @@ test.describe("creating a Profile, end to end: from the CV to the first offers i
     const jobOfferIds = await insertJobOffers("found", targetRole);
     await measured(jobSearchId, jobOfferIds);
     const entry = runningEntry(page);
-    if ((await entry.count()) === 0) await page.getByRole("banner").getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) }).click();
+    // Open from the first question in the first welcome (#1051); left as it is when shown.
+    await openActivity(page);
     await expect(entry.getByText(fr.onboardingSearch.bestSoFar)).toBeVisible({ timeout: 15_000 });
     await expect(entry.getByRole("link", { name: targetRole, exact: true })).toHaveAttribute("href", new RegExp(`^/recherches/${jobSearchId}/offres/`));
     await expect(entry.getByText(fr.onboardingSearch.running)).toBeVisible();

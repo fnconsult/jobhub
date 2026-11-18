@@ -724,14 +724,15 @@ test.describe("Candidate pages in the Design System (#468)", () => {
     await page.goto("/profils/nouveau");
     await page.waitForLoadState("networkidle");
     const icon = page.getByRole("banner").getByRole("button", { name: new RegExp(`^${fr.aiActivity.label}`) });
-    await expect(icon).toHaveAttribute("aria-expanded", "false");
+    // The first welcome (#1051): split in two from the first question, Activité beside the conversation.
+    await expect(icon).toHaveAttribute("aria-expanded", "true");
     await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles({
       name: "CV-Marie-Dupont.pdf",
       mimeType: "application/pdf",
       buffer: Buffer.from(pdfCv([...MARIE_DUPONT_CV, "Divers", "E2E_CV_SLOW"])),
     });
     await page.getByRole("button", { name: fr.cvUpload.submit }).click();
-    // Opened by itself on a wide screen, as for the offered search (#1001).
+    // Still open beside the conversation as the reading starts (#1001, #1051).
     await expect(icon).toHaveAttribute("aria-expanded", "true");
     const activity = page.getByRole("complementary", { name: fr.fiche.views.activity, exact: true });
     const now = activity.getByRole("region", { name: fr.aiActivity.live.now });

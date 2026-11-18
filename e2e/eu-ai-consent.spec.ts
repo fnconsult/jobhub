@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
-import { readCv } from "./support/onboarding-summary";
+import { readCv, throughCvInterview } from "./support/onboarding-summary";
 
 // Issue #121 / ADR-0007 amendment: the Candidate gives (and can withdraw) an explicit,
 // dated EU AI consent on their account page. With it, their identity-bearing AI calls go to Mistral.
@@ -80,6 +80,23 @@ test.describe("EU AI consent", () => {
 
       await page.goto("/compte/ia-europeenne");
       await expect(page.getByRole("region", { name: fr.euAiConsent.title }).getByRole("status")).toHaveText(fr.euAiConsent.notGiven);
+    });
+
+    test("is not proposed again once refused during this onboarding", async ({ page }) => {
+      await signInWithMagicLink(page, newAddress("eu-ai-consent-refused"));
+      await page.goto("/profils/nouveau");
+      await page.waitForLoadState("networkidle");
+      await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles(CV);
+      await readCv(page, "notNow");
+      await expect(threadOf(page).getByText(fr.newProfile.fromCv.questionsStart)).toBeVisible({ timeout: 15_000 });
+
+      await throughCvInterview(page);
+      await suggestionsOf(page).getByRole("button", { name: fr.cvReview.startOver, exact: true }).click();
+      await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles(CV);
+      await readCv(page, null);
+      await expect(threadOf(page).getByText(fr.newProfile.fromCv.questionsStart)).toBeVisible({ timeout: 15_000 });
+      await expect(threadOf(page).getByText(fr.euAiConsent.offer, { exact: true })).toHaveCount(0);
+      await expect(suggestionsOf(page).getByRole("button", { name: fr.euAiConsent.give, exact: true })).toHaveCount(0);
     });
 
     test("is not proposed to a Candidate who has already consented", async ({ page }) => {

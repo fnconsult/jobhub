@@ -1633,6 +1633,11 @@
       "readMore": "Read more",
       "readMoreAbout": "Read more: {{title}}",
       "oftenAsked": "Often asked",
+      "gettingStarted": {
+        "title": "Getting started",
+        "atsScore": "My CV's ATS Score",
+        "extension": "Keep a job offer seen on another site"
+      },
       "suggestions": "In the help, without AI",
       "found_one": "{{count}} article in the help",
       "found_other": "{{count}} articles in the help",

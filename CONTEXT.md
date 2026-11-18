@@ -344,6 +344,9 @@ The Profile before it is born, shown at the top of « Activité » in the First 
 A Candidate with no Profile at all (an archived one or one in « Création à terminer » counts as one) is led from `/` and `/compte` into the « Entretien d'accueil » on `/profils/nouveau`, until they choose « Plus tard » (ADR-0110). The choice holds for that sign-in session only (the session's `onboardingPostponed`): signing in again, on another device or after signing out, leads them again. It never applies to a Human Coach, an Administrator, an Association or the Jobbbox app's WebView. The CGU Acceptance still comes first. « Plus tard » here, on the interview's opening suggestions, is not « Continuer plus tard » (which saves an unfinished Profile's answers) and not the Offer box's « Plus tard ».
 _Avoid_: Welcome tour, first-run wizard
 
+**Et maintenant ?** (the end of the « Entretien d'accueil »):
+What the Candidate sees once « Cela semble correct » has saved the Profile (ADR-0112): two actions, « Voir mes offres à traiter » (primary, opens `/recherches?profil=<id>`) and « Continuer vers mon profil », and one line pointing to the Coach Panel's help. The other features are presented in that help, not here (#1044). The page then goes on as the Profile's Coach Conversation, the onboarding thread kept above it.
+
 ### Job offers
 
 **Job Offer**:

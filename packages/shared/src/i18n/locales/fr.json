@@ -7072,6 +7072,11 @@
         "follow_up": "Relance",
         "cover_letter": "Lettre de motivation",
         "outreach_message": "Message d'approche"
+      },
+      "restoreVersion": {
+        "tailored_cv": "CV adapté : remettre la version {{version}}",
+        "cover_letter": "Lettre de motivation : remettre la version {{version}}",
+        "outreach_message": "Message d'approche : remettre la version {{version}}"
       }
     },
     "interview": {

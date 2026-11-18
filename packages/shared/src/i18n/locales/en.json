@@ -7072,6 +7072,11 @@
         "follow_up": "Follow-up",
         "cover_letter": "Cover letter",
         "outreach_message": "Outreach message"
+      },
+      "restoreVersion": {
+        "tailored_cv": "Tailored CV: bring back version {{version}}",
+        "cover_letter": "Cover letter: bring back version {{version}}",
+        "outreach_message": "Outreach message: bring back version {{version}}"
       }
     },
     "interview": {

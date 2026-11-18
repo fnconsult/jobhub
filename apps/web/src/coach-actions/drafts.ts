@@ -83,16 +83,17 @@ const NONE: Record<DraftDocument, string> = {
 };
 
 /**
- * What Jobbbox keeps of a draft, told before it in our own words: only its current version, nothing of the ones before.
- * Asked for « les 2 versions de ma lettre », the AI Coach says so and where to read this one, rather than ending with no text.
+ * What Jobbbox keeps of a draft, told before it in our own words: a Follow-up, only its current version; a Cover Letter
+ * or an Outreach Message, its earlier versions too (#1079), which read_document_versions lists. Asked for « les versions
+ * de ma lettre », the AI Coach reads them there, rather than ending with no text.
  */
 const ONLY_VERSION: Record<DraftDocument, string> = {
   follow_up:
     "Jobbbox ne garde que la seule version actuelle de cette relance, aucune version précédente : si le candidat en demande une autre version, dis-le-lui et indique qu'il la lit dans « Propositions » de sa candidature.",
   cover_letter:
-    "Jobbbox ne garde que la seule version actuelle de cette lettre, aucune version précédente : « Remplacer et rédiger » la remplace, ses modifications comprises. Si le candidat demande d'autres versions, dis-le-lui, résume celle-ci sans la recopier et indique qu'il la lit dans Documents › Lettre de motivation.",
+    "Ceci est la version actuelle de cette lettre. Jobbbox garde aussi ses versions précédentes (Documents › Lettre de motivation, « Versions ») : si le candidat en demande une, lis-les avec read_document_versions, et pour en remettre une, propose-la avec propose_document_restore.",
   outreach_message:
-    "Jobbbox ne garde que la seule version actuelle de ce message, aucune version précédente : « Remplacer et rédiger » le remplace, ses modifications comprises. Si le candidat demande d'autres versions, dis-le-lui, résume celui-ci sans le recopier et indique qu'il le lit dans Documents › Message d'approche.",
+    "Ceci est la version actuelle de ce message. Jobbbox garde aussi ses versions précédentes (Documents › Message d'approche, « Versions ») : si le candidat en demande une, lis-les avec read_document_versions, et pour en remettre une, propose-la avec propose_document_restore.",
 };
 
 /** Why a new text in another language is refused (#1074), in our own words, for the AI Coach. */

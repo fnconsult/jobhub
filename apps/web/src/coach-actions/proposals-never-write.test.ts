@@ -75,6 +75,7 @@ const CALLS: Record<string, (world: World) => Record<string, unknown>> = {
   propose_tailored_cv: (w) => ({ applicationId: w.applicationId }),
   propose_cover_letter: (w) => ({ applicationId: w.applicationId }),
   propose_outreach_message: (w) => ({ applicationId: w.applicationId }),
+  propose_document_restore: (w) => ({ applicationId: w.applicationId, document: "cover_letter", version: 1 }),
 };
 
 const RECORDER = { step: <T>(_step: unknown, run: () => Promise<T>) => run(), site: () => {} };
@@ -198,6 +199,26 @@ describe.skipIf(!connectionString)("a Coach Action never writes: only the Candid
         rework: write() as never,
         unrework: write() as never,
       },
+      // Two versions of the Cover Letter, the first to restore (#1079).
+      tailoredDocumentVersions: {
+        list: async () => ({
+          tailored_cv: [],
+          cover_letter: [2, 1].map((version) => ({
+            version,
+            savedAt: new Date("2026-11-02T09:00:00Z"),
+            source: version === 1 ? ("drafted" as const) : ("candidate" as const),
+            restoredFrom: null,
+            current: version === 2,
+            language: "fr" as const,
+            subject: null,
+            text: `Madame, Monsieur, version ${version}.`,
+            cv: null,
+            provenance: null,
+          })),
+          outreach_message: [],
+        }),
+        restore: write() as never,
+      },
     };
     writes = [
       domain.jobSearches.start,
@@ -206,6 +227,7 @@ describe.skipIf(!connectionString)("a Coach Action never writes: only the Candid
       domain.jobDigests.unsubscribe,
       domain.tailoredDocuments.rework,
       domain.tailoredDocuments.unrework,
+      domain.tailoredDocumentVersions.restore,
     ] as unknown as ReturnType<typeof vi.fn>[];
     // A Job Offer is within reach when one of the Candidate's objects shows it: the new one, which her Job Search found.
     const objects: CoachObjectReader = { index: async () => [], read: async (_candidateId, type, id) => (type === "job_offer" && id === world.newOfferId ? ({ text: "" } as never) : null) };

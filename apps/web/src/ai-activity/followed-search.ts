@@ -80,6 +80,7 @@ export function bestOffers(jobSearchId: string, list: readonly Scored[]): EntryO
   return list.slice(0, count).map(({ jobOffer, score }) => ({
     title: jobOffer.title,
     employer: jobOffer.employer?.trim() || null,
+    location: jobOffer.location?.trim() || null,
     score,
     href: routes.jobSearchOffer(jobSearchId, jobOffer.id),
   }));

@@ -129,6 +129,11 @@ export interface CreationGiven {
   review?: { at: string };
   /** « Modifier » on the summary (#1005): the rewritings the AI translated into Search Criteria changes, from the first, their steps together. */
   summaryChanges?: { at: string; provenance: Provenance | null };
+  /**
+   * The target role and places answered or validated so far (#1051): the Profile in construction the first welcome shows
+   * beside the conversation, never in « Création du profil »'s entry.
+   */
+  building?: { targetRole: string; locations: string[] };
 }
 
 /**
@@ -172,6 +177,8 @@ export interface EntryCost {
 export interface EntryOffer {
   title: string;
   employer: string | null;
+  /** Where it is, as the Job Offer says (#1051: the first welcome's card on a phone); absent when not known. */
+  location?: string | null;
   score: number;
   href: string;
 }

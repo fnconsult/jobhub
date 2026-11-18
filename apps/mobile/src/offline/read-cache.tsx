@@ -42,6 +42,7 @@ const READS = {
   enrichedContacts: false,
   coachConversations: false,
   coachConversation: false,
+  gettingStarted: false,
 } as const satisfies Record<string, boolean>;
 
 export type ReadName = keyof typeof READS;

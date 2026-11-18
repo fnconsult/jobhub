@@ -282,6 +282,35 @@ describe("the help in the conversation's box (ADR-0035)", () => {
     expect(screen.getByText("Aide · écrit par l'équipe Jobbbox")).toBeOnTheScreen();
   });
 
+  it("offers « Pour bien commencer » above « Souvent demandé » to a new account, the ATS Score only: never the extension on a phone (#1069)", async () => {
+    const createdAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+    web = fakeCoachWeb({ reads: { "/api/account/getting-started": { account: { createdAt, atsScore: false, extensionCapture: false, extensionPublished: true } } } });
+    await renderInShell();
+    expect(await screen.findByRole("heading", { name: "Pour bien commencer" })).toBeOnTheScreen();
+    expect(button("L'ATS Score de mon CV")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Garder une offre vue sur un autre site" })).toBeNull();
+    expect(screen.getByText("Souvent demandé")).toBeOnTheScreen();
+    await userEvent.setup().press(button("L'ATS Score de mon CV"));
+    expect(screen.getByText(/L'ATS Score, sur 100/)).toBeOnTheScreen();
+  });
+
+  it("offers no « Pour bien commencer » once the account has an ATS Score (#1069)", async () => {
+    const createdAt = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+    web = fakeCoachWeb({ reads: { "/api/account/getting-started": { account: { createdAt, atsScore: true, extensionCapture: false, extensionPublished: true } } } });
+    await renderInShell();
+    expect(await screen.findByText("Souvent demandé")).toBeOnTheScreen();
+    await waitFor(() => expect(web.requests.some((request) => request.path === "/api/account/getting-started")).toBe(true));
+    expect(screen.queryByText("Pour bien commencer")).toBeNull();
+  });
+
+  it("offers no « Pour bien commencer » after the account's 14 days, when the web app sends no account (#1069)", async () => {
+    web = fakeCoachWeb({ reads: { "/api/account/getting-started": { account: null } } });
+    await renderInShell();
+    expect(await screen.findByText("Souvent demandé")).toBeOnTheScreen();
+    await waitFor(() => expect(web.requests.some((request) => request.path === "/api/account/getting-started")).toBe(true));
+    expect(screen.queryByText("Pour bien commencer")).toBeNull();
+  });
+
   it("asks « Cela répond à votre question ? » under each reply: « Oui » thanks, « Non » offers the team", async () => {
     await renderInApp(<CoachConversation conversationId={null} route="/" />, web.client);
     const user = await write("Comment relancer ?");

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { API_VERSION, API_VERSION_HEADER } from "@jobhub/shared";
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { fromNewAddress, requestSignInLink, signInWithMagicLink } from "./support/candidate";
+import { fromNewAddress, postponeOnboardingIfLed, requestSignInLink, signInWithMagicLink } from "./support/candidate";
 import { e2eExtensionDir, unpackedExtensionId } from "./support/extension";
 import { codeIn, emailsTo, linkIn, newAddress } from "./support/mailbox";
 import { forgetTwoStepVerification, setUpTwoStepVerification, twoStepSetup } from "./support/two-step";
@@ -126,7 +126,7 @@ test.describe("Mandatory Two-step verification (#665)", () => {
     const email = newAddress("mandatory-two-step-support");
     const person = await newPerson(browser);
     await followMagicLink(person, email);
-    await expect(person).toHaveURL(`${origin}/compte`);
+    await postponeOnboardingIfLed(person);
     await page.goto("/admin/administrateurs");
     await page.getByLabel(fr.admin.administrators.grantEmail).fill(email);
     await page.getByRole("checkbox", { name: fr.admin.roles.support }).check();

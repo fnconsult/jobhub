@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import pg from "pg";
-import { fromNewAddress, requestSignInLink } from "./support/candidate";
+import { fromNewAddress, postponeOnboardingIfLed, requestSignInLink } from "./support/candidate";
 import { emailsIn, linkIn, newAddress, waitForEmail } from "./support/mailbox";
 import { startServer, type PlanPricesServer } from "./support/plan-prices";
 
@@ -96,8 +96,11 @@ const tickAndAccept = async (page: Page, version: string) => {
   expect((await accepted).status()).toBe(204);
   await page.waitForURL((url) => url.pathname !== "/acceptation");
 };
-/** Where accepting brings them: the page they asked for (Mon compte, after sign-in) or home. */
-const afterAccepting = (server: PlanPricesServer) => new RegExp(`^${server.origin}/(compte)?$`);
+/**
+ * Where accepting brings them: the page they asked for (Mon compte, after sign-in) or home, which lead an account without
+ * any Profile, as every one here, into the « Entretien d'accueil » (#1050): the Acceptance comes first, on its own screen.
+ */
+const afterAccepting = (server: PlanPricesServer) => new RegExp(`^${server.origin}/profils/nouveau$`);
 const workerPurge = (hours: number) => {
   const run = spawnSync(path.resolve("node_modules/.bin/tsx"), ["e2e/support/worker-job.ts", "acceptances.purge", String(hours)], {
     env: { ...process.env, DATABASE_URL: process.env.E2E_DATABASE_URL, MAIL_TRANSPORT: "console" },
@@ -133,7 +136,8 @@ test.describe("Acceptances des CGU (#510)", () => {
     await page.goto("/connexion");
     await requestSignInLink(page, email);
     await page.goto(linkIn(await waitForEmail(email)));
-    await expect(page).toHaveURL(`${suiteOrigin}/compte`);
+    await expect(page).toHaveURL(`${suiteOrigin}/profils/nouveau`);
+    await postponeOnboardingIfLed(page);
     await page.goto("/acceptation");
     await expect(page).toHaveURL(`${suiteOrigin}/`);
     await expect(page.getByRole("checkbox")).toHaveCount(0);

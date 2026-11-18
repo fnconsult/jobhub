@@ -41,7 +41,8 @@ test.describe("sign-in on the public pages' stage", () => {
     await expect(note(page, fr.signIn.sent)).toHaveAttribute("data-tone", "success");
 
     await page.goto(linkIn(await waitForEmail(email)));
-    await expect(page).toHaveURL(`${origin}/compte`);
+    // A new account, without any Profile, is led into the « Entretien d'accueil » (#1050).
+    await expect(page).toHaveURL(`${origin}/profils/nouveau`);
   });
 
   test("each failed sign-in shows its Note: a dead link as a warning, a failure as a danger", async ({ page }) => {

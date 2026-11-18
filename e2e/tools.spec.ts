@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { approveAtGoogle, signInWithMagicLink } from "./support/candidate";
+import { approveAtGoogle, postponeOnboardingIfLed, signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
 // Issue #233: the Back Office's Outils section lists every external tool the app calls, by
@@ -240,7 +240,7 @@ test.describe("Tools (Outils)", () => {
     await approveAtGoogle(candidatePage, { sub, email: candidateEmail, email_verified: true, name: "Traced Person" }, origin);
     await candidatePage.goto("/connexion");
     await candidatePage.getByRole("button", { name: fr.signIn.continueWith.replace("{{provider}}", "Google") }).click();
-    await expect(candidatePage).toHaveURL(`${origin}/compte`);
+    await postponeOnboardingIfLed(candidatePage);
     const candidateId = (await (await candidatePage.request.get("/api/auth/get-session")).json()).user.id as string;
     await candidate.close();
 

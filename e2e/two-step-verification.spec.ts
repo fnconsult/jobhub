@@ -3,7 +3,7 @@ import { API_VERSION, API_VERSION_HEADER } from "@jobhub/shared";
 import { expect, test, type CDPSession, type Page } from "@playwright/test";
 import pg from "pg";
 import { totpAt } from "../apps/web/src/two-step-verification/totp";
-import { approveAtGoogle, fromNewAddress, requestSignInLink, signInWithMagicLink } from "./support/candidate";
+import { approveAtGoogle, fromNewAddress, postponeOnboardingIfLed, requestSignInLink, signInWithMagicLink } from "./support/candidate";
 import { e2eExtensionDir, unpackedExtensionId } from "./support/extension";
 import { emailsTo, linkIn, newAddress } from "./support/mailbox";
 import { accountButtonName } from "./support/account-menu";
@@ -122,7 +122,7 @@ test.describe("Two-step verification", () => {
     await page.getByRole("button", { name: fr.twoStep.secondStep.useBackupCode }).click();
     await page.getByLabel(fr.twoStep.secondStep.backupCodeLabel).fill(codes[0]!);
     await page.getByRole("button", { name: fr.twoStep.secondStep.submit }).click();
-    await expect(page).toHaveURL(/\/compte$/);
+    await postponeOnboardingIfLed(page);
 
     await signOut(page);
     await signInAgain(page, email);
@@ -132,7 +132,7 @@ test.describe("Two-step verification", () => {
     await expect(page.getByRole("alert").filter({ hasText: fr.twoStep.secondStep.invalid })).toBeVisible();
     await page.getByLabel(fr.twoStep.secondStep.backupCodeLabel).fill(codes[1]!);
     await page.getByRole("button", { name: fr.twoStep.secondStep.submit }).click();
-    await expect(page).toHaveURL(/\/compte$/);
+    await postponeOnboardingIfLed(page);
 
     // Turned off, a second step having been done less than 10 minutes ago.
     await page.goto("/compte/securite");
@@ -224,7 +224,7 @@ test.describe("Two-step verification", () => {
     await approveAtGoogle(page, { sub: `google-${email}`, email, email_verified: true, name: "Via Google" }, origin);
     await page.goto("/connexion");
     await page.getByRole("button", { name: /Google/ }).click();
-    await expect(page).toHaveURL(`${origin}/compte`);
+    await postponeOnboardingIfLed(page);
     expect((await page.request.get("/api/profiles")).status()).toBe(200);
   });
 
@@ -284,7 +284,7 @@ test.describe("Two-step verification", () => {
     expect(await forged.json()).toEqual({ error: "invalid_passkey" });
     expect((await page.request.get("/api/profiles")).status()).toBe(401);
     await page.getByRole("button", { name: fr.twoStep.passkeys.use }).click();
-    await expect(page).toHaveURL(/\/compte$/);
+    await postponeOnboardingIfLed(page);
     expect((await page.request.get("/api/profiles")).status()).toBe(200);
 
     // Removing the last factor asks for a second step done less than 10 minutes ago (here, aged), then turns it off.

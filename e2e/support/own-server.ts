@@ -1,7 +1,7 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { expect, test, type Page } from "@playwright/test";
 import pg from "pg";
-import { fromNewAddress, requestSignInLink, setUpTwoStepVerificationIfAsked } from "./candidate";
+import { fromNewAddress, postponeOnboardingIfLed, requestSignInLink, setUpTwoStepVerificationIfAsked } from "./candidate";
 import { emailsIn, linkIn } from "./mailbox";
 import { derivedPort } from "./ports";
 import { serverLog } from "./server-log";
@@ -95,5 +95,6 @@ export async function signInByEmail(page: Page, server: Pick<OwnServer, "origin"
   await expect.poll(() => emailsIn(server.output(), email).length, { message: `sign-in email to ${email}` }).toBeGreaterThan(already);
   await page.goto(linkIn(emailsIn(server.output(), email)[already]!));
   await setUpTwoStepVerificationIfAsked(page);
+  await postponeOnboardingIfLed(page);
   await expect(page).toHaveURL(`${server.origin}/compte`);
 }

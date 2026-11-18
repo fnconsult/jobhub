@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { fromCatalogue, renderedTexts } from "./support/accessibility";
-import { approveAtGoogle, fromNewAddress, refuseAtGoogle, requestSignInLink, signInWithMagicLink } from "./support/candidate";
+import { approveAtGoogle, fromNewAddress, postponeOnboardingIfLed, refuseAtGoogle, requestSignInLink, signInWithMagicLink } from "./support/candidate";
 import { codeIn, emailsTo, linkIn, newAddress, waitForEmail } from "./support/mailbox";
 import { startServer } from "./support/plan-prices";
 import { accountButtonName } from "./support/account-menu";
@@ -17,7 +17,7 @@ const introWithGoogle = fr.signIn.intro.replace("{{providers}}", "Google");
 const failedWithGoogle = fr.signIn.failed.replace("{{providers}}", "Google");
 
 test.describe("magic-link sign-up and sign-in", () => {
-  test("a new person signs up with only their email and lands on their account, in French", async ({ page }) => {
+  test("a new person signs up with only their email and lands in the « Entretien d'accueil », « Plus tard » to their account, in French", async ({ page }) => {
     const email = newAddress("marie.dupont");
     await page.goto("/");
     await page.getByRole("banner").getByRole("link", { name: fr.nav.signIn }).click();
@@ -37,6 +37,9 @@ test.describe("magic-link sign-up and sign-in", () => {
     expect(link.startsWith(`${origin}/`)).toBe(true);
 
     await page.goto(link);
+    // Without any Profile, the « Entretien d'accueil » first (#1050); « Plus tard » leads to Mon compte.
+    await expect(page).toHaveURL(`${origin}/profils/nouveau`);
+    await page.getByRole("button", { name: fr.newProfile.postpone, exact: true }).click();
     await expect(page).toHaveURL(`${origin}/compte`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.account.title);
     // The address is in Mon compte's Sign-in Section, the language in its Preferences (ADR-0024).
@@ -101,6 +104,8 @@ test.describe("magic-link sign-up and sign-in", () => {
     const message = await waitForEmail(email);
     expect(message.subject).toBe(en.signInEmail.subject);
     await page.goto(linkIn(message));
+    await expect(page).toHaveURL(`${origin}/profils/nouveau`);
+    await page.getByRole("button", { name: en.newProfile.postpone, exact: true }).click();
     await expect(page).toHaveURL(`${origin}/compte`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(en.account.title);
     await page.goto("/compte/preferences");
@@ -178,7 +183,7 @@ test.describe("the sign-in email's code", () => {
     expect(message.text).toContain(fr.signInEmail.code.replace("{{code}}", codeIn(message)));
     await enterCode(page, codeIn(message));
 
-    await expect(page).toHaveURL(`${origin}/compte`);
+    await postponeOnboardingIfLed(page);
     expect((await (await page.request.get("/api/auth/get-session")).json()).user.email).toBe(email);
     // The code spent its link.
     await page.context().clearCookies();
@@ -209,14 +214,14 @@ test.describe("the sign-in email's code", () => {
     await resend.click();
     const next = await waitForEmail(email, 1);
     await enterCode(page, codeIn(next));
-    await expect(page).toHaveURL(`${origin}/compte`);
+    await postponeOnboardingIfLed(page);
   });
 
   test("the link spends the code: the same email's code is refused after its link signed in", async ({ page, browser }) => {
     const email = newAddress("link-spends-code");
     const message = await askEmail(page, email);
     await page.goto(linkIn(message));
-    await expect(page).toHaveURL(`${origin}/compte`);
+    await postponeOnboardingIfLed(page);
 
     const someoneElse = await browser.newContext({ baseURL: origin, extraHTTPHeaders: { "x-forwarded-for": "10.68.6.2" } });
     const refused = await someoneElse.request.post("/api/auth/sign-in/email-otp", { data: { email, otp: codeIn(message) }, headers: { origin } });
@@ -229,7 +234,7 @@ test.describe("the sign-in email's code", () => {
     const email = newAddress("code-once");
     const code = codeIn(await askEmail(page, email));
     await enterCode(page, code);
-    await expect(page).toHaveURL(`${origin}/compte`);
+    await postponeOnboardingIfLed(page);
 
     // The same code, typed again on another device.
     const someoneElse = await browser.newContext({ baseURL: origin, extraHTTPHeaders: { "x-forwarded-for": "10.68.6.1" } });
@@ -251,7 +256,7 @@ test.describe("Google sign-in", () => {
     await page.goto("/connexion");
     await page.getByRole("button", { name: continueWithGoogle }).click();
 
-    await expect(page).toHaveURL(`${origin}/compte`);
+    await postponeOnboardingIfLed(page);
     await page.goto("/compte/connexion");
     await expect(page.getByText(email)).toBeVisible();
     await page.goto("/compte/preferences");
@@ -270,7 +275,7 @@ test.describe("Google sign-in", () => {
     await approveAtGoogle(viaGooglePage, { sub: `google-${email}`, email, email_verified: true, name: "Both Ways" }, origin);
     await viaGooglePage.goto("/connexion");
     await viaGooglePage.getByRole("button", { name: continueWithGoogle }).click();
-    await expect(viaGooglePage).toHaveURL(`${origin}/compte`);
+    await postponeOnboardingIfLed(viaGooglePage);
     const viaGoogle = await (await viaGooglePage.request.get("/api/auth/get-session")).json();
     expect(viaGoogle.user.id).toBe(viaEmail.user.id);
     await other.close();

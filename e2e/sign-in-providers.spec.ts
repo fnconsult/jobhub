@@ -1,6 +1,7 @@
 import { generateKeyPairSync } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { expect, test, type Browser, type Page } from "@playwright/test";
+import { postponeOnboardingIfLed } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { approveAtIssuer, FAKE_OIDC_ISSUER, refuseAtIssuer, signInByEmail, startSignInServer, SSO_SUPER_ADMIN, type SignInServer } from "./support/sign-in-server";
 
@@ -71,6 +72,7 @@ test.describe("Sign-in Providers (Paramètres' Connexion tab)", () => {
     });
     await page.goto(`${server.origin}/connexion`);
     await page.getByRole("button", { name: tr(fr.signIn.continueWith, { provider: "Google" }) }).click();
+    await postponeOnboardingIfLed(page);
     await expect(page).toHaveURL(`${server.origin}/compte`);
     await page.context().close();
   });
@@ -219,6 +221,7 @@ test.describe("Sign-in Providers (Paramètres' Connexion tab)", () => {
 
     // From then on, the provider signs into the same account.
     await viaSso.getByRole("button", { name: continueWithSso }).click();
+    await postponeOnboardingIfLed(viaSso);
     await expect(viaSso).toHaveURL(`${server.origin}/compte`);
     const [one, other] = await Promise.all([byEmail, viaSso].map(async (page) => (await page.request.get(`${server.origin}/api/auth/get-session`)).json()));
     expect(other.user.id).toBe(one.user.id);

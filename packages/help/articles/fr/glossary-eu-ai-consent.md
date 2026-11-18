@@ -5,7 +5,7 @@ topic: utiliser
 title: IA européenne
 synonyms: [ia européenne, accord, consentement, mistral, europe, ue, union européenne, données d'identité, hors ue, retirer mon accord, eu ai consent]
 ---
-L'IA européenne est un accord que vous donnez, ou non, dans Mon compte, rubrique « IA européenne ». Avec votre accord, chaque demande à l'IA qui contient vos données d'identité est traitée par Mistral AI, un fournisseur d'IA européen. « Donner mon accord » l'enregistre, avec sa date ; « Retirer mon accord » le retire, à tout moment.
+L'IA européenne est un accord que vous donnez, ou non, dans Mon compte, rubrique « IA européenne », ou quand votre coach vous le propose en créant un profil, avant de lire votre CV (« Donner mon accord » ou « Pas maintenant »). Avec votre accord, chaque demande à l'IA qui contient vos données d'identité est traitée par Mistral AI, un fournisseur d'IA européen. « Donner mon accord » l'enregistre, avec sa date ; « Retirer mon accord » le retire, à tout moment.
 
 Ce qui change d'un choix à l'autre :
 

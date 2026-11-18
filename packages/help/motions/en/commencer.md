@@ -32,6 +32,11 @@ In My account, under Profiles, click « Create my first profile ». Your coach w
 
 Drop your CV in the « I have a CV » card, as a PDF or a Word file, then click « Read my CV ». Without a CV, click « Answer my coach's questions » instead.
 
+## Answer about European AI
+- click button « Not now »
+
+Before reading your CV, your coach offers you European AI. « Give my consent » has Mistral AI process the requests that contain your identity data; « Not now » reads your CV once your identity is taken out of it. Choose either: you can change your mind in My account, « European AI » section.
+
 ## Confirm what your coach read
 - fill label « Your answer » « Responsable comptable »
 - click button « Send to the coach »

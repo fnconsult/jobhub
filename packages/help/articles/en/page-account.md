@@ -16,7 +16,7 @@ In Follow-ups, choose after how many working days your coach suggests a follow-u
 
 Email intake lets you receive in Jobbbox the offers from your job alerts and from recruiters' messages. « Switch email intake on » gives you your forwarding address: forward those emails to it, « Copy the address » copies it, and « Set up forwarding step by step » guides you to do so from your mailbox. Only the text of forwarded emails is read, never their attachments. « Replace the address » gives you a new one and « Switch off » stops email intake: the old address stops working at once, the offers already received stay. In « Your sending addresses », add the addresses you forward from by hand; in « Your alert senders », add the address of an alert Jobbbox does not recognise yet, or switch off, for yourself alone, a sender « Recognised by Jobbbox ». The offers received show in « Received by email », on the Job searches page.
 
-European AI: with your consent, every AI request that contains your identity data (name, address, phone, email or the text of your CV) is processed by Mistral AI, a European AI provider. « Give my consent » switches it on, « Withdraw my consent » stops it, at any time; the section shows the date of your consent.
+European AI: with your consent, every AI request that contains your identity data (name, address, phone, email or the text of your CV) is processed by Mistral AI, a European AI provider. « Give my consent » switches it on, « Withdraw my consent » stops it, at any time; the section shows the date of your consent. Your coach also offers it when you create a profile from a CV, before reading it; the consent given there is the same one, found and withdrawn here.
 
 Sign-in shows your account's email address and the ways you can sign in.
 

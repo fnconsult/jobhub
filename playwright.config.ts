@@ -63,6 +63,14 @@ if (!process.env.E2E_DATABASE_URL) {
 /** The Human Coach epic's specs (#867), run with « Espace coach v2 » on, in the coach-v2 project. */
 const COACH_SPACE_V2_SPECS = /\/(coach-v2\/[^/]+|coach-enrolments|coach-contracts|coach-associations|coach-pages|coaching-connect|coaching-dac7|coaching-earnings|coaching-booking|coaching-cancellations|coaching-notifications|coaching-content-reports)\.spec\.ts$/;
 
+/**
+ * Where a run's traces and failed screenshots go. The coach-v2 projects keep their own beside it: CI's screenshots job runs
+ * them after the web project, and a run empties its projects' folders as it starts, which lost the web screens' expected,
+ * actual and diff images from the job's artifact.
+ */
+const OUTPUT_DIR = `test-results/e2e-${webPort}`;
+const COACH_V2_OUTPUT_DIR = `${OUTPUT_DIR}-coach-v2`;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
@@ -72,7 +80,7 @@ export default defineConfig({
   globalTeardown: "./e2e/support/global-teardown.ts",
   // Per web port, like the server's log and database: a run empties its output folder as it starts, so two runs in one
   // checkout (each on its own E2E_WEB_PORT) would delete each other's traces mid-test (ENOENT, #544).
-  outputDir: `test-results/e2e-${webPort}`,
+  outputDir: OUTPUT_DIR,
   use: { trace: "retain-on-failure" },
   // Screenshot baselines (#463, #464, #465, #466): one set, drawn in Linux Chromium, CI's, whatever platform runs the suite
   // (e2e/support/screenshots.ts, e2e/shell-screenshots.spec.ts), kept in the repo beside the specs. A difference beyond a few pixels in a thousand fails; animations stop and the caret hides first.
@@ -86,12 +94,13 @@ export default defineConfig({
     // and teardown, which turn it on and back off. Every other project runs with it off, as before the epic. Locally the
     // setup itself waits for the web project: a project with no dependencies starts first, and the setting went on as the
     // suite began, under every web spec (e2e/support/coach-space-v2-order.test.ts).
-    { name: "coach-v2-setup", testMatch: /coach-v2\/coach-space-v2\.setup\.ts/, teardown: "coach-v2-teardown", dependencies: process.env.CI ? [] : ["web"] },
-    { name: "coach-v2-teardown", testMatch: /coach-v2\/coach-space-v2\.teardown\.ts/ },
+    { name: "coach-v2-setup", testMatch: /coach-v2\/coach-space-v2\.setup\.ts/, teardown: "coach-v2-teardown", dependencies: process.env.CI ? [] : ["web"], outputDir: COACH_V2_OUTPUT_DIR },
+    { name: "coach-v2-teardown", testMatch: /coach-v2\/coach-space-v2\.teardown\.ts/, outputDir: COACH_V2_OUTPUT_DIR },
     {
       name: "coach-v2",
       testMatch: COACH_SPACE_V2_SPECS,
       dependencies: ["coach-v2-setup"],
+      outputDir: COACH_V2_OUTPUT_DIR,
       workers: 1,
       use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" },
     },

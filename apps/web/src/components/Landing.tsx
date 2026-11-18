@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { signInHref } from "@/auth/sign-in-return";
 import { ExternalLink } from "@/components/ExternalLink";
 import { buttonClass } from "@/design/button-class";
 import { Logo } from "@/design/Logo";
@@ -30,8 +31,9 @@ export async function Landing({ plans, stores, coachPath = false }: { plans: rea
   const locale = await getUrlLocale();
   const href = (path: string) => localePath(path, locale);
   const screens = { cv: <ConversationScreen />, offers: <OffersScreen />, application: <ApplicationScreen />, followUp: <FollowUpScreen /> };
+  // « Créer mon compte »: the sign-in page, where an account is created, then the « Entretien d'accueil » (#1050).
   const action = (
-    <Link className={`${buttonClass({ variant: "primary" })} landing-action`} href={href(routes.signIn)}>
+    <Link className={`${buttonClass({ variant: "primary" })} landing-action`} href={href(signInHref(routes.newProfile, false))}>
       {t("landing.cta")}
     </Link>
   );

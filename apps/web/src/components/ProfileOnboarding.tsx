@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode, type RefObject } from "react";
+import { useEffect, useId, useRef, useState, useTransition, type FormEvent, type ReactNode, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import type { ContractType, MasterCvContent, Provenance, RemoteWork, SearchCriteria } from "@jobhub/shared";
 import type { CvDraft } from "@/cv";
@@ -167,7 +167,7 @@ const resumedInterview = (resumed: ResumedProfile & { resumesAt: OnboardingResum
  * match the criteria of the moment, and keeps it in the history once over (#1001). Once « Cela semble correct » has saved
  * the Profile, a coach line says the first offers are there and opens Activity on it (#1006).
  */
-export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
+export function ProfileOnboarding({ resumed, postpone }: { resumed?: ResumedProfile; postpone?: () => Promise<void> }) {
   const { t, i18n } = useTranslation();
   const id = useId();
   const router = useRouter();
@@ -753,6 +753,7 @@ export function ProfileOnboarding({ resumed }: { resumed?: ResumedProfile }) {
               <button className={buttonClass({ variant: "primary", size: "sm" })} type="button" onClick={() => startQuestions()}>
                 {t("newProfile.startQuestionnaire")}
               </button>
+              {postpone ? <PostponeButton postpone={postpone} /> : null}
             </Suggestions>
           ) : null}
           {step.kind === "review" && !step.saved && !reviewShown ? (
@@ -1000,6 +1001,20 @@ export function OnboardingWelcome() {
       <OnboardingIntroduction />
       <OnboardingHelp />
     </WelcomePanel>
+  );
+}
+
+/**
+ * « Plus tard » (#1050), as the « Entretien d'accueil » opens for a Candidate without any Profile: `postpone` leads to
+ * Mon compte, and they are no longer led here for the rest of the session.
+ */
+function PostponeButton({ postpone }: { postpone: () => Promise<void> }) {
+  const { t } = useTranslation();
+  const [pending, startTransition] = useTransition();
+  return (
+    <button className={buttonClass({ variant: "secondary", size: "sm" })} type="button" disabled={pending} onClick={() => startTransition(postpone)}>
+      {t("newProfile.postpone")}
+    </button>
   );
 }
 

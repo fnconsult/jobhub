@@ -1,1 +1,1 @@
-export { default } from "../page";
+export { AccountProfiles as default } from "../profiles-section";

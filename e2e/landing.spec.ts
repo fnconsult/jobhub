@@ -23,10 +23,11 @@ test.describe("the landing page (ADR-0105)", () => {
     const main = page.getByRole("main");
     await expect(main.getByRole("heading", { level: 1 })).toHaveText(fr.landing.hero.title);
     await expect(main.getByText(fr.landing.hero.lead, { exact: true })).toBeVisible();
-    // The same action opens and closes the page: the sign-in page, where an account is created.
+    // The same action opens and closes the page: the sign-in page, where an account is created, then the « Entretien
+    // d'accueil » (#1050).
     const actions = main.getByRole("link", { name: fr.landing.cta });
     await expect(actions).toHaveCount(2);
-    for (const action of await actions.all()) await expect(action).toHaveAttribute("href", "/connexion");
+    for (const action of await actions.all()) await expect(action).toHaveAttribute("href", "/connexion?suite=%2Fprofils%2Fnouveau");
     // The public shell: its header with the logo beside the name, its navigation, its footer.
     const brand = page.getByRole("banner").getByRole("link", { name: fr.app.name, exact: true });
     await expect(brand).toHaveAttribute("href", "/");
@@ -91,7 +92,7 @@ test.describe("the landing page (ADR-0105)", () => {
     await expect(page).toHaveTitle(en.landing.meta.title);
     const main = page.getByRole("main");
     await expect(main.getByRole("heading", { level: 1 })).toHaveText(en.landing.hero.title);
-    await expect(main.getByRole("link", { name: en.landing.cta }).first()).toHaveAttribute("href", "/en/connexion");
+    await expect(main.getByRole("link", { name: en.landing.cta }).first()).toHaveAttribute("href", "/en/connexion?suite=%2Fprofils%2Fnouveau");
     await expect(main.getByRole("link", { name: en.landing.questions.more })).toHaveAttribute("href", "/en/aide");
     await expect(main.getByRole("link", { name: en.landing.plans.detail })).toHaveAttribute("href", "/en/aide/decouvrir/faq-plans-and-quotas");
   });

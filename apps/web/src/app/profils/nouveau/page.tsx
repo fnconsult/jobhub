@@ -8,6 +8,7 @@ import { UpgradePrompt } from "@/components/UpgradePrompt";
 import { getServerT } from "@/i18n/server";
 import { getProfiles, newProfileStartFor } from "@/profiles/server";
 import { routes } from "@/routes";
+import { postponeOnboarding } from "./actions";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT();
@@ -22,6 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * with « Continuer plus tard », in its interview at the block it reached (#1046): it counts
  * in the Plan Quota already. Any other Profile of theirs opens its own page. Without it, once the Plan allows no more
  * Profiles, their most recent Profile « Création à terminer » resumes there instead of the Upgrade prompt (#1048).
+ * A Candidate without any Profile is led here from `/` and `/compte` (#1050), and offered « Plus tard », to Mon compte.
  */
 export default async function NewProfilePage({ searchParams }: { searchParams: Promise<{ profil?: string | string[] }> }) {
   const candidate = await getCurrentCandidate();
@@ -31,6 +33,8 @@ export default async function NewProfilePage({ searchParams }: { searchParams: P
   const start = resumed ? null : await newProfileStartFor(candidate);
   if (start?.start === "resume") redirect(routes.resumeProfileCreation(start.profileId));
   const upgradePrompt = start?.start === "upgrade" ? start.prompt : null;
+  // « Plus tard » (#1050): offered as the « Entretien d'accueil » opens for a Candidate without any Profile.
+  const firstProfile = start?.start === "onboarding" && (await getProfiles().list(candidate.id)).length === 0;
   return (
     <CandidateLayout candidateId={candidate.id} title={t("newProfile.title")}>
       {upgradePrompt ? (
@@ -48,7 +52,7 @@ export default async function NewProfilePage({ searchParams }: { searchParams: P
           </div>
         </section>
       ) : (
-        <ProfileOnboarding key={resumed?.id ?? ""} {...(resumed ? { resumed } : {})} />
+        <ProfileOnboarding key={resumed?.id ?? ""} {...(resumed ? { resumed } : {})} {...(firstProfile ? { postpone: postponeOnboarding } : {})} />
       )}
     </CandidateLayout>
   );

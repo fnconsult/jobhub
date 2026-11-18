@@ -104,6 +104,27 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
     expect(within(suggestions).getByRole("button", { name: "Répondre aux questions de mon coach" })).toBeTruthy();
   });
 
+  describe("« Plus tard », as the « Entretien d'accueil » opens for a Candidate without any Profile (#1050)", () => {
+    it("is offered among the suggestions, and postpones the onboarding once clicked", async () => {
+      const user = userEvent.setup();
+      const postpone = vi.fn(async () => {});
+      renderInFrench(<ProfileOnboarding postpone={postpone} />);
+      const suggestions = within(conversation()).getByRole("group", { name: "Suggestions" });
+      await user.click(within(suggestions).getByRole("button", { name: "Plus tard" }));
+      expect(postpone).toHaveBeenCalledTimes(1);
+    });
+
+    it("is not offered once the questions start, nor to a Candidate who has a Profile already", async () => {
+      const user = userEvent.setup();
+      renderInFrench(<ProfileOnboarding postpone={vi.fn(async () => {})} />);
+      await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
+      expect(screen.queryByRole("button", { name: "Plus tard" })).toBeNull();
+      cleanup();
+      renderInFrench(<ProfileOnboarding />);
+      expect(screen.queryByRole("button", { name: "Plus tard" })).toBeNull();
+    });
+  });
+
   it("asks the scripted questions in the thread when the AI cannot lead the interview, and takes the answers in the box at the foot", async () => {
     const user = userEvent.setup();
     renderInFrench(<NewProfilePage />);

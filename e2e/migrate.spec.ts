@@ -173,6 +173,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "signalement", // issue #374: the Candidate's Signalements (Bug / Idée / Question)
         "tailored_cv", // issue #18: Tailored CV proposals and saved Tailored CVs
         "tailored_document", // issue #19: Cover Letters and Outreach Messages
+        "tailored_document_version", // issue #1079: the versions of the Tailored CV, Cover Letter and Outreach Message
         "target_company", // issue #406: a Profile's Target Companies
         "target_company_refresh", // issue #406: what a Profile's La Bonne Boite companies were last fetched for
         "two_step_verification", // issue #663: a Candidate's Two-step verification, its key encrypted, its backup codes hashed
@@ -397,6 +398,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // A Tailored CV (issue #18) goes with its Application.
         { from_table: "tailored_cv", from_column: "application_id", to_table: "application" },
         { from_table: "tailored_document", from_column: "application_id", to_table: "application" },
+        { from_table: "tailored_document_version", from_column: "application_id", to_table: "application" },
         // Target Companies (issue #406) go with their Candidate and their Profile.
         { from_table: "target_company", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "target_company", from_column: "profile_id", to_table: "profile" },

@@ -65,6 +65,15 @@ describe("what the browser knows of a Profile's creation (#810), never kept", ()
       ]),
     ).toEqual({ questionnaire: { at: at("10:31"), answered: 2, skipped: 1 } });
   });
+
+  it("knows the target role and places answered so far, the latest only, forgotten on « Recommencer » (#1051)", () => {
+    const building = replay([
+      [{ type: "building", targetRole: "Directrice financière", locations: [] }, at("10:31")],
+      [{ type: "building", targetRole: "Directrice financière", locations: ["Lyon"] }, at("10:32")],
+    ]);
+    expect(building).toEqual({ building: { targetRole: "Directrice financière", locations: ["Lyon"] } });
+    expect(nextCreation(building, { type: "started" }, at("10:33"))).toEqual({});
+  });
 });
 
 describe("where it shows", () => {

@@ -77,3 +77,26 @@
   margin: 0;
   font-weight: 600;
 }
+
+/* A draft's new text (ADR-0109): in full, its lines kept; the current text folded under it. */
+.coach-proposal-card__texts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.coach-proposal-card__text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.coach-proposal-card__current > summary {
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.coach-proposal-card__current > .coach-proposal-card__text {
+  margin-top: var(--space-1);
+  color: var(--color-text-secondary);
+}

@@ -715,3 +715,4 @@ export type CoachConversationResponse = z.infer<typeof coachConversationResponse
 
 export * from "./legal-steps";
 export * from "./coach-space";
+export * from "./getting-started";

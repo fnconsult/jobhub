@@ -239,7 +239,11 @@ describe("the app's calls to the API (ADR-0076, #704)", () => {
   });
 
   it("answered 426 on a message to the coach, show « Mettre à jour Jobbbox »", async () => {
-    await renderInApp(<CoachConversation conversationId={null} route="/" />, outdatedWebApp());
+    // Only the message is answered 426: the empty conversation's reads (« Pour bien commencer », #1069) find nothing.
+    const outdated = outdatedWebApp().fetch;
+    const notFound = server(404, { error: "not_found" }).fetch;
+    const fetch = ((url: string, init?: RequestInit) => ((init?.method ?? "GET") === "GET" ? notFound : outdated)(url, init)) as typeof globalThis.fetch;
+    await renderInApp(<CoachConversation conversationId={null} route="/" />, { fetch });
     const user = userEvent.setup();
     await user.type(screen.getByLabelText("Votre message"), "Bonjour");
     await user.press(screen.getByRole("button", { name: "Envoyer" }));

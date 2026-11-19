@@ -5,7 +5,7 @@ import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { signInWithMagicLink } from "./support/candidate";
 import { activityOf, closeActivity, openActivity, unfoldedEntryOf } from "./support/conversation";
 import { newAddress } from "./support/mailbox";
-import { onboardingSummary, throughCvInterview } from "./support/onboarding-summary";
+import { onboardingSummary, readCv, throughCvInterview } from "./support/onboarding-summary";
 
 // Issue #1006 (ADR-0106, map #992): creating a Profile, end to end. A CV read by the AI Coach, the questions on what it
 // does not say, the summary, « Cela semble correct », then the first offers, at the end of the offered Job Search's entry
@@ -104,7 +104,7 @@ async function upToSummary(page: Page, label: string): Promise<{ email: string; 
   await signInWithMagicLink(page, email);
   await page.goto("/profils/nouveau");
   await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles(CV);
-  await page.getByRole("button", { name: fr.cvUpload.submit }).click();
+  await readCv(page);
   // The CV read in Activité (#1003): « Création du profil »'s part « Lecture du CV », with the fields it read.
   const thread = page.getByRole("list", { name: fr.questionnaire.transcript });
   await expect(thread.getByText(fr.newProfile.fromCv.questionsStart)).toBeVisible({ timeout: 15_000 });

@@ -53,22 +53,34 @@ const CV_FILE_ACCEPT = ".pdf,.docx,application/pdf,application/vnd.openxmlformat
 export function CvUpload({
   onDraft,
   onReading,
+  beforeReading,
 }: {
   onDraft: (draft: CvDraft) => void;
   /** Told when the reading starts and when it ends (read, stopped or failed): « Profil en construction » follows it (#1003). */
   onReading?: (reading: boolean) => void;
+  /** Waited for once « Lire mon CV » is pressed, before the CV leaves for the AI: the EU AI Consent proposed (#1052). */
+  beforeReading?: () => Promise<void>;
 }) {
   const { t, i18n } = useTranslation();
   const action = useStreamedAction("cv_reading");
   const [chosen, setChosen] = useState(false);
   const [state, setState] = useState<{ error?: CvFileErrorCode | "unknown"; stoppedAt?: Date }>({});
+  // « Lire mon CV » pressed, the reading held by `beforeReading`.
+  const [held, setHeld] = useState(false);
   const reading = action.running;
   const errors = t("cvUpload.errors", { returnObjects: true }) as Record<CvFileErrorCode | "unknown", string>;
 
   async function readCv(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const element = event.currentTarget;
     setState({});
+    if (beforeReading) {
+      setHeld(true);
+      await beforeReading();
+      setHeld(false);
+    }
+    // The file chosen when the CV leaves, after the answer.
+    const form = new FormData(element);
     onReading?.(true);
     const outcome = await action.run("/api/cv/draft", { method: "POST", body: form });
     onReading?.(false);
@@ -103,7 +115,7 @@ export function CvUpload({
           setState({});
         }}
       >
-        {chosen && !reading ? (
+        {chosen && !reading && !held ? (
           <div className="actions">
             <button className="button button-primary" type="submit">
               {t("cvUpload.submit")}

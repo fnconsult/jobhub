@@ -4,7 +4,7 @@ import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { activityOf, openActivity, unfoldedEntryOf } from "./support/conversation";
-import { confirmSummary, onboardingSummary, throughCvInterview } from "./support/onboarding-summary";
+import { confirmSummary, onboardingSummary, readCv, throughCvInterview } from "./support/onboarding-summary";
 
 // Issue #810 (ADR-0086, ADR-0070): a Profile's creation is one Activité entry, « Création du profil », on `/profils/nouveau`
 // and then on the new Profile's page: the CV read (its Provenance, the only AI), the Onboarding Questionnaire (« Questions
@@ -58,7 +58,7 @@ test.describe("« Création du profil » in Activity (#810)", () => {
     await expect(activityOf(page)).toContainText(history.empty);
 
     await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles({ name: "cv.pdf", mimeType: "application/pdf", buffer: Buffer.from(pdfCv([...MARIE_DUPONT_CV, "Divers", "E2E_CV_SLOW"])) });
-    await page.getByRole("button", { name: fr.cvUpload.submit }).click();
+    await readCv(page);
     // « En ce moment »: the reading, live.
     await expect(nowOf(page)).toContainText(kinds.cv_reading);
     await expect(nowOf(page)).toContainText(fr.aiActivity.steps.read);

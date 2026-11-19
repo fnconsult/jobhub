@@ -923,9 +923,11 @@
   "euAiConsent": {
     "title": "European AI for your identity data",
     "explanation": "With your consent, every AI request that contains your identity data (name, address, phone, email or the text of your CV) is processed by Mistral AI, a European AI provider. Other requests, without your identity data, are processed by our usual provider. You can withdraw your consent at any time.",
+    "offer": "With your consent, every AI request that contains your identity data (name, address, phone, email or the text of your CV) is processed by Mistral AI, a European AI provider.",
     "notGiven": "You have not given your consent.",
     "givenOn": "Consent given on {{date}}.",
     "give": "Give my consent",
+    "notNow": "Not now",
     "withdraw": "Withdraw my consent",
     "error": "Something went wrong. Please try again."
   },
@@ -1645,7 +1647,7 @@
       "proposed": "I propose this change below: review it, then apply or ignore it. Nothing changes without you.",
       "masterCvNotProposed": "I couldn't prepare this change. I only propose what your Master CV already says, never an item, skill or figure it doesn't hold. To add skills or tools, write them yourself in the « Master CV » section of your profile, then save a new version.",
       "notProposed": "I couldn't prepare this change as asked. Tell me precisely what you want to change, or make it from the page concerned.",
-      "none": "I couldn't answer you this time. Could you rephrase your request, or split it into several messages?"
+      "none": "I could not prepare an answer to this request. What I cannot change myself is changed from the page concerned (the application and its sections, your profile): tell me exactly what you want to change, and I will propose what I can."
     },
     "jobOfferLink": {
       "read": "I read this job offer and added it to Jobbbox. It is to be processed: open it to see its Match Score and follow it with one of your profiles.",
@@ -1663,6 +1665,11 @@
       "readMore": "Read more",
       "readMoreAbout": "Read more: {{title}}",
       "oftenAsked": "Often asked",
+      "gettingStarted": {
+        "title": "Getting started",
+        "atsScore": "My CV's ATS Score",
+        "extension": "Keep a job offer seen on another site"
+      },
       "suggestions": "In the help, without AI",
       "found_one": "{{count}} article in the help",
       "found_other": "{{count}} articles in the help",
@@ -5267,7 +5274,7 @@
     "copied": "Text copied",
     "copyFailed": "Copying failed: select the text and copy it yourself.",
     "redraft": "Draft again",
-    "redraftHint": "A new draft replaces the current text, your changes included.",
+    "redraftHint": "A new draft replaces the current text, which stays in “Versions”.",
     "drafting": "Drafting…",
     "drafted": "Draft ready",
     "required": "The text cannot be empty.",
@@ -5285,6 +5292,32 @@
       "downloadWord": "Download as Word",
       "savedOn": "Saved on {{date}}"
     }
+  },
+  "documentVersions": {
+    "toggle": "Versions",
+    "intro": "Each draft, each save of your changes, each edit by your AI coach that you apply and each restore keeps a version. The last {{max}} versions of this document are kept.",
+    "loading": "Loading the versions…",
+    "loadError": "The versions could not be loaded. Check your connection and try again.",
+    "none": "No versions yet.",
+    "listLabel": "Versions of this document, newest first",
+    "version": "Version {{version}}",
+    "current": "Current version",
+    "sources": {
+      "drafted": "Drafted by your AI coach",
+      "draftedCv": "Proposed by your AI coach, saved by you",
+      "candidate": "Changed by you",
+      "coach": "Edit by your AI coach, applied by you",
+      "restored": "Restore of version {{version}}",
+      "restoredEarlier": "Restore of an earlier version"
+    },
+    "open": "View version {{version}}",
+    "readOnly": "Version {{version}}, read-only",
+    "subject": "Subject: {{subject}}",
+    "restore": "Restore this version",
+    "restoreHint": "It becomes the current version again under a new number: the current version stays in “Versions”.",
+    "restoring": "Restoring…",
+    "restored": "Version {{version}} restored: it is now the current version.",
+    "restoreError": "This version could not be restored. Check your connection and try again."
   },
   "tailoredCv": {
     "title": "CV tailored to the offer",
@@ -7069,7 +7102,19 @@
       "coachMemory": "To remember",
       "jobSearch": "Job search",
       "jobSearchStop": "Stopping the search",
-      "jobDigest": "Job Digest"
+      "jobDigest": "Job Digest",
+      "draftSubject": "Subject",
+      "draftText": "Text",
+      "draft": {
+        "follow_up": "Follow-up",
+        "cover_letter": "Cover letter",
+        "outreach_message": "Outreach message"
+      },
+      "restoreVersion": {
+        "tailored_cv": "Tailored CV: bring back version {{version}}",
+        "cover_letter": "Cover letter: bring back version {{version}}",
+        "outreach_message": "Outreach message: bring back version {{version}}"
+      }
     },
     "interview": {
       "none": "None",
@@ -7091,12 +7136,12 @@
       "noDigest": "No Job Digest",
       "noTailoredCv": "No tailored CV",
       "tailoredCvSaved": "Tailored CV saved on {{date}}, kept as it is",
-      "tailoredCvProposal": "A proposal to review change by change · {{language}}",
+      "tailoredCvProposal": "A proposal your AI coach will prepare once you start it, to review change by change · {{language}}",
       "noDraft": "No draft",
       "draftOf": "Draft of {{date}}",
       "draftEdited": "Draft of {{date}}, edited since",
-      "newDraft": "A draft written by your AI coach · {{language}}",
-      "replacesDraft": "Your current draft will be replaced, your edits included.",
+      "newDraft": "A new draft your AI coach will write once you start the drafting · {{language}}",
+      "replacesDraft": "Your current draft will be replaced: it will stay in “Versions”, edits included.",
       "replacesTailoredCvProposal": "Your Tailored CV proposal under review will be replaced, your answers included."
     },
     "quota": {
@@ -7113,13 +7158,12 @@
     "launch": "Launch",
     "prepare": "Prepare",
     "draft": "Draft",
-    "confirmReplace": "Replace your current draft, your edits included?",
+    "confirmReplace": "Replace your current draft? It will stay in “Versions”.",
     "confirmYes": "Replace and draft",
     "confirmNo": "Keep my draft",
     "confirmReplaceProposal": "Replace your Tailored CV proposal under review, your answers included?",
     "confirmYesProposal": "Replace and prepare",
     "confirmNoProposal": "Keep my proposal",
-    "runHint": "The document is in the application's documents; if it was stopped, nothing was kept.",
     "edit": "Edit before applying",
     "dismiss": "Ignore",
     "undo": "Undo",
@@ -7160,7 +7204,15 @@
       "save": "Save the accepted changes",
       "saved_one": "{{count}} change saved",
       "saved_other": "{{count}} changes saved"
-    }
+    },
+    "currentText": "Current text",
+    "runResult": {
+      "tailored_cv": "The tailored CV proposal is in Documents › Tailored CV, to review change by change.",
+      "cover_letter": "Your cover letter is in Documents › Cover letter.",
+      "outreach_message": "Your outreach message is in Documents › Outreach message."
+    },
+    "runStopped": "If you stopped it, nothing was kept.",
+    "openResult": "Open beside the conversation"
   },
   "coachProposalsDisplay": {
     "label": "Coach proposals",

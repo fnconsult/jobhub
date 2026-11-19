@@ -147,6 +147,11 @@ jobs:
         run: npm run test:e2e -- --project=plan-coach-context --no-deps
         env:
           E2E_SCREENSHOTS: "0"
+      # « Pour bien commencer » (#1069) sets EXTENSION_STORE_URL, global to the database: alone too, before the rest.
+      - if: matrix.plans
+        run: npm run test:e2e -- --project=getting-started --no-deps
+        env:
+          E2E_SCREENSHOTS: "0"
       # The screenshot specs run here for their axe checks; their comparisons run in the `screenshots` job, in the
       # Playwright image the baselines are drawn in, whose fonts match theirs.
       - run: npm run test:e2e -- ${{ matrix.args }}

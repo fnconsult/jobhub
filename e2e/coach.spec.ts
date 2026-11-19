@@ -9,7 +9,7 @@ import { signInWithMagicLink } from "./support/candidate";
 import { placeNames } from "./support/locations";
 import { newAddress } from "./support/mailbox";
 import { toConversation } from "./support/conversation";
-import { onboardingSummary, openReviewDetail, throughCvInterview } from "./support/onboarding-summary";
+import { onboardingSummary, openReviewDetail, readCv, throughCvInterview } from "./support/onboarding-summary";
 
 // Issue #5: a Candidate without a CV builds their Master CV with the AI Coach's
 // Onboarding Questionnaire; the Coach Panel is on every page and knows the
@@ -424,7 +424,7 @@ test.describe("onboarding with the AI Coach", () => {
     await signInWithMagicLink(page, newAddress("same-structure"));
     await page.goto("/profils/nouveau");
     await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles({ name: "cv.pdf", mimeType: "application/pdf", buffer: Buffer.from(pdfCv(MARIE_DUPONT_CV)) });
-    await page.getByRole("button", { name: fr.cvUpload.submit }).click();
+    await readCv(page);
     await throughCvInterview(page);
     const fromUpload = await reviewFields();
 

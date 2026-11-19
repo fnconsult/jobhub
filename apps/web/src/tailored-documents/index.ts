@@ -7,8 +7,9 @@
  * `createTailoredDocuments(database, { applications, profiles, ai, companyDossiers? })`:
  *  - `get` the Application's Document Language and drafts;
  *  - `draft` (or draft again) the Cover Letter or the Outreach Message: the new
- *    draft replaces the one stored, edits included;
+ *    draft replaces the one stored, which stays in its versions (#1079, `./versions`);
  *  - `edit` a stored draft's text.
+ * Each change keeps the document as it then stands as a Tailored Document Version, in the same transaction.
  *
  * Rules kept here:
  *  - Drafts are written in the Application's Document Language: the Job Offer's
@@ -35,6 +36,7 @@ import type { Application, Applications } from "../applications";
 import type { CompanyDossier, CompanyDossiers } from "../company-dossiers";
 import { countUse, migrateConsumption } from "../consumption";
 import { inTransaction } from "../database/pool";
+import { readOrigin, type Origin } from "../origin";
 import type { EnrichedContact, EnrichedContacts } from "../enriched-contacts";
 import type { Profiles } from "../profiles";
 import { routes } from "../routes";
@@ -42,8 +44,10 @@ import { taskRun, type TaskPlaybookReader, type TaskRun } from "../task-playbook
 import { fieldErrors, type FieldError } from "../validation";
 import { coverLetterBody } from "./cover-letter-body";
 import { documentLanguageOf, keepDocumentLanguage } from "./document-language";
+import { paragraphsNotIn } from "./language";
+import { keepVersion, migrateTailoredDocumentVersions } from "./versions";
 
-import { OUTREACH_CHANNELS, TAILORED_DOCUMENTS, type OutreachChannel, type TailoredDocumentKind } from "./kinds";
+import { MAX_DRAFT_LENGTH, MAX_SUBJECT_LENGTH, OUTREACH_CHANNELS, TAILORED_DOCUMENTS, type OutreachChannel, type TailoredDocumentKind } from "./kinds";
 
 export { OUTREACH_CHANNELS, TAILORED_DOCUMENTS, type OutreachChannel, type TailoredDocumentKind } from "./kinds";
 export { coverLetterBody } from "./cover-letter-body";
@@ -58,6 +62,11 @@ interface Draft {
   updatedAt: Date;
   /** What served its drafting (ADR-0034, #334): the model, its tokens and time, the pages it drew on; null for one drafted before it was kept. */
   provenance: Provenance | null;
+  /**
+   * The Coach proposal the Candidate applied to its text (ADR-0109): kept while the text is as it left it, null once
+   * the Candidate edits it or has it drafted again, and for one never reworked from the conversation.
+   */
+  origin?: Origin | null;
 }
 
 export type CoverLetter = Draft;
@@ -131,7 +140,33 @@ export interface TailoredDocuments {
    * "not_found" also when there is no draft yet.
    */
   edit(candidateId: string, applicationId: string, input: unknown): Promise<TailoredDocumentsResult>;
+  /**
+   * A Coach proposal's new text applied by the Candidate (ADR-0109), from the draft's version seen (its `updatedAt`, ISO):
+   * changed since, a `conflict`; no draft, `not_found`. The draft keeps the proposal as its Origin. `undo`: what
+   * `unrework` needs to put the text before back.
+   */
+  rework(candidateId: string, applicationId: string, input: DraftRework, options: { version: string; origin: Origin }): Promise<DraftReworkResult>;
+  /** « Annuler »: puts the text before `rework` back, while the draft has not changed since. */
+  unrework(candidateId: string, applicationId: string, undo: unknown): Promise<{ ok: true } | { ok: false; error: "conflict" | "not_found" }>;
 }
+
+/** A draft's new text from a Coach proposal: the whole text, and for an Outreach Message its subject. */
+export interface DraftRework {
+  document: TailoredDocumentKind;
+  text: string;
+  subject?: string;
+}
+
+export type DraftReworkResult = { ok: true; undo: unknown } | { ok: false; error: "conflict" | "not_found" };
+
+/** What « Annuler » on a reworked draft needs: the text, subject and Origin before, and the version the rework left. */
+const reworkUndoSchema = z.object({
+  document: z.enum(TAILORED_DOCUMENTS),
+  text: z.string(),
+  subject: z.string(),
+  origin: z.unknown(),
+  version: z.string(),
+});
 
 export interface TailoredDocumentsDeps {
   applications: Pick<Applications, "get">;
@@ -152,9 +187,7 @@ const draftSchema = z.object({
   contactId: z.uuid().optional(),
 });
 
-/** Longest text kept for a draft, in characters: a long letter is about 4,000. */
-export const MAX_DRAFT_LENGTH = 10_000;
-export const MAX_SUBJECT_LENGTH = 300;
+export { MAX_DRAFT_LENGTH, MAX_SUBJECT_LENGTH } from "./kinds";
 
 const editSchema = z.object({
   document: z.enum(TAILORED_DOCUMENTS),
@@ -163,6 +196,7 @@ const editSchema = z.object({
 });
 
 const NOT_FOUND = { ok: false, error: "not_found" } as const;
+const CONFLICT = { ok: false, error: "conflict" } as const;
 
 interface DraftRow {
   kind: TailoredDocumentKind;
@@ -175,6 +209,7 @@ interface DraftRow {
   drafted_at: Date;
   updated_at: Date;
   provenance: unknown;
+  origin: unknown;
 }
 
 /** The format of each document, in each Document Language: the Cover Letter's body only, in plain text (#162); the Outreach Message's JSON. */
@@ -205,16 +240,41 @@ const PEOPLE: Record<DocumentLanguage, { nobody: string; recipientOnly: string }
   },
 };
 
+/**
+ * The Document Language, in each Document Language, which stays in code: the whole document is written in it,
+ * whatever the language of the Master CV and the Job Offer, and translating is no inventing.
+ */
+const LANGUAGE: Record<DocumentLanguage, Record<TailoredDocumentKind, string>> = {
+  fr: {
+    cover_letter:
+      "Écris toute la lettre en français, même si son CV de référence ou l'offre sont dans une autre langue : traduis ce que tu en reprends (intitulés de poste, diplômes, compétences), sans rien changer aux faits ni aux chiffres. Garde tels quels les noms propres (employeurs, écoles, produits).",
+    outreach_message:
+      "Écris tout le message en français, objet compris, même si son CV de référence ou l'offre sont dans une autre langue : traduis ce que tu en reprends (intitulés de poste, diplômes, compétences), sans rien changer aux faits ni aux chiffres. Garde tels quels les noms propres (employeurs, écoles, produits).",
+  },
+  en: {
+    cover_letter:
+      "Write the whole letter in English, even where their reference CV or the job offer are in another language: translate what you take from them (job titles, degrees, skills), changing no fact and no figure. Keep proper nouns (employers, schools, products) as they are.",
+    outreach_message:
+      "Write the whole message in English, subject included, even where their reference CV or the job offer are in another language: translate what you take from them (job titles, degrees, skills), changing no fact and no figure. Keep proper nouns (employers, schools, products) as they are.",
+  },
+};
+
+/** Told when a draft is left partly in another language than the Document Language: the passages to write again. */
+const NOT_IN: Record<DocumentLanguage, (passages: string[]) => string> = {
+  fr: (passages) => `Ta proposition précédente n'était pas entièrement en français. Réécris tout le document en français, en traduisant ces passages :\n${passages.map((passage) => `« ${passage} »`).join("\n")}`,
+  en: (passages) => `Your previous draft was not wholly in English. Write the whole document again in English, translating these passages:\n${passages.map((passage) => `"${passage}"`).join("\n")}`,
+};
+
 /** The task Playbook writing each document: one for the Cover Letter, one for the Outreach Message (ADR-0026). */
 const TASK_PLAYBOOK = { cover_letter: "cover-letter", outreach_message: "outreach-message" } as const satisfies Record<TailoredDocumentKind, string>;
 
 /**
  * The instructions: the task Playbook's section for the Document Language (and the Outreach Message's
- * channel), then who may be named and the document's format, which stay here.
+ * channel), then who may be named, the Document Language and the document's format, which stay here.
  */
 function systemPrompt(run: TaskRun, language: DocumentLanguage, document: TailoredDocumentKind, channel: OutreachChannel, addressed: boolean): string {
   const section = document === "outreach_message" ? `${language} ${channel}` : language;
-  return [run.text(section), `- ${PEOPLE[language][addressed ? "recipientOnly" : "nobody"]}`, FORMAT[language][document]].join("\n");
+  return [run.text(section), `- ${PEOPLE[language][addressed ? "recipientOnly" : "nobody"]}`, `- ${LANGUAGE[language][document]}`, FORMAT[language][document]].join("\n");
 }
 
 /** Suggested Contact Roles (#17) as job titles. A role not listed here is written as given. */
@@ -276,9 +336,9 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
   async function draftsOf(application: Application): Promise<ApplicationDrafts> {
     const [language, { rows }] = await Promise.all([
       documentLanguageOf(database, application),
-      database.query<DraftRow>(`SELECT kind, language, channel, subject, contact_roles, contact, text, drafted_at, updated_at, provenance FROM tailored_document WHERE application_id = $1`, [application.id]),
+      database.query<DraftRow>(`SELECT kind, language, channel, subject, contact_roles, contact, text, drafted_at, updated_at, provenance, origin FROM tailored_document WHERE application_id = $1`, [application.id]),
     ]);
-    const draft = (row: DraftRow): Draft => ({ language: row.language, text: row.text, draftedAt: row.drafted_at, updatedAt: row.updated_at, provenance: readProvenance(row.provenance) });
+    const draft = (row: DraftRow): Draft => ({ language: row.language, text: row.text, draftedAt: row.drafted_at, updatedAt: row.updated_at, provenance: readProvenance(row.provenance), origin: readOrigin(row.origin) });
     const letter = rows.find((row) => row.kind === "cover_letter");
     const message = rows.find((row) => row.kind === "outreach_message");
     return {
@@ -336,16 +396,25 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
     const prompt = parts.join("\n\n");
     try {
       const run = await taskRun(deps.taskPlaybooks, TASK_PLAYBOOK[document], deps.ai);
-      const { text } = await recorder.ai.generate({
-        task: "writing",
-        candidateId,
-        system: systemPrompt(run, language, document, channel, document === "outreach_message" && !!contact),
-        ...run.agent,
-        prompt,
-        // The Master CV, identity block included: the draft speaks as the Candidate (ADR-0007).
-        containsIdentity: true,
-      });
-      const written = document === "outreach_message" ? outreachIn(text) : { subject: "", text: coverLetterBody(text, profile.masterCv.content) };
+      const writeDraft = async (asked: string) => {
+        const { text } = await recorder.ai.generate({
+          task: "writing",
+          candidateId,
+          system: systemPrompt(run, language, document, channel, document === "outreach_message" && !!contact),
+          ...run.agent,
+          prompt: asked,
+          // The Master CV, identity block included: the draft speaks as the Candidate (ADR-0007).
+          containsIdentity: true,
+        });
+        return document === "outreach_message" ? outreachIn(text) : { subject: "", text: coverLetterBody(text, profile.masterCv.content) };
+      };
+      let written = await writeDraft(prompt);
+      // Left partly in another language (a French Master CV's lines kept as they are): asked for once more, those passages named.
+      const notIn = [...paragraphsNotIn(written.subject, language), ...paragraphsNotIn(written.text, language)];
+      if (written.text && notIn.length > 0) {
+        const again = await writeDraft(`${prompt}\n\n${NOT_IN[language](notIn)}`);
+        if (again.text) written = again;
+      }
       return written.text ? { ...written, contactRoles: document === "outreach_message" ? contactRoles : [] } : { unavailable: "invalid_reply" };
     } catch (error) {
       const { reason } = failureOf(error);
@@ -386,7 +455,7 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
         await client.query(
           `INSERT INTO tailored_document (application_id, kind, language, channel, subject, contact_roles, contact, text, provenance) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            ON CONFLICT (application_id, kind) DO UPDATE
-             SET language = $3, channel = $4, subject = $5, contact_roles = $6, contact = $7, text = $8, provenance = $9, drafted_at = now(), updated_at = now()`,
+             SET language = $3, channel = $4, subject = $5, contact_roles = $6, contact = $7, text = $8, provenance = $9, origin = NULL, drafted_at = now(), updated_at = now()`,
           [
             application.id,
             document,
@@ -400,6 +469,8 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
           ],
         );
         await countUse(client, candidateId, "tailoredDocument", new Date());
+        // The draft before stays in « Versions » (#1079): this drafting is the document's next version.
+        await keepVersion(client, application.id, document, { source: "drafted" });
       });
       return { ok: true, drafts: await draftsOf(application) };
     },
@@ -410,12 +481,61 @@ export function createTailoredDocuments(database: Pool, deps: TailoredDocumentsD
       const application = await deps.applications.get(candidateId, applicationId);
       if (!application) return NOT_FOUND;
       const { document, text, subject } = parsed.data;
-      const { rowCount } = await database.query(
-        `UPDATE tailored_document SET text = $3, subject = COALESCE($4, subject), updated_at = now() WHERE application_id = $1 AND kind = $2`,
-        [application.id, document, text, document === "outreach_message" ? (subject ?? null) : null],
-      );
-      if (rowCount === 0) return NOT_FOUND;
+      const rowCount = await inTransaction(database, async (client) => {
+        const written = await client.query(
+          `UPDATE tailored_document SET text = $3, subject = COALESCE($4, subject), origin = NULL, updated_at = now() WHERE application_id = $1 AND kind = $2`,
+          [application.id, document, text, document === "outreach_message" ? (subject ?? null) : null],
+        );
+        // One save, one version (#1079): however many keystrokes it holds; none when nothing changed.
+        if (written.rowCount) await keepVersion(client, application.id, document, { source: "candidate" });
+        return written.rowCount;
+      });
+      if (!rowCount) return NOT_FOUND;
       return { ok: true, drafts: await draftsOf(application) };
+    },
+
+    async rework(candidateId, applicationId, { document, text, subject }, { version, origin }) {
+      const application = await deps.applications.get(candidateId, applicationId);
+      if (!application) return NOT_FOUND;
+      return inTransaction(database, async (client) => {
+        const { rows } = await client.query<{ text: string; subject: string; origin: unknown; updated_at: Date }>(
+          `SELECT text, subject, origin, updated_at FROM tailored_document WHERE application_id = $1 AND kind = $2 FOR UPDATE`,
+          [application.id, document],
+        );
+        const before = rows[0];
+        if (!before) return NOT_FOUND;
+        if (before.updated_at.toISOString() !== version) return CONFLICT;
+        const written = await client.query<{ updated_at: Date }>(
+          `UPDATE tailored_document SET text = $3, subject = COALESCE($4, subject), origin = $5, updated_at = now() WHERE application_id = $1 AND kind = $2 RETURNING updated_at`,
+          [application.id, document, text, document === "outreach_message" ? (subject ?? null) : null, { ...origin, appliedAt: origin.appliedAt.toISOString() }],
+        );
+        await keepVersion(client, application.id, document, { source: "coach" });
+        const undo = { document, text: before.text, subject: before.subject, origin: before.origin, version: written.rows[0]!.updated_at.toISOString() };
+        return { ok: true as const, undo };
+      });
+    },
+
+    async unrework(candidateId, applicationId, undo) {
+      const kept = reworkUndoSchema.safeParse(undo);
+      const application = kept.success ? await deps.applications.get(candidateId, applicationId) : null;
+      if (!kept.success || !application) return NOT_FOUND;
+      const { document, text, subject, origin, version } = kept.data;
+      return inTransaction(database, async (client) => {
+        const { rows } = await client.query<{ updated_at: Date }>(`SELECT updated_at FROM tailored_document WHERE application_id = $1 AND kind = $2 FOR UPDATE`, [application.id, document]);
+        if (!rows[0]) return NOT_FOUND;
+        // Changed since the rework (edited, drafted again): never merged, refused.
+        if (rows[0].updated_at.toISOString() !== version) return CONFLICT;
+        await client.query(`UPDATE tailored_document SET text = $3, subject = $4, origin = $5, updated_at = now() WHERE application_id = $1 AND kind = $2`, [
+          application.id,
+          document,
+          text,
+          subject,
+          origin ?? null,
+        ]);
+        // « Annuler » puts the version before back: kept as a Restore of it, the reworked one staying in « Versions ».
+        await keepVersion(client, application.id, document, { source: "restored", restoredFrom: "previous" });
+        return { ok: true as const };
+      });
     },
   };
 }
@@ -446,5 +566,9 @@ export async function migrateTailoredDocuments(database: Pool): Promise<void> {
     ALTER TABLE tailored_document ADD COLUMN IF NOT EXISTS contact jsonb;
     -- What served the drafting (ADR-0034, #334), null before: « modèle non enregistré ». A Candidate's edit keeps it.
     ALTER TABLE tailored_document ADD COLUMN IF NOT EXISTS provenance jsonb;
+    -- The Coach proposal the Candidate applied to its text (ADR-0109), null once they edit it or have it drafted again.
+    ALTER TABLE tailored_document ADD COLUMN IF NOT EXISTS origin jsonb;
   `);
+  // Each draft's earlier versions (#1079): the drafts already there become their version 1.
+  await migrateTailoredDocumentVersions(database);
 }

@@ -38,7 +38,7 @@ vi.mock("@/auth/server", () => ({
 vi.mock("@/profiles/server", () => ({ getProfiles: () => ({}) }));
 vi.mock("@/push-notifications/server", () => ({ getPushNotifications: () => ({}) }));
 vi.mock("@/tailored-cv/server", () => ({ getTailoredCvs: () => ({}) }));
-vi.mock("@/tailored-documents/server", () => ({ getTailoredDocuments: () => ({}) }));
+vi.mock("@/tailored-documents/server", () => ({ getTailoredDocuments: () => ({}), getTailoredDocumentVersions: () => ({}) }));
 vi.mock("./index", () => ({
   createHumanCoaches: (_pool: unknown, deps: unknown) => {
     state.deps = deps;

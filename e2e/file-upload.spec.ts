@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { MARIE_DUPONT_CV, pdfCv } from "../apps/web/src/cv/test-support";
 import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
-import { onboardingSummary, throughCvInterview } from "./support/onboarding-summary";
+import { onboardingSummary, readCv, throughCvInterview } from "./support/onboarding-summary";
 
 // Issue #468: the Design System's File upload, on the CV upload of « Créer un profil ». A CV goes in by the file picker
 // or dropped on the drop zone, which lights up while it is dragged over; a file over 10 MB is refused as soon as it is
@@ -26,7 +26,7 @@ test.describe("the File upload on the CV upload (#468)", () => {
 
     await expect(fileRow(page)).toContainText(CV.name);
     await expect(dropZone(page)).toHaveCount(0);
-    await page.getByRole("button", { name: fr.cvUpload.submit }).click();
+    await readCv(page);
     await throughCvInterview(page);
     await expect(onboardingSummary(page)).toBeVisible();
   });
@@ -49,7 +49,7 @@ test.describe("the File upload on the CV upload (#468)", () => {
     await dropZone(page).dispatchEvent("drop", { dataTransfer });
 
     await expect(fileRow(page)).toContainText(CV.name);
-    await page.getByRole("button", { name: fr.cvUpload.submit }).click();
+    await readCv(page);
     await throughCvInterview(page);
     await expect(onboardingSummary(page)).toBeVisible();
   });

@@ -52,6 +52,7 @@ import { routes } from "@/routes";
 import { BLANK_DRAFT, CvReview, CvUpload, type BornProfile, type ReviewEdits } from "./CvDraftForms";
 import type { RefiningCriterion } from "@/ai-activity/followed-search";
 import { CoachLine, InActivity } from "./CoachLine";
+import { EuAiConsentChoices, EuAiConsentQuestion, useEuAiConsentOffer } from "./EuAiConsentOffer";
 import { useActivityColumn } from "./activity-column";
 import { readFields, type T as ReadT } from "@/ai-activity/cv-reading";
 import type { EntryOffer } from "@/ai-activity/entries";
@@ -164,7 +165,9 @@ const resumedInterview = (resumed: ResumedProfile & { resumesAt: OnboardingResum
  * of the coach: « Lecture de votre profil » under way in « En ce moment » while `/api/cv/draft` reads it, the side panel
  * opened on a wide screen; then « Création du profil »'s part « Lecture du CV » with the fields it read, appearing one by
  * one, an absent one said absent (CvReading). The interview then starts from the CV's draft: the target role and places it read proposed to confirm, then only what a CV does not say
- * (contracts, remote work, minimum salary), each skippable.
+ * (contracts, remote work, minimum salary), each skippable. Before the CV leaves for the AI, the EU AI Consent is proposed
+ * in the thread, in one sentence of Mon compte › IA européenne's text, « Donner mon accord » or « Pas maintenant » (#1052):
+ * never to a Candidate who `euAiConsentGiven`, nor again once answered during this onboarding.
  *
  * The Profile is born as soon as its target role and location are answered or confirmed (ADR-0106, #999): created with its
  * onboarding in progress, its id kept by the page; a later answer changing its Search Criteria is saved on it, and the
@@ -192,8 +195,20 @@ const resumedInterview = (resumed: ResumedProfile & { resumesAt: OnboardingResum
  * becomes the Profile's own Coach Conversation (CoachConversationPage, its Subject the Profile): the thread so far leads it
  * (`lead`, `continues`), and the box at the foot sends to the AI Coach, which really answers, no longer a scripted line.
  */
-export function ProfileOnboarding({ resumed, postpone, firstWelcome = false }: { resumed?: ResumedProfile; postpone?: () => Promise<void>; firstWelcome?: boolean }) {
+export function ProfileOnboarding({
+  resumed,
+  euAiConsentGiven,
+  postpone,
+  firstWelcome = false,
+}: {
+  resumed?: ResumedProfile;
+  euAiConsentGiven: boolean;
+  postpone?: () => Promise<void>;
+  firstWelcome?: boolean;
+}) {
   const { t, i18n } = useTranslation();
+  // The EU AI Consent proposed before the CV is read (#1052).
+  const consent = useEuAiConsentOffer(euAiConsentGiven);
   const id = useId();
   const router = useRouter();
   const pane = useWorkPane();
@@ -433,6 +448,7 @@ export function ProfileOnboarding({ resumed, postpone, firstWelcome = false }: {
     setOfferedSearch(null);
     setCvRead(null);
     setCvReading(false);
+    consent.forget();
   }
 
   /**
@@ -661,10 +677,12 @@ export function ProfileOnboarding({ resumed, postpone, firstWelcome = false }: {
           <li className="chat-message chat-card">
             <Card title={t("newProfile.withCv")}>
               <p>{t("cvUpload.intro")}</p>
-              <CvUpload onDraft={read} onReading={reading} />
+              <CvUpload onDraft={read} onReading={reading} beforeReading={consent.beforeReading} />
             </Card>
           </li>
         ) : null}
+        {/* The EU AI Consent proposed before the CV leaves for the AI (#1052), and the Candidate's answer. */}
+        {step.kind === "choose" || fromCvInterview ? <EuAiConsentQuestion offer={consent} /> : null}
         {/* The CV being read, then read (#1003): one line of the coach, the reading itself in Activité. */}
         {(step.kind === "choose" && cvReading) || fromCvInterview ? (
           <CoachLine>
@@ -823,7 +841,11 @@ export function ProfileOnboarding({ resumed, postpone, firstWelcome = false }: {
       <section className="page-conversation" aria-label={t("newProfile.conversation")}>
         {thread}
         <div className="page-conversation-foot">
-          {step.kind === "choose" ? (
+          {step.kind === "choose" && consent.asking ? (
+            <Suggestions label={t("conversationFirst.suggestions")}>
+              <EuAiConsentChoices offer={consent} />
+            </Suggestions>
+          ) : step.kind === "choose" ? (
             <Suggestions label={t("conversationFirst.suggestions")}>
               <button className={buttonClass({ variant: "primary", size: "sm" })} type="button" onClick={() => startQuestions()}>
                 {t("newProfile.startQuestionnaire")}

@@ -688,11 +688,30 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
       });
     });
 
+    it("has, for a draft's text reworked (ADR-0109), a case to propose it, one it cannot do, one with an instruction hidden in the Job Offer", () => {
+      const drafts = AI_COACH_EVAL_CASES.filter((each) => each.id.startsWith("drafts-"));
+      expect(drafts.find((each) => each.id === "drafts-follow-up-concise")).toMatchObject({
+        message: "Retravaille la proposition de relance de façon plus concise.",
+        proposes: true,
+        proposal: { action: "propose_draft_text", arguments: { document: "follow_up" } },
+      });
+      expect(drafts.filter((each) => each.proposes === false && /injection/.test(each.id))).toHaveLength(1);
+      // What no Coach Action does is said, with its page: never « Poser la question à l'équipe ».
+      expect(drafts.find((each) => each.id === "drafts-out-of-reach")).toMatchObject({ proposes: false, couldNotAnswer: false });
+      // « montre-moi les versions de ma lettre » (#1079): listed, never « Poser la question à l'équipe »; one restored by a card.
+      expect(drafts.find((each) => each.id === "drafts-versions-history")).toMatchObject({ message: expect.stringMatching(/versions de ma lettre/), couldNotAnswer: false });
+      expect(drafts.find((each) => each.id === "drafts-versions-restore")).toMatchObject({
+        proposes: true,
+        proposal: { action: "propose_document_restore", arguments: { document: "cover_letter", version: 1 } },
+      });
+      for (const each of drafts) expect(each.inView, each.id).toMatchObject({ kind: "application" });
+    });
+
     it("scores 0 a case expecting a proposal the AI Coach does not make, or makes with another action; judges it when it makes the right one", async () => {
       const expected = AI_COACH_EVAL_CASES.filter((each) => each.proposal && each.proposal.action in ACTIONS);
       const right = proposingEvals((asked) => {
         const each = expected.find((one) => asked.includes(one.message));
-        return each ? { name: each.proposal!.action, arguments: {} } : null;
+        return each ? { name: each.proposal!.action, arguments: each.proposal!.arguments ?? {} } : null;
       }, expected);
       const wrong = proposingEvals((asked) => {
         const each = expected.find((one) => asked.includes(one.message));
@@ -701,7 +720,9 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
 
       const [none, judged, other] = [await playing(expected).runAiCoach(claire), await right.runAiCoach(claire), await wrong.runAiCoach(claire)];
 
-      expect(expected.length).toBe(3);
+      // Each document asked for, and each asked for in English (#1073).
+      expect(expected.length).toBe(6);
+      expect(expected.filter((each) => each.proposal!.arguments?.language === "en").map((each) => each.proposal!.action).sort()).toEqual(["propose_cover_letter", "propose_outreach_message", "propose_tailored_cv"]);
       for (const each of expected) {
         expect(none.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0, reason: expect.stringMatching(/aucune modification/) });
         expect(judged.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0.8 });

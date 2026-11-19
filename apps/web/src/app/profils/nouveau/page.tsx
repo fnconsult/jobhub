@@ -9,6 +9,7 @@ import { getEuAiConsents } from "@/eu-ai-consent/server";
 import { getServerT } from "@/i18n/server";
 import { getProfiles, newProfileStartFor } from "@/profiles/server";
 import { routes } from "@/routes";
+import { postponeOnboarding } from "./actions";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getServerT();
@@ -24,6 +25,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * in the Plan Quota already. Any other Profile of theirs opens its own page. Without it, once the Plan allows no more
  * Profiles, their most recent Profile « Création à terminer » resumes there instead of the Upgrade prompt (#1048).
  * Whether the Candidate has given EU AI Consent decides whether it is proposed before their CV is read (#1052).
+ * A Candidate without any Profile is led here from `/` and `/compte` (#1050), and offered « Plus tard », to Mon compte.
  */
 export default async function NewProfilePage({ searchParams }: { searchParams: Promise<{ profil?: string | string[] }> }) {
   const candidate = await getCurrentCandidate();
@@ -33,6 +35,8 @@ export default async function NewProfilePage({ searchParams }: { searchParams: P
   const [start, euAiConsentGiven] = await Promise.all([resumed ? null : newProfileStartFor(candidate), getEuAiConsents().has(candidate.id)]);
   if (start?.start === "resume") redirect(routes.resumeProfileCreation(start.profileId));
   const upgradePrompt = start?.start === "upgrade" ? start.prompt : null;
+  // « Plus tard » (#1050): offered as the « Entretien d'accueil » opens for a Candidate without any Profile.
+  const firstProfile = start?.start === "onboarding" && (await getProfiles().list(candidate.id)).length === 0;
   return (
     <CandidateLayout candidateId={candidate.id} title={t("newProfile.title")}>
       {upgradePrompt ? (
@@ -50,7 +54,7 @@ export default async function NewProfilePage({ searchParams }: { searchParams: P
           </div>
         </section>
       ) : (
-        <ProfileOnboarding key={resumed?.id ?? ""} euAiConsentGiven={euAiConsentGiven} {...(resumed ? { resumed } : {})} />
+        <ProfileOnboarding key={resumed?.id ?? ""} euAiConsentGiven={euAiConsentGiven} {...(resumed ? { resumed } : {})} {...(firstProfile ? { postpone: postponeOnboarding } : {})} />
       )}
     </CandidateLayout>
   );

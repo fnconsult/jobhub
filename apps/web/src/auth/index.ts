@@ -454,6 +454,8 @@ function authOptions(config: AuthConfig) {
         twoStepVerifiedAt: { type: "date", required: false, input: false },
         // The challenge of the passkey second step asked last in this session (#664): used once, never sent to the client.
         twoStepChallenge: { type: "string", required: false, input: false, returned: false },
+        // « Plus tard » at the « Entretien d'accueil » (#1050): this session is no longer led there. Set by onboarding-arrival alone.
+        onboardingPostponed: { type: "boolean", required: false, defaultValue: false, input: false },
       },
     },
     plugins: [

@@ -30,6 +30,8 @@ async function grant(superAdmin: Page, email: string, role: string) {
 
 test.describe("Design System page access (#463)", () => {
   test("every Back Office Role reads it and a Candidate gets a 404", async ({ page, browser }) => {
+    // Eight sign-ins, seven of them new accounts each led into the « Entretien d'accueil » and on with « Plus tard » (#1050).
+    test.setTimeout(120_000);
     await signInWithMagicLink(page, SUPER_ADMIN);
     for (const role of ROLES) {
       const email = role === "super-admin" ? SUPER_ADMIN : newAddress(`design-system-access-${role}`);

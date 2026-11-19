@@ -4,6 +4,7 @@ import { FreeConversationPage } from "@/components/FreeConversationPage";
 import { Landing } from "@/components/Landing";
 import { PublicSite } from "@/design/PublicSite";
 import { readHumanCoachPath, readLandingPlans, readLandingStoreLinks } from "@/landing/server";
+import { leadIntoOnboarding } from "@/onboarding-arrival/server";
 import { routes } from "@/routes";
 import type { Metadata } from "next";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -22,18 +23,21 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * The home page: for a signed-in Candidate, in the sidebar layout like every page of theirs (ADR-0024), a new Free
- * conversation, the page itself (#601, ADR-0070), the quick actions its suggestions (#467). For a Visitor, the landing
- * page in the public shell (ADR-0105), its Plans and store links as the Back Office sets them.
+ * conversation, the page itself (#601, ADR-0070), the quick actions its suggestions (#467); without any Profile, the
+ * « Entretien d'accueil » instead, until « Plus tard » (#1050). For a Visitor, the landing page in the public shell
+ * (ADR-0105), its Plans and store links as the Back Office sets them.
  */
 export default async function HomePage() {
   const t = await getServerT();
   const candidate = await getCurrentCandidate();
-  if (candidate)
+  if (candidate) {
+    await leadIntoOnboarding();
     return (
       <CandidateLayout candidateId={candidate.id} title={t("conversationFirst.newConversation")}>
         <FreeConversationPage conversationId={null} />
       </CandidateLayout>
     );
+  }
   return (
     <PublicSite>
       <Landing plans={await readLandingPlans(await getRequestLocale())} stores={readLandingStoreLinks()} coachPath={readHumanCoachPath()} />

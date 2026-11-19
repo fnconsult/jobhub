@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode, type RefObject } from "react";
+import { useFormStatus } from "react-dom";
 import { useTranslation } from "react-i18next";
 import type { ContractType, MasterCvContent, Provenance, RemoteWork, SearchCriteria } from "@jobhub/shared";
 import type { CvDraft } from "@/cv";
@@ -170,7 +171,7 @@ const resumedInterview = (resumed: ResumedProfile & { resumesAt: OnboardingResum
  * match the criteria of the moment, and keeps it in the history once over (#1001). Once « Cela semble correct » has saved
  * the Profile, a coach line says the first offers are there and opens Activity on it (#1006).
  */
-export function ProfileOnboarding({ resumed, euAiConsentGiven }: { resumed?: ResumedProfile; euAiConsentGiven: boolean }) {
+export function ProfileOnboarding({ resumed, euAiConsentGiven, postpone }: { resumed?: ResumedProfile; euAiConsentGiven: boolean; postpone?: () => Promise<void> }) {
   const { t, i18n } = useTranslation();
   // The EU AI Consent proposed before the CV is read (#1052).
   const consent = useEuAiConsentOffer(euAiConsentGiven);
@@ -765,6 +766,7 @@ export function ProfileOnboarding({ resumed, euAiConsentGiven }: { resumed?: Res
               <button className={buttonClass({ variant: "primary", size: "sm" })} type="button" onClick={() => startQuestions()}>
                 {t("newProfile.startQuestionnaire")}
               </button>
+              {postpone ? <PostponeButton postpone={postpone} /> : null}
             </Suggestions>
           ) : null}
           {step.kind === "review" && !step.saved && !reviewShown ? (
@@ -1012,6 +1014,29 @@ export function OnboardingWelcome() {
       <OnboardingIntroduction />
       <OnboardingHelp />
     </WelcomePanel>
+  );
+}
+
+/**
+ * « Plus tard » (#1050), as the « Entretien d'accueil » opens for a Candidate without any Profile: `postpone` leads to
+ * Mon compte, and they are no longer led here for the rest of the session. A form, so that it works before the page's
+ * script has loaded.
+ */
+function PostponeButton({ postpone }: { postpone: () => Promise<void> }) {
+  return (
+    <form className="onb-postpone" action={postpone}>
+      <PostponeSubmit />
+    </form>
+  );
+}
+
+function PostponeSubmit() {
+  const { t } = useTranslation();
+  const { pending } = useFormStatus();
+  return (
+    <button className={buttonClass({ variant: "secondary", size: "sm" })} type="submit" disabled={pending}>
+      {t("newProfile.postpone")}
+    </button>
   );
 }
 

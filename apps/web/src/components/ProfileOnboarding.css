@@ -17,6 +17,11 @@
   color: var(--color-secondary);
 }
 
+/* « Plus tard » (#1050): a form of its own, its button one of the suggestions. */
+.onb-postpone {
+  display: contents;
+}
+
 /* « Voir le détail » at the start, the buttons at the end; they wrap on a phone. */
 .onb-actions {
   display: flex;

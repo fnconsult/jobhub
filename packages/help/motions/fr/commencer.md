@@ -1,13 +1,13 @@
 ---
 title: "Commencer : de l'inscription à votre premier profil"
 viewer: visitor
-routes: [/, /connexion, /compte, /profils/nouveau, /profils/[id]]
+routes: [/, /connexion, /profils/nouveau, /profils/[id]]
 ---
-## Se connecter
+## Créer votre compte
 - goto /
-- click link « Se connecter »
+- click link « Créer mon compte »
 
-Cliquez sur « Se connecter », en haut de chaque page publique.
+Sur la page d'accueil de Jobbbox, cliquez sur « Créer mon compte ».
 
 ## Recevoir votre lien de connexion
 - fill label « Votre adresse e-mail » « claire.nouvelle@motions.jobbbox.test »
@@ -19,12 +19,7 @@ Saisissez « Votre adresse e-mail », puis cliquez sur « Recevoir mon lien de c
 - open-email « Votre lien de connexion à Jobbbox »
 - click link « Me connecter à Jobbbox »
 
-Ouvrez l'e-mail « Votre lien de connexion à Jobbbox » et cliquez sur « Me connecter à Jobbbox », dans les 15 minutes. Votre compte est créé, avec l'offre Gratuit. Si Jobbbox vous demande d'accepter les CGU, lisez-les, cochez la case puis cliquez sur « Accepter et continuer ».
-
-## Créer votre premier profil
-- click link « Créer mon premier profil »
-
-Dans Mon compte, rubrique Profils, cliquez sur « Créer mon premier profil ». Votre coach vous accueille dans la conversation.
+Ouvrez l'e-mail « Votre lien de connexion à Jobbbox » et cliquez sur « Me connecter à Jobbbox », dans les 15 minutes. Votre compte est créé, avec l'offre Gratuit. Si Jobbbox vous demande d'accepter les CGU, lisez-les, cochez la case puis cliquez sur « Accepter et continuer ». Jobbbox vous ouvre aussitôt l'entretien d'accueil : votre coach vous accueille dans la conversation.
 
 ## Déposer votre CV
 - upload label « Votre CV » « cv-claire-demo.pdf »

@@ -151,11 +151,14 @@ test.describe("« Découvrir Jobbbox », for a Visitor (#552)", () => {
   test("the tutorial « Commencer » is a numbered list of the interface's labels", async ({ page }) => {
     await page.goto("/aide/decouvrir/tutorial-getting-started");
     const steps = main(page).locator(".help-centre__body ol > li");
-    await expect(steps).toHaveCount(7);
+    await expect(steps).toHaveCount(6);
+    await expect(steps.nth(0)).toContainText(`« ${fr.landing.cta} »`);
     await expect(steps.nth(0)).toContainText(`« ${fr.signIn.submit} »`);
-    await expect(steps.nth(3)).toContainText(`« ${fr.profiles.create} »`);
-    await expect(steps.nth(5)).toContainText(`« ${fr.onboardingSummary.confirm} »`);
-    await expect(steps.nth(6)).toContainText(`« ${fr.aiActivity.history.inActivity} »`);
+    // Straight into the « Entretien d'accueil » (#1050), « Plus tard » offered.
+    await expect(steps.nth(3)).toContainText(`« ${fr.newProfile.startQuestionnaire} »`);
+    await expect(steps.nth(3)).toContainText(`« ${fr.newProfile.postpone} »`);
+    await expect(steps.nth(4)).toContainText(`« ${fr.onboardingSummary.confirm} »`);
+    await expect(steps.nth(5)).toContainText(`« ${fr.aiActivity.history.inActivity} »`);
     expect(await axeViolations(page)).toEqual([]);
   });
 

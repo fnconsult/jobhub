@@ -7,7 +7,7 @@ import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 import { activityOf, activityUnderWayOf, closeActivity, openActivity, pageSourcesOf, unfoldedEntryOf } from "./support/conversation";
 import { exitHref } from "./support/exit-page";
-import { confirmSummary, onboardingSummary, throughCvInterview } from "./support/onboarding-summary";
+import { confirmSummary, onboardingSummary, readCv, throughCvInterview } from "./support/onboarding-summary";
 
 // Issue #335: a Company Dossier and the reading of an uploaded CV keep their Provenance, show their steps live (on their
 // page beside « Arrêter », and in AI Activity) and can be stopped. A new dossier lists its Provenance sites in AI Activity,
@@ -221,7 +221,7 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     await page.goto("/profils/nouveau");
     await page.waitForLoadState("networkidle");
     await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles({ name: "cv.pdf", mimeType: "application/pdf", buffer: Buffer.from(pdfCv([...MARIE_DUPONT_CV, "Divers", "E2E_CV_SLOW"])) });
-    await page.getByRole("button", { name: fr.cvUpload.submit }).click();
+    await readCv(page);
 
     // The reading, live: on the file's row beside its Stop (#468); « Activité »'s glyph live, and in its column the reading's
     // step with its stop icon (#603, #607).
@@ -246,7 +246,7 @@ test.describe("AI Activity: Company Dossier and reading an uploaded CV (#335)", 
     await page.goto("/profils/nouveau");
     await page.waitForLoadState("networkidle");
     await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles({ name: "cv.pdf", mimeType: "application/pdf", buffer: Buffer.from(pdfCv(MARIE_DUPONT_CV)) });
-    await page.getByRole("button", { name: fr.cvUpload.submit }).click();
+    await readCv(page);
     // The role and place read, confirmed (#1003), then the summary (#1004), confirmed.
     await throughCvInterview(page);
     await expect(onboardingSummary(page)).toBeVisible();

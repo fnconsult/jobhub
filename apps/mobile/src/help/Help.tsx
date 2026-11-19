@@ -1,8 +1,9 @@
 import type { HelpArticle, HelpLocale } from "@jobhub/help";
-import { helpForUnanswered, helpSuggestions, MIN_SUGGESTION_LENGTH, oftenAsked, onThisPage } from "@jobhub/help/coach-help";
+import { gettingStarted, helpForUnanswered, helpSuggestions, MIN_SUGGESTION_LENGTH, oftenAsked, onThisPage } from "@jobhub/help/coach-help";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AccessibilityInfo, Pressable, View } from "react-native";
+import { useGettingStartedAccount } from "../api/reads";
 import { radius, space, TARGET, useTheme } from "../theme/theme";
 import { AppText } from "../ui/AppText";
 import { Control } from "../ui/Control";
@@ -130,8 +131,31 @@ export function HelpArticleView({ article, onAskCoach }: { article: HelpArticle;
 }
 
 /**
+ * « Pour bien commencer » (#1069), as on the web: what a new account has not used yet, read from the web app
+ * (`GET /api/account/getting-started`) and chosen by `@jobhub/help`. In the app, never the extension: a phone or a tablet
+ * cannot install it. Nothing while the account is being read, when it cannot be, or when there is nothing to show.
+ */
+function GettingStarted({ locale, onOpen }: { locale: HelpLocale; onOpen: (article: HelpArticle) => void }) {
+  const { t } = useTranslation();
+  const account = useGettingStartedAccount().data?.account ?? null;
+  const items = gettingStarted(account, { now: new Date(), installsExtensions: false }, locale);
+  if (items.length === 0) return null;
+  return (
+    <View role="group" aria-label={t("coachPanel.help.gettingStarted.title")} style={{ gap: space[1] }}>
+      <AppText variant="meta" tone="meta" weight="semiBold" heading>
+        {t("coachPanel.help.gettingStarted.title")}
+      </AppText>
+      {items.map(({ key, article }) => (
+        <HelpButton key={key} label={t(`coachPanel.help.gettingStarted.${key}`)} onPress={() => onOpen(article)} />
+      ))}
+    </View>
+  );
+}
+
+/**
  * An empty conversation's help: « Comment marche cette page ? », the page's article (its Work Pane shows articles whole),
- * and « Souvent demandé », three frequent questions, unless the page has suggestions of its own (`oftenAsked` false).
+ * « Pour bien commencer » for a new account (#1069), and « Souvent demandé », three frequent questions, unless the page
+ * has suggestions of its own (`oftenAsked` false).
  */
 export function HelpIntro({ pathname, locale, onOpen, showOftenAsked }: { pathname: string; locale: HelpLocale; onOpen: (article: HelpArticle) => void; showOftenAsked: boolean }) {
   const { t } = useTranslation();
@@ -145,6 +169,7 @@ export function HelpIntro({ pathname, locale, onOpen, showOftenAsked }: { pathna
           <Control label={t("conversationFirst.howThisPageWorks")} look="secondary" onPress={() => onOpen(here.article)} />
         </View>
       ) : null}
+      <GettingStarted locale={locale} onOpen={onOpen} />
       {often.length > 0 ? (
         <View style={{ gap: space[1] }}>
           <AppText variant="meta" tone="meta" weight="semiBold">

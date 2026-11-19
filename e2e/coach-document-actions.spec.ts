@@ -199,8 +199,86 @@ test.describe("the « Documents » Coach Actions: « Préparer », « Rédiger �
     await card.getByRole("button", { name: texts.draft, exact: true }).click();
     await card.getByRole("button", { name: texts.confirmYes, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/candidatures/${applicationId}/documents\\?resultat=lettre$`), { timeout: 30_000 });
-    await expect(workPaneOf(page, new RegExp(`^${fr.tailoredDocuments.coverLetter.title}$`))).toBeVisible();
+    const pane = workPaneOf(page, new RegExp(`^${fr.tailoredDocuments.coverLetter.title}$`));
+    await expect(pane).toBeVisible();
     await expect.poll(async () => (await draftsOf(applicationId))[0]?.text).not.toBe("Ma lettre, retouchée à la main.");
+
+    // « Remplacer et rédiger » destroyed nothing (#1079): the letter edited by hand is in « Versions », and comes back.
+    const dv = fr.documentVersions;
+    await pane.getByRole("button", { name: dv.toggle, exact: true }).click();
+    const list = pane.getByRole("list", { name: dv.listLabel });
+    await expect(list.getByRole("listitem")).toHaveCount(3);
+    const items = list.getByRole("listitem");
+    await expect(items.nth(0)).toContainText(`${tr(dv.version, { version: "3" })} · ${dv.current}`);
+    await expect(items.nth(0)).toContainText(dv.sources.drafted);
+    await expect(items.nth(0)).toHaveAttribute("aria-current", "true");
+    await expect(items.nth(1)).toContainText(dv.sources.candidate);
+    await expect(items.nth(1)).toContainText(fr.tailoredDocuments.languages.fr);
+    await expect(items.nth(2)).toContainText(dv.sources.drafted);
+    // By keyboard: the version opens read-only, with « Restaurer cette version ».
+    await pane.getByRole("button", { name: tr(dv.open, { version: "2" }) }).focus();
+    await page.keyboard.press("Enter");
+    const shown = pane.getByRole("region", { name: tr(dv.readOnly, { version: "2" }) });
+    await expect(shown).toContainText("Ma lettre, retouchée à la main.");
+    await expect(shown.getByRole("textbox")).toHaveCount(0);
+    await shown.getByRole("button", { name: dv.restore }).click();
+
+    await expect(pane.getByRole("status").filter({ hasText: tr(dv.restored, { version: "2" }) })).toBeVisible();
+    await expect(pane.getByLabel(fr.tailoredDocuments.coverLetter.textLabel)).toHaveValue("Ma lettre, retouchée à la main.");
+    await expect(list.getByRole("listitem")).toHaveCount(4);
+    await expect(items.nth(0)).toContainText(tr(dv.sources.restored, { version: "2" }));
+    expect((await draftsOf(applicationId))[0]?.text).toBe("Ma lettre, retouchée à la main.");
+    // Nothing was deleted by the Restore: the new drafting is still there.
+    expect(await query("SELECT version FROM tailored_document_version WHERE application_id = $1 AND document = 'cover_letter' ORDER BY version", [applicationId])).toEqual(
+      [1, 2, 3, 4].map((version) => ({ version })),
+    );
+  });
+
+  test("« montre-moi les versions de ma lettre » → the AI Coach reads them, proposes nothing and writes nothing (#1079)", async ({ browser }) => {
+    const { page, applicationId } = await withApplication(browser);
+    const headers = { origin: server.origin };
+    expect((await page.request.post(`/api/applications/${applicationId}/tailored-documents`, { data: { document: "cover_letter" }, headers })).ok()).toBe(true);
+    expect((await page.request.patch(`/api/applications/${applicationId}/tailored-documents`, { data: { document: "cover_letter", text: "Ma lettre, retouchée." }, headers })).ok()).toBe(true);
+    await page.reload();
+
+    await ask(page, "Montre-moi les versions de ma lettre.", "read_document_versions", { document: "cover_letter" });
+    const answer = conversation(page).getByText(/Résultat de l'outil « read_document_versions »/);
+    await expect(answer).toBeVisible({ timeout: 30_000 });
+    // The listing itself is untrusted data, kept out of the reply (its content is checked in coach-actions/versions.test.ts).
+    await expect(conversation(page).getByRole("article")).toHaveCount(0);
+    // Read only: nothing written.
+    expect((await draftsOf(applicationId))[0]?.text).toBe("Ma lettre, retouchée.");
+    expect(await query("SELECT version FROM tailored_document_version WHERE application_id = $1 AND document = 'cover_letter' ORDER BY version", [applicationId])).toEqual([{ version: 1 }, { version: 2 }]);
+  });
+
+  test("« montre-moi les versions de ma lettre » → read, then a card that brings the asked one back on « Appliquer » (#1079)", async ({ browser }) => {
+    const { page, applicationId } = await withApplication(browser);
+    const headers = { origin: server.origin };
+    const drafted = await page.request.post(`/api/applications/${applicationId}/tailored-documents`, { data: { document: "cover_letter" }, headers });
+    expect(drafted.ok(), await drafted.text()).toBe(true);
+    const first = (await drafted.json()).coverLetter.text as string;
+    expect((await page.request.patch(`/api/applications/${applicationId}/tailored-documents`, { data: { document: "cover_letter", text: "Ma lettre, retouchée." }, headers })).ok()).toBe(true);
+
+    await page.reload();
+    await ask(page, "Remets la version 1 de ma lettre.", "propose_document_restore", { document: "cover_letter", version: 1 });
+    const card = cardOf(page, tr(texts.fields.restoreVersion.cover_letter, { version: "1" }));
+    await expect(card).toBeVisible({ timeout: 30_000 });
+    // A proposal: nothing restored before « Appliquer ».
+    expect((await draftsOf(applicationId))[0]?.text).toBe("Ma lettre, retouchée.");
+
+    await card.getByRole("button", { name: texts.apply, exact: true }).click();
+    await expect(card.getByRole("status")).toHaveText(at(texts.applied));
+    await expect.poll(async () => (await draftsOf(applicationId))[0]?.text).toBe(first);
+    // Restored as a new version: the one retouched by hand stays in « Versions ».
+    expect(await query("SELECT version, source, restored_from FROM tailored_document_version WHERE application_id = $1 ORDER BY version", [applicationId])).toEqual([
+      { version: 1, source: "drafted", restored_from: null },
+      { version: 2, source: "candidate", restored_from: null },
+      { version: 3, source: "restored", restored_from: 1 },
+    ]);
+
+    // « Annuler » brings the one before back, again as a new version.
+    await card.getByRole("button", { name: texts.undo, exact: true }).click();
+    await expect.poll(async () => (await draftsOf(applicationId))[0]?.text).toBe("Ma lettre, retouchée.");
   });
 });
 

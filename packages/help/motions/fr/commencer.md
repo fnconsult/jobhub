@@ -27,6 +27,11 @@ Ouvrez l'e-mail « Votre lien de connexion à Jobbbox » et cliquez sur « Me co
 
 Déposez votre CV dans la carte « J'ai un CV », en PDF ou en Word, puis cliquez sur « Lire mon CV ». Sans CV, cliquez plutôt sur « Répondre aux questions de mon coach ».
 
+## Répondre pour l'IA européenne
+- click button « Pas maintenant »
+
+Avant de lire votre CV, votre coach vous propose l'IA européenne. « Donner mon accord » fait traiter par Mistral AI les demandes qui contiennent vos données d'identité ; « Pas maintenant » les laisse à notre fournisseur habituel. Dans les deux cas, Jobbbox retire votre identité de chaque demande avant l'envoi. Choisissez l'un ou l'autre : vous pourrez changer d'avis dans Mon compte, rubrique « IA européenne ».
+
 ## Confirmer ce que votre coach a lu
 - fill label « Votre réponse » « Responsable comptable »
 - click button « Envoyer au coach »

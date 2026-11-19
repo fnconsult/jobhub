@@ -11,6 +11,7 @@ import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import { servedTasks, taskAgent } from "../task-playbooks/test-support";
 import { migrateTailoredDocuments } from "../tailored-documents";
 import { createTailoredCvs, migrateTailoredCvs, type TailoredCvs } from "./index";
+import { textsNotIn } from "./language";
 
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -119,7 +120,7 @@ describe.skipIf(!connectionString)("Tailored CV with change review (needs Postgr
     await testAuth.stop();
   }, 60_000);
 
-  it("is asked for with the tailored-cv task Playbook's version 1 word for word as before, then the reply's shape (ADR-0026)", async () => {
+  it("is asked for with the tailored-cv task Playbook's version 1 word for word as before, then the Document Language and the reply's shape (ADR-0026)", async () => {
     await tailoredCvs.propose(candidateId, applicationId, {});
 
     expect(coachCall().system).toBe(`Tu es le coach Jobbbox. Tu adaptes le CV de référence d'un cadre expérimenté à l'offre ci-dessous, en français.
@@ -127,7 +128,8 @@ Règles :
 - Tu peux seulement reformuler, réordonner, couper et mettre en avant ce que dit son CV de référence. N'ajoute jamais de compétence, d'expérience, de diplôme ou de chiffre.
 - Garde l'employeur et la période de chaque poste tels quels, et l'"id" de chaque diplôme, langue et compétence que tu gardes.
 - Dans "missing", liste les exigences de l'offre que son CV ne montre pas : le candidat dira s'il les a.
-Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experience": [{"employer": "", "period": "", "title": "", "description": ""}], "education": [{"id": "", "degree": "", "institution": "", "year": ""}], "skills": [{"id": "", "text": ""}], "languages": [{"id": "", "name": "", "level": ""}], "missing": [""]}.`);
+- Écris tout le CV en français : traduis chaque texte de son CV de référence écrit dans une autre langue (titre, résumé, intitulé, période, lieu et description de chaque poste, diplômes, compétences, langues et niveaux). Traduire n'est pas ajouter : ne change aucun fait ni aucun chiffre. Garde tels quels les noms propres (employeurs, écoles, produits) et l'"id" de chaque poste, diplôme, langue et compétence que tu gardes.
+Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experience": [{"id": "", "employer": "", "period": "", "location": "", "title": "", "description": ""}], "education": [{"id": "", "degree": "", "institution": "", "year": ""}], "skills": [{"id": "", "text": ""}], "languages": [{"id": "", "name": "", "level": ""}], "missing": [""]}.`);
   });
 
   it("is asked for with the served task Playbook's section for the Document Language, on its Playbook Agent (ADR-0026)", async () => {
@@ -139,7 +141,7 @@ Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experi
     expect(await served.propose(candidateId, applicationId, {})).toMatchObject({ ok: true });
 
     expect(provider.calls).toHaveLength(0);
-    expect(claude.calls[0]!.system).toMatch(/^Adapte avec soin\.\nRéponds uniquement avec un objet JSON : \{"headline"/);
+    expect(claude.calls[0]!.system).toMatch(/^Adapte avec soin\.\n- Écris tout le CV en français : .+\nRéponds uniquement avec un objet JSON : \{"headline"/);
     expect(claude.calls[0]).toMatchObject({ effort: "high" });
     expect(usage.entries.at(-1)).toMatchObject({ task: "writing", provider: "anthropic" });
   });
@@ -508,6 +510,205 @@ Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experi
     expect(changes.filter((change) => change.kind === "cut")).toEqual([{ id: "experience.cut.1", section: "experience", kind: "cut", item: "Contrôleuse de gestion · Danone · 1995 – 2005" }]);
   });
 
+  describe("a French Master CV asked in English comes back wholly in English, nothing invented", () => {
+    /** A Master CV in French, as Candidates write theirs: periods with month names, levels in words. */
+    const frenchCv: MasterCvContent = {
+      ...masterCv,
+      experience: [
+        { title: "Directrice financière", employer: "Groupe Seb", location: "Lyon", period: "janv. 2005 – aujourd'hui", description: "Consolidation IFRS de 12 filiales et pilotage de la trésorerie." },
+        { title: "Contrôleuse de gestion", employer: "Danone", location: "Paris", period: "sept. 1995 – déc. 2004", description: "Budget et reporting mensuel pour la direction." },
+      ],
+      skills: ["Reporting", "IFRS", "Gestion de trésorerie"],
+      languages: [
+        { name: "Anglais", level: "courant" },
+        { name: "Français", level: "langue maternelle" },
+      ],
+    };
+    /** The AI Coach's faithful translation: every text in English, the jobs' periods included, no fact added. */
+    const translated = {
+      headline: "Chief Financial Officer",
+      summary: "Chief Financial Officer since 2005, consolidating 12 subsidiaries.",
+      experience: [
+        { id: "j0", employer: "Groupe Seb", period: "Jan 2005 – present", title: "Chief Financial Officer", description: "IFRS consolidation of 12 subsidiaries and cash management." },
+        { id: "j1", employer: "Danone", period: "Sep 1995 – Dec 2004", title: "Management Controller", description: "Monthly budgeting and reporting for the management team." },
+      ],
+      education: [{ id: "e0", degree: "Master's in Finance", institution: "ESSEC", year: "1994" }],
+      skills: [{ id: "s0", text: "Reporting" }, { id: "s1", text: "IFRS" }, { id: "s2", text: "Cash management" }],
+      languages: [{ id: "l0", name: "English", level: "fluent" }, { id: "l1", name: "French", level: "native" }],
+      missing: [],
+    };
+
+    /** The Application, its Master CV now the French one. */
+    async function frenchCvApplication() {
+      const application = await createApplications(database, { jobOffers, profiles }).get(candidateId, applicationId);
+      const saved = await profiles.saveMasterCv(candidateId, application!.profile.id, { basedOnVersion: 1, content: frenchCv });
+      if (!saved?.ok) throw new Error("fixture Master CV refused");
+      return applicationId;
+    }
+
+    it("the AI Coach is told to write every text in the Document Language, the jobs named by their id", async () => {
+      const french = await frenchCvApplication();
+      await tailoredCvs.propose(candidateId, french, { language: "en" });
+
+      expect(coachCall().system).toContain("Write every text of the CV in English");
+      expect(coachCall().messages.map((message) => message.content).join("\n")).toContain('"id":"j0"');
+    });
+
+    it("each job kept is translated, its period too, and none is cut for it (#57 matched a job by its period as written)", async () => {
+      const french = await frenchCvApplication();
+      replies = [translated];
+      reply = {};
+
+      const result = await tailoredCvs.propose(candidateId, french, { language: "en" });
+
+      if (!result.ok || !result.tailoredCv.proposal) throw new Error("no proposal");
+      const { content, changes } = result.tailoredCv.proposal;
+      expect(content).toMatchObject({
+        headline: "Chief Financial Officer",
+        experience: [
+          { employer: "Groupe Seb", location: "Lyon", period: "Jan 2005 – present", title: "Chief Financial Officer", description: "IFRS consolidation of 12 subsidiaries and cash management." },
+          { employer: "Danone", location: "Paris", period: "Sep 1995 – Dec 2004", title: "Management Controller", description: "Monthly budgeting and reporting for the management team." },
+        ],
+        skills: ["Reporting", "IFRS", "Cash management"],
+        languages: [{ name: "English", level: "fluent" }, { name: "French", level: "native" }],
+      });
+      expect(textsNotIn(content, "en")).toEqual([]);
+      // Translated, not cut and added back: the Candidate reviews each job against the Master CV's.
+      expect(changes.filter((change) => change.section === "experience").map((change) => change.kind)).toEqual(["rephrased", "rephrased"]);
+      expect(changes).toContainEqual(expect.objectContaining({ id: "experience.rephrased.0", master: expect.stringContaining("janv. 2005 – aujourd'hui"), tailored: expect.stringContaining("Jan 2005 – present") }));
+
+      const saved = await tailoredCvs.save(candidateId, french, { revision: result.tailoredCv.proposal.revision, accepted: allOf(result.tailoredCv.proposal) });
+      if (!saved.ok || !saved.tailoredCv.saved) throw new Error("not saved");
+      expect(textsNotIn(saved.tailoredCv.saved.content, "en")).toEqual([]);
+      expect(saved.tailoredCv.saved.content.experience.map((job) => job.period)).toEqual(["Jan 2005 – present", "Sep 1995 – Dec 2004"]);
+    });
+
+    it("a job the AI Coach names without its id is found by its employer and the years of its period, translated", async () => {
+      const french = await frenchCvApplication();
+      replies = [{ ...translated, experience: translated.experience.map((job) => ({ employer: job.employer, period: job.period, title: job.title, description: job.description })) }];
+      reply = {};
+
+      const result = await tailoredCvs.propose(candidateId, french, { language: "en" });
+
+      if (!result.ok || !result.tailoredCv.proposal) throw new Error("no proposal");
+      expect(result.tailoredCv.proposal.content.experience.map((job) => [job.employer, job.period])).toEqual([["Groupe Seb", "Jan 2005 – present"], ["Danone", "Sep 1995 – Dec 2004"]]);
+      expect(result.tailoredCv.proposal.changes.filter((change) => change.kind === "cut")).toEqual([]);
+    });
+
+    it("a description of a paragraph and bullets is translated, its figures written as the Master CV writes them (« +25 % », « B2B2X », « 1er », « 500k€ »)", async () => {
+      const application = await createApplications(database, { jobOffers, profiles }).get(candidateId, applicationId);
+      const withBullets: MasterCvContent = {
+        ...frenchCv,
+        experience: [
+          {
+            title: "Responsable Supply Chain et Production",
+            employer: "OSP Holding",
+            location: "Lyon",
+            period: "2020–2022",
+            description:
+              "Sécurisation et optimisation des opérations industrielles et logistiques.\n• Réorganisation des flux et espaces : +25 % de capacité.\n• Sourcing alternatif sur le 1er fournisseur : 500k€ économisés.",
+          },
+          { title: "Fondateur & Architecte produit", employer: "DEVARQ", location: "", period: "2025–présent", description: "• Conception d'une plateforme SaaS B2B2X multi-tenant.\n• Orchestration LLM." },
+        ],
+      };
+      const saved = await profiles.saveMasterCv(candidateId, application!.profile.id, { basedOnVersion: 1, content: withBullets });
+      if (!saved?.ok) throw new Error("fixture Master CV refused");
+      const description = [
+        "Securing and optimising industrial and logistics operations.\n• Reorganised flows and spaces: +25% capacity.\n• Alternative sourcing for the 1st supplier: €500k saved.",
+        "• Designed a multi-tenant B2B2X SaaS platform.\n• LLM orchestration.",
+      ];
+      replies = [
+        {
+          ...translated,
+          experience: [
+            { id: "j0", employer: "OSP Holding", period: "2020–2022", title: "Supply Chain & Production Manager", description: description[0] },
+            { id: "j1", employer: "DEVARQ", period: "2025–present", title: "Founder & Product Architect", description: description[1] },
+          ],
+        },
+      ];
+      reply = {};
+
+      const result = await tailoredCvs.propose(candidateId, applicationId, { language: "en" });
+
+      if (!result.ok || !result.tailoredCv.proposal) throw new Error("no proposal");
+      const { content } = result.tailoredCv.proposal;
+      expect(content.experience.map((job) => job.description)).toEqual(description);
+      expect(textsNotIn(content, "en")).toEqual([]);
+    });
+
+    it("a word that translates the Master CV's own is not flagged as taken from the Job Offer: « Manager » for « Responsable » (#1077)", async () => {
+      const english = await saveApplication({
+        source: { url: "https://jobs.example.com/supply-chain" },
+        title: "Supply Chain Manager",
+        content: "We are looking for a Supply Chain Manager who will lead our logistics operations and our omnichannel distribution.",
+        employer: "Globex Ltd",
+        skills: [],
+      });
+      const application = await createApplications(database, { jobOffers, profiles }).get(candidateId, english);
+      const responsable = { ...frenchCv, experience: [{ ...frenchCv.experience[0]!, title: "Responsable logistique" }, frenchCv.experience[1]!] };
+      const saved = await profiles.saveMasterCv(candidateId, application!.profile.id, { basedOnVersion: 1, content: responsable });
+      if (!saved?.ok) throw new Error("fixture Master CV refused");
+      replies = [{ ...translated, experience: [{ ...translated.experience[0], title: "Logistics Manager, omnichannel distribution" }, translated.experience[1]] }];
+      // Each Job Offer word with its usual translations into the Master CV's language: « manager » is also « responsable ».
+      reply = { manager: ["gestionnaire", "responsable", "manager"], logistics: ["logistique"], omnichannel: ["omnicanal"], distribution: ["distribution"] };
+
+      const result = await tailoredCvs.propose(candidateId, english, { language: "en" });
+
+      if (!result.ok || !result.tailoredCv.proposal) throw new Error("no proposal");
+      expect(provider.calls.at(-1)!.system).toMatch(/up to 3/);
+      const fromOffer = result.tailoredCv.proposal.changes.find((change) => change.id === "experience.rephrased.0")?.fromOffer ?? [];
+      // Only what the Master CV does not say, in no translation: « omnichannel distribution ».
+      expect(fromOffer).toEqual(["omnichannel", "distribution"]);
+    });
+
+    it("a description or bullet the AI Coach leaves in French is asked for once more, those passages named, and the English one kept", async () => {
+      const french = await frenchCvApplication();
+      const kept = { ...translated, experience: [{ ...translated.experience[0], description: frenchCv.experience[0]!.description }, translated.experience[1]] };
+      replies = [kept, translated];
+      reply = {};
+
+      const result = await tailoredCvs.propose(candidateId, french, { language: "en" });
+
+      const asked = provider.calls.filter((call) => !call.system?.startsWith("Translate"));
+      expect(asked).toHaveLength(2);
+      expect(asked[1]!.messages.map((message) => message.content).join("\n")).toContain(frenchCv.experience[0]!.description);
+      if (!result.ok || !result.tailoredCv.proposal) throw new Error("no proposal");
+      expect(textsNotIn(result.tailoredCv.proposal.content, "en")).toEqual([]);
+    });
+
+    it("a proposal wholly in the Document Language is not asked for again", async () => {
+      const french = await frenchCvApplication();
+      replies = [translated];
+      reply = {};
+
+      await tailoredCvs.propose(candidateId, french, { language: "en" });
+
+      expect(provider.calls.filter((call) => !call.system?.startsWith("Translate"))).toHaveLength(1);
+    });
+
+    it("a figure the Master CV does not state still keeps its text, in any language (ADR-0006)", async () => {
+      const french = await frenchCvApplication();
+      replies = [{ ...translated, experience: [{ ...translated.experience[0], description: "IFRS consolidation of 15 subsidiaries and cash management." }, translated.experience[1]] }];
+      reply = {};
+
+      const result = await tailoredCvs.propose(candidateId, french, { language: "en" });
+
+      if (!result.ok || !result.tailoredCv.proposal) throw new Error("no proposal");
+      expect(result.tailoredCv.proposal.content.experience[0]!.description).toBe(frenchCv.experience[0]!.description);
+    });
+
+    it("a period the AI Coach leaves in French, or gives other years, is the Master CV's translated: nothing invented", async () => {
+      const french = await frenchCvApplication();
+      replies = [{ ...translated, experience: [{ ...translated.experience[0], period: "janv. 2005 – aujourd'hui" }, { ...translated.experience[1], period: "Sep 1996 – Dec 2004" }] }];
+      reply = {};
+
+      const result = await tailoredCvs.propose(candidateId, french, { language: "en" });
+
+      if (!result.ok || !result.tailoredCv.proposal) throw new Error("no proposal");
+      expect(result.tailoredCv.proposal.content.experience.map((job) => job.period)).toEqual(["Jan. 2005 – present", "Sept. 1995 – Dec. 2004"]);
+    });
+  });
+
   it("in the Master CV's language, a diploma, language or skill rewritten to state what it lacks keeps the Master CV's wording", async () => {
     reply = {
       ...PROPOSAL,
@@ -580,7 +781,16 @@ Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experi
 
   it("in another Document Language, translating the Job Offer's words is a step of its own, a think (#334)", async () => {
     const english = await saveApplication(ENGLISH_OFFER);
-    replies = [{ ...PROPOSAL, headline: "Chief Financial Officer" }];
+    // Wholly in English: one proposal, asked for once (#1077).
+    replies = [
+      {
+        ...PROPOSAL,
+        headline: "Chief Financial Officer",
+        summary: "Chief Financial Officer since 2005, 12 subsidiaries consolidated.",
+        experience: [{ employer: "Groupe Seb", period: "2005 – 2024", title: "Chief Financial Officer", description: "IFRS consolidation of 12 subsidiaries." }],
+        languages: [{ name: "English", level: "fluent" }],
+      },
+    ];
     reply = { chief: "directrice" };
     const events: ProvenanceEvent[] = [];
 

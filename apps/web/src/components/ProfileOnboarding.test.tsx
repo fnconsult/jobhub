@@ -2,6 +2,7 @@
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { resources } from "@jobhub/shared/i18n";
 import { renderInFrench } from "@/design/testing";
 import { AiActivityContent, AiActivityProvider } from "./AiActivity";
 import { AiActivityLiveProvider } from "./AiActivityLive";
@@ -13,15 +14,18 @@ import { WorkPane, WorkPaneProvider } from "./WorkPane";
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ usePathname: () => "/profils/nouveau", useRouter: () => ({ push, refresh: vi.fn() }) }));
 
-/** /profils/nouveau: the conversation in the page, the Work Pane beside it, and its Activity (#810), fed by the Job Search poll. */
-function NewProfilePage() {
+/**
+ * /profils/nouveau: the conversation in the page, the Work Pane beside it, and its Activity (#810), fed by the Job Search poll.
+ * The Candidate has given EU AI Consent unless a test says otherwise: the CV is then read without asking (#1052).
+ */
+function NewProfilePage({ euAiConsentGiven = true }: { euAiConsentGiven?: boolean }) {
   return (
     <AiActivityLiveProvider>
       <JobSearchNotifications initial={{ notifications: [], searching: false, running: [] }} everyMs={20} />
       <AiActivityProvider>
         <WorkPaneProvider version="1.2.3">
           <main>
-            <ProfileOnboarding />
+            <ProfileOnboarding euAiConsentGiven={euAiConsentGiven} />
           </main>
           <WorkPane />
           <aside aria-label="Activité">
@@ -108,7 +112,7 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
     it("is offered among the suggestions, and postpones the onboarding once clicked", async () => {
       const user = userEvent.setup();
       const postpone = vi.fn(async () => {});
-      renderInFrench(<ProfileOnboarding postpone={postpone} />);
+      renderInFrench(<ProfileOnboarding euAiConsentGiven postpone={postpone} />);
       const suggestions = within(conversation()).getByRole("group", { name: "Suggestions" });
       await user.click(within(suggestions).getByRole("button", { name: "Plus tard" }));
       expect(postpone).toHaveBeenCalledTimes(1);
@@ -116,11 +120,11 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
 
     it("is not offered once the questions start, nor to a Candidate who has a Profile already", async () => {
       const user = userEvent.setup();
-      renderInFrench(<ProfileOnboarding postpone={vi.fn(async () => {})} />);
+      renderInFrench(<ProfileOnboarding euAiConsentGiven postpone={vi.fn(async () => {})} />);
       await user.click(screen.getByRole("button", { name: "Répondre aux questions de mon coach" }));
       expect(screen.queryByRole("button", { name: "Plus tard" })).toBeNull();
       cleanup();
-      renderInFrench(<ProfileOnboarding />);
+      renderInFrench(<ProfileOnboarding euAiConsentGiven />);
       expect(screen.queryByRole("button", { name: "Plus tard" })).toBeNull();
     });
   });
@@ -824,7 +828,7 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       renderInFrench(
         <AiActivityLiveProvider>
           <WorkPaneProvider version="1.2.3">
-            <ProfileOnboarding resumed={resumed} />
+            <ProfileOnboarding resumed={resumed} euAiConsentGiven />
             <WorkPane />
           </WorkPaneProvider>
         </AiActivityLiveProvider>,
@@ -939,7 +943,7 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       renderInFrench(
         <AiActivityLiveProvider>
           <WorkPaneProvider version="1.2.3">
-            <ProfileOnboarding resumed={resumed} />
+            <ProfileOnboarding resumed={resumed} euAiConsentGiven />
             <WorkPane />
           </WorkPaneProvider>
         </AiActivityLiveProvider>,
@@ -1171,4 +1175,134 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       await waitFor(() => expect(activity().textContent).toContain("Rien encore sur cette page."));
     });
   });
+});
+
+describe("the EU AI Consent proposed before the CV is read (#1052)", () => {
+  type Call = { url: string; method: string };
+  let calls: Call[];
+  /** How `/api/account/eu-ai-consent` answers a PUT: the consent dated, or a failure. */
+  let consentStatus: number;
+  /** How `/api/cv/draft` answers: the CV read, or refused as empty. */
+  let cvStatus: number;
+  const GIVEN_AT = "2026-11-18T09:30:00.000Z";
+  /** The sentence Mon compte › IA européenne's validated text starts with, word for word. */
+  const OFFER =
+    "Avec votre accord, chaque demande à l'IA qui contient vos données d'identité (nom, adresse, téléphone, e-mail ou texte de votre CV) est traitée par Mistral AI, un fournisseur d'IA européen.";
+  const read = () => calls.filter((call) => call.url === "/api/cv/draft");
+  const consents = () => calls.filter((call) => call.url === "/api/account/eu-ai-consent");
+  const suggestions = () => within(conversation()).getByRole("group", { name: "Suggestions" });
+
+  beforeEach(() => {
+    calls = [];
+    consentStatus = 200;
+    cvStatus = 400;
+    vi.stubGlobal("matchMedia", (query: string) => ({ matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {} }));
+    vi.stubGlobal("fetch", async (url: string, init: RequestInit = {}) => {
+      calls.push({ url, method: init.method ?? "GET" });
+      if (url === "/api/account/eu-ai-consent") return consentStatus === 200 ? Response.json({ givenAt: GIVEN_AT }) : Response.json({ error: "failed" }, { status: consentStatus });
+      // The reading refused: the page stays where the CV is chosen, so that a second file can be chosen.
+      if (url === "/api/cv/draft") return Response.json({ error: "empty" }, { status: cvStatus });
+      return new Response(null, { status: 404 });
+    });
+  });
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  async function chooseAndRead(user: ReturnType<typeof userEvent.setup>, name = "cv.pdf") {
+    await user.upload(screen.getByLabelText("Votre CV"), new File(["%PDF"], name, { type: "application/pdf" }));
+    await user.click(screen.getByRole("button", { name: "Lire mon CV" }));
+  }
+
+  it("asks in the thread, in one sentence of Mon compte's validated text, before the CV leaves for the AI: two choices of the same weight, none selected", async () => {
+    const user = userEvent.setup();
+    renderInFrench(<NewProfilePage euAiConsentGiven={false} />);
+    await chooseAndRead(user);
+
+    const line = await within(thread()).findByText((_, element) => element?.tagName === "P" && element.textContent === OFFER);
+    expect(line.closest("li")!.classList.contains("chat-coach")).toBe(true);
+    expect(resources.fr.translation.euAiConsent.explanation.startsWith(OFFER)).toBe(true);
+    // Nothing sent to the AI while the Candidate has not answered.
+    expect(read()).toHaveLength(0);
+    expect(consents()).toHaveLength(0);
+
+    const accept = within(suggestions()).getByRole("button", { name: "Donner mon accord" });
+    const notNow = within(suggestions()).getByRole("button", { name: "Pas maintenant" });
+    expect(accept.className).toBe(notNow.className);
+    expect(within(suggestions()).getAllByRole("button")).toHaveLength(2);
+    // Nothing pre-selected: no choice pressed, checked or focused for the Candidate.
+    for (const choice of [accept, notNow]) {
+      expect(choice.getAttribute("aria-pressed")).toBeNull();
+      expect(document.activeElement).not.toBe(choice);
+    }
+    // The CV's « Lire mon CV » waits for the answer.
+    expect(screen.queryByRole("button", { name: "Lire mon CV" })).toBeNull();
+  });
+
+  it("« Pas maintenant » reads the CV as today, with Redaction: no consent recorded", async () => {
+    const user = userEvent.setup();
+    renderInFrench(<NewProfilePage euAiConsentGiven={false} />);
+    await chooseAndRead(user);
+    await user.click(await within(suggestions()).findByRole("button", { name: "Pas maintenant" }));
+
+    await waitFor(() => expect(read()).toHaveLength(1));
+    expect(consents()).toHaveLength(0);
+    // The Candidate's choice stays in the thread, the question gone from the suggestions.
+    expect(within(thread()).getByText("Pas maintenant")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Pas maintenant" })).toBeNull();
+  });
+
+  it("« Donner mon accord » records the same dated consent as Mon compte › IA européenne, then reads the CV", async () => {
+    const user = userEvent.setup();
+    renderInFrench(<NewProfilePage euAiConsentGiven={false} />);
+    await chooseAndRead(user);
+    await user.click(await within(suggestions()).findByRole("button", { name: "Donner mon accord" }));
+
+    await waitFor(() => expect(read()).toHaveLength(1));
+    expect(consents()).toEqual([{ url: "/api/account/eu-ai-consent", method: "PUT" }]);
+    // Recorded before the CV leaves: its reading already goes the EU AI Consent's way.
+    expect(calls.findIndex((call) => call.url === "/api/account/eu-ai-consent")).toBeLessThan(calls.findIndex((call) => call.url === "/api/cv/draft"));
+    expect(within(thread()).getByText("Donner mon accord")).toBeTruthy();
+  });
+
+  it("says so when the consent cannot be recorded, reads nothing, and keeps both choices", async () => {
+    consentStatus = 500;
+    const user = userEvent.setup();
+    renderInFrench(<NewProfilePage euAiConsentGiven={false} />);
+    await chooseAndRead(user);
+    await user.click(await within(suggestions()).findByRole("button", { name: "Donner mon accord" }));
+
+    expect((await within(thread()).findByRole("alert")).textContent).toBe("Une erreur est survenue. Réessayez.");
+    expect(read()).toHaveLength(0);
+    await user.click(within(suggestions()).getByRole("button", { name: "Pas maintenant" }));
+    await waitFor(() => expect(read()).toHaveLength(1));
+  });
+
+  it("does not ask a Candidate who has already consented", async () => {
+    const user = userEvent.setup();
+    renderInFrench(<NewProfilePage euAiConsentGiven />);
+    await chooseAndRead(user);
+
+    await waitFor(() => expect(read()).toHaveLength(1));
+    expect(screen.queryByRole("button", { name: "Pas maintenant" })).toBeNull();
+    expect(within(thread()).queryByText(OFFER)).toBeNull();
+  });
+
+  for (const answer of ["Pas maintenant", "Donner mon accord"]) {
+    it(`does not ask again during this onboarding once answered « ${answer} », for another CV`, async () => {
+      const user = userEvent.setup();
+      renderInFrench(<NewProfilePage euAiConsentGiven={false} />);
+      await chooseAndRead(user);
+      await user.click(await within(suggestions()).findByRole("button", { name: answer }));
+      await waitFor(() => expect(read()).toHaveLength(1));
+      // The reading refused that file: the Candidate chooses another.
+      await screen.findByText(/Nous n'avons trouvé aucun texte dans ce fichier/);
+
+      await chooseAndRead(user, "autre-cv.pdf");
+      await waitFor(() => expect(read()).toHaveLength(2));
+      expect(screen.queryByRole("button", { name: "Pas maintenant" })).toBeNull();
+      expect(consents().length).toBeLessThanOrEqual(1);
+    });
+  }
 });

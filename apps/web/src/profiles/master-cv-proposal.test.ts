@@ -84,6 +84,27 @@ describe("a Master CV change proposed by the AI Coach, reviewed change by change
     expect(acceptedMasterCv(master, review.edits, ["summary.rephrased"]).summary).toBe("25 ans dans l'industrie aéronautique, expert Kyriba.");
   });
 
+  it("never translates the Master CV piecemeal: a rephrasing in another language is refused, the documents are written in their own language", () => {
+    // Its diplomas and languages cannot be reworded: a translation by edits would leave them, and the rest, in French.
+    expect(
+      masterCvReview(master, [
+        { kind: "rephrase", section: "headline", text: "Chief Financial Officer" },
+        { kind: "rephrase", section: "summary", text: "25 years in the manufacturing industry." },
+        { kind: "rephrase", section: "experience", item: "Groupe Seb", title: "Chief Financial Officer", description: "Financial management of the group." },
+      ]),
+    ).toEqual({ ok: false, error: "translated", text: "25 years in the manufacturing industry." });
+    // A rephrasing in its own language, or one too short to tell, is no translation.
+    expect(masterCvReview(master, [{ kind: "rephrase", section: "summary", text: "25 ans dans l'industrie manufacturière." }]).ok).toBe(true);
+    expect(masterCvReview(master, [{ kind: "rephrase", section: "skills", item: "Consolidation", text: "Consolidation IFRS" }]).ok).toBe(true);
+  });
+
+  it("reads a figure written within a word or with a sign as the Master CV writes it: no invented figure (#1077)", () => {
+    const withFigures = { ...master, experience: [{ ...master.experience[0]!, description: "Réorganisation des flux : +25 % de capacité, 500k€ économisés, SaaS B2B2X." }, master.experience[1]!] };
+    const review = masterCvReview(withFigures, [{ kind: "rephrase", section: "experience", item: "Groupe Seb", description: "Flux réorganisés : +25 % de capacité, 500k€ économisés (SaaS B2B2X)." }]);
+    expect(review.ok).toBe(true);
+    expect(masterCvReview(withFigures, [{ kind: "rephrase", section: "experience", item: "Groupe Seb", description: "Flux réorganisés : +30 % de capacité." }])).toMatchObject({ ok: false, error: "invented_figure" });
+  });
+
   it("proposes nothing when the edits change nothing", () => {
     expect(masterCvReview(master, [{ kind: "rephrase", section: "headline", text: master.headline }])).toEqual({ ok: false, error: "no_change" });
   });

@@ -7,7 +7,7 @@ import { getApplications } from "@/applications/server";
 import { getBilling } from "@/billing/server";
 import { getProfiles } from "@/profiles/server";
 import { getTailoredCvs } from "@/tailored-cv/server";
-import { getTailoredDocuments } from "@/tailored-documents/server";
+import { getTailoredDocuments, getTailoredDocumentVersions } from "@/tailored-documents/server";
 import { createCandidateData, type CandidateData } from "./index";
 
 let instance: CandidateData | undefined;
@@ -20,6 +20,7 @@ export function getCandidateData(): CandidateData {
     applications: getApplications(),
     tailoredCvs: getTailoredCvs(),
     tailoredDocuments: getTailoredDocuments(),
+    tailoredDocumentVersions: getTailoredDocumentVersions(),
     billing: getBilling(),
     coachingCancellationOn: cancellationPolicyOn,
     coachSpaceV2: coachSpaceV2On,

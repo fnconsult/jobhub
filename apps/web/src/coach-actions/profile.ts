@@ -298,7 +298,7 @@ function masterCvAction(sources: ProfileActionSources): CoachAction {
   return defineCoachAction({
     name: PROFILE_ACTIONS.masterCv,
     description:
-      "Propose des modifications du CV de référence d'un profil actif, que le candidat relira une par une : reformuler (le titre, le résumé, un poste, une compétence), couper, réordonner ou mettre en avant (en premier) un élément. Uniquement ce que le CV dit déjà : jamais un élément, un chiffre ni un fait qu'il ne contient pas ; jamais une compétence ajoutée, même sous couvert de reformuler une compétence (le candidat ajoute les siennes lui-même dans la section « CV de référence »). Un élément est nommé comme le CV l'écrit (un poste par son intitulé ou son employeur).",
+      "Propose des modifications du CV de référence d'un profil actif, que le candidat relira une par une : reformuler (le titre, le résumé, un poste, une compétence), couper, réordonner ou mettre en avant (en premier) un élément. Uniquement ce que le CV dit déjà : jamais un élément, un chiffre ni un fait qu'il ne contient pas ; jamais une compétence ajoutée, même sous couvert de reformuler une compétence (le candidat ajoute les siennes lui-même dans la section « CV de référence »). Un élément est nommé comme le CV l'écrit (un poste par son intitulé ou son employeur). Jamais une traduction : le CV de référence reste dans sa langue ; un CV dans une autre langue est le CV adapté d'une candidature, dans sa « Langue des documents ».",
     schema: z.object({ profileId: id.describe("L'id du profil (actif) dont le CV de référence change."), changes: z.array(masterCvEditSchema).min(1).max(20) }),
     group: "profile",
     kind: "propose",
@@ -316,6 +316,8 @@ function masterCvAction(sources: ProfileActionSources): CoachAction {
             return refused(`« ${review.text} » n'est pas une reformulation d'une compétence du CV de référence : ajouter des compétences ne se propose pas. Dis au candidat de les ajouter lui-même depuis la section « CV de référence » de son profil.`);
           case "invented_figure":
             return refused(`« ${review.text} » avance un chiffre que le CV de référence ne donne pas : ne propose jamais un fait qu'il ne contient pas ; demande-le au candidat.`);
+          case "translated":
+            return refused(`« ${review.text} » n'est pas dans la langue du CV de référence : il ne se traduit pas par des modifications, qui en laisseraient une partie dans sa langue. Un CV, une lettre ou un message dans une autre langue se prépare pour une candidature, dans sa « Langue des documents » : propose de le préparer avec l'outil prévu et son argument language.`);
           case "invalid_edit":
             return refused(`La modification n° ${review.edit + 1} ne se lit pas : une formation ou une langue se coupe, se réordonne ou se met en avant, sans être reformulée ; un poste se reformule par son intitulé ou sa description.`);
           case "no_change":

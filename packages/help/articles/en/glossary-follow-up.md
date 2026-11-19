@@ -9,4 +9,6 @@ An email your coach drafts when an application has stayed « Applied » or « Fo
 
 Jobbbox sends nothing to the employer: copy the text, send it from your own mailbox, then mark it as sent. The application then moves to « Followed up ».
 
+You can ask your coach to rework it, for instance to make it more concise or warmer: it proposes the new text in the conversation, which you apply or not.
+
 The delay before a follow-up is set in My account, under Follow-ups.

@@ -13,7 +13,7 @@ import { profileUpgradePrompt } from "@/profiles/plan-quota";
 import { getProfiles } from "@/profiles/server";
 import { readIndustryReference } from "@/reference-data/server";
 import { getTailoredCvs } from "@/tailored-cv/server";
-import { getTailoredDocuments } from "@/tailored-documents/server";
+import { getTailoredDocuments, getTailoredDocumentVersions } from "@/tailored-documents/server";
 import { candidateObjects } from "./candidate-objects";
 import { shippedCoachActions } from "./catalog";
 import { e2eCoachActions } from "./e2e-catalog";
@@ -80,6 +80,7 @@ function shipped(): readonly CoachAction[] {
       jobSearchQuota: jobSearchQuotaOf(getBilling()),
       tailoredCvs: getTailoredCvs(),
       tailoredDocuments: getTailoredDocuments(),
+      tailoredDocumentVersions: getTailoredDocumentVersions(),
     },
   );
 }

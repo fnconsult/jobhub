@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { CoachReplyText } from "@/components/CoachReplyText";
 import { backOfficeHelpAddress, helpCentreAddress, helpForUnanswered, oftenAsked, onThisPage, type HelpArticle, type HelpAudience, type HelpLocale } from "@/coach-help";
+import { useGettingStarted, type GettingStartedItem } from "@/coach-help/getting-started";
 import { useHelpSettings } from "@/coach-help/settings";
 
 /**
@@ -136,7 +137,42 @@ export function HelpArticleCard({
 }
 
 /**
- * An empty conversation's help: help comes first, the page in view's article (« Sur cette page »), three frequent questions.
+ * « Pour bien commencer » (#1069): what a new account has not used yet, each opening its Help Article. A titled group of
+ * buttons, moved through like the help's suggestions: ↑ and ↓ from one to the next (Home, End), Enter opens one, and
+ * Escape, anywhere in the help (`data-help`), goes back to the message box. Nothing when there is nothing to show.
+ */
+function GettingStarted({ items, onOpen }: { items: readonly GettingStartedItem[]; onOpen: (article: HelpArticle) => void }) {
+  const { t } = useTranslation();
+  const titleId = useId();
+  const group = useRef<HTMLElement>(null);
+  if (items.length === 0) return null;
+
+  function move(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    const last = items.length - 1;
+    const to = event.key === "ArrowDown" ? Math.min(index + 1, last) : event.key === "ArrowUp" ? Math.max(index - 1, 0) : event.key === "Home" ? 0 : event.key === "End" ? last : null;
+    if (to === null) return;
+    event.preventDefault();
+    group.current?.querySelectorAll("button")[to]?.focus();
+  }
+
+  return (
+    <section ref={group} className="help-intro-section" role="group" aria-labelledby={titleId}>
+      <h3 id={titleId}>{t("coachPanel.help.gettingStarted.title")}</h3>
+      {/* Buttons, not a list: inside the conversation's first message, a list would read as more messages. */}
+      <div className="help-chips">
+        {items.map(({ key, article }, index) => (
+          <button key={key} type="button" className="button help-chip" onClick={() => onOpen(article)} onKeyDown={(event) => move(event, index)}>
+            {t(`coachPanel.help.gettingStarted.${key}`)}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * An empty conversation's help: help comes first, the page in view's article (« Sur cette page »), what a new account has
+ * not used yet (« Pour bien commencer », #1069, even on a page with suggestions of its own), three frequent questions.
  * `howThisPageWorks`: on a page that is a conversation, whose Work Pane shows articles whole (#602), the page's article is
  * only offered, as « Comment marche cette page ? ». `audience` `administrator` (the Back Office Assistant, #551): the
  * Back Office section's Administrator article, and no frequent questions.
@@ -161,6 +197,7 @@ export function HelpIntro({
   const settings = useHelpSettings();
   const here = onThisPage(pathname, locale, audience, settings);
   const often = oftenAsked(locale, audience, settings);
+  const started = useGettingStarted(locale);
   return (
     <div className="help-intro" data-help>
       <p>{t(audience === "administrator" ? "backOfficeAssistant.help.greeting" : "coachPanel.help.greeting")}</p>
@@ -182,6 +219,7 @@ export function HelpIntro({
           </button>
         </section>
       ) : null}
+      {audience === "candidate" ? <GettingStarted items={started} onOpen={onOpen} /> : null}
       {showOftenAsked && often.length > 0 ? (
         <section className="help-intro-section">
           <h3>{t("coachPanel.help.oftenAsked")}</h3>

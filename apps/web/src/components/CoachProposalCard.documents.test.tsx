@@ -47,7 +47,7 @@ const LETTER: Card = {
     fields: [],
     launches: true,
     runs: { kind: "tailored_documents", url: "/api/applications/a1/tailored-documents", body: { document: "cover_letter", language: "fr" }, opens: OPENS_LETTER },
-    replaces: "Votre brouillon actuel sera remplacé, vos modifications comprises.",
+    replaces: "Votre brouillon actuel sera remplacé : il restera dans « Versions », modifications comprises.",
   },
   undoable: false,
 };
@@ -153,13 +153,13 @@ describe("a « Documents » proposal's card (#721)", () => {
       renderInFrench(<Thread card={LETTER} />);
       const card = cardNamed(/Lettre de motivation/);
 
-      expect(card.textContent).toContain("Votre brouillon actuel sera remplacé, vos modifications comprises.");
+      expect(card.textContent).toContain("Votre brouillon actuel sera remplacé : il restera dans « Versions », modifications comprises.");
       expect(buttonsOf(card)).toEqual(["Rédiger", "Ignorer"]);
 
       await userEvent.click(within(card).getByRole("button", { name: "Rédiger" }));
 
       expect(sent).toEqual([]);
-      expect(within(card).getByRole("group", { name: "Remplacer votre brouillon actuel, vos modifications comprises ?" })).toBeTruthy();
+      expect(within(card).getByRole("group", { name: "Remplacer votre brouillon actuel ? Il restera dans « Versions »." })).toBeTruthy();
       expect(buttonsOf(card)).toEqual(["Remplacer et rédiger", "Garder mon brouillon"]);
       expect(document.activeElement?.textContent).toBe("Remplacer et rédiger");
     });
@@ -234,10 +234,21 @@ describe("a « Documents » proposal's card (#721)", () => {
     });
   });
 
-  it("launched before, the card says where the document is", () => {
+  it("launched before, the card says where the document is, and opens it beside the conversation", () => {
     renderInFrench(<Thread card={accepted(LETTER)} />);
+    const card = cardNamed(/Lettre de motivation/);
 
-    expect(cardNamed(/Lettre de motivation/).textContent).toContain("Le document est dans les documents de la candidature");
-    expect(buttonsOf(cardNamed(/Lettre de motivation/))).toEqual([]);
+    expect(card.textContent).toContain("Votre lettre de motivation est dans Documents › Lettre de motivation.");
+    expect(within(card).getByRole("link", { name: "Ouvrir à côté de la conversation" }).getAttribute("href")).toBe(OPENS_LETTER);
+    expect(card.textContent).toContain("Si vous l'avez arrêtée, rien n'a été gardé.");
+    expect(buttonsOf(card)).toEqual([]);
+  });
+
+  it("launched before, a Tailored CV's says where its proposal waits for the review", () => {
+    renderInFrench(<Thread card={accepted(TAILORED_CV)} />);
+    const card = cardNamed(/CV adapté/);
+
+    expect(card.textContent).toContain("La proposition de CV adapté est dans Documents › CV adapté, à relire changement par changement.");
+    expect(within(card).getByRole("link", { name: "Ouvrir à côté de la conversation" }).getAttribute("href")).toBe(OPENS_CV);
   });
 });

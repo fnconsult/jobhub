@@ -175,7 +175,7 @@ export function documentCoachActions(sources: DocumentActionSources): CoachActio
     "cover_letter",
     DOCUMENT_ACTIONS.coverLetter,
     (t) => t("tailoredDocuments.coverLetter.title"),
-    `Propose de rédiger la lettre de motivation d'une candidature du candidat, quand il le demande (« écris-moi une lettre ») : un brouillon tiré de son CV de référence et de l'offre, qu'il modifie ensuite. Un brouillon existant, modifications comprises, est remplacé : la carte le lui fait confirmer. applicationId : omis, la candidature consultée. ${languageArgument} ${NOT_IN_THE_REPLY}`,
+    `Propose de rédiger la lettre de motivation d'une candidature du candidat, quand il le demande (« écris-moi une lettre ») : un brouillon tiré de son CV de référence et de l'offre, qu'il modifie ensuite. Un brouillon existant est remplacé, et reste dans ses « Versions » : la carte le lui fait confirmer. applicationId : omis, la candidature consultée. ${languageArgument} ${NOT_IN_THE_REPLY}`,
     letterSchema,
   );
 
@@ -183,7 +183,7 @@ export function documentCoachActions(sources: DocumentActionSources): CoachActio
     "outreach_message",
     DOCUMENT_ACTIONS.outreachMessage,
     (t) => t("tailoredDocuments.outreachMessage.title"),
-    `Propose de rédiger le message d'approche d'une candidature du candidat (à un recruteur ou à la personne qui recrute), quand il le demande : un brouillon tiré de son CV de référence et de l'offre, qu'il modifie ensuite. Un brouillon existant, modifications comprises, est remplacé : la carte le lui fait confirmer. applicationId : omis, la candidature consultée. channel : email (par défaut) ou inmail (LinkedIn). ${languageArgument} ${NOT_IN_THE_REPLY}`,
+    `Propose de rédiger le message d'approche d'une candidature du candidat (à un recruteur ou à la personne qui recrute), quand il le demande : un brouillon tiré de son CV de référence et de l'offre, qu'il modifie ensuite. Un brouillon existant est remplacé, et reste dans ses « Versions » : la carte le lui fait confirmer. applicationId : omis, la candidature consultée. channel : email (par défaut) ou inmail (LinkedIn). ${languageArgument} ${NOT_IN_THE_REPLY}`,
     outreachSchema,
   );
 

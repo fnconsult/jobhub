@@ -12,6 +12,7 @@ import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import type { EnrichedContact } from "../enriched-contacts";
 import { servedTasks, taskAgent } from "../task-playbooks/test-support";
 import { createTailoredDocuments, migrateTailoredDocuments, type CompanyDossierSource, type EnrichedContactSource, type TailoredDocuments } from "./index";
+import { paragraphsNotIn } from "./language";
 
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -197,9 +198,9 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
 
     expect(claude.calls).toHaveLength(1);
     expect(claude.calls[0]).toMatchObject({ effort: "medium" });
-    expect(claude.calls[0]!.system).toMatch(/^Écris une lettre\.\n- Ne nomme aucune personne de l'entreprise\.\nUne page au plus\./);
+    expect(claude.calls[0]!.system).toMatch(/^Écris une lettre\.\n- Ne nomme aucune personne de l'entreprise\.\n- Écris toute la lettre en français.+\nUne page au plus\./);
     // No Playbook Agent served for the Outreach Message: the task's configured route.
-    expect(provider.calls.at(-1)!.system).toMatch(/^Un InMail\.\n- Ne nomme aucune personne de l'entreprise\.\nRéponds uniquement avec un objet JSON/);
+    expect(provider.calls.at(-1)!.system).toMatch(/^Un InMail\.\n- Ne nomme aucune personne de l'entreprise\.\n- Écris tout le message en français.+\nRéponds uniquement avec un objet JSON/);
   });
 
   it("a served Playbook Agent does not change where a consenting Candidate's identity goes: Mistral (ADR-0007)", async () => {
@@ -233,6 +234,60 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
 
     expect(result).toMatchObject({ ok: true, drafts: { documentLanguage: "en", coverLetter: { language: "en" } } });
     expect(lastCall().system).toContain("in English");
+  });
+
+  describe("from a French Master CV, a document asked in English comes back wholly in English", () => {
+    /** The AI Coach's drafts in turn, then `writer`'s. */
+    let drafts: string[];
+    beforeEach(() => {
+      drafts = [];
+      provider = createFakeProvider({ id: "mistral", reply: (input) => drafts.shift() ?? writer(input) });
+      const database = testAuth.auth.options.database as Pool;
+      const ai = createAiLayer({ providers: [provider], routes: { writing: "mistral" }, usage: createMemoryUsageLog() });
+      documents = createTailoredDocuments(database, { applications: createApplications(database, { jobOffers, profiles }), profiles, ai });
+    });
+
+    it("the AI Coach is told to write all of it in English, translating what the Master CV says in French", async () => {
+      await documents.draft(candidateId, applicationId, { document: "cover_letter", language: "en" });
+      expect(lastCall().system).toContain("- Write the whole letter in English");
+      await documents.draft(candidateId, applicationId, { document: "outreach_message", language: "en" });
+      expect(lastCall().system).toContain("- Write the whole message in English");
+    });
+
+    it("a Cover Letter left partly in French is asked for once more, those passages named, and the English one kept", async () => {
+      drafts = [
+        "Dear Hiring Manager,\n\nI am applying for the Chief Financial Officer role at Acme Industrie.\n\nJ'ai piloté la consolidation IFRS du Groupe Seb pendant vingt ans.\n\nYours faithfully,",
+        "Dear Hiring Manager,\n\nI am applying for the Chief Financial Officer role at Acme Industrie.\n\nI led the IFRS consolidation of Groupe Seb for twenty years.\n\nYours faithfully,",
+      ];
+
+      const result = await documents.draft(candidateId, applicationId, { document: "cover_letter", language: "en" });
+
+      expect(provider.calls).toHaveLength(2);
+      expect(lastCall().prompt).toContain("J'ai piloté la consolidation IFRS du Groupe Seb pendant vingt ans.");
+      expect(result).toMatchObject({ ok: true, drafts: { coverLetter: { language: "en", text: expect.stringContaining("I led the IFRS consolidation of Groupe Seb") } } });
+      if (!result.ok) throw new Error("no draft");
+      expect(paragraphsNotIn(result.drafts.coverLetter!.text, "en")).toEqual([]);
+    });
+
+    it("an Outreach Message whose subject or text is left in French is asked for once more", async () => {
+      drafts = [
+        '{"subject": "Candidature au poste de DAF", "text": "Hello,\\n\\nI am writing about the Chief Financial Officer role.\\n\\nJe serais ravie d\'en discuter avec vous."}',
+        '{"subject": "Chief Financial Officer role", "text": "Hello,\\n\\nI am writing about the Chief Financial Officer role.\\n\\nI would be glad to discuss it with you."}',
+      ];
+
+      const result = await documents.draft(candidateId, applicationId, { document: "outreach_message", language: "en" });
+
+      expect(provider.calls).toHaveLength(2);
+      expect(result).toMatchObject({ ok: true, drafts: { outreachMessage: { language: "en", subject: "Chief Financial Officer role", text: expect.stringContaining("I would be glad") } } });
+    });
+
+    it("a draft wholly in the Document Language is not asked for again", async () => {
+      drafts = ["Dear Hiring Manager,\n\nI led the IFRS consolidation of Groupe Seb for twenty years, as Directrice financière.\n\nYours faithfully,"];
+
+      await documents.draft(candidateId, applicationId, { document: "cover_letter", language: "en" });
+
+      expect(provider.calls).toHaveLength(1);
+    });
   });
 
   it("the AI Coach drafts an Outreach Message as an email by default, with its subject, stored on the Application", async () => {
@@ -358,6 +413,42 @@ describe.skipIf(!connectionString)("Cover Letter and Outreach Message drafts (ne
     expect(await documents.edit(candidateId, applicationId, { document: "cover_letter", text: "   " })).toEqual({
       ok: false,
       errors: [{ field: "text", code: "required" }],
+    });
+  });
+
+  describe("a draft's text reworked from a Coach proposal (ADR-0109)", () => {
+    const origin = { origin: "coach_proposal" as const, cardId: "11111111-1111-4111-8111-111111111111", appliedAt: new Date("2026-11-18T13:50:00Z") };
+    const versionOf = async () => (await documents.get(candidateId, applicationId))!.outreachMessage!.updatedAt.toISOString();
+
+    it("takes the new text and subject from the version seen and keeps the Origin; the Candidate's edit drops it; « Annuler » puts the text back", async () => {
+      await documents.draft(candidateId, applicationId, { document: "outreach_message" });
+      const before = (await documents.get(candidateId, applicationId))!.outreachMessage!;
+
+      const reworked = await documents.rework(candidateId, applicationId, { document: "outreach_message", text: "Bonjour, plus court.", subject: "Court" }, { version: before.updatedAt.toISOString(), origin });
+
+      expect(reworked.ok).toBe(true);
+      const after = (await documents.get(candidateId, applicationId))!.outreachMessage!;
+      expect(after).toMatchObject({ text: "Bonjour, plus court.", subject: "Court", origin: { origin: "coach_proposal", cardId: origin.cardId } });
+
+      expect(await documents.unrework(candidateId, applicationId, (reworked as { undo: unknown }).undo)).toEqual({ ok: true });
+      expect((await documents.get(candidateId, applicationId))!.outreachMessage).toMatchObject({ text: before.text, subject: before.subject, origin: null });
+
+      await documents.rework(candidateId, applicationId, { document: "outreach_message", text: "Encore." }, { version: await versionOf(), origin });
+      await documents.edit(candidateId, applicationId, { document: "outreach_message", text: "Ma version." });
+      expect((await documents.get(candidateId, applicationId))!.outreachMessage!.origin).toBeNull();
+    });
+
+    it("refuses a version no longer the draft's, « Annuler » once edited since, no draft and someone else's", async () => {
+      await documents.draft(candidateId, applicationId, { document: "cover_letter" });
+      const version = (await documents.get(candidateId, applicationId))!.coverLetter!.updatedAt.toISOString();
+
+      expect(await documents.rework(candidateId, applicationId, { document: "cover_letter", text: "Court." }, { version: "2020-01-01T00:00:00.000Z", origin })).toEqual({ ok: false, error: "conflict" });
+      expect(await documents.rework(candidateId, applicationId, { document: "outreach_message", text: "Court." }, { version, origin })).toEqual({ ok: false, error: "not_found" });
+      expect(await documents.rework(otherCandidateId, applicationId, { document: "cover_letter", text: "Piraté." }, { version, origin })).toEqual({ ok: false, error: "not_found" });
+
+      const reworked = await documents.rework(candidateId, applicationId, { document: "cover_letter", text: "Court." }, { version, origin });
+      await documents.edit(candidateId, applicationId, { document: "cover_letter", text: "Ma version." });
+      expect(await documents.unrework(candidateId, applicationId, (reworked as { undo: unknown }).undo)).toEqual({ ok: false, error: "conflict" });
     });
   });
 

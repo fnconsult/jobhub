@@ -6,6 +6,7 @@ import { getEnrichedContacts } from "@/enriched-contacts/server";
 import { getProfiles } from "@/profiles/server";
 import { getTaskPlaybooks } from "@/task-playbooks/server";
 import { createTailoredDocuments, type TailoredDocuments } from "./index";
+import { createTailoredDocumentVersions, type TailoredDocumentVersions } from "./versions";
 
 let instance: TailoredDocuments | undefined;
 
@@ -25,4 +26,12 @@ export function getTailoredDocuments(): TailoredDocuments {
     taskPlaybooks: getTaskPlaybooks(),
   });
   return instance;
+}
+
+let versions: TailoredDocumentVersions | undefined;
+
+/** The app's Tailored Document Versions module (#1079): the earlier versions of the Tailored CV, Cover Letter and Outreach Message. */
+export function getTailoredDocumentVersions(): TailoredDocumentVersions {
+  versions ??= createTailoredDocumentVersions(sharedPool(), { applications: getApplications() });
+  return versions;
 }

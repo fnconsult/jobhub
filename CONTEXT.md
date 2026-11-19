@@ -295,7 +295,7 @@ Where edits made to the Master CV on the Profile page wait until the Candidate s
 _Avoid_: Draft, autosave
 
 **Restore**:
-Making an earlier Master CV Version current by saving its content as a new version, so the history is kept and nothing is overwritten.
+Making an earlier Master CV Version or Tailored Document Version current by saving its content as a new version, so the history is kept and nothing is overwritten (#1079).
 _Avoid_: Rollback, revert, undo
 
 **CV Template**:
@@ -655,6 +655,10 @@ _Avoid_: Mail, InMail, message (alone)
 
 **Tailored Documents**:
 The collective term for an Application's Tailored CV, Cover Letter and Outreach Message.
+
+**Tailored Document Version**:
+One saved state of an Application's Tailored CV, Cover Letter or Outreach Message, numbered from 1, with its date, its origin (drafted by the AI Coach, saved by the Candidate, a Coach proposal applied, or a Restore), its Document Language and, for an Outreach Message, its subject. The highest number is the current one. Saving without changes creates none. Each document keeps its last 20; past that, the oldest goes first (ADR-0110).
+_Avoid_: Revision, snapshot, history entry
 
 ### Agenda
 

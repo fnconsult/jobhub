@@ -11,7 +11,7 @@ import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { getProfiles } from "@/profiles/server";
 import { getPushNotifications } from "@/push-notifications/server";
 import { getTailoredCvs } from "@/tailored-cv/server";
-import { getTailoredDocuments } from "@/tailored-documents/server";
+import { getTailoredDocuments, getTailoredDocumentVersions } from "@/tailored-documents/server";
 import { createHumanCoaches, type HumanCoach, type HumanCoaches } from "./index";
 import { legacyMayChangeSession } from "./ended-session";
 let instance: HumanCoaches | undefined;
@@ -31,6 +31,7 @@ export function getHumanCoaches(): HumanCoaches {
         applications: getApplications(),
         tailoredDocuments: getTailoredDocuments(),
         tailoredCvs: getTailoredCvs(),
+        tailoredDocumentVersions: getTailoredDocumentVersions(),
         push: getPushNotifications(),
         mayEnter: (person, id) => (coachSpaceV2On() ? getCoachContracts().mayEnter(person, id) : Promise.resolve(true)),
     });

@@ -271,6 +271,9 @@ const nathalieApplication = (note?: string): EvalInView => ({
 /** Nathalie's waiting Follow-up and Cover Letter (ADR-0109), as `read_draft` would tell them: in her Coach context for an Eval Run, whose reads find no draft. */
 const NATHALIE_DRAFTS = `${NATHALIE} Une relance attend la candidate dans « Propositions » de sa candidature chez Exemple Conseil, objet « Relance de ma candidature : Consultante achats de transition », texte : « Bonjour, Je me permets de revenir vers vous au sujet de ma candidature au poste de consultante achats de transition, que je vous ai adressée récemment. Cette mission de réorganisation des achats correspond pleinement à mon projet, et je suis convaincue que mon expérience de la renégociation fournisseurs peut vous être utile dès les premières semaines. Je serais heureuse d'échanger avec vous pour préciser en quoi mon parcours répond à vos attentes, et je reste disponible à votre convenance pour un premier entretien. Dans l'attente de votre retour, je vous remercie de l'attention portée à ma candidature. Cordialement, Nathalie ». Sa lettre de motivation pour cette candidature est rédigée, en français, environ 400 mots.`;
 
+/** Nathalie's Cover Letter and its versions kept (#1079), as read_document_versions lists them. */
+const NATHALIE_LETTER_VERSIONS = `${NATHALIE_DRAFTS} Jobbbox garde les versions de sa lettre de motivation (Documents › Lettre de motivation, « Versions ») : version 3 (actuelle), modifiée par la candidate le 18 novembre 2026 à 15:10 ; version 2, rédigée de nouveau par le coach IA le 18 novembre 2026 à 11:00 ; version 1, rédigée par le coach IA le 17 novembre 2026 à 09:30 ; toutes en français.`;
+
 /** Hélène (#720): one active Profile, « Directrice financière », for the Recherches d'offres and Job Digests cases. */
 const HELENE = "La candidate souhaite que le coach l'appelle « Hélène » ; n'emploie aucun autre nom pour elle. Elle a 52 ans et vise un poste de directrice financière à Lyon, en CDI. Son offre comprend 5 recherches d'offres par semaine et un Job Digest par semaine.";
 
@@ -1392,14 +1395,23 @@ export const AI_COACH_EVAL_CASES: readonly AiCoachEvalCase[] = [
   },
   {
     id: "drafts-versions-history",
-    title: "Demandé « les 2 versions » d'une lettre, dit que seule la version actuelle est gardée et où la lire (ADR-0109)",
-    context: `${NATHALIE_DRAFTS} Jobbbox ne garde que la seule version actuelle de cette lettre, aucune version précédente : « Remplacer et rédiger » la remplace, ses modifications comprises.`,
-    message: "Montre-moi les 2 versions rédigées de la lettre de motivation.",
+    title: "Demandé « les versions » d'une lettre, les liste, l'actuelle signalée, et propose d'en remettre une sous sa réponse (#1079)",
+    context: NATHALIE_LETTER_VERSIONS,
+    message: "Montre-moi les versions de ma lettre de motivation.",
     inView: nathalieApplication(),
     criteria:
-      "La réponse dit clairement que Jobbbox ne garde que la version actuelle de la lettre de motivation, une nouvelle rédaction (« Remplacer et rédiger ») remplaçant la précédente ; elle n'invente aucune autre version. Elle indique où lire la lettre actuelle (Documents › Lettre de motivation) et peut proposer de la retravailler. Elle ne recopie pas la lettre et ne dit pas qu'elle n'a pas pu répondre.",
-    proposes: false,
+      "La réponse liste les trois versions de la lettre de motivation, chacune avec sa date et son origine (rédigée par le coach, rédigée de nouveau, modifiée par la candidate), et dit que la version 3 est l'actuelle. Elle n'invente aucune autre version et ne dit pas que seule la version actuelle est gardée. Elle indique qu'elle peut montrer l'une d'elles ou proposer de la remettre, et où la candidate les retrouve (Documents › Lettre de motivation, « Versions »). Elle ne prétend pas avoir restauré quoi que ce soit et ne dit pas qu'elle n'a pas pu répondre.",
     couldNotAnswer: false,
+  },
+  {
+    id: "drafts-versions-restore",
+    title: "Propose de remettre la version demandée de la lettre par une carte, sans la restaurer lui-même (#1079)",
+    context: NATHALIE_LETTER_VERSIONS,
+    message: "Remets la version 1 de ma lettre de motivation, je la préférais.",
+    inView: nathalieApplication(),
+    criteria: `La réponse propose de remettre la version 1 de la lettre de motivation, que la candidate applique sous la réponse ; la version actuelle restera dans « Versions ». Elle ne recopie pas la lettre. ${PROPOSED_NOT_DONE}`,
+    proposes: true,
+    proposal: { action: "propose_document_restore", arguments: { document: "cover_letter", version: 1 } },
   },
   {
     id: "drafts-out-of-reach",

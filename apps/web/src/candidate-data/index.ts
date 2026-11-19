@@ -25,7 +25,7 @@ import type { Meeting } from "../coach-space/meeting";
   *    Appointment Reminders sent, the app's devices for Push notifications (never their token) and their switches; their Profiles
  *    (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and
  *    Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored
- *    Documents, Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach
+ *    Documents with their versions (#1079), Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach
  *    Conversations, Coach Memory, Coach Access, Coaching Sessions and Action Cards; as an Administrator,
  *    their Back Office Assistant conversations; the AI Message Log of their own AI calls; the Signalements they sent; their Extension Events (#924)
  *    (never which Administrator handled them); their Orders (#512) and their Withdrawals and refunds (#511); the Job Offers private to them (ADR-0049); their Offer box (ADR-0090). Profiles and Applications
@@ -90,6 +90,7 @@ import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
 import type { Origin } from "../origin";
 import type { Surface } from "../request-surface";
 import type { ApplicationDrafts, TailoredDocuments } from "../tailored-documents";
+import type { DocumentVersions, TailoredDocumentVersions } from "../tailored-documents/versions";
 
 export interface ExportedProfile {
   id: string;
@@ -201,6 +202,8 @@ export interface ExportedApplication extends Application {
     tailoredCvProposal: ApplicationTailoredCv["proposal"];
     coverLetter: ApplicationDrafts["coverLetter"];
     outreachMessage: ApplicationDrafts["outreachMessage"];
+    /** Every version kept of each, newest first, the current one marked (#1079): date, origin, language, subject, content. */
+    versions: DocumentVersions;
   };
   /** Follow-ups sent (a Follow-up card accepted, or "Relancée" set), oldest first. */
   followUps: { sentAt: Date }[];
@@ -508,6 +511,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   interview_reschedule: "applications[].interviews[].reschedules (their Reschedule history)",
   tailored_cv: "applications[].tailoredDocuments (the proposal and the saved one, each with its Provenance)",
   tailored_document: "applications[].tailoredDocuments (each with its Provenance and, its text reworked from a Coach proposal, its Origin, ADR-0109)",
+  tailored_document_version: "applications[].tailoredDocuments.versions (each version of the Tailored CV, Cover Letter and Outreach Message kept, with its date, origin, language and subject, #1079)",
   follow_up_sent: "applications[].followUps",
   coach_review: "applications[].coachReviews",
   enriched_contact: "applications[].enrichedContacts (no provider identifiers)",
@@ -675,6 +679,8 @@ export interface CandidateDataDeps {
   applications: Pick<Applications, "list" | "get">;
   tailoredCvs: Pick<TailoredCvs, "get">;
   tailoredDocuments: Pick<TailoredDocuments, "get">;
+  /** The versions of the Tailored Documents (#1079); without it, the export lists none. */
+  tailoredDocumentVersions?: Pick<TailoredDocumentVersions, "list">;
   /** Ends the Candidate's paid Plan, if any, before the account goes. Without it, there is nothing to close. */
   billing?: { closeAccount(candidateId: string): Promise<void> };
 }
@@ -794,10 +800,11 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
     ]);
     const exported = await Promise.all(
       summaries.map(async ({ id }): Promise<ExportedApplication | null> => {
-        const [application, tailoredCv, drafts] = await Promise.all([
+        const [application, tailoredCv, drafts, versions] = await Promise.all([
           deps.applications.get(candidateId, id),
           deps.tailoredCvs.get(candidateId, id),
           deps.tailoredDocuments.get(candidateId, id),
+          deps.tailoredDocumentVersions?.list(candidateId, id),
         ]);
         if (!application || !tailoredCv || !drafts) return null;
         return {
@@ -808,6 +815,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
             tailoredCvProposal: tailoredCv.proposal,
             coverLetter: drafts.coverLetter,
             outreachMessage: drafts.outreachMessage,
+            versions: versions ?? { tailored_cv: [], cover_letter: [], outreach_message: [] },
           },
           followUps: followUpsOf(id),
           coachReviews: coachReviewsOf(id),

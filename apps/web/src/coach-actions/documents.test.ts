@@ -208,7 +208,7 @@ describe("the « Documents » Coach Actions (#721)", () => {
       const change = await proposed(actionOf(sources, DOCUMENT_ACTIONS.coverLetter), {});
 
       expect(change.before).toBe("Brouillon du 2 novembre 2026, modifié depuis");
-      expect(change.replaces).toBe("Votre brouillon actuel sera remplacé, vos modifications comprises.");
+      expect(change.replaces).toBe("Votre brouillon actuel sera remplacé : il restera dans « Versions », modifications comprises.");
       expect(change.version).toBe("2026-11-03T15:00:00.000Z");
     });
 
@@ -221,7 +221,7 @@ describe("the « Documents » Coach Actions (#721)", () => {
       expect(change).toMatchObject({
         what: "Message d'approche",
         before: "Brouillon du 2 novembre 2026",
-        replaces: "Votre brouillon actuel sera remplacé, vos modifications comprises.",
+        replaces: "Votre brouillon actuel sera remplacé : il restera dans « Versions », modifications comprises.",
         runs: { kind: "tailored_documents", url: "/api/applications/a1/tailored-documents", body: { document: "outreach_message", language: "fr", channel: "inmail" }, opens: "/candidatures/a1/documents?resultat=message" },
       });
     });

@@ -163,8 +163,10 @@ describe.skipIf(!connectionString)("Coaching reminders at the delivery boundary"
     await auth.database.query("UPDATE coaching_session SET scheduled_at=$2,date_set_at=$3 WHERE id=$1", [paid, new Date(slot.getTime() + 3600000), clock]);
     await service.sendDue();
     await auth.database.query("UPDATE coaching_session SET scheduled_at=NULL,date_set_at=NULL WHERE id=$1", [paid]);
-    // The cancellation is dated by the database's clock: the service's clock reads it once it has happened, however slow the run.
-    clock = (await auth.database.query<{ at: Date }>("SELECT clock_timestamp() AS at")).rows[0]!.at;
+    // The cancellation is dated by the database's clock: the service's clock moves on past it, however slow the run, and
+    // never back.
+    const cancelledAt = (await auth.database.query<{ at: Date }>("SELECT clock_timestamp() AS at")).rows[0]!.at;
+    clock = new Date(Math.max(clock.getTime() + 1000, cancelledAt.getTime() + 1000));
     await service.sendDue();
     await service.sendDue();
     expect(emails.map((e) => e.notice.kind)).toEqual(["paid", "booked", "rescheduled", "cancelled"]);

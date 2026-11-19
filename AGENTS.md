@@ -17,3 +17,7 @@ Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agent
 ### Documentation
 
 Every issue ships its Help Articles, Release Note fragment, privacy register and « Légal : » issue with its code. See `docs/agents/documentation.md`.
+
+### Delivery workflow
+
+`/wf-dev` takes nothing (the frontier), issue numbers (`1079`, `1079 1080`, `#1050, #1052`, optionally followed by text: only those issues), or an options object. See `docs/agents/wf-dev.md`.

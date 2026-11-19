@@ -772,9 +772,11 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
       const { sophie, sophieAccount, marie } = await sophieAndMarie();
       const session = await paid(sophie.id, marie.id);
 
-      await notifying.scheduleSession(marie.id, session.id, { scheduledAt: "2026-12-22T14:00" });
+      // Ahead of today, whatever today is: a Withdrawal is from a Coaching Session still to come.
+      const day = (ahead: number) => new Date(Date.now() + ahead * 86_400_000).toISOString().slice(0, 10);
+      await notifying.scheduleSession(marie.id, session.id, { scheduledAt: `${day(30)}T14:00` });
       await notifying.cancelSession(marie.id, session.id);
-      await notifying.scheduleSession(marie.id, session.id, { scheduledAt: "2026-12-23T09:00" });
+      await notifying.scheduleSession(marie.id, session.id, { scheduledAt: `${day(31)}T09:00` });
       await notifying.withdrawSession(marie.id, session.id);
 
       expect(notified.map(({ personId, notification }) => ({ personId, notification }))).toEqual(

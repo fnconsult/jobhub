@@ -3,6 +3,13 @@ import { FAKE_STRIPE_PRICES, FAKE_STRIPE_PRODUCTS, fakeCustomerId, signedEvent, 
 import { createBilling } from "./index";
 import { connectionString, startTestBilling, type TestBilling } from "./test-support";
 
+/**
+ * The end of next March: still to come whatever today is, so no code here expires under the tests (they read Stripe's
+ * real clock). 31 March is always in French summer time.
+ */
+const NEXT_MARCH = `${new Date().getFullYear() + 1}-03-31`;
+const END_OF_NEXT_MARCH = new Date(`${NEXT_MARCH}T23:59:59+02:00`);
+
 /** Half off Standard and Premium for 3 months, the first subscription only, at most 100 times, until the end of March. */
 const SPRING = {
   code: "PRINTEMPS50",
@@ -10,7 +17,7 @@ const SPRING = {
   duration: "repeating",
   durationInMonths: 3,
   plans: ["standard", "premium"],
-  expiresAt: "2027-03-31",
+  expiresAt: NEXT_MARCH,
   maxRedemptions: 100,
   firstPaymentOnly: true,
 };
@@ -43,7 +50,7 @@ describe.skipIf(!connectionString)("Coupons (needs Postgres: DATABASE_URL)", () 
         code: "PRINTEMPS50",
         "promotion[type]": "coupon",
         // The end of 31 March in French time.
-        expires_at: String(Date.parse("2027-03-31T23:59:59+02:00") / 1000),
+        expires_at: String(END_OF_NEXT_MARCH.getTime() / 1000),
         max_redemptions: "100",
         "restrictions[first_time_transaction]": "true",
       });
@@ -128,7 +135,7 @@ describe.skipIf(!connectionString)("Coupons (needs Postgres: DATABASE_URL)", () 
           discount: { percentOff: 50 },
           duration: { months: 3 },
           plans: ["standard", "premium"],
-          expiresAt: new Date("2027-03-31T23:59:59+02:00"),
+          expiresAt: END_OF_NEXT_MARCH,
           maxRedemptions: 100,
           firstPaymentOnly: true,
           timesRedeemed: 2,

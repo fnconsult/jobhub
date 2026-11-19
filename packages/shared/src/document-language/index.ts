@@ -14,11 +14,22 @@ const COMMON_WORDS: Record<DocumentLanguage, ReadonlySet<string>> = {
 };
 
 /**
+ * The words of `text`, lower-cased, that can tell its language: a token glued to a figure (a reference « 4a7k2m », a
+ * model « A350 », « S4/HANA », « 3a ») is no word, or its letters would read « a » or « in » as English (#1078).
+ */
+function wordsOf(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((token) => token !== "" && !/\p{N}/u.test(token));
+}
+
+/**
  * The language a Job Offer is written in, from its title and text. A posting
  * that says too little to tell is taken as French: Jobbbox serves the French market.
  */
 export function jobOfferLanguage(jobOffer: Pick<JobOfferDetails, "title" | "content">): DocumentLanguage {
-  const words = `${jobOffer.title} ${jobOffer.content}`.toLowerCase().split(/[^\p{L}]+/u);
+  const words = wordsOf(`${jobOffer.title} ${jobOffer.content}`);
   const count = (language: DocumentLanguage) => words.filter((word) => COMMON_WORDS[language].has(word)).length;
   return count("en") > count("fr") ? "en" : "fr";
 }
@@ -44,7 +55,7 @@ const CV_WORDS: Record<DocumentLanguage, ReadonlySet<string>> = {
  * A cheap check that nothing is left in another language than the Document Language.
  */
 export function textLanguage(text: string): DocumentLanguage | null {
-  const words = text.toLowerCase().split(/[^\p{L}]+/u).filter(Boolean);
+  const words = wordsOf(text);
   const count = (language: DocumentLanguage) => words.filter((word) => COMMON_WORDS[language].has(word) || CV_WORDS[language].has(word)).length;
   const fr = count("fr");
   const en = count("en");

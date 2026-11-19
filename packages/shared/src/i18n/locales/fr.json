@@ -1417,8 +1417,13 @@
     "postpone": "Plus tard",
     "conversation": "Créer un profil avec votre coach",
     "questionsStart": "Très bien. Je vous pose mes questions une à une ; répondez avec vos mots, vous pourrez tout relire et corriger à la fin.",
-    "reviewOnly": "Ici, je vous aide seulement à créer ce profil : relisez-le, corrigez ce qu'il faut et enregistrez-le. Une fois enregistré, vous pourrez m'en parler sur sa page.",
-    "savedOnly": "Votre profil est enregistré : cliquez sur « Continuer vers mon profil » pour l'ouvrir. Vous pourrez m'en parler sur sa page.",
+    "reviewOnly": "Ici, je vous aide seulement à créer ce profil : relisez-le, corrigez ce qu'il faut et enregistrez-le. Une fois enregistré, vous pourrez me poser toutes vos questions.",
+    "next": {
+      "label": "Et maintenant ?",
+      "offers": "Voir mes offres à traiter",
+      "help": "Pour la suite, l'aide vous montre ce que Jobbbox sait faire.",
+      "introduction": "Votre profil est enregistré : je l'ai sous les yeux, avec son CV de référence et ses critères de recherche. Demandez-moi par où commencer."
+    },
     "resumeIntro": "Reprenons la création de votre profil là où vous l'aviez laissée. Voici ce qui est déjà enregistré : complétez-le, corrigez ce qu'il faut et enregistrez.",
     "offeredSearchStarted": "Votre profil est créé : je lance dès maintenant une première recherche d'offres, offerte, qui ne compte pas dans votre quota. Continuons pendant qu'elle cherche.",
     "offeredSearchRestarted": "Le poste visé ou le lieu a changé : je relance la recherche, offerte elle aussi.",

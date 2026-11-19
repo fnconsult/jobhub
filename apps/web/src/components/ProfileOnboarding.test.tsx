@@ -361,7 +361,6 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       // The coach says it is saved, in the thread; the Candidate goes on to the Profile when they choose.
       const toProfile = await within(thread()).findByRole("link", { name: "Continuer vers mon profil" });
       expect(toProfile.getAttribute("href")).toBe("/profils/p1");
-      expect(document.activeElement).toBe(toProfile);
       expect(within(thread()).getByText(/C'est noté : votre profil est enregistré/)).toBeTruthy();
       expect(within(summary()).queryByRole("button", { name: "Cela semble correct" })).toBeNull();
       expect(push).not.toHaveBeenCalled();
@@ -378,11 +377,78 @@ describe("creating a Profile is a conversation with the AI Coach (ADR-0070)", ()
       ]);
       expect(calls[2]!.body).toMatchObject({ searchCriteria: { targetRole: "Directrice financière", locations: ["Lyon"] } });
       expect(calls[3]!.body).toMatchObject({ basedOnVersion: 1, masterCv: { fullName: "Marie Dupont", email: "marie.dupont@example.fr" } });
+    });
 
-      // Written to the coach once saved: it sends the Candidate on to the Profile, no longer back to a review.
-      await user.type(screen.getByLabelText("Votre message"), "Et maintenant ?{Enter}");
-      expect(await within(thread()).findByText(/Votre profil est enregistré : cliquez sur « Continuer vers mon profil »/)).toBeTruthy();
-      expect(within(thread()).queryByText(/relisez-le, corrigez ce qu'il faut et enregistrez-le/)).toBeNull();
+    describe("« Et maintenant ? » once the Profile is saved (#1053)", () => {
+      /** What POST /api/coach was sent; it replies as it does without streaming. */
+      let coachSent: Record<string, unknown>[];
+      beforeEach(() => {
+        coachSent = [];
+        const stub = fetch;
+        vi.stubGlobal("fetch", async (url: string, init: RequestInit = {}) => {
+          if (url !== "/api/coach") return stub(url, init);
+          coachSent.push(JSON.parse(String(init.body)));
+          return Response.json({
+            conversation: { id: "c1", title: "Directrice financière" },
+            reply: "Commencez par vos offres à traiter : je vous aide à choisir lesquelles suivre.",
+            blocked: { message: false, reply: false },
+            provenance: null,
+            at: new Date().toISOString(),
+            sent: null,
+            couldNotAnswer: false,
+          });
+        });
+      });
+
+      /** To « Cela semble correct », clicked: the group of what comes next. */
+      async function saved(user: ReturnType<typeof userEvent.setup>) {
+        await answerUpToReview(user, ["Directrice financière", "Lyon", "Marie Dupont"]);
+        await user.click(within(summary()).getByRole("button", { name: "Cela semble correct" }));
+        return within(thread()).findByRole("group", { name: "Et maintenant ?" });
+      }
+
+      it("offers two actions, a labelled group reached by the keyboard: « Voir mes offres à traiter », focused, then « Continuer vers mon profil »", async () => {
+        const user = userEvent.setup();
+        renderInFrench(<NewProfilePage />);
+        const next = await saved(user);
+        const links = within(next).getAllByRole("link");
+        expect(links.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
+          ["Voir mes offres à traiter", "/recherches?profil=p1"],
+          ["Continuer vers mon profil", "/profils/p1"],
+        ]);
+        await waitFor(() => expect(document.activeElement).toBe(links[0]));
+        await user.tab();
+        expect(document.activeElement).toBe(links[1]);
+        expect(push).not.toHaveBeenCalled();
+      });
+
+      it("sends to the help under the actions: « Pour la suite, l'aide vous montre ce que Jobbbox sait faire. » opens the Coach Panel's help", async () => {
+        const user = userEvent.setup();
+        renderInFrench(<NewProfilePage />);
+        const next = await saved(user);
+        const help = within(thread()).getByRole("button", { name: "Pour la suite, l'aide vous montre ce que Jobbbox sait faire." });
+        // Under the actions, not one of them.
+        expect(next.contains(help)).toBe(false);
+        expect(next.compareDocumentPosition(help) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        await user.click(help);
+        const dialog = await screen.findByRole("dialog", { name: "Votre coach IA" });
+        expect(within(dialog).getByText(/je cherche d'abord dans l'aide de Jobbbox, sans IA/)).toBeTruthy();
+      });
+
+      it("answers a message sent once saved with a real reply of the AI Coach, in the Profile's Coach Conversation", async () => {
+        const user = userEvent.setup();
+        renderInFrench(<NewProfilePage />);
+        await saved(user);
+        await user.type(screen.getByLabelText("Votre message"), "Et maintenant ?{Enter}");
+        expect(await within(conversation()).findByText("Commencez par vos offres à traiter : je vous aide à choisir lesquelles suivre.")).toBeTruthy();
+        expect(coachSent).toEqual([expect.objectContaining({ subject: { kind: "profile", id: "p1" }, message: "Et maintenant ?", focus: { kind: "profile", id: "p1" } })]);
+        // No scripted line any more: neither back to a review nor on to the Profile.
+        expect(screen.queryByText(/Ici, je vous aide seulement à créer ce profil/)).toBeNull();
+        expect(screen.queryByText(/cliquez sur « Continuer vers mon profil » pour l'ouvrir/)).toBeNull();
+        // The onboarding's thread stays above it, its welcome panel not shown a second time.
+        expect(within(thread()).getByRole("group", { name: "Et maintenant ?" })).toBeTruthy();
+        expect(within(conversation()).getAllByText(/^Je suis un coach IA, pas une personne/)).toHaveLength(1);
+      });
     });
 
     it("tells in the thread that the offered Job Search started, in one line, and starts it again once when the target role changes (#1000)", async () => {

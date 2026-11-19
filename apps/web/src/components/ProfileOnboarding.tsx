@@ -13,6 +13,7 @@ import { useHelpSettings } from "@/coach-help/settings";
 import { useShowInActivity } from "@/components/AiActivity";
 import { useAiActivityLive } from "@/components/AiActivityLive";
 import { CoachBadge, CoachComposer, SendButton, WelcomePanel } from "@/components/CoachBox";
+import { CoachConversationPage } from "@/components/CoachConversationPage";
 import { useConversationFirst } from "@/components/conversation-first";
 import { StreamedActionStatus, useStreamedAction } from "@/components/StreamedAction";
 import { useWorkPane, type AddressedKind } from "@/components/work-pane";
@@ -57,6 +58,7 @@ import { readFields, type T as ReadT } from "@/ai-activity/cv-reading";
 import type { EntryOffer } from "@/ai-activity/entries";
 import { firstOffers } from "@/first-welcome";
 import { searchedWith, useFollowedSearch } from "./followed-search";
+import { OnboardingNext } from "./OnboardingNext";
 import { OnboardingSummary } from "./OnboardingSummary";
 import { criteriaFieldsOf } from "./SearchCriteriaFields";
 import { UpgradePrompt, upgradePromptIn } from "./UpgradePrompt";
@@ -64,12 +66,14 @@ import "./QuickActions.css";
 import "./ProfileOnboarding.css";
 
 type From = "cv" | "interview" | "questionnaire" | "resumed";
-/** At the review, the summary first (#1004); `saved` once « Cela semble correct » has saved the Profile, at its page. */
+/** The Profile « Cela semble correct » saved: its id, and its page's address. */
+type Saved = { id: string; href: string };
+/** At the review, the summary first (#1004); `saved` once « Cela semble correct » has saved the Profile. */
 type Step =
   | { kind: "choose" }
   | { kind: "interview" }
   | { kind: "questionnaire" }
-  | { kind: "review"; draft: CvDraft; from: From; saved?: string };
+  | { kind: "review"; draft: CvDraft; from: From; saved?: Saved };
 
 /**
  * A Profile born during its onboarding and not finished (#999), resumed on `/profils/nouveau?profil=<id>`: at its review,
@@ -120,6 +124,9 @@ interface Turn {
 
 /** Where each draft comes from. */
 const FROM_CV: From = "cv";
+
+/** Once saved (#1053), the conversation goes on as the Profile's own Coach Conversation, whose Subject it is. */
+const PROFILE = "profile" as const;
 
 /** The review form in the Work Pane: a form, at the page's own address, the draft living in the page. */
 const REVIEW: AddressedKind = "form";
@@ -182,6 +189,11 @@ const resumedInterview = (resumed: ResumedProfile & { resumesAt: OnboardingResum
  * construction (its target role and places so far, the « building » note). On a phone there is no split: once the
  * offered Job Search found Job Offers at the Match Score threshold or above, a card of the first ones (FirstOffersCard)
  * joins the thread where it stands then, kept up to date in place, and said once to screen readers, on either width.
+ *
+ * « Et maintenant ? » (#1053): once « Cela semble correct » saved the Profile, the thread ends on two actions, « Voir mes
+ * offres à traiter » and « Continuer vers mon profil », and a line to the Coach Panel's help (OnboardingNext). The page then
+ * becomes the Profile's own Coach Conversation (CoachConversationPage, its Subject the Profile): the thread so far leads it
+ * (`lead`, `continues`), and the box at the foot sends to the AI Coach, which really answers, no longer a scripted line.
  */
 export function ProfileOnboarding({
   resumed,
@@ -248,9 +260,9 @@ export function ProfileOnboarding({
   const [value, setValue] = useState("");
   // What the Candidate sent to start the questions, if they typed it rather than chose the suggestion.
   const [opener, setOpener] = useState("");
-  // What the Candidate sent outside a question, each answered by a line sending them back to the review, or, once the
-  // Profile is saved (« Cela semble correct »), on to it (`saved`).
-  const [asides, setAsides] = useState<{ text: string; saved: boolean }[]>([]);
+  // What the Candidate sent outside a question before the Profile is saved, each answered by a line sending them back to
+  // the review; once saved, the AI Coach answers (#1053).
+  const [asides, setAsides] = useState<string[]>([]);
   const [error, setError] = useState<AnswerError | null>(null);
   // Each opening of the review form (« Voir le détail ») mounts it afresh in the Work Pane, none until the first; what was
   // changed in it is kept here meanwhile.
@@ -304,9 +316,9 @@ export function ProfileOnboarding({
   }
 
   /** « Cela semble correct » saved the Profile: the coach says so in the thread, and the review form closes. */
-  function confirmed(href: string) {
-    saved(href);
-    setStep((current) => (current.kind === "review" ? { ...current, saved: href } : current));
+  function confirmed(profile: Saved) {
+    saved(profile.href);
+    setStep((current) => (current.kind === "review" ? { ...current, saved: profile } : current));
   }
 
   /**
@@ -571,9 +583,9 @@ export function ProfileOnboarding({
       reply(value);
       return;
     }
-    // At the review, the coach can only send the Candidate back to it, or on to the Profile saved: it answers nothing else here.
+    // At the review, the coach can only send the Candidate back to it: it answers nothing else here until it is saved.
     if (given) {
-      setAsides((said) => [...said, { text: given, saved: step.kind === "review" && Boolean(step.saved) }]);
+      setAsides((said) => [...said, given]);
       setValue("");
     }
   }
@@ -655,157 +667,179 @@ export function ProfileOnboarding({
       : [];
   const boxLabel = answeringNow ? t("questionnaire.answerLabel") : t("coachPanel.messageLabel");
 
+  // Saved (#1053): the thread so far stays, and the conversation goes on under it with the AI Coach, the Profile's own.
+  const savedProfile = step.kind === "review" ? (step.saved ?? null) : null;
+  const thread = (
+    <div className={savedProfile ? "page-conversation-thread onb-thread-done" : "page-conversation-thread"}>
+      <ol className="chat coach-panel-messages" aria-label={t("questionnaire.transcript")} aria-live="polite">
+        <OnboardingWelcome />
+        {step.kind === "choose" ? (
+          <li className="chat-message chat-card">
+            <Card title={t("newProfile.withCv")}>
+              <p>{t("cvUpload.intro")}</p>
+              <CvUpload onDraft={read} onReading={reading} beforeReading={consent.beforeReading} />
+            </Card>
+          </li>
+        ) : null}
+        {/* The EU AI Consent proposed before the CV leaves for the AI (#1052), and the Candidate's answer. */}
+        {step.kind === "choose" || fromCvInterview ? <EuAiConsentQuestion offer={consent} /> : null}
+        {/* The CV being read, then read (#1003): one line of the coach, the reading itself in Activité. */}
+        {(step.kind === "choose" && cvReading) || fromCvInterview ? (
+          <CoachLine>
+            <p>{t("newProfile.fromCv.reading")}</p>
+          </CoachLine>
+        ) : null}
+        {fromCvInterview && cvRead ? (
+          <>
+            <CoachLine>
+              <p>{t("newProfile.fromCv.questionsStart")}</p>
+            </CoachLine>
+          </>
+        ) : null}
+        {answering ? (
+          <>
+            {fromCvInterview ? null : interview.resumedAt ? (
+              <CoachLine>
+                <p>{t("newProfile.interview.resumed")}</p>
+              </CoachLine>
+            ) : (
+              <>
+                <li className="chat-message chat-candidate">
+                  <span className="visually-hidden">{t("questionnaire.you")}</span>
+                  <p>{opener || t("newProfile.startQuestionnaire")}</p>
+                </li>
+                <CoachLine>
+                  <p>{t("newProfile.questionsStart")}</p>
+                </CoachLine>
+              </>
+            )}
+            {interview.exchange.flatMap((said, index) => [
+              markAt(index),
+              <CoachLine key={`turn-${index}`}>
+                <TurnWords turn={said} />
+              </CoachLine>,
+              <li key={`reply-${index}`} className="chat-message chat-candidate">
+                <span className="visually-hidden">{t("questionnaire.you")}</span>
+                <p>{replyText(said)}</p>
+              </li>,
+              ...offeredSearchAfter(index + 1),
+              ...offersCardAfter(index + 1),
+              ...(interview.bornAfter === index + 1
+                ? [
+                    <CoachLine key="blocks">
+                      <p>{t("newProfile.interview.blocks")}</p>
+                      {bornId !== null ? <p>{t("newProfile.interview.blocksLater")}</p> : null}
+                    </CoachLine>,
+                  ]
+                : []),
+            ])}
+            {fellBack ? (
+              <CoachLine>
+                <p>{t("newProfile.interview.fallback")}</p>
+              </CoachLine>
+            ) : null}
+            {turns.flatMap((turn, index) => [
+              <CoachLine key={`question-${index}`}>
+                <p>{questionText(turn.question)}</p>
+              </CoachLine>,
+              <li key={`answer-${index}`} className="chat-message chat-candidate">
+                <span className="visually-hidden">{t("questionnaire.you")}</span>
+                <p>{answerText(turn)}</p>
+              </li>,
+              ...offeredSearchAfter(interview.exchange.length + index + 1),
+              ...offersCardAfter(interview.exchange.length + index + 1),
+            ])}
+          </>
+        ) : null}
+        {refused ? (
+          <li className="chat-message chat-card">
+            {refused.prompt ? (
+              <UpgradePrompt prompt={refused.prompt} />
+            ) : (
+              <Note tone="warn" role="alert">
+                {t("profiles.quotaReached")}
+              </Note>
+            )}
+          </li>
+        ) : null}
+        {step.kind === "interview" && asking.running ? (
+          <CoachLine>
+            <StreamedActionStatus action={asking} stopLabel={t("aiActivity.live.stop.onboarding_interview")} />
+          </CoachLine>
+        ) : null}
+        {turn ? markAt(interview.exchange.length) : null}
+        {turn ? (
+          <CoachLine>
+            <TurnWords turn={turn} />
+          </CoachLine>
+        ) : null}
+        {later === "failed" ? (
+          <li className="chat-message chat-card">
+            <Note tone="warn" role="alert">
+              {t("newProfile.later.failed")}
+            </Note>
+          </li>
+        ) : null}
+        {question ? (
+          <CoachLine>
+            <p>{questionText(question)}</p>
+          </CoachLine>
+        ) : null}
+        {step.kind === "review" && step.from === "resumed" ? (
+          <CoachLine>
+            <p>{t("newProfile.resumeIntro")}</p>
+          </CoachLine>
+        ) : null}
+        {step.kind === "review" ? (
+          <OnboardingSummary
+            draft={step.draft}
+            edits={edits}
+            born={() => born.current ?? Promise.resolve(null)}
+            onDetail={() => setReviewOpening((opening) => opening + 1)}
+            onEdits={setEdits}
+            onSaved={confirmed}
+            saved={Boolean(step.saved)}
+            {...(step.saved ? { next: <OnboardingNext profileId={step.saved.id} /> } : {})}
+          />
+        ) : null}
+        {/* Saved, the first offers are Activity's (#1006): the end of the offered search's entry, which this line opens. */}
+        {step.kind === "review" && step.saved && followed ? <FirstOffersLine /> : null}
+        {offersCardAfter(AT_THE_END)}
+        {asides.map((aside, index) => [
+          <li key={`aside-${index}`} className="chat-message chat-candidate">
+            <span className="visually-hidden">{t("questionnaire.you")}</span>
+            <p>{aside}</p>
+          </li>,
+          <CoachLine key={`aside-reply-${index}`}>
+            <p>{t("newProfile.reviewOnly")}</p>
+          </CoachLine>,
+        ])}
+      </ol>
+      {/* The first offers said once to screen readers (#1051), whichever width shows them; their card is not read again. */}
+      <p className="visually-hidden" aria-live="polite">
+        {firstOffersAt?.announced ?? ""}
+      </p>
+    </div>
+  );
+  if (savedProfile) {
+    const reviewed = edits?.criteria.targetRole ?? (step.kind === "review" ? step.draft.searchCriteria.targetRole : "");
+    return (
+      <CoachConversationPage
+        conversationId={null}
+        subject={{ kind: PROFILE, id: savedProfile.id }}
+        inView={{ kind: PROFILE, id: savedProfile.id, name: reviewed }}
+        label={t("newProfile.conversation")}
+        introduction={<p>{t("newProfile.next.introduction")}</p>}
+        lead={thread}
+        continues
+      />
+    );
+  }
+
   return (
     <>
       <section className="page-conversation" aria-label={t("newProfile.conversation")}>
-        <div className="page-conversation-thread">
-          <ol className="chat coach-panel-messages" aria-label={t("questionnaire.transcript")} aria-live="polite">
-            <OnboardingWelcome />
-            {step.kind === "choose" ? (
-              <li className="chat-message chat-card">
-                <Card title={t("newProfile.withCv")}>
-                  <p>{t("cvUpload.intro")}</p>
-                  <CvUpload onDraft={read} onReading={reading} beforeReading={consent.beforeReading} />
-                </Card>
-              </li>
-            ) : null}
-            {/* The EU AI Consent proposed before the CV leaves for the AI (#1052), and the Candidate's answer. */}
-            {step.kind === "choose" || fromCvInterview ? <EuAiConsentQuestion offer={consent} /> : null}
-            {/* The CV being read, then read (#1003): one line of the coach, the reading itself in Activité. */}
-            {(step.kind === "choose" && cvReading) || fromCvInterview ? (
-              <CoachLine>
-                <p>{t("newProfile.fromCv.reading")}</p>
-              </CoachLine>
-            ) : null}
-            {fromCvInterview && cvRead ? (
-              <>
-                <CoachLine>
-                  <p>{t("newProfile.fromCv.questionsStart")}</p>
-                </CoachLine>
-              </>
-            ) : null}
-            {answering ? (
-              <>
-                {fromCvInterview ? null : interview.resumedAt ? (
-                  <CoachLine>
-                    <p>{t("newProfile.interview.resumed")}</p>
-                  </CoachLine>
-                ) : (
-                  <>
-                    <li className="chat-message chat-candidate">
-                      <span className="visually-hidden">{t("questionnaire.you")}</span>
-                      <p>{opener || t("newProfile.startQuestionnaire")}</p>
-                    </li>
-                    <CoachLine>
-                      <p>{t("newProfile.questionsStart")}</p>
-                    </CoachLine>
-                  </>
-                )}
-                {interview.exchange.flatMap((said, index) => [
-                  markAt(index),
-                  <CoachLine key={`turn-${index}`}>
-                    <TurnWords turn={said} />
-                  </CoachLine>,
-                  <li key={`reply-${index}`} className="chat-message chat-candidate">
-                    <span className="visually-hidden">{t("questionnaire.you")}</span>
-                    <p>{replyText(said)}</p>
-                  </li>,
-                  ...offeredSearchAfter(index + 1),
-                  ...offersCardAfter(index + 1),
-                  ...(interview.bornAfter === index + 1
-                    ? [
-                        <CoachLine key="blocks">
-                          <p>{t("newProfile.interview.blocks")}</p>
-                          {bornId !== null ? <p>{t("newProfile.interview.blocksLater")}</p> : null}
-                        </CoachLine>,
-                      ]
-                    : []),
-                ])}
-                {fellBack ? (
-                  <CoachLine>
-                    <p>{t("newProfile.interview.fallback")}</p>
-                  </CoachLine>
-                ) : null}
-                {turns.flatMap((turn, index) => [
-                  <CoachLine key={`question-${index}`}>
-                    <p>{questionText(turn.question)}</p>
-                  </CoachLine>,
-                  <li key={`answer-${index}`} className="chat-message chat-candidate">
-                    <span className="visually-hidden">{t("questionnaire.you")}</span>
-                    <p>{answerText(turn)}</p>
-                  </li>,
-                  ...offeredSearchAfter(interview.exchange.length + index + 1),
-                  ...offersCardAfter(interview.exchange.length + index + 1),
-                ])}
-              </>
-            ) : null}
-            {refused ? (
-              <li className="chat-message chat-card">
-                {refused.prompt ? (
-                  <UpgradePrompt prompt={refused.prompt} />
-                ) : (
-                  <Note tone="warn" role="alert">
-                    {t("profiles.quotaReached")}
-                  </Note>
-                )}
-              </li>
-            ) : null}
-            {step.kind === "interview" && asking.running ? (
-              <CoachLine>
-                <StreamedActionStatus action={asking} stopLabel={t("aiActivity.live.stop.onboarding_interview")} />
-              </CoachLine>
-            ) : null}
-            {turn ? markAt(interview.exchange.length) : null}
-            {turn ? (
-              <CoachLine>
-                <TurnWords turn={turn} />
-              </CoachLine>
-            ) : null}
-            {later === "failed" ? (
-              <li className="chat-message chat-card">
-                <Note tone="warn" role="alert">
-                  {t("newProfile.later.failed")}
-                </Note>
-              </li>
-            ) : null}
-            {question ? (
-              <CoachLine>
-                <p>{questionText(question)}</p>
-              </CoachLine>
-            ) : null}
-            {step.kind === "review" && step.from === "resumed" ? (
-              <CoachLine>
-                <p>{t("newProfile.resumeIntro")}</p>
-              </CoachLine>
-            ) : null}
-            {step.kind === "review" ? (
-              <OnboardingSummary
-                draft={step.draft}
-                edits={edits}
-                born={() => born.current ?? Promise.resolve(null)}
-                onDetail={() => setReviewOpening((opening) => opening + 1)}
-                onEdits={setEdits}
-                onSaved={confirmed}
-              />
-            ) : null}
-            {/* Saved, the first offers are Activity's (#1006): the end of the offered search's entry, which this line opens. */}
-            {step.kind === "review" && step.saved && followed ? <FirstOffersLine /> : null}
-            {offersCardAfter(AT_THE_END)}
-            {asides.map((aside, index) => [
-              <li key={`aside-${index}`} className="chat-message chat-candidate">
-                <span className="visually-hidden">{t("questionnaire.you")}</span>
-                <p>{aside.text}</p>
-              </li>,
-              <CoachLine key={`aside-reply-${index}`}>
-                <p>{aside.saved ? t("newProfile.savedOnly") : t("newProfile.reviewOnly")}</p>
-              </CoachLine>,
-            ])}
-          </ol>
-          {/* The first offers said once to screen readers (#1051), whichever width shows them; their card is not read again. */}
-          <p className="visually-hidden" aria-live="polite">
-            {firstOffersAt?.announced ?? ""}
-          </p>
-        </div>
+        {thread}
         <div className="page-conversation-foot">
           {step.kind === "choose" && consent.asking ? (
             <Suggestions label={t("conversationFirst.suggestions")}>

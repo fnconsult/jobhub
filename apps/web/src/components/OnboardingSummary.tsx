@@ -3,8 +3,7 @@
 import { MAX_SEARCH_LOCATIONS, type Provenance, type SearchCriteria } from "@jobhub/shared";
 import { isSupportedLocale } from "@jobhub/shared/i18n";
 import { profileSummary, summaryText } from "@jobhub/shared/profile-summary";
-import Link from "next/link";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { CvDraft } from "@/cv";
 import { buttonClass } from "@/design/button-class";
@@ -49,6 +48,7 @@ type Mode =
  * rest by « Cela semble correct »), and the summary, composed again, asks again. The text itself is kept nowhere. What
  * is not a Search Criterion (a skill, a job held) is sent to « Voir le détail »; a reply the AI could not give leaves the
  * summary as it was, and says so. The step shows in « Création du profil » with its model and tokens.
+ * Once saved (`saved`, held by the page), the coach says so, followed by `next`: « Et maintenant ? » (#1053).
  * Items of the thread (`li`), for its `ol`.
  */
 export function OnboardingSummary({
@@ -58,6 +58,8 @@ export function OnboardingSummary({
   onDetail,
   onEdits,
   onSaved,
+  saved,
+  next,
 }: {
   draft: CvDraft;
   /** What the Candidate changed in the review form, when they opened it. */
@@ -67,17 +69,19 @@ export function OnboardingSummary({
   onDetail: () => void;
   /** The draft as changed by « Modifier »'s validated changes (#1005), as the review form keeps its own. */
   onEdits: (edits: ReviewEdits) => void;
-  /** The Profile saved, at its page's address. */
-  onSaved: (href: string) => void;
+  /** The Profile saved: its id, and its page's address. */
+  onSaved: (saved: { id: string; href: string }) => void;
+  /** The Profile is saved: « Cela semble correct » is gone. */
+  saved: boolean;
+  /** What the coach offers once it is saved, under its line. */
+  next?: ReactNode;
 }) {
   const { t, i18n } = useTranslation();
   const noteCreation = useAiActivityLive()?.noteCreation;
   const industries = useIndustryReference();
   const [saving, setSaving] = useState(false);
   const [refusal, setRefusal] = useState<SaveRefusal | null>(null);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>({ kind: "reading" });
-  const toProfile = useRef<HTMLAnchorElement>(null);
   const textBox = useRef<HTMLTextAreaElement>(null);
   const editButton = useRef<HTMLButtonElement>(null);
   const fieldLabels = useSearchCriteriaLabels();
@@ -89,11 +93,6 @@ export function OnboardingSummary({
   const language = isSupportedLocale(i18n.language) ? i18n.language : "fr";
   const reviewed: ReviewEdits = edits ?? { masterCv: draft.masterCv, criteria: criteriaFieldsOf(draft.searchCriteria) };
   const parts = profileSummary({ searchCriteria: summaryCriteria(reviewed.criteria), masterCv: reviewed.masterCv }, { locale: language });
-
-  // Saved: the button is gone, the focus goes to where the Candidate goes next.
-  useEffect(() => {
-    if (savedAt) toProfile.current?.focus();
-  }, [savedAt]);
 
   // « Modifier » puts the focus in the text box; « Annuler » back on « Modifier ».
   const focusEdit = useRef(false);
@@ -151,8 +150,7 @@ export function OnboardingSummary({
     const outcome = await saveReviewedProfile({ draft, edits: reviewed, born });
     setSaving(false);
     if (!outcome.ok) return setRefusal(outcome.refusal);
-    onSaved(outcome.href);
-    setSavedAt(outcome.href);
+    onSaved({ id: outcome.id, href: outcome.href });
   }
 
   const invalidFields = [...new Set((refusal?.errors ?? []).map((error) => fieldLabels[error.field] ?? error.field))];
@@ -255,7 +253,7 @@ export function OnboardingSummary({
               </span>
             </div>
           ) : null}
-          {savedAt || mode.kind !== "reading" ? null : (
+          {saved || mode.kind !== "reading" ? null : (
             <div className="onb-actions">
               <button className={`onb-detail-link ${buttonClass({ variant: "quiet" })}`} type="button" onClick={onDetail}>
                 {t("onboardingSummary.detail")}
@@ -273,7 +271,7 @@ export function OnboardingSummary({
           )}
         </Card>
       </li>
-      {savedAt ? (
+      {saved ? (
         <>
           <li className="chat-message chat-candidate">
             <span className="visually-hidden">{t("questionnaire.you")}</span>
@@ -281,11 +279,7 @@ export function OnboardingSummary({
           </li>
           <CoachLine>
             <p>{t("onboardingSummary.saved")}</p>
-            <p>
-              <Link ref={toProfile} className={buttonClass({ variant: "primary" })} href={savedAt}>
-                {t("onboardingSummary.toProfile")}
-              </Link>
-            </p>
+            {next}
           </CoachLine>
         </>
       ) : null}

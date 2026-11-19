@@ -1633,6 +1633,11 @@
       "readMore": "Lire la suite",
       "readMoreAbout": "Lire la suite : {{title}}",
       "oftenAsked": "Souvent demandé",
+      "gettingStarted": {
+        "title": "Pour bien commencer",
+        "atsScore": "L'ATS Score de mon CV",
+        "extension": "Garder une offre vue sur un autre site"
+      },
       "suggestions": "Dans l'aide, sans IA",
       "found_one": "{{count}} article dans l'aide",
       "found_other": "{{count}} articles dans l'aide",

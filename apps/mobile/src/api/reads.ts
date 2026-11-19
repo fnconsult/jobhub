@@ -9,6 +9,7 @@ import {
   applicationResponseSchema,
   companyDossierResponseSchema,
   enrichedContactsResponseSchema,
+  gettingStartedResponseSchema,
   jobDigestResponseSchema,
   jobSearchResponseSchema,
   offerBoxEntryOfResponseSchema,
@@ -22,6 +23,7 @@ import {
   type ApplicationResponse,
   type CompanyDossierResponse,
   type EnrichedContactsResponse,
+  type GettingStartedResponse,
   type JobDigestResponse,
   type JobSearchResponse,
   type OfferBoxEntryOfResponse,
@@ -106,6 +108,12 @@ export function useRead<T>(
 }
 
 const segment = encodeURIComponent;
+
+/**
+ * `GET /api/account/getting-started`: the account as « Pour bien commencer » reads it (#1069), null after its first 14
+ * days. Not kept on the device (READS).
+ */
+export const useGettingStartedAccount = (): Read<GettingStartedResponse> => useRead("gettingStarted", "/api/account/getting-started", gettingStartedResponseSchema, []);
 
 /** `GET /api/profiles`: the Candidate's active Profiles, oldest first (Mon compte). */
 export const useProfiles = (): Read<ProfilesResponse> => useRead("profiles", "/api/profiles", profilesResponseSchema, []);

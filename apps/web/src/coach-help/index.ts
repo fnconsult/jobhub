@@ -5,6 +5,7 @@
  *   helpForUnanswered(question, "fr") // « Voici ce que l'aide propose »: when the AI Coach could not answer
  *   onThisPage(pathname, "fr")        // « Sur cette page »: the page in view's article and its first paragraph
  *   oftenAsked("fr")                  // « Souvent demandé »: three frequent questions
+ *   gettingStarted(account, reader, "fr") // « Pour bien commencer »: what a new account has not used yet (#1069)
  *
  *   helpCentreAddress(article)        // « Ouvrir dans le centre d'aide »: the article's page in the public Help Centre
  *   backOfficeHelpAddress(article)    // « Ouvrir dans l'aide du back office »: an Administrator's article in /admin/aide
@@ -26,12 +27,17 @@ export type { HelpArticle, HelpLocale, HelpSettings } from "@jobhub/help";
 // could not answer, the page's article and the frequent questions.
 export {
   backOfficeHelpFor,
+  gettingStarted,
   helpForUnanswered,
   helpLocale,
   helpSuggestions,
   MIN_SUGGESTION_LENGTH,
   oftenAsked,
+  installsChromeExtensions,
   onThisPage,
+  type BrowserTraits,
+  type GettingStartedAccount,
+  type GettingStartedItem,
   type HelpAudience,
 } from "@jobhub/help/coach-help";
 

@@ -109,6 +109,9 @@ export default defineConfig({
     // The Coach context limits (#731) change Free's for real for a few seconds, and schedule and cancel a reduction of Standard's:
     // after the Quota Reductions' spec, which saves the same Plans' quotas.
     { name: "plan-coach-context", testMatch: /coach-context-limits\.spec\.ts/, dependencies: ["plan-quotas"], use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" } },
+    // « Pour bien commencer » (#1069) publishes the extension for real (EXTENSION_STORE_URL, global to the suite's database),
+    // which Mon compte › Outils and the Sidebar read: after every web spec, never beside them, and puts it back.
+    { name: "getting-started", testMatch: /\/getting-started\.spec\.ts/, dependencies: ["plan-coach-context"], use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" } },
     { name: "extension", testMatch: /extension(-events|-unrecognised|-logo)?\.spec\.ts/, use: { baseURL: webOrigin } },
     // The motions' captures (#567, ADR-0066): the test Motion Scripts filmed on the demo Candidate; with MOTIONS_WORK, the
     // `motions` workflow's capture stage (packages/motions, docs/ops/motions.md).

@@ -31,7 +31,7 @@ One JSON file the Candidate downloads holding all their personal data, what they
 _Avoid_: Backup, data dump
 
 **EU AI Consent**:
-A Candidate's explicit, dated consent that AI calls carrying their identity go to an EU AI provider (Mistral). They can withdraw it at any time. Without it, such calls use the provider configured for their task.
+A Candidate's explicit, dated consent that AI calls carrying their identity go to an EU AI provider (Mistral). They can withdraw it at any time. Without it, such calls use the provider configured for their task. On the web it is given in Mon compte › IA européenne, or on « Créer un profil » when « Lire mon CV » is clicked, before the CV is sent (#1052).
 _Avoid_: AI opt-in, privacy setting
 
 **Identity block**:

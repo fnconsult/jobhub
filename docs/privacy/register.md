@@ -592,7 +592,7 @@ _Added by #338, from `docs/research/issue-498.md` § 4, item 5._
 | Legal basis | Consent (GDPR art. 6(1)(a)), separate, specific and withdrawable at any time in Mon compte. |
 | People concerned | Candidates who give it. |
 | Data | Whether the consent is given, when, and when it was withdrawn. |
-| Source | The Candidate. |
+| Source | The Candidate: in Mon compte › IA européenne, in the Jobbbox app's legal steps, and on « Créer un profil » once a CV is chosen, before it is read (#1052): one sentence of Mon compte's text, « Donner mon accord » or « Pas maintenant », of the same weight, neither pre-selected, asked only of a Candidate who has not consented and once per onboarding. Given there, it is the same dated record, recorded before the CV leaves so that its reading takes the identity route; « Pas maintenant » records nothing, and the CV is read on the default route. Either way the reading goes through Redaction, like every AI call. The privacy policy's wording of this collection point is « Légal : » #1055. |
 | Processors | Mistral AI SAS (France), `api.eu.mistral.ai`: inference in the EU and EFTA (#528, `docs/research/issue-522.md`). Mistral's training option for the API must stay off in its Admin console: to be checked by the product owner. |
 | Who can read it | The Candidate. |
 | Storage | The `eu_ai_consent` table in the app's Postgres database (EU). |

@@ -41,8 +41,10 @@ import {
   DOCUMENT_LANGUAGES,
   jobOfferLanguage,
   normalise,
+  periodIn,
   readProvenance,
   scoreMatch,
+  textLanguage,
   withoutIdentity,
   type CvContent,
   type DocumentLanguage,
@@ -59,6 +61,8 @@ import type { Profiles } from "../profiles";
 import { routes } from "../routes";
 import { taskRun, type TaskPlaybookReader, type TaskRun } from "../task-playbooks";
 import { documentLanguageOf, keepDocumentLanguage } from "../tailored-documents/document-language";
+import { keepVersion, migrateTailoredDocumentVersions } from "../tailored-documents/versions";
+import { textsNotIn } from "./language";
 import { fieldErrors, type FieldError } from "../validation";
 import { cvChanges, flagOfferWording, stemOf, withChanges, wordsOf, type CvChange, type CvOrigins } from "./changes";
 import { askForTailoredCv, type AiReply } from "./reply";
@@ -185,13 +189,17 @@ const MAX_QUESTIONS = 8;
 
 const NOT_FOUND = { ok: false, error: "not_found" } as const;
 
-/** Ids of the Master CV's diplomas, languages and skills in the prompt: e0, l0, s0… */
-const ID_PREFIX = { education: "e", languages: "l", skills: "s" } as const;
+/** Ids of the Master CV's jobs, diplomas, languages and skills in the prompt: j0, e0, l0, s0… */
+const ID_PREFIX = { experience: "j", education: "e", languages: "l", skills: "s" } as const;
 
-/** The Master CV as the AI Coach is handed it: each diploma, language and skill with its id. */
+/**
+ * The Master CV as the AI Coach is handed it: each job, diploma, language and skill with its id. A job is
+ * found again by its id, not by its period as written, which a translation changes.
+ */
 function referenceCv(master: CvContent) {
   return {
     ...master,
+    experience: master.experience.map((job, index) => ({ id: `${ID_PREFIX.experience}${index}`, ...job })),
     education: master.education.map((item, index) => ({ id: `${ID_PREFIX.education}${index}`, ...item })),
     skills: master.skills.map((skill, index) => ({ id: `${ID_PREFIX.skills}${index}`, text: skill })),
     languages: master.languages.map((item, index) => ({ id: `${ID_PREFIX.languages}${index}`, ...item })),
@@ -214,20 +222,34 @@ function cvText(cv: CvContent): string {
 const numbersIn = (text: string) => normalise(text).match(/\d+/g) ?? [];
 
 /**
+ * A job's period in `language`: the AI Coach's when it is in that language with the Master CV's figures (its
+ * years, in their order), else the Master CV's with its month names and words translated (`periodIn`).
+ */
+function periodOf(proposed: string | undefined, original: string, language: DocumentLanguage): string {
+  const said = proposed?.trim();
+  if (said && numbersIn(said).join(" ") === numbersIn(original).join(" ") && (textLanguage(said) ?? language) === language) return said;
+  return periodIn(original, language);
+}
+
+/**
  * Whether a rephrased text states what the Master CV does not: a figure, or one
  * of the Job Offer's keywords (the usual way to push a Match Score up).
  */
 function invents(rephrased: string, masterText: string, keywords: string[]): boolean {
   const said = normalise(rephrased);
-  if (numbersIn(rephrased).some((number) => !masterText.includes(` ${number} `))) return true;
+  // The Master CV's figures read as the rephrasing's are: « +25 % », « 500k€ », « B2B2X » or « 1er » state 25, 500, 2 and 1,
+  // which a translation writes « +25% », « €500k », « B2B2X » or « 1st » (#1077).
+  const figures = new Set(numbersIn(masterText));
+  if (numbersIn(rephrased).some((number) => !figures.has(number))) return true;
   return keywords.some((keyword) => said.includes(normalise(keyword)) && !masterText.includes(normalise(keyword)));
 }
 
 /**
  * The proposal rebuilt from the Master CV (ADR-0006): the AI Coach may rephrase
  * (or translate) the headline, the summary, each job's title and description and
- * each diploma, language and skill, reorder and cut jobs, diplomas, languages and
- * skills, and nothing else. A rephrased text that invents (see `invents`) is
+ * each diploma, language and skill, translate each job's period and place, reorder
+ * and cut jobs, diplomas, languages and skills, and nothing else. A job's period
+ * keeps the Master CV's years (`periodOf`). A rephrased text that invents (see `invents`) is
  * replaced by the Master CV's. A Job Offer keyword (`keywords`: its skills) can
  * only be told missing from the Master CV in the Master CV's own language: in
  * another, only figures are checked, and every rephrased item is shown against
@@ -252,13 +274,19 @@ function fromMasterCv(master: CvContent, reply: AiReply, keywords: string[], lan
     }
     return { kept, origins };
   };
-  // A job is named by its employer and period, which the AI Coach keeps as they are.
+  // A job is found by its id, else by its employer and the years of its period, which a translation keeps.
   const experience = adapt(
     master.experience,
-    "j",
+    ID_PREFIX.experience,
     reply.experience,
-    (job, wanted) => same(job.employer, wanted.employer) && same(job.period, wanted.period),
-    (job, wanted) => ({ ...job, title: rephrased(wanted.title, job.title), description: rephrased(wanted.description, job.description) }),
+    (job, wanted) => same(job.employer, wanted.employer) && numbersIn(job.period).join(" ") === numbersIn(wanted.period).join(" "),
+    (job, wanted) => ({
+      ...job,
+      title: rephrased(wanted.title, job.title),
+      period: periodOf(wanted.period, job.period, language),
+      ...(wanted.location !== undefined ? { location: rephrased(wanted.location, job.location) } : {}),
+      description: rephrased(wanted.description, job.description),
+    }),
   );
   const education = adapt(
     master.education,
@@ -285,18 +313,34 @@ function fromMasterCv(master: CvContent, reply: AiReply, keywords: string[], lan
       skills: skills.kept,
       languages: languages.kept,
     },
-    origins: { education: education.origins, skills: skills.origins, languages: languages.origins },
+    origins: { experience: experience.origins, education: education.origins, skills: skills.origins, languages: languages.origins },
   };
 }
 
-/** The reply's shape (`replyIn`), in each Document Language, after the task Playbook's instructions. */
-const SHAPE: Record<DocumentLanguage, string> = {
-  fr: `Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experience": [{"employer": "", "period": "", "title": "", "description": ""}], "education": [{"id": "", "degree": "", "institution": "", "year": ""}], "skills": [{"id": "", "text": ""}], "languages": [{"id": "", "name": "", "level": ""}], "missing": [""]}.`,
-  en: `Reply with a JSON object only: {"headline": "", "summary": "", "experience": [{"employer": "", "period": "", "title": "", "description": ""}], "education": [{"id": "", "degree": "", "institution": "", "year": ""}], "skills": [{"id": "", "text": ""}], "languages": [{"id": "", "name": "", "level": ""}], "missing": [""]}.`,
+/**
+ * The Document Language, in each Document Language, after the task Playbook's instructions, which stays in code: the
+ * whole CV is written in it, whatever the Master CV's language, and translating is no adding (ADR-0006). A served
+ * Playbook saying to keep a job's period « as it is » does not keep it in another language.
+ */
+const LANGUAGE: Record<DocumentLanguage, string> = {
+  fr: `- Écris tout le CV en français : traduis chaque texte de son CV de référence écrit dans une autre langue (titre, résumé, intitulé, période, lieu et description de chaque poste, diplômes, compétences, langues et niveaux). Traduire n'est pas ajouter : ne change aucun fait ni aucun chiffre. Garde tels quels les noms propres (employeurs, écoles, produits) et l'"id" de chaque poste, diplôme, langue et compétence que tu gardes.`,
+  en: `- Write every text of the CV in English: translate each text of their reference CV written in another language (headline, summary, each job's title, period, place and description, degrees, skills, languages and levels). Translating is not adding: change no fact and no figure. Keep proper nouns (employers, schools, products) as they are, and the "id" of each job, degree, language and skill you keep.`,
 };
 
-/** The instructions: the "tailored-cv" task Playbook's section for `language`, then the reply's shape. */
-const systemPrompt = (run: TaskRun, language: DocumentLanguage): string => `${run.text(language)}\n${SHAPE[language]}`;
+/** Told when a proposal is left partly in another language than the Document Language: the passages to write again. */
+const NOT_IN: Record<DocumentLanguage, (passages: string[]) => string> = {
+  fr: (passages) => `Ta proposition précédente n'était pas entièrement en français. Propose de nouveau tout le CV en français, en traduisant aussi ces passages, sans rien changer aux faits ni aux chiffres :\n${passages.map((passage) => `« ${passage} »`).join("\n")}`,
+  en: (passages) => `Your previous proposal was not wholly in English. Propose the whole CV again in English, translating these passages too, changing no fact and no figure:\n${passages.map((passage) => `"${passage}"`).join("\n")}`,
+};
+
+/** The reply's shape (`replyIn`), in each Document Language, after the task Playbook's instructions. */
+const SHAPE: Record<DocumentLanguage, string> = {
+  fr: `Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experience": [{"id": "", "employer": "", "period": "", "location": "", "title": "", "description": ""}], "education": [{"id": "", "degree": "", "institution": "", "year": ""}], "skills": [{"id": "", "text": ""}], "languages": [{"id": "", "name": "", "level": ""}], "missing": [""]}.`,
+  en: `Reply with a JSON object only: {"headline": "", "summary": "", "experience": [{"id": "", "employer": "", "period": "", "location": "", "title": "", "description": ""}], "education": [{"id": "", "degree": "", "institution": "", "year": ""}], "skills": [{"id": "", "text": ""}], "languages": [{"id": "", "name": "", "level": ""}], "missing": [""]}.`,
+};
+
+/** The instructions: the "tailored-cv" task Playbook's section for `language`, the Document Language, then the reply's shape. */
+const systemPrompt = (run: TaskRun, language: DocumentLanguage): string => `${run.text(language)}\n${LANGUAGE[language]}\n${SHAPE[language]}`;
 
 interface ProposalRow {
   language: DocumentLanguage;
@@ -360,21 +404,23 @@ async function offerWording(ai: AiLayer, candidateId: string, master: CvContent,
   const adaptedStems = new Set(wordsOf(cvText(adapted)).map(stemOf));
   const used = offerWords.filter((word) => adaptedStems.has(stemOf(word))).slice(0, MAX_TRANSLATED_WORDS);
   const translations = used.length ? await translateWords(ai, candidateId, used, masterLanguage) : {};
+  // A word whose translation, any of its usual ones, the Master CV says is no word taken from the Job Offer: « manager » is « responsable » (#1077).
   const inMaster = (word: string) => {
     const translation = translations[word];
-    return typeof translation === "string" && wordsOf(translation).some((translated) => masterStems.has(stemOf(translated)));
+    const options = Array.isArray(translation) ? translation : [translation];
+    return options.some((option) => typeof option === "string" && wordsOf(option).some((translated) => masterStems.has(stemOf(translated))));
   };
   return { offerWording: [...new Set(used.filter((word) => !inMaster(word)).map(stemOf))], offerWordingTranslated: true };
 }
 
-/** `words` translated into `language` by the AI Coach, word by word; {} when it gives no usable reply. */
+/** `words` translated into `language` by the AI Coach, word by word, each with its usual translations; {} when it gives no usable reply. */
 async function translateWords(ai: AiLayer, candidateId: string, words: string[], language: DocumentLanguage): Promise<Record<string, unknown>> {
   const into = language === "fr" ? "French" : "English";
   try {
     const { text } = await ai.generate({
       task: "writing",
       candidateId,
-      system: `Translate each word of the list into ${into}, as used in a job offer. Reply with a JSON object only, each word of the list as a key and its translation as the value.`,
+      system: `Translate each word of the list into ${into}, as used in a job offer or a CV. Reply with a JSON object only, each word of the list as a key and, as the value, a list of its usual translations, up to 3 (for "manager": ["responsable", "manager", "gestionnaire"]).`,
       prompt: JSON.stringify(words),
     });
     const json: unknown = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1));
@@ -464,8 +510,19 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
       const asked = await askForTailoredCv(recorder.ai, { task: "writing", candidateId, system: systemPrompt(run, language), prompt, ...run.agent });
       if (signal?.aborted) return stopped;
       if (!asked.ok) return { ok: false, error: "unavailable", reason: asked.reason };
-      const { reply } = asked;
-      const { content: adapted, origins } = fromMasterCv(master, reply, jobOffer.skills ?? [], language);
+      let { reply } = asked;
+      let { content: adapted, origins } = fromMasterCv(master, reply, jobOffer.skills ?? [], language);
+      // Left partly in another language (a description or bullet kept as the Master CV writes it): asked for once more,
+      // those passages named; the second proposal is kept when it leaves fewer (#1077).
+      const notIn = textsNotIn(adapted, language);
+      if (notIn.length > 0) {
+        const again = await askForTailoredCv(recorder.ai, { task: "writing", candidateId, system: systemPrompt(run, language), prompt: `${prompt}\n\n${NOT_IN[language](notIn)}`, ...run.agent });
+        if (signal?.aborted) return stopped;
+        if (again.ok) {
+          const rebuilt = fromMasterCv(master, again.reply, jobOffer.skills ?? [], language);
+          if (textsNotIn(rebuilt.content, language).length < notIn.length) ({ reply, content: adapted, origins } = { reply: again.reply, ...rebuilt });
+        }
+      }
       const proposal: ProposalRow = {
         language,
         profileId: profile.id,
@@ -534,8 +591,13 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
         ...(proposal.provenance !== undefined ? { provenance: proposal.provenance } : {}),
       };
       // Only the revision the Candidate reviewed: one proposed or answered since, even a moment ago, is not saved unseen.
-      const { rowCount } = await database.query(`UPDATE tailored_cv SET saved = $2, proposal = NULL WHERE application_id = $1 AND md5(proposal::text) = $3`, [application.id, saved, revision]);
-      if (rowCount === 0) return { ok: false, error: "proposal_changed" };
+      const rowCount = await inTransaction(database, async (client) => {
+        const written = await client.query(`UPDATE tailored_cv SET saved = $2, proposal = NULL WHERE application_id = $1 AND md5(proposal::text) = $3`, [application.id, saved, revision]);
+        // The Tailored CV saved before stays in « Versions » (#1079): this one is its next version.
+        if (written.rowCount) await keepVersion(client, application.id, "tailored_cv", { source: "drafted" });
+        return written.rowCount;
+      });
+      if (!rowCount) return { ok: false, error: "proposal_changed" };
       return { ok: true, tailoredCv: await stateOf(candidateId, application) };
     },
   };
@@ -554,4 +616,6 @@ export async function migrateTailoredCvs(database: Pool): Promise<void> {
     -- The Tailored CV the Candidate saved, if any.
     ALTER TABLE tailored_cv ADD COLUMN IF NOT EXISTS saved jsonb;
   `);
+  // Each saved Tailored CV's earlier versions (#1079): the ones already saved become their version 1.
+  await migrateTailoredDocumentVersions(database);
 }

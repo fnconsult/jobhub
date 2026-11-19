@@ -79,15 +79,22 @@ export function flagOfferWording(changes: CvChange[], offerStems: string[]): CvC
   });
 }
 
-/** Where each diploma, skill and language of a Tailored CV comes from: its index in the Master CV. One beyond them is added. */
+/**
+ * Where each job, diploma, skill and language of a Tailored CV comes from: its index in the Master CV. One beyond them is
+ * added. Without `experience` (a proposal made before jobs had ids), a job comes from the Master CV's with the same
+ * employer and period.
+ */
 export interface CvOrigins {
+  experience?: number[];
   education: number[];
   skills: number[];
   languages: number[];
 }
 
 const jobLabel = (job: CvExperience) => [job.title, job.employer, job.period].filter(Boolean).join(" · ");
-const jobText = (job: CvExperience) => [job.title, job.description].filter(Boolean).join("\n");
+/** A job's title and description; its period and place too, when a translation changes them. */
+const jobText = (job: CvExperience, master?: CvExperience) =>
+  [job.title, master && job.period !== master.period ? job.period : "", master && job.location !== master.location ? job.location : "", job.description].filter(Boolean).join("\n");
 const jobKey = (job: CvExperience) => `${job.employer}\u0000${job.period}`;
 const educationLabel = (item: CvEducation) => [item.degree, item.institution, item.year].filter(Boolean).join(" · ");
 const languageLabel = (item: CvLanguage) => [item.name, item.level].filter(Boolean).join(" · ");
@@ -98,8 +105,8 @@ interface ListSection<T> {
   /** Names an item of the Master CV when no `origins` say where it went. */
   key: (item: T) => string;
   label: (item: T) => string;
-  /** The text a rephrasing changes. */
-  text: (item: T) => string;
+  /** The text a rephrasing changes; told against `master`, the Master CV's item it comes from, to show what else changed. */
+  text: (item: T, master?: T) => string;
 }
 
 const LIST_SECTIONS = {
@@ -138,8 +145,8 @@ function listChanges<T>({ section, key, label, text }: ListSection<T>, master: T
   // In the Master CV's order.
   master.forEach((original, origin) => {
     const adapted = tailored[from.indexOf(origin)];
-    if (adapted === undefined || text(adapted) === text(original)) return;
-    changes.push({ id: changeId.rephrased(section, origin), section, kind: "rephrased", item: label(original), master: text(original), tailored: text(adapted) });
+    if (adapted === undefined || text(adapted, original) === text(original, original)) return;
+    changes.push({ id: changeId.rephrased(section, origin), section, kind: "rephrased", item: label(original), master: text(original, adapted), tailored: text(adapted, original) });
   });
   master.forEach((item, origin) => {
     if (!from.includes(origin)) changes.push({ id: changeId.cut(section, origin), section, kind: "cut", item: label(item) });
@@ -191,7 +198,7 @@ export function cvChanges(master: CvContent, tailored: CvContent, origins?: CvOr
   for (const section of ["headline", "summary"] as const) {
     if (master[section] !== tailored[section]) changes.push({ id: changeId.rephrased(section), section, kind: "rephrased", master: master[section], tailored: tailored[section] });
   }
-  changes.push(...listChanges(LIST_SECTIONS.experience, master.experience, tailored.experience));
+  changes.push(...listChanges(LIST_SECTIONS.experience, master.experience, tailored.experience, origins?.experience));
   changes.push(...listChanges(LIST_SECTIONS.education, master.education, tailored.education, origins?.education));
   changes.push(...listChanges(LIST_SECTIONS.skills, master.skills, tailored.skills, origins?.skills));
   changes.push(...listChanges(LIST_SECTIONS.languages, master.languages, tailored.languages, origins?.languages));
@@ -209,7 +216,7 @@ export function withChanges(master: CvContent, tailored: CvContent, accepted: It
     ...tailored,
     headline: rephrased("headline"),
     summary: rephrased("summary"),
-    experience: listWithChanges(LIST_SECTIONS.experience, master.experience, tailored.experience, ok),
+    experience: listWithChanges(LIST_SECTIONS.experience, master.experience, tailored.experience, ok, origins?.experience),
     education: listWithChanges(LIST_SECTIONS.education, master.education, tailored.education, ok, origins?.education),
     skills: listWithChanges(LIST_SECTIONS.skills, master.skills, tailored.skills, ok, origins?.skills),
     languages: listWithChanges(LIST_SECTIONS.languages, master.languages, tailored.languages, ok, origins?.languages),

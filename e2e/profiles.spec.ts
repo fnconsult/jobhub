@@ -6,7 +6,7 @@ import { signInWithMagicLink } from "./support/candidate";
 import { placeInput, placeNames, placeOptions, removePlace } from "./support/locations";
 import { newAddress } from "./support/mailbox";
 import { activityButtonOf, openSearchCriteria, profileSectionLink, unfoldedEntryOf } from "./support/conversation";
-import { onboardingSummary, openReviewDetail, throughCvInterview } from "./support/onboarding-summary";
+import { onboardingSummary, openReviewDetail, readCv, throughCvInterview } from "./support/onboarding-summary";
 
 // Issue #4: a signed-in Candidate uploads a PDF or Word CV; it is read into a
 // Master CV and Search Criteria they review and correct, then saved as their
@@ -23,7 +23,7 @@ const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.doc
 async function uploadCv(page: Page, file: { name: string; mimeType: string; buffer: Buffer }, review = true) {
   await page.goto("/profils/nouveau");
   await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles(file);
-  await page.getByRole("button", { name: fr.cvUpload.submit }).click();
+  await readCv(page);
   if (!review) return;
   // The target role and place read, confirmed, the rest skipped (#1003); the summary (#1004), then the review form by « Voir le détail ».
   await throughCvInterview(page);
@@ -45,7 +45,7 @@ test.describe("creating the first Profile from a CV", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(fr.newProfile.title);
 
     await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles(pdfFile(MARIE_DUPONT_CV));
-    await page.getByRole("button", { name: fr.cvUpload.submit }).click();
+    await readCv(page);
 
     // The reading shows in Activité (#1003), opened by itself on a wide screen; the thread says so in one line, no card.
     const thread = page.getByRole("list", { name: fr.questionnaire.transcript });
@@ -269,7 +269,7 @@ test.describe("creating the first Profile from a CV", () => {
       expect.soft(t.contrast, `contrast of "${t.text}"`).toBeGreaterThanOrEqual(4.5);
     }
     await page.getByLabel(fr.cvUpload.fileLabel).setInputFiles(pdfFile(MARIE_DUPONT_CV));
-    await page.getByRole("button", { name: fr.cvUpload.submit }).click();
+    await readCv(page);
     await throughCvInterview(page);
     await openReviewDetail(page);
     await expect(page.getByRole("heading", { level: 2, name: fr.cvReview.title })).toBeVisible();

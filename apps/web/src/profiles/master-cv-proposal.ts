@@ -10,7 +10,7 @@
  *   const review = masterCvReview(master, edits, { offers });   // { ok, changes, edits } | { ok: false, error }
  *   acceptedMasterCv(master, review.edits, accepted)            // the next Master CV Version's content
  */
-import { normalise, type MasterCvContent } from "@jobhub/shared";
+import { jobOfferLanguage, normalise, textLanguage, type DocumentLanguage, type MasterCvContent } from "@jobhub/shared";
 import { cvChanges, flagOfferWording, stemOf, withChanges, wordsOf, type CvChange, type CvOrigins } from "../tailored-cv/changes";
 
 export const MASTER_CV_EDIT_KINDS = ["rephrase", "cut", "reorder", "highlight"] as const;
@@ -37,12 +37,15 @@ export type MasterCvEdit = {
 
 /**
  * Why edits make no proposal: an item the Master CV does not have, a skill rephrased into another one or into several
- * (an item added under cover of a rephrasing), a figure it does not state, an edit that does not read, or nothing changed.
+ * (an item added under cover of a rephrasing), a figure it does not state, a text in another language than the Master
+ * CV's (a translation by edits leaves its diplomas, languages and dates in its own: half translated), an edit that does
+ * not read, or nothing changed.
  */
 export type MasterCvReviewRefusal =
   | { ok: false; error: "unknown_item"; item: string }
   | { ok: false; error: "added_item"; text: string }
   | { ok: false; error: "invented_figure"; text: string }
+  | { ok: false; error: "translated"; text: string }
   | { ok: false; error: "invalid_edit"; edit: number }
   | { ok: false; error: "no_change" };
 
@@ -71,8 +74,17 @@ function indexOf<S extends ListSection>(master: MasterCvContent, section: S, nam
 const masterText = (cv: MasterCvContent) =>
   ` ${normalise([cv.headline, cv.summary, ...cv.skills, ...cv.experience.flatMap((job) => Object.values(job)), ...cv.education.flatMap((item) => Object.values(item)), ...cv.languages.flatMap((item) => Object.values(item))].join(" | "))} `;
 
-/** A figure the text states that the Master CV does not: a fact it lacks. */
-const inventedFigure = (text: string, master: string) => (normalise(text).match(/\d+/g) ?? []).some((figure) => !master.includes(` ${figure} `));
+/** The language the Master CV is written in, told as for a Job Offer. */
+const masterLanguage = (cv: MasterCvContent): DocumentLanguage =>
+  jobOfferLanguage({ title: cv.headline, content: [cv.summary, ...cv.experience.flatMap((job) => [job.title, job.description]), ...cv.skills].join(" ") });
+
+const figuresIn = (text: string) => normalise(text).match(/\d+/g) ?? [];
+
+/** A figure the text states that the Master CV does not, each read the same way in both (« +25 % », « 500k€ », « 1er »): a fact it lacks. */
+const inventedFigure = (text: string, master: string) => {
+  const stated = new Set(figuresIn(master));
+  return figuresIn(text).some((figure) => !stated.has(figure));
+};
 
 /** What separates the items of a list: a skill rephrased into a list of them adds items. */
 const LIST_SEPARATOR = /[,;•·|\n]/;
@@ -91,6 +103,7 @@ function rephrasesSkill(skill: string, text: string): boolean {
 /** The Master CV with `edits` applied, and where each item of its list sections comes from. */
 function proposedOf(master: MasterCvContent, edits: readonly MasterCvEdit[]): { content: MasterCvContent; origins: CvOrigins & { experience: number[] } } | MasterCvReviewRefusal {
   const said = masterText(master);
+  const language = masterLanguage(master);
   const content: MasterCvContent = structuredClone(master);
   const origins = {
     experience: master.experience.map((_, index) => index),
@@ -113,6 +126,9 @@ function proposedOf(master: MasterCvContent, edits: readonly MasterCvEdit[]): { 
     const texts = [edit.text, edit.title, edit.description].filter((text): text is string => typeof text === "string");
     const invented = texts.find((text) => inventedFigure(text, said));
     if (invented !== undefined) return { ok: false, error: "invented_figure", text: invented };
+    // The Master CV stays in its language: a CV in another one is a Tailored CV in that Document Language.
+    const translated = texts.find((text) => (textLanguage(text) ?? language) !== language);
+    if (translated !== undefined) return { ok: false, error: "translated", text: translated };
 
     if (edit.section === "headline" || edit.section === "summary") {
       if (edit.kind !== "rephrase" || edit.text === undefined) return invalid;

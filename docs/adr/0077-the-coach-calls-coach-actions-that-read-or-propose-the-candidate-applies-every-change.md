@@ -1,6 +1,6 @@
 # The AI Coach calls Coach Actions that read or propose; the Candidate applies every change
 
-Status: accepted (map #711; tickets #712–#722, #726). Supersedes the « selection step, no real tools » answer of #654.
+Status: accepted (map #711; tickets #712–#722, #726). Supersedes the « selection step, no real tools » answer of #654. Amended by ADR-0109: the AI Coach reads an Application's drafts in full and proposes their new text, a proposal the narrowing spares because the Candidate sends the draft themselves.
 
 The AI Coach no longer only talks about the Candidate's objects: it can read any of them and propose to create or change them from the conversation. It does so by real tool calling, which the AI layer did not have.
 

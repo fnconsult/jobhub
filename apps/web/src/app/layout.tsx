@@ -4,8 +4,10 @@ import type { ReactNode } from "react";
 import { pendingAcceptance } from "@/acceptances/server";
 import { getCurrentCandidate } from "@/auth/server";
 import { coachActionsOn } from "@/coach-actions/on";
+import { GettingStartedProvider } from "@/coach-help/getting-started";
 import { HelpSettingsProvider } from "@/coach-help/settings";
 import { coachSpaceV2On } from "@/coach-space-v2/server";
+import { currentGettingStarted } from "@/getting-started/server";
 import { CandidateProviders } from "@/components/CandidateProviders";
 import { ResponseWatcher } from "@/components/ResponseWatcher";
 import { DocumentHead } from "@/design/document-head";
@@ -42,6 +44,8 @@ export default async function RootLayout({
   const candidate = await getCurrentCandidate();
   const coached =
     candidate !== null && !(await pendingAcceptance(candidate.id));
+  // « Pour bien commencer » (#1069): what the help reads of a new account, during its first 14 days only.
+  const gettingStarted = coached ? await currentGettingStarted(candidate) : null;
   // Inside the Jobbbox app's WebView (#689), the page goes without the web's Sidebar: the app has its own drawer.
   const inApp = inAppWebView((await headers()).get("user-agent"));
   return (
@@ -58,18 +62,20 @@ export default async function RootLayout({
         <I18nProvider locale={locale}>
           {/* The Help Articles « Espace coach v2 » serves (ADR-0107): main's while it is off. */}
           <HelpSettingsProvider coachSpaceV2={coachSpaceV2On()}>
-            {/* A session that expired, or too many requests, said wherever the page calls our API (#542). */}
-            <ResponseWatcher signedIn={candidate !== null} />
-            {coached ? (
-              <CandidateProviders
-                version={jobbboxVersion()}
-                coachActions={coachActionsOn()}
-              >
-                {children}
-              </CandidateProviders>
-            ) : (
-              children
-            )}
+            <GettingStartedProvider account={gettingStarted}>
+              {/* A session that expired, or too many requests, said wherever the page calls our API (#542). */}
+              <ResponseWatcher signedIn={candidate !== null} />
+              {coached ? (
+                <CandidateProviders
+                  version={jobbboxVersion()}
+                  coachActions={coachActionsOn()}
+                >
+                  {children}
+                </CandidateProviders>
+              ) : (
+                children
+              )}
+            </GettingStartedProvider>
           </HelpSettingsProvider>
         </I18nProvider>
       </body>

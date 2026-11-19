@@ -61,6 +61,9 @@ export async function seedMaestroCandidate(browser: Browser, origin: string): Pr
       }),
       "create the Profile",
     );
+    // An ATS Score, as a Candidate who has used Jobbbox: « Pour bien commencer » (#1069) has nothing left to show them in
+    // the app (never the extension there), so the key screens and the stores' screenshots stay without it.
+    await ok(await page.request.post(`/api/profiles/${profile.id}/ats-score`, { headers }), "compute the ATS Score");
     const offer = async (title: string, employer: string) =>
       (
         await ok<{ id: string }>(

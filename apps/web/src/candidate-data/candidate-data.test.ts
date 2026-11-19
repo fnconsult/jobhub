@@ -36,6 +36,7 @@ import { createAssistantConversations } from "../back-office-assistant/conversat
 import { createProfiles, type Profiles } from "../profiles";
 import { createTailoredCvs } from "../tailored-cv";
 import { createTailoredDocuments } from "../tailored-documents";
+import { createTailoredDocumentVersions } from "../tailored-documents/versions";
 import { createAppointmentReminders } from "../appointment-reminders";
 import { createSignalements } from "../signalements";
 import { createExtensionEvents, recordExtensionAction } from "../extension-events";
@@ -119,7 +120,8 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     const ai = createAiLayer({ providers: [createFakeProvider({ id: "mistral", reply: writer })], routes: { writing: "mistral" }, usage: createMemoryUsageLog() });
     tailoredCvs = createTailoredCvs(database, { applications, profiles, ai });
     tailoredDocuments = createTailoredDocuments(database, { applications, profiles, ai });
-    candidateData = createCandidateData(database, { profiles, applications, tailoredCvs, tailoredDocuments });
+    const tailoredDocumentVersions = createTailoredDocumentVersions(database, { applications });
+    candidateData = createCandidateData(database, { profiles, applications, tailoredCvs, tailoredDocuments, tailoredDocumentVersions });
     candidateId = await signIn("marie.dupont@example.fr");
   }, 60_000); // A throwaway database each time: slow when the machine is busy.
   afterEach(async () => {
@@ -288,6 +290,15 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
           tailoredCvProposal: null,
           coverLetter: expect.objectContaining({ text: "Madame, Monsieur, je postule.", provenance: expect.objectContaining({ v: 1, steps: [expect.objectContaining({ kind: "ai", activity: "write", task: "writing" })] }) }),
           outreachMessage: null,
+          // Their earlier versions too (#1079), newest first: the Candidate's edit, then the drafting it changed.
+          versions: {
+            tailored_cv: [expect.objectContaining({ version: 1, source: "drafted", current: true, cv: expect.objectContaining({ headline: "DAF groupe industriel" }) })],
+            cover_letter: [
+              expect.objectContaining({ version: 2, source: "candidate", current: true, language: "fr", text: "Madame, Monsieur, je postule." }),
+              expect.objectContaining({ version: 1, source: "drafted", current: false, text: "Madame, Monsieur,\n\nVotre offre a retenu toute mon attention." }),
+            ],
+            outreach_message: [],
+          },
         },
       }),
     ]);
@@ -1289,6 +1300,8 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(await applications.get(other, othersApplication.id)).toMatchObject({ jobOffer: { id: application.jobOffer.id } });
     const { rows } = await database.query("SELECT 1 FROM candidate WHERE id = $1", [candidateId]);
     expect(rows).toEqual([]);
+    // The versions of their documents go with them (#1079); another Candidate's stay.
+    expect((await database.query("SELECT 1 FROM tailored_document_version WHERE application_id = $1", [application.id])).rows).toEqual([]);
   });
 
   it("deleting the account deletes the Candidate's private Job Offers, even one they applied to, and keeps shared ones and another Candidate's (ADR-0049)", async () => {

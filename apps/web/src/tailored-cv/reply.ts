@@ -24,7 +24,7 @@ const id = z.string().optional().catch(undefined);
 const aiReply = z.object({
   headline: optional(z.string()),
   summary: optional(z.string()),
-  experience: optional(z.array(z.object({ id, employer: z.string(), period: z.string(), title: text, description: text }))),
+  experience: optional(z.array(z.object({ id, employer: z.string(), period: z.string(), location: z.string().optional().catch(undefined), title: text, description: text }))),
   education: optional(z.array(z.object({ id, degree: z.string(), institution: text, year: text }))),
   skills: optional(z.array(z.union([z.string().transform((skill) => ({ id: undefined, text: skill })), z.object({ id, text: z.string() })]))),
   languages: optional(z.array(z.object({ id, name: z.string(), level: text }))),

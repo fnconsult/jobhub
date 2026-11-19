@@ -245,6 +245,11 @@ export interface CoachAction<Schema extends z.ZodObject = z.ZodObject> {
   kind: CoachActionKind;
   /** It copies text into what it proposes (a Master CV, Search Criteria, a document): never offered once untrusted text is read. */
   copiesText: boolean;
+  /**
+   * ADR-0109: what it proposes is only a draft the Candidate sends themselves (a Follow-up, a Cover Letter, an Outreach
+   * Message), read in full on its card and applied by them: offered even once untrusted text is In view or read.
+   */
+  sentByCandidate?: true;
   /** Calls the domain module, for `call.candidateId` only. */
   run(args: z.output<Schema>, call: CoachActionCall): Promise<CoachActionResult>;
   /**
@@ -360,6 +365,9 @@ const REFUSED = {
   noRoom: () => "Plus de place pour lire d'autres données dans cette réponse : réponds avec ce que tu as déjà lu, et dis au candidat ce que tu n'as pas pu consulter.",
 };
 
+/** Whether untrusted text takes the action out of the reply (ADR-0077): it copies text, into more than a draft the Candidate sends themselves (ADR-0109). */
+const narrows = (action: CoachAction) => action.copiesText && action.sentByCandidate !== true;
+
 /** Below this room, a read is not run: its result would say nothing. */
 const MIN_READ_ROOM = 100;
 
@@ -385,7 +393,7 @@ export function createCoachActions(deps: CoachActionsDeps): CoachActions {
       let narrowed = options.untrustedInView;
       // What is left of the room for this reply's reads.
       let readRoom = COACH_ACTION_READS_MAX_TOKENS;
-      const offered = catalog.filter((action) => !(narrowed && action.copiesText));
+      const offered = catalog.filter((action) => !(narrowed && narrows(action)));
       if (offered.length === 0) return null;
       const proposals: CoachProposal[] = [];
       const declined: string[] = [];
@@ -423,7 +431,7 @@ export function createCoachActions(deps: CoachActionsDeps): CoachActions {
           if (action) return refuse(action, started, REFUSED.notOffered(call.name));
           return { content: REFUSED.notOffered(call.name), error: true };
         }
-        if (narrowed && action.copiesText) return refuse(action, started, REFUSED.narrowed(action.name));
+        if (narrowed && narrows(action)) return refuse(action, started, REFUSED.narrowed(action.name));
         const parsed = action.schema.safeParse(call.arguments);
         if (!parsed.success) return refuse(action, started, REFUSED.invalid(action.name, parsed.error.issues));
         if (action.kind === "propose" && proposals.length >= MAX_PROPOSALS_PER_REPLY) return refuse(action, started, REFUSED.tooMany());

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { CoachReviewList } from "@/components/CoachReviewList";
 import { CoachSpaceShell } from "@/components/CoachSpaceHeader";
+import { DocumentVersions, type DocumentVersionView } from "@/components/DocumentVersions";
 import { JobOfferView } from "@/components/JobOfferView";
 import { MasterCvView } from "@/components/MasterCvView";
 import { MatchScoreView } from "@/components/MatchScoreView";
@@ -10,6 +11,10 @@ import { REVIEWED_DOCUMENTS, type CoachedApplication } from "@/human-coaches";
 import { getHumanCoaches, requireHumanCoach } from "@/human-coaches/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
+import { VERSIONED_DOCUMENTS } from "@/tailored-documents/kinds";
+import type { TailoredDocumentVersion } from "@/tailored-documents/versions";
+
+const [TAILORED_CV, COVER_LETTER, OUTREACH_MESSAGE] = VERSIONED_DOCUMENTS;
 
 type Params = { params: Promise<{ candidateId: string; applicationId: string }> };
 
@@ -46,11 +51,25 @@ function writtenDocuments(coached: CoachedApplication) {
   return REVIEWED_DOCUMENTS.filter((document) => written[document] !== null);
 }
 
+/** The versions of a document as the read-only « Versions » shows them (#1079): their dates as ISO strings. */
+const versionsView = (versions: TailoredDocumentVersion[]): DocumentVersionView[] =>
+  versions.map(({ version, savedAt, source, restoredFrom, current, language, subject, text, cv }) => ({
+    version,
+    savedAt: savedAt.toISOString(),
+    source,
+    restoredFrom,
+    current,
+    language,
+    subject,
+    text,
+    cv,
+  }));
+
 /** One Application of a coached Candidate, read only, with its Tailored Documents and the Human Coach's review form. */
 export default async function CoachedApplicationPage({ params, searchParams }: Params & { searchParams: Promise<{ review?: string }> }) {
   const { candidateId, applicationId, coached } = await coachedApplication(params);
   const [t, locale, { review }] = await Promise.all([getServerT(), getRequestLocale(), searchParams]);
-  const { application, tailoredCv, coverLetter, outreachMessage, reviews } = coached;
+  const { application, tailoredCv, coverLetter, outreachMessage, reviews, versions } = coached;
   const documents = writtenDocuments(coached);
   return (
     <CoachSpaceShell>
@@ -66,8 +85,11 @@ export default async function CoachedApplicationPage({ params, searchParams }: P
         <h2 id="documents-title">{t("coachSpace.documentsTitle")}</h2>
         <h3>{t("coachReviews.documents.tailored_cv")}</h3>
         {tailoredCv ? <MasterCvView cv={tailoredCv.content} t={t} /> : <p>{t("coachSpace.noDocument")}</p>}
+        {/* The same versions the Candidate keeps (#1079), read-only, as the rest. */}
+        {versions.tailored_cv.length > 0 ? <DocumentVersions applicationId={applicationId} document={TAILORED_CV} locale={locale} initial={versionsView(versions.tailored_cv)} readOnly /> : null}
         <h3>{t("coachReviews.documents.cover_letter")}</h3>
         {coverLetter ? <p className="cv-text">{coverLetter.text}</p> : <p>{t("coachSpace.noDocument")}</p>}
+        {versions.cover_letter.length > 0 ? <DocumentVersions applicationId={applicationId} document={COVER_LETTER} locale={locale} initial={versionsView(versions.cover_letter)} readOnly /> : null}
         <h3>{t("coachReviews.documents.outreach_message")}</h3>
         {outreachMessage ? (
           <>
@@ -77,6 +99,7 @@ export default async function CoachedApplicationPage({ params, searchParams }: P
         ) : (
           <p>{t("coachSpace.noDocument")}</p>
         )}
+        {versions.outreach_message.length > 0 ? <DocumentVersions applicationId={applicationId} document={OUTREACH_MESSAGE} locale={locale} initial={versionsView(versions.outreach_message)} readOnly /> : null}
       </section>
 
       <CoachReviewList reviews={reviews} />

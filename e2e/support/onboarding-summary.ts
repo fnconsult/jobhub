@@ -8,6 +8,20 @@ const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "
 export const onboardingSummary = (page: Page) => page.getByRole("region", { name: fr.onboardingSummary.title, exact: true });
 
 /**
+ * « Lire mon CV », then the answer to the EU AI Consent proposed before the CV leaves for the AI (#1052): « Pas maintenant »
+ * unless said otherwise, the CV then read after Redaction, as before. A Candidate who already answered or consented is not
+ * asked: pass `null`.
+ */
+export async function readCv(page: Page, answer: "notNow" | "give" | null = "notNow"): Promise<void> {
+  await page.getByRole("button", { name: fr.cvUpload.submit, exact: true }).click();
+  if (answer === null) return;
+  await page
+    .getByRole("group", { name: fr.conversationFirst.suggestions })
+    .getByRole("button", { name: answer === "give" ? fr.euAiConsent.give : fr.euAiConsent.notNow, exact: true })
+    .click();
+}
+
+/**
  * From a CV (#1003): once the CV is read, confirms the target role and the place
  * the CV read (« Oui, … »), then skips what a CV does not say (contracts, remote work, minimum salary), up to the summary.
  */

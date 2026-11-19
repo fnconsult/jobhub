@@ -9,6 +9,6 @@ All of Jobbbox's help is in the Help Centre, open to everyone, no account needed
 
 Its articles are sorted into four topics: « Discover Jobbbox », « The extension », « Using Jobbbox » and « Coach space ». The search field, at the top of the Help Centre, looks through all of them, without AI. Tutorials there walk you through a task step by step; some have a short video under their text.
 
-Once signed in, « Help and legal », at the foot of the menu, leads to the Help Centre. When you write to your coach, the matching articles show first, « In the help, without AI »; an article opened there offers « Open in the Help Centre ».
+Once signed in, « Help and legal », at the foot of the menu, leads to the Help Centre. When you write to your coach, the matching articles show first, « In the help, without AI »; an article opened there offers « Open in the Help Centre ». For 14 days after your account is created, an empty conversation also offers « Getting started »: what you have not tried yet, « My CV's ATS Score » then, on Chrome on a computer, « Keep a job offer seen on another site ». Each opens its article; the section goes once you have tried everything.
 
 The articles are written by the Jobbbox team, in French and in English.

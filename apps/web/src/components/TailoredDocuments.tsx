@@ -23,6 +23,7 @@ import { Tabs, type Tab as DocumentTab } from "@/design/Tabs";
 import "@/design/Field.css";
 import { CV_TEMPLATES } from "@/export/kinds";
 import { ApplicationExportForm } from "./ApplicationExportForm";
+import { DocumentVersions, type RestoredDocuments } from "./DocumentVersions";
 import { Icons } from "./icons";
 import { LiveActionStatus, useLiveAction } from "./LiveAction";
 import { ProvenanceLine } from "./ProvenanceLine";
@@ -268,6 +269,21 @@ export function TailoredDocuments({
                   locale={locale}
                   onSaved={setSavedCv}
                 />
+                {/* Its earlier versions (#1079): each saved Tailored CV is kept, and can be restored. */}
+                {savedCv ? (
+                  <DocumentVersions
+                    applicationId={applicationId}
+                    document={TAILORED_CV}
+                    locale={locale}
+                    refreshKey={String(savedCv.savedAt)}
+                    onRestored={(restored) =>
+                      setSavedCv(
+                        (restored.tailoredCv as TailoredCv | null)?.saved ??
+                          null,
+                      )
+                    }
+                  />
+                ) : null}
               </DocumentLayout>
             ),
           },
@@ -309,6 +325,7 @@ export function TailoredDocuments({
                   applicationId={applicationId}
                   document={COVER_LETTER}
                   language={language}
+                  locale={locale}
                   initial={drafts.coverLetter}
                   onSaved={() =>
                     setLetter((current) => ({
@@ -340,6 +357,7 @@ export function TailoredDocuments({
                   applicationId={applicationId}
                   document={OUTREACH_MESSAGE}
                   language={language}
+                  locale={locale}
                   initial={drafts.outreachMessage}
                   recipients={recipients}
                 />
@@ -408,6 +426,7 @@ function DraftEditor({
   applicationId,
   document,
   language,
+  locale,
   initial,
   recipients = [],
   onSaved,
@@ -415,6 +434,7 @@ function DraftEditor({
   applicationId: string;
   document: TailoredDocumentKind;
   language: DocumentLanguage;
+  locale: string;
   initial: Initial;
   recipients?: Recipient[];
   /** The draft was kept, drafted or edited: the page shows it afresh (#468). */
@@ -440,6 +460,8 @@ function DraftEditor({
       : "",
   );
   const [status, setStatus] = useState<Status>(null);
+  // Each save or drafting is a new version (#1079): « Versions » loads them again.
+  const [saves, setSaves] = useState(0);
   // Drafting runs live, each step shown, and the Candidate can stop it (#334).
   const action = useLiveAction("tailored_documents");
   const isOutreach = document === "outreach_message";
@@ -471,6 +493,7 @@ function DraftEditor({
     setText(next.text);
     if ("subject" in next) setSubject(next.subject);
     setStatus("drafted");
+    setSaves((count) => count + 1);
     onSaved?.();
   }
 
@@ -482,7 +505,23 @@ function DraftEditor({
       isOutreach ? { document, text, subject } : { document, text },
     );
     setStatus(result.drafts ? "saved" : (result.status ?? "error"));
-    if (result.drafts) onSaved?.();
+    if (result.drafts) {
+      setSaves((count) => count + 1);
+      onSaved?.();
+    }
+  }
+
+  /** A version restored (#1079): the editor shows the draft as it now stands. */
+  function restored({ drafts }: RestoredDocuments) {
+    const next = (drafts as Drafts | null)?.[
+      document === "cover_letter" ? "coverLetter" : "outreachMessage"
+    ];
+    if (!next) return;
+    setDraft(next);
+    setText(next.text);
+    if ("subject" in next) setSubject(next.subject);
+    setStatus(null);
+    onSaved?.();
   }
 
   async function copy() {
@@ -660,6 +699,13 @@ function DraftEditor({
               : t("tailoredDocuments.redraft")}
           </button>
           <LiveActionStatus action={action} />
+          <DocumentVersions
+            applicationId={applicationId}
+            document={document}
+            locale={locale}
+            refreshKey={saves}
+            onRestored={restored}
+          />
         </>
       )}
       <StatusMessage status={status} />

@@ -8,6 +8,7 @@ import { createJobOffers, migrateJobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import type { ApplicationTailoredCv } from "../tailored-cv";
 import type { ApplicationDrafts } from "../tailored-documents";
+import type { DocumentVersions } from "../tailored-documents/versions";
 import type { PushNotification } from "../push-notifications";
 import { createIdentityNames } from "../candidate-identity";
 import { createHumanCoaches, migrateHumanCoaches, type HumanCoach, type HumanCoaches } from "./index";
@@ -36,6 +37,8 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
   /** The Tailored Documents of each Application, as their modules would give them to the Candidate. */
   let drafts: Map<string, ApplicationDrafts>;
   let tailoredCvs: Map<string, ApplicationTailoredCv>;
+  /** The versions of each Application's Tailored Documents (#1079), as the Candidate's « Versions » lists them. */
+  let versions: Map<string, DocumentVersions>;
 
   async function signUp(email: string) {
     const cookie = await signInWithMagicLink(testAuth, email);
@@ -54,11 +57,13 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
     applications = createApplications(database, { jobOffers, profiles });
     drafts = new Map();
     tailoredCvs = new Map();
+    versions = new Map();
     coaches = createHumanCoaches(database, {
       profiles,
       applications,
       tailoredDocuments: { get: async (owner, id) => ((await applications.get(owner, id)) ? (drafts.get(id) ?? null) : null) },
       tailoredCvs: { get: async (owner, id) => ((await applications.get(owner, id)) ? (tailoredCvs.get(id) ?? null) : null) },
+      tailoredDocumentVersions: { list: async (owner, id) => ((await applications.get(owner, id)) ? (versions.get(id) ?? { tailored_cv: [], cover_letter: [], outreach_message: [] }) : null) },
     });
     jobOfferId = async () => {
       const captured = await jobOffers.capture({ source: { url: "https://www.apec.fr/offre/1" }, title: "DAF H/F", content: "Nous recherchons un DAF pour un groupe industriel à Lyon, avec 15 ans d'expérience.", employer: "Acme Industrie" });
@@ -235,6 +240,21 @@ describe.skipIf(!connectionString)("Human Coaches (needs Postgres: DATABASE_URL)
       const read = await coaches.application(sophie.id, marie.id, marie.applicationId);
 
       expect(read).toMatchObject({ tailoredCv: saved, coverLetter, outreachMessage: null, reviews: [] });
+    });
+
+    it("a Human Coach with Coach Access reads the same versions of the Tailored Documents as the Candidate (#1079)", async () => {
+      const { sophie, marie } = await coachedApplication();
+      const letterVersions = [
+        { version: 2, savedAt: now, source: "candidate" as const, restoredFrom: null, current: true, language: "fr" as const, subject: null, text: "Ma lettre.", cv: null, provenance: null },
+        { version: 1, savedAt: now, source: "drafted" as const, restoredFrom: null, current: false, language: "fr" as const, subject: null, text: coverLetter.text, cv: null, provenance: null },
+      ];
+      versions.set(marie.applicationId, { tailored_cv: [], cover_letter: letterVersions, outreach_message: [] });
+
+      const read = await coaches.application(sophie.id, marie.id, marie.applicationId);
+
+      expect(read?.versions).toEqual({ tailored_cv: [], cover_letter: letterVersions, outreach_message: [] });
+      await coaches.revokeAccess(marie.id, sophie.id);
+      expect(await coaches.application(sophie.id, marie.id, marie.applicationId)).toBeNull();
     });
 
     it("a Human Coach's Coach Review of a Tailored Document reaches the Candidate on the Application", async () => {

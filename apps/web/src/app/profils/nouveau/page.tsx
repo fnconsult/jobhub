@@ -5,6 +5,7 @@ import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { CandidateLayout } from "@/components/CandidateLayout";
 import { OnboardingWelcome, ProfileOnboarding, type ResumedProfile } from "@/components/ProfileOnboarding";
 import { UpgradePrompt } from "@/components/UpgradePrompt";
+import { getEuAiConsents } from "@/eu-ai-consent/server";
 import { getServerT } from "@/i18n/server";
 import { getProfiles, newProfileStartFor } from "@/profiles/server";
 import { routes } from "@/routes";
@@ -23,6 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * with « Continuer plus tard », in its interview at the block it reached (#1046): it counts
  * in the Plan Quota already. Any other Profile of theirs opens its own page. Without it, once the Plan allows no more
  * Profiles, their most recent Profile « Création à terminer » resumes there instead of the Upgrade prompt (#1048).
+ * Whether the Candidate has given EU AI Consent decides whether it is proposed before their CV is read (#1052).
  * A Candidate without any Profile is led here from `/` and `/compte` (#1050), and offered « Plus tard », to Mon compte.
  * Without any finished Profile, it is their first welcome (#1051): on a wide screen the conversation and Activité split in
  * two from the first question; on a phone, the offered Job Search's first offers come as a card in the thread.
@@ -32,7 +34,7 @@ export default async function NewProfilePage({ searchParams }: { searchParams: P
   if (!candidate) return signInRedirect();
   const [t, { profil }] = await Promise.all([getServerT(), searchParams]);
   const resumed = typeof profil === "string" ? await resumedProfile(candidate.id, profil) : null;
-  const start = resumed ? null : await newProfileStartFor(candidate);
+  const [start, euAiConsentGiven] = await Promise.all([resumed ? null : newProfileStartFor(candidate), getEuAiConsents().has(candidate.id)]);
   if (start?.start === "resume") redirect(routes.resumeProfileCreation(start.profileId));
   const upgradePrompt = start?.start === "upgrade" ? start.prompt : null;
   // « Plus tard » (#1050): offered as the « Entretien d'accueil » opens for a Candidate without any Profile.
@@ -56,7 +58,7 @@ export default async function NewProfilePage({ searchParams }: { searchParams: P
           </div>
         </section>
       ) : (
-        <ProfileOnboarding key={resumed?.id ?? ""} {...(resumed ? { resumed } : {})} {...(firstProfile ? { postpone: postponeOnboarding } : {})} firstWelcome={firstWelcome} />
+        <ProfileOnboarding key={resumed?.id ?? ""} euAiConsentGiven={euAiConsentGiven} {...(resumed ? { resumed } : {})} {...(firstProfile ? { postpone: postponeOnboarding } : {})} firstWelcome={firstWelcome} />
       )}
     </CandidateLayout>
   );

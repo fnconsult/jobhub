@@ -28,6 +28,7 @@ import type { PushNotification, PushNotifier } from "../push-notifications";
 import { migrateRescheduleHistory, rescheduleHistories, setAgendaItemDate, type Reschedule, type RescheduledBy } from "../reschedules";
 import type { SavedTailoredCv, TailoredCvs } from "../tailored-cv";
 import type { CoverLetter, OutreachMessage, TailoredDocuments } from "../tailored-documents";
+import type { DocumentVersions, TailoredDocumentVersions } from "../tailored-documents/versions";
 import { fieldErrors, type FieldError } from "../validation";
 import { MAX_REVIEW_LENGTH, REVIEWED_DOCUMENTS, type ReviewedDocument } from "./kinds";
 
@@ -76,6 +77,8 @@ export interface CoachedApplication {
   tailoredCv: SavedTailoredCv | null;
   coverLetter: CoverLetter | null;
   outreachMessage: OutreachMessage | null;
+  /** The versions of each Tailored Document, as the Candidate's « Versions » lists them (#1079): read-only here too. */
+  versions: DocumentVersions;
   /** Every Coach Review of the Application, oldest first, whichever Human Coach gave it. */
   reviews: CoachReview[];
 }
@@ -200,6 +203,8 @@ export interface HumanCoachesDeps {
   applications: Pick<Applications, "list" | "get">;
   tailoredDocuments: Pick<TailoredDocuments, "get">;
   tailoredCvs: Pick<TailoredCvs, "get">;
+  /** The versions of the Tailored Documents (#1079); without it, none are shown. */
+  tailoredDocumentVersions?: Pick<TailoredDocumentVersions, "list">;
   /** The clock Coaching Session dates are entered, Rescheduled and cancelled by. */
   now?: () => Date;
   /** Where the Push notifications of a Coach Review, Coach Access and Coaching Sessions are queued. Without it, none. */
@@ -437,16 +442,18 @@ export function createHumanCoaches(database: Pool, deps: HumanCoachesDeps): Huma
     if (!(await coachedCandidate(coachId, candidateId))) return null;
     const application = await deps.applications.get(candidateId, applicationId);
     if (!application) return null;
-    const [drafts, tailoredCv, reviews] = await Promise.all([
+    const [drafts, tailoredCv, reviews, versions] = await Promise.all([
       deps.tailoredDocuments.get(candidateId, applicationId),
       deps.tailoredCvs.get(candidateId, applicationId),
       reviewsOf(candidateId, applicationId),
+      deps.tailoredDocumentVersions?.list(candidateId, applicationId),
     ]);
     return {
       application,
       tailoredCv: tailoredCv?.saved ?? null,
       coverLetter: drafts?.coverLetter ?? null,
       outreachMessage: drafts?.outreachMessage ?? null,
+      versions: versions ?? { tailored_cv: [], cover_letter: [], outreach_message: [] },
       reviews,
     };
   }

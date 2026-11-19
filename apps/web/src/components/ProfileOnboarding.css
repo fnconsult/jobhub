@@ -68,3 +68,28 @@
   font-size: var(--font-size-meta);
   font-weight: 600;
 }
+
+/* The first welcome's first offers on a phone (#1051): one row per offer, its title a link, then employer, place and
+   Match Score in words, in the metadata style. */
+.first-offers-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.first-offers-list li {
+  display: flex;
+  flex-direction: column;
+}
+
+.first-offers-title {
+  font-weight: 600;
+}
+
+.first-offers-meta {
+  color: var(--color-secondary);
+  font-size: var(--font-size-meta);
+}

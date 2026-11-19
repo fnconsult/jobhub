@@ -19,7 +19,7 @@ Saisissez « Votre adresse e-mail », puis cliquez sur « Recevoir mon lien de c
 - open-email « Votre lien de connexion à Jobbbox »
 - click link « Me connecter à Jobbbox »
 
-Ouvrez l'e-mail « Votre lien de connexion à Jobbbox » et cliquez sur « Me connecter à Jobbbox », dans les 15 minutes. Votre compte est créé, avec l'offre Gratuit. Si Jobbbox vous demande d'accepter les CGU, lisez-les, cochez la case puis cliquez sur « Accepter et continuer ». Jobbbox vous ouvre aussitôt l'entretien d'accueil : votre coach vous accueille dans la conversation.
+Ouvrez l'e-mail « Votre lien de connexion à Jobbbox » et cliquez sur « Me connecter à Jobbbox », dans les 15 minutes. Votre compte est créé, avec l'offre Gratuit. Si Jobbbox vous demande d'accepter les CGU, lisez-les, cochez la case puis cliquez sur « Accepter et continuer ». Jobbbox vous ouvre aussitôt l'entretien d'accueil, sur un ordinateur en écran partagé : votre coach vous accueille dans la conversation, à gauche, et « Activité », à droite, montre votre profil en construction, rempli au fil de vos réponses.
 
 ## Déposer votre CV
 - upload label « Votre CV » « cv-claire-demo.pdf »

@@ -139,7 +139,8 @@ async function sidebarMenus(candidateId: string): Promise<SidebarMenus> {
  * AI Activity's pane, from its page type's loader (ai-activity/server); none on a
  * page with no AI content. The Sidebar lists the Free conversations (#601, ADR-0070), Mes candidatures, Recherches
  * d'offres and Job Digests unfold into their objects (#604, #606), and `fiche`, an object's Fiche, stands beside its
- * conversation (#603).
+ * conversation (#603). `split`: the first welcome on `/profils/nouveau` (#1051), the conversation and Activité split in two
+ * on a wide screen.
  * While a CGU version waits for the Candidate's Acceptance (ADR-0062), only their data and
  * subscription pages render: the others send them to the Acceptance screen (acceptances/gate.ts).
  */
@@ -150,6 +151,7 @@ export async function CandidateLayout({
   wide,
   aiActivity,
   fiche,
+  split,
   children,
 }: {
   candidateId: string;
@@ -158,6 +160,8 @@ export async function CandidateLayout({
   wide?: boolean;
   aiActivity?: readonly ServedEntry[];
   fiche?: FicheContent;
+  /** The first welcome on `/profils/nouveau` (#1051): the conversation and Activité split in two on a wide screen. */
+  split?: boolean;
   children: ReactNode;
 }) {
   await requireAcceptedTerms(candidateId);
@@ -196,6 +200,7 @@ export async function CandidateLayout({
       fiche={fiche ?? null}
       menus={menus}
       welcomeClosed={welcomeClosed}
+      split={split ?? false}
     >
       {paymentFailed ? <PaymentFailedBanner notice={paymentFailed} /> : null}
       {privacy ? <PrivacyChangeNotice change={privacy} /> : null}

@@ -67,6 +67,7 @@ export function SidebarLayout({
   menus,
   fiche = null,
   welcomeClosed = false,
+  split = false,
   children,
 }: {
   profiles: ReadonlyArray<SidebarProfile>;
@@ -87,6 +88,8 @@ export function SidebarLayout({
   fiche?: FicheContent | null;
   /** Whether the Candidate closed the conversations' welcome panel for good. */
   welcomeClosed?: boolean;
+  /** The first welcome on `/profils/nouveau` (#1051): the conversation and Activité split in two on a wide screen. */
+  split?: boolean;
   children: ReactNode;
 }) {
   const { t } = useTranslation();
@@ -180,7 +183,7 @@ export function SidebarLayout({
     <ConversationFirstProvider conversations={freeConversations} welcomeClosed={welcomeClosed} {...(menus ? { menus } : {})}>
       <WorkPaneProvider version={version}>
         <PageHelpProvider>
-          <FicheProvider object={fiche !== null} views={panelViews(fiche)}>
+          <FicheProvider object={fiche !== null} split={split} views={panelViews(fiche)}>
             <ColumnsOverPage>{shell}</ColumnsOverPage>
           </FicheProvider>
         </PageHelpProvider>

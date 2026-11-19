@@ -748,6 +748,19 @@ describe.skipIf(!connectionString)("Profiles (needs Postgres: DATABASE_URL)", ()
       expect((await profiles.get(candidateId, other.id))?.name).toBe("Directrice financière");
     });
 
+    it("leaves the Candidate without a finished Profile until one is finished or made otherwise, archived or not (#1051)", async () => {
+      expect(await profiles.hasFinished(candidateId)).toBe(false);
+      const born = await bornProfile();
+      expect(await profiles.hasFinished(candidateId)).toBe(false);
+      await profiles.finishOnboarding(candidateId, born.id, { basedOnVersion: 1, masterCv });
+      await profiles.archive(candidateId, born.id);
+      expect(await profiles.hasFinished(candidateId)).toBe(true);
+      const other = await otherCandidate();
+      expect(await profiles.hasFinished(other)).toBe(false);
+      await createdProfile("Contrôleuse de gestion", other);
+      expect(await profiles.hasFinished(other)).toBe(true);
+    });
+
     it("counts in the Plan Quota as soon as it is born", async () => {
       const limited = createProfiles(database, { profileQuota: async () => 1 });
       await bornProfile(limited);

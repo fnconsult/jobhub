@@ -19,7 +19,8 @@ import type { CreationGiven } from "./entries";
  * What the creation page says as the Candidate goes: a creation started (or started over: nothing known), the CV read
  * with its draft's Provenance, the interview's answers so far with its turns' Provenance (#1002), the questionnaire's
  * answers so far, the Profile born once its target role and location are answered (#999, `href` its page), the review
- * opened, a rewritten summary translated by the AI (#1005, with its Provenance), the Profile saved at its page.
+ * opened, a rewritten summary translated by the AI (#1005, with its Provenance), the Profile saved at its page, and the
+ * target role and places answered or validated so far (#1051, the first welcome's Profile in construction).
  */
 export type CreationNote =
   | { type: "started" }
@@ -29,7 +30,8 @@ export type CreationNote =
   | { type: "created"; href: string }
   | { type: "reviewed" }
   | { type: "summaryChanged"; provenance: Provenance | null }
-  | { type: "saved"; href: string };
+  | { type: "saved"; href: string }
+  | { type: "building"; targetRole: string; locations: string[] };
 
 /** Two Provenances of the same part as one: its steps and sites in turn, from the first start, the times added. */
 function together(was: Provenance | null, more: Provenance | null): Provenance | null {
@@ -57,6 +59,8 @@ export function nextCreation(was: CreationGiven | null, note: CreationNote, at: 
       return { ...known, summaryChanges: { at: known.summaryChanges?.at ?? at, provenance: together(known.summaryChanges?.provenance ?? null, note.provenance) } };
     case "saved":
       return { ...known, href: note.href };
+    case "building":
+      return { ...known, building: { targetRole: note.targetRole, locations: note.locations } };
   }
 }
 

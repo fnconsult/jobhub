@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { applyPanelWidths, panelMaxWidth, SIDE_PANEL_WIDTH, WORK_PANE_WIDTH } from "./panel-width";
+import { applyPanelWidths, FIRST_WELCOME_SPLIT_WIDTH, panelMaxWidth, SIDE_PANEL_WIDTH, WORK_PANE_WIDTH } from "./panel-width";
 
 const REM = 16;
 
@@ -26,11 +26,25 @@ describe("the Work Pane's width (#932)", () => {
   });
 });
 
+describe("the first welcome's split (#1051)", () => {
+  it("is the side panel's handle and limits, its width remembered apart, so Activité elsewhere keeps its own", () => {
+    expect(FIRST_WELCOME_SPLIT_WIDTH).toMatchObject({ minRem: SIDE_PANEL_WIDTH.minRem, maxRem: SIDE_PANEL_WIDTH.maxRem, maxProperty: SIDE_PANEL_WIDTH.maxProperty });
+    expect(FIRST_WELCOME_SPLIT_WIDTH.storageKey).not.toBe(SIDE_PANEL_WIDTH.storageKey);
+    expect(FIRST_WELCOME_SPLIT_WIDTH.property).not.toBe(SIDE_PANEL_WIDTH.property);
+  });
+
+  it("is by default half of what the conversation and Activité share, their gutters apart", () => {
+    expect(FIRST_WELCOME_SPLIT_WIDTH.defaultWidth({ viewport: 1440, workspace: 1184, rem: REM })).toBe((1184 - 3 * REM) / 2);
+    expect(FIRST_WELCOME_SPLIT_WIDTH.defaultWidth({ viewport: 1440, rem: REM })).toBe((1440 - 3 * REM) / 2);
+  });
+});
+
 describe("the widths remembered, before first paint (#932)", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     document.documentElement.style.removeProperty("--fiche-width");
     document.documentElement.style.removeProperty("--work-pane-width");
+    document.documentElement.style.removeProperty(FIRST_WELCOME_SPLIT_WIDTH.property);
   });
 
   it("are set on <html>, each column's own, a stray value ignored", () => {
@@ -46,5 +60,12 @@ describe("the widths remembered, before first paint (#932)", () => {
     store.set(WORK_PANE_WIDTH.storageKey, "640");
     new Function(applyPanelWidths)();
     expect(document.documentElement.style.getPropertyValue("--work-pane-width")).toBe("640px");
+  });
+
+  it("the first welcome's split's too (#1051)", () => {
+    vi.stubGlobal("localStorage", { getItem: (k: string) => (k === FIRST_WELCOME_SPLIT_WIDTH.storageKey ? "600" : null) });
+    new Function(applyPanelWidths)();
+    expect(document.documentElement.style.getPropertyValue(FIRST_WELCOME_SPLIT_WIDTH.property)).toBe("600px");
+    expect(document.documentElement.style.getPropertyValue("--fiche-width")).toBe("");
   });
 });

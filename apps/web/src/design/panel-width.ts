@@ -19,8 +19,8 @@ export type PanelWidthSpec = {
   minRem: number;
   /** The widest, in rem, before the window and the conversation limit it. */
   maxRem: number;
-  /** The width it has when the Candidate never chose one, in px. */
-  defaultWidth: (at: { viewport: number; rem: number }) => number;
+  /** The width it has when the Candidate never chose one, in px: `workspace`, once measured, the conversation's and its columns'. */
+  defaultWidth: (at: { viewport: number; rem: number; workspace?: number }) => number;
 };
 
 /** The side panel: 20rem by default, which is also its narrowest (#932). */
@@ -31,6 +31,18 @@ export const SIDE_PANEL_WIDTH: PanelWidthSpec = {
   minRem: 20,
   maxRem: 44,
   defaultWidth: ({ rem }) => 20 * rem,
+};
+
+/**
+ * The first welcome's split (#1051): the side panel on « Activité », beside the « Entretien d'accueil », half of what the
+ * conversation and it share by default. The side panel's handle and limits, its width remembered apart, so that what the
+ * Candidate chooses here never changes Activité on their other pages.
+ */
+export const FIRST_WELCOME_SPLIT_WIDTH: PanelWidthSpec = {
+  ...SIDE_PANEL_WIDTH,
+  storageKey: "jobbbox.first-welcome-split-width",
+  property: "--first-welcome-split-width",
+  defaultWidth: ({ viewport, workspace, rem }) => ((workspace || viewport) - GUTTERS_REM * rem) / 2,
 };
 
 /** The Work Pane: 32% of the window by default, between 20rem and 32rem, as app.css draws it untouched. */
@@ -115,7 +127,7 @@ export function setPanelWidthProperty(spec: PanelWidthSpec, width: number | null
 }
 
 /** Inline script for the document head: applies each column's remembered width before first paint. */
-export const applyPanelWidths = [SIDE_PANEL_WIDTH, WORK_PANE_WIDTH]
+export const applyPanelWidths = [SIDE_PANEL_WIDTH, WORK_PANE_WIDTH, FIRST_WELCOME_SPLIT_WIDTH]
   .map(
     ({ storageKey, property }) =>
       `try{var w=Number(localStorage.getItem(${JSON.stringify(storageKey)}));if(w>0&&w<=${LARGEST_STORED_PX})document.documentElement.style.setProperty(${JSON.stringify(property)},Math.round(w)+"px")}catch(e){}`,

@@ -75,7 +75,7 @@ export function PanelResizeHandle({ spec, label }: { spec: PanelWidthSpec; label
       const other = [...workspace.querySelectorAll<HTMLElement>(COLUMNS)].filter((el) => el !== column).reduce((sum, el) => sum + (el.offsetWidth ?? 0), 0);
       const max = panelMaxWidth(spec, { viewport, workspace: workspace.clientWidth, other, rem });
       const min = spec.minRem * rem;
-      const initial = spec.defaultWidth({ viewport, rem });
+      const initial = spec.defaultWidth({ viewport, workspace: workspace.clientWidth, rem });
       column.style.setProperty(spec.maxProperty, `${max}px`);
       setBounds((was) => (was.min === min && was.max === max && was.initial === initial ? was : { min, max, initial }));
     };

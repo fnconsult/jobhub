@@ -58,7 +58,7 @@ describe("the Job Search a page follows as its own (#1001)", () => {
     const list = [90, 80, 70, 65, 62, 61, 30].map((score, index) => ({ jobOffer: offer(`o${index}`, { employer: index === 0 ? "Acme" : undefined }), score }));
     const best = bestOffers(id, list);
     expect(best).toHaveLength(5);
-    expect(best[0]).toEqual({ title: "Directrice financière", employer: "Acme", score: 90, href: `/recherches/${id}/offres/o0` });
+    expect(best[0]).toEqual({ title: "Directrice financière", employer: "Acme", location: "Lyon", score: 90, href: `/recherches/${id}/offres/o0` });
     expect(best[1]!.employer).toBeNull();
     expect(bestOffers(id, list.slice(5))).toHaveLength(2);
     expect(bestOffers(id, [...list.slice(5), { jobOffer: offer("x"), score: 10 }, { jobOffer: offer("y"), score: 5 }])).toHaveLength(3);

@@ -28,8 +28,8 @@ import { TOP_BAR_RANK, useTopBarAction, useTopBarMode } from "@/components/top-b
 import { useWorkPane } from "@/components/work-pane";
 import { buttonClass } from "@/design/button-class";
 import { PanelResizeHandle } from "@/components/PanelResizeHandle";
-import { setFicheWidthProperty, writeFicheWidth } from "@/design/fiche-width";
-import { SIDE_PANEL_WIDTH } from "@/design/panel-width";
+import { FIRST_WELCOME_SPLIT_WIDTH, setPanelWidthProperty, SIDE_PANEL_WIDTH, writePanelWidth, type PanelWidthSpec } from "@/design/panel-width";
+import { ProfileBuilding } from "@/components/ProfileBuilding";
 import { SIDEBAR_CLOSED } from "@/design/sidebar-state";
 
 /** A Section or a Result the panel lists: its own address, which opens it in the Work Pane. */
@@ -139,6 +139,13 @@ type Control = {
   open: (view: PanelView) => void;
   /** Wide enough for the panel beside the conversation; below 64rem it opens over it, full screen, with a ✕ (#608). */
   wide: boolean;
+  /**
+   * The first welcome's split (#1051): open on « Activité » as the page loads on a wide screen, half of the room by
+   * default, its width remembered apart, the Profile in construction at its top.
+   */
+  split: boolean;
+  /** The width its handle sets and remembers: the side panel's, or the first welcome's split's. */
+  widthSpec: PanelWidthSpec;
   /** Its ✕ (and Escape on a phone): closes it, the focus back on the Top Bar's icon that opened it. */
   close: () => void;
   /** « Largeur du volet par défaut »: counted, so the handle goes back to the default width each time. */
@@ -156,8 +163,22 @@ const FicheControl = createContext<Control | null>(null);
  * Without room for both beside the conversation, the Work Pane takes the panel's place while it is open, and the panel
  * comes back as it was when it closes. Its icons then say it is not shown, and bring it back, closing the Work Pane.
  * Alt+Shift and a view's letter (A, F, O, D) do what its icon does.
+ *
+ * `split`: the first welcome on `/profils/nouveau` (#1051), a Candidate without any finished Profile. On a wide screen
+ * it opens on « Activité » as the page loads, the conversation on one side and Activity on the other, resized by the same
+ * handle with its own remembered width (FIRST_WELCOME_SPLIT_WIDTH); on a phone it stays closed, as elsewhere.
  */
-export function FicheProvider({ object = true, views: offered, children }: { object?: boolean; views?: readonly PanelView[]; children: ReactNode }) {
+export function FicheProvider({
+  object = true,
+  split = false,
+  views: offered,
+  children,
+}: {
+  object?: boolean;
+  split?: boolean;
+  views?: readonly PanelView[];
+  children: ReactNode;
+}) {
   // The same views, the same array: the panel's control is made again only when they change.
   const viewsKey = (offered ?? (object ? ["activity", "fiche", "results"] : ["activity"])).join(" ");
   const views = useMemo(() => viewsKey.split(" ") as PanelView[], [viewsKey]);
@@ -167,7 +188,8 @@ export function FicheProvider({ object = true, views: offered, children }: { obj
   const givenWay = !room && workPane?.item != null;
   // Untouched, the panel is as the screen has it; once an icon is used, as the Candidate left it.
   const [changed, setChanged] = useState<FicheState | null>(null);
-  const state = useMemo<FicheState>(() => changed ?? { view: object && wide ? "fiche" : null }, [changed, object, wide]);
+  const state = useMemo<FicheState>(() => changed ?? { view: !wide ? null : object ? "fiche" : split ? "activity" : null }, [changed, object, split, wide]);
+  const widthSpec = split ? FIRST_WELCOME_SPLIT_WIDTH : SIDE_PANEL_WIDTH;
   const [widthReset, setWidthReset] = useState(0);
   const ficheId = `${useId()}-panel`;
   // What opened the panel: the focus goes back to it when its ✕ closes it (#608).
@@ -207,18 +229,20 @@ export function FicheProvider({ object = true, views: offered, children }: { obj
         setChanged({ view });
       },
       wide,
+      split,
+      widthSpec,
       close: () => {
         focusBack.current = true;
         setChanged({ view: null });
       },
       resetWidth: () => {
-        setFicheWidthProperty(null);
-        writeFicheWidth(null);
+        setPanelWidthProperty(widthSpec, null);
+        writePanelWidth(widthSpec, null);
         setWidthReset((n) => n + 1);
       },
       widthReset,
     };
-  }, [object, views, state, givenWay, shownView, workPane, ficheId, wide, widthReset]);
+  }, [object, views, state, givenWay, shownView, workPane, ficheId, wide, split, widthSpec, widthReset]);
   // Alt+Shift and a view's letter: what its icon does, wherever the focus is, the message box included.
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
@@ -383,18 +407,20 @@ export function Fiche({ content }: { content: FicheContent | null }) {
   return (
     <aside
       id={control.ficheId}
-      className={`fiche side-panel${content ? "" : " activity-column"}`}
+      className={`fiche side-panel${content ? "" : " activity-column"}${control.split ? " first-welcome-split" : ""}`}
       data-view={view}
       aria-label={name}
       hidden={control.givenWay}
       onKeyDown={closeOnEscape(control)}
     >
       {/* « Largeur du volet par défaut » forgets the width remembered and draws the handle afresh, at the default. */}
-      {control.wide ? <PanelResizeHandle key={control.widthReset} spec={SIDE_PANEL_WIDTH} label={t("fiche.resize")} /> : null}
+      {control.wide ? <PanelResizeHandle key={control.widthReset} spec={control.widthSpec} label={t("fiche.resize")} /> : null}
       <PanelHead key={view} label={name} close={control.close} focus={!control.wide} />
       <div className="fiche-body">
         {view === "activity" ? (
           <>
+            {/* The first welcome (#1051): the Profile in construction first, until the offered Job Search starts. */}
+            {control.split ? <ProfileBuilding /> : null}
             <ContextBar />
             <EnCeMoment />
             <AiActivityContent>

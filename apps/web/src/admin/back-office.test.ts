@@ -177,7 +177,9 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
       const withStripe = createBilling({ database, baseURL: "http://localhost:3000", stripe: { secretKey: FAKE_STRIPE_SECRET_KEY, webhookSecret: FAKE_STRIPE_WEBHOOK_SECRET, apiUrl: stripe.url } });
       await withStripe.updatePlan("standard", { name: { fr: "Standard", en: "Standard" }, status: "offered", stripeProductId: FAKE_STRIPE_PRODUCTS.standard, features: [] });
       const couponsOffice = createBackOffice(database, { billing: withStripe, humanCoaches: { add: async () => ({ ok: false, error: "invalid" }) as never, retire: async () => null } });
-      const spring = { code: "PRINTEMPS50", percentOff: 50, duration: "repeating", durationInMonths: 3, plans: ["standard"], expiresAt: "2027-03-31", maxRedemptions: 100, firstPaymentOnly: true };
+      // The end of next March: still to come whatever today is, as Stripe's clock reads it; always French summer time.
+      const nextMarch = `${new Date().getFullYear() + 1}-03-31`;
+      const spring = { code: "PRINTEMPS50", percentOff: 50, duration: "repeating", durationInMonths: 3, plans: ["standard"], expiresAt: nextMarch, maxRedemptions: 100, firstPaymentOnly: true };
 
       const created = await couponsOffice.createCoupon(claire, spring);
       expect(created).toMatchObject({ ok: true, coupon: { code: "PRINTEMPS50" } });
@@ -207,7 +209,7 @@ describe.skipIf(!connectionString)("the Back Office and its Back Office Audit (n
         discount: { percentOff: 50 },
         duration: { months: 3 },
         plans: ["standard"],
-        expiresAt: "2027-03-31T21:59:59.000Z",
+        expiresAt: new Date(`${nextMarch}T23:59:59+02:00`).toISOString(),
         maxRedemptions: 100,
         firstPaymentOnly: true,
       };

@@ -163,6 +163,10 @@ describe.skipIf(!connectionString)("Coaching reminders at the delivery boundary"
     await auth.database.query("UPDATE coaching_session SET scheduled_at=$2,date_set_at=$3 WHERE id=$1", [paid, new Date(slot.getTime() + 3600000), clock]);
     await service.sendDue();
     await auth.database.query("UPDATE coaching_session SET scheduled_at=NULL,date_set_at=NULL WHERE id=$1", [paid]);
+    // The cancellation is dated by the database's clock: the service's clock moves on past it, however slow the run, and
+    // never back.
+    const cancelledAt = (await auth.database.query<{ at: Date }>("SELECT clock_timestamp() AS at")).rows[0]!.at;
+    clock = new Date(Math.max(clock.getTime() + 1000, cancelledAt.getTime() + 1000));
     await service.sendDue();
     await service.sendDue();
     expect(emails.map((e) => e.notice.kind)).toEqual(["paid", "booked", "rescheduled", "cancelled"]);
@@ -181,7 +185,9 @@ describe.skipIf(!connectionString)("Coaching reminders at the delivery boundary"
     expect(pushes).toHaveLength(1);
   });
   it("sends the optional morning summary at 07:30 in the Coach’s Montreal time zone", async () => {
-    await auth.database.query("UPDATE coaching_session SET scheduled_at='2026-11-20T15:00Z' WHERE id=$1", [session]);
+    // Dated on the test's clock, well before: left NULL, the trigger dates the change with the database's real clock, a
+    // « rescheduled » email the morning summary must not see when today is the day before this test's dates.
+    await auth.database.query("UPDATE coaching_session SET scheduled_at='2026-11-20T15:00Z',date_set_at='2026-11-01T12:00Z' WHERE id=$1", [session]);
     clock = new Date("2026-11-20T12:29:59Z");
     await service.sendDue();
     expect(emails).toHaveLength(0);
@@ -192,7 +198,7 @@ describe.skipIf(!connectionString)("Coaching reminders at the delivery boundary"
     expect(emails[0]).toMatchObject({ person: { id: coachAccount, timeZone: "America/Montreal" }, notice: { kind: "daily" } });
     expect(pushes).toHaveLength(1);
     await service.updateSettings(coachAccount, { daily: false });
-    await auth.database.query("UPDATE coaching_session SET scheduled_at='2026-11-21T15:00Z' WHERE id=$1", [session]);
+    await auth.database.query("UPDATE coaching_session SET scheduled_at='2026-11-21T15:00Z',date_set_at='2026-11-01T12:00Z' WHERE id=$1", [session]);
     clock = new Date("2026-11-21T12:30:00Z");
     await service.sendDue();
     expect(emails).toHaveLength(1);

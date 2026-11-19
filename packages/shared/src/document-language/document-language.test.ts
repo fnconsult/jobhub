@@ -23,6 +23,10 @@ describe("the Document Language a Job Offer defaults to", () => {
   it("is French, the French market's language, when the posting says too little to tell", () => {
     expect(jobOfferLanguage({ title: "CFO", content: "SAP, IFRS" })).toBe("fr");
   });
+
+  it("reads no word inside a reference, a model or a code: « A350 », « 4a7in2 » or « S4/HANA » say nothing", () => {
+    expect(jobOfferLanguage({ title: "Ingénieur A350 (H/F)", content: "Vous rejoignez la ligne A350. Réf. 4a7in2-on9a S4/HANA 3a" })).toBe("fr");
+  });
 });
 
 describe("the language a text of a document is written in", () => {
@@ -37,6 +41,13 @@ describe("the language a text of a document is written in", () => {
     expect(textLanguage("IFRS")).toBeNull();
     expect(textLanguage("2005 – 2024")).toBeNull();
     expect(textLanguage("Reporting")).toBeNull();
+  });
+
+  it("reads no word inside a reference, a model or a code: « a » in « 4a7k2m » or « A350 » is no English (#1078)", () => {
+    expect(textLanguage("Directrice financière CV-SECRET-1763560000000-4a7k2m (adapté, fr)")).toBeNull();
+    expect(textLanguage("Programme A350 et 3a")).toBe("fr");
+    expect(textLanguage("Lead of the A350 programme")).toBe("en");
+    expect(textLanguage("Migration S4/HANA, B2B2X, 1er")).toBeNull();
   });
 });
 

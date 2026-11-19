@@ -1,7 +1,7 @@
 export const meta = {
   name: 'wf-dev',
   description: 'Loop over ready GitHub issues (priority + dependency aware), in parallel: implement → E2E ∥ QA ∥ code review → fix → ship, using the mattpocock skills',
-  whenToUse: 'Deliver ready-for-agent issues end to end. args: an issue number to start with, or nothing to pick from the frontier; or {issue, maxParallel, maxIssues, merge, resume: [{issue, from: implement|verify|ship, worktree, branch, baseRef, prNumber, prUrl}]} to continue issues an interrupted run left in flight.',
+  whenToUse: 'Deliver ready-for-agent issues end to end. args: nothing to pick from the frontier; or issue numbers (`1079`, `#1079`, `1079 1080`, `#1050, #1052`), optionally followed by text, to deliver exactly those issues and no others (maxIssues = their count; text without a valid number stops the run with an error); or {issue (a positive integer), maxParallel, maxIssues, merge (default true: green PRs are merged), resume: [{issue, from: implement|verify|ship, worktree, branch, baseRef, prNumber, prUrl}]}, resume continuing issues an interrupted run left in flight. See docs/agents/wf-dev.md.',
   phases: [
     { title: 'Select', detail: 'frontier: ready-for-agent, unassigned, no open blockers, by priority' },
     { title: 'Open PR', detail: 'claim, worktree, draft PR (Closes #n) before any code' },
@@ -15,12 +15,47 @@ export const meta = {
 }
 
 // ---------- options ----------
-const opts = (args && typeof args === 'object') ? args : { issue: args }
-const START = opts.issue != null && String(opts.issue).trim() !== ''
-  ? Number(String(opts.issue).replace('#', ''))
-  : null
+// <parse-args>
+// Pure: reads the workflow's args into the exact list of issues to deliver (empty = the frontier). Tested on its own
+// by scripts/workflows/wf-dev-args.test.ts, which evaluates this block; keep it free of the runtime's globals (#1090).
+// - nothing, or a blank string: the frontier, as before.
+// - a string: the first issue number in it (`1079`, `#1079`, `ticket #1079, merci`) starts the list; the numbers right
+//   after it on the same line, separated by spaces or commas (`1079 1080`, `#1050, #1052`), complete it. Text after
+//   that, such as a paragraph of instructions, is ignored, numbers included.
+// - an object: {issue, maxParallel, maxIssues, merge, resume, …}; `issue`, when present, is a positive integer.
+// Numbers given: only those issues, never the frontier, and maxIssues defaults to their count. Anything else throws.
+const parseArgs = args => {
+  const FORMS = 'Accepted forms: nothing (the frontier); `1079`, `#1079`, `1079 1080` or `#1050, #1052`, optionally followed by text; or {issue: 1079, maxParallel, maxIssues, merge, resume}.'
+  const fail = why => { throw new Error(`wf-dev: ${why}. ${FORMS}`) }
+  const positive = (n, what) => (Number.isSafeInteger(n) && n > 0 ? n : fail(`${what} must be a positive integer, got ${JSON.stringify(n) ?? String(n)}`))
+  const withDefaults = (issues, opts) => ({ issues, maxIssues: opts.maxIssues ?? (issues.length || 1000), opts })
+
+  if (args == null) return withDefaults([], {})
+  if (typeof args === 'number') return withDefaults([positive(args, 'the issue number')], {})
+  if (typeof args === 'object' && !Array.isArray(args)) {
+    if (args.issue == null) return withDefaults([], args)
+    const issue = typeof args.issue === 'string' && /^\s*#?\d+\s*$/.test(args.issue)
+      ? Number(args.issue.replace('#', ''))
+      : args.issue
+    return withDefaults([positive(issue, '`issue`')], args)
+  }
+  if (typeof args !== 'string') return fail(`unreadable arguments ${JSON.stringify(args)}`)
+
+  const text = args.trim()
+  if (!text) return withDefaults([], {})
+  // A number standing alone: not glued to a word, a hyphen or a dot (`issue-1079`, `ADR-0063`, `v1.2`).
+  const first = /(?<![\w.-])#?(\d+)(?![\w-]|\.\d)/.exec(text)
+  if (!first || Number(first[1]) === 0) return fail(`no valid issue number in ${JSON.stringify(text.slice(0, 80))}`)
+  const issues = [Number(first[1])]
+  const next = /(?:[ \t]*,[ \t]*|[ \t]+)#?(\d+)(?![\w-]|\.\d)/y
+  next.lastIndex = first.index + first[0].length
+  for (let m; (m = next.exec(text));) issues.push(positive(Number(m[1]), `issue number ${m[1]}`))
+  return withDefaults([...new Set(issues)], {})
+}
+// </parse-args>
+
+const { issues: ISSUES, maxIssues: MAX_ISSUES, opts } = parseArgs(args)
 const MAX_PARALLEL = opts.maxParallel ?? 2
-const MAX_ISSUES = opts.maxIssues ?? 1000
 const MERGE = opts.merge ?? true
 const MAX_FIX_LOOPS = opts.maxFixLoops ?? 3
 const DOC_MODEL = opts.docModel ?? 'sonnet' // document-writing agents use the latest Sonnet
@@ -326,13 +361,20 @@ const launch = (n, resumed) => {
     .then(r => ({ n, r })))
 }
 
+log(`${ISSUES.length ? `Issues given: ${ISSUES.map(x => `#${x}`).join(', ')} — only these, never the frontier` : 'No issue given: picking from the frontier'}; maxIssues=${MAX_ISSUES}, maxParallel=${MAX_PARALLEL}. ${MERGE ? 'This run WILL MERGE each PR once it is green (pass merge: false to leave them open).' : 'This run will NOT merge: PRs are left open for a human.'}`)
+
 RESUME.forEach(r => launch(Number(r.issue), r))
-if (START && !seen.has(START)) launch(START)
+// Given issues: launched from this queue as slots free up, in the order given; the frontier is never queried.
+const queue = ISSUES.filter(n => !seen.has(n))
 
 while (true) {
   const slots = Math.min(MAX_PARALLEL - active.size, MAX_ISSUES - launched)
   // resumed issues may exceed MAX_PARALLEL; no new picks until below it
-  if (slots > 0) {
+  if (ISSUES.length) {
+    const fresh = slots > 0 ? queue.splice(0, slots) : []
+    fresh.forEach(n => launch(n))
+    if (fresh.length) log(`Started ${fresh.map(x => `#${x}`).join(', ')} — ${active.size} in flight`)
+  } else if (slots > 0) {
     const pick = await pickNext(slots, [...seen])
     const fresh = (pick?.issues ?? []).map(i => i.number).filter(x => !seen.has(x)).slice(0, slots)
     fresh.forEach(launch)
@@ -347,7 +389,8 @@ while (true) {
   log(`#${n}: ${r.status}${r.pr ? ` ${r.pr}` : ''}`)
 }
 
-if (launched >= MAX_ISSUES) log(`Stopped at maxIssues=${MAX_ISSUES}; more issues may be ready.`)
+if (queue.length) log(`Stopped at maxIssues=${MAX_ISSUES}; not started: ${queue.map(x => `#${x}`).join(', ')}.`)
+else if (!ISSUES.length && launched >= MAX_ISSUES) log(`Stopped at maxIssues=${MAX_ISSUES}; more issues may be ready.`)
 
 return {
   merged: results.filter(r => r.status === 'merged').map(r => r.issue),

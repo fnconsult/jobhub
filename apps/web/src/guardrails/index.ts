@@ -210,6 +210,11 @@ export interface ReplyScope {
   notes: readonly string[];
   /** false: the reply was offered no Coach Action (switched off), so it can neither propose nor redirect: only check 4 runs. */
   coachActions?: boolean;
+  /**
+   * The AI Coach marked the question as one it could not answer (#345): the thread offers « Poser la question à l'équipe »,
+   * its way on; not a refusal of a change, so check 3 does not apply.
+   */
+  couldNotAnswer?: boolean;
 }
 
 /**
@@ -459,7 +464,7 @@ function repeatsPrivate(reply: string, scope: ReplyScope, written: readonly stri
 /** « Périmètre du coach »'s fixed rules on a reply (ADR-0114): checks 3 and 4. */
 function scopeRules(reply: string, scope: ReplyScope, written: readonly string[]): CoachScopeCheck[] {
   const said = plain(reply);
-  const refusal = scope.cards === 0 && REFUSALS.some((pattern) => pattern.test(said)) && (!scope.redirect || REASONLESS.some((pattern) => pattern.test(said)));
+  const refusal = scope.cards === 0 && scope.couldNotAnswer !== true && REFUSALS.some((pattern) => pattern.test(said)) && (!scope.redirect || REASONLESS.some((pattern) => pattern.test(said)));
   return [...(refusal ? (["refusal_without_redirect"] as const) : []), ...(repeatsPrivate(reply, scope, written) ? (["private_repeated"] as const) : [])];
 }
 

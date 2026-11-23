@@ -113,12 +113,38 @@ export interface CvEditOptions {
   reference?: MasterCvContent;
 }
 
-/** Whether `value` is a Declared Fact: found, as whole words, in one of the Candidate's messages. */
-export function isDeclared(value: string, declared: CvEditOptions["declared"]): boolean {
+/**
+ * Whether `value` is a Declared Fact: found, as whole words, in one of the Candidate's messages. `of`: the item it qualifies
+ * (a language's level, a diploma's institution or year), named in that same message, never a value said of another one.
+ */
+export function isDeclared(value: string, declared: CvEditOptions["declared"], of?: string): boolean {
   if (declared === true) return true;
   const wanted = normalise(value);
   if (!wanted.trim() || !declared) return false;
-  return declared.some((message) => normalise(message).includes(wanted));
+  const named = of === undefined ? null : normalise(of);
+  return declared.some((message) => normalise(message).includes(wanted) && (named === null || normalise(message).includes(named)));
+}
+
+/**
+ * The items a CV edit may bring without a Declared Fact (ADR-0113): those of the CV and of its reference, each section on
+ * its own. A value is in the CV only on the item it qualifies: a level on that language, an institution or a year on that
+ * diploma, a skill in the skills; never a value the CV writes elsewhere (another language's level, a job's year).
+ */
+interface Known {
+  skill(text: string): boolean;
+  /** The languages named `name`, in the CV and in its reference: none when it is in neither. */
+  languages(name: string): MasterCvContent["languages"];
+  /** The diplomas of degree `degree`, in the CV and in its reference. */
+  diplomas(degree: string): MasterCvContent["education"];
+}
+
+function knownOf(cv: MasterCvContent, reference: MasterCvContent | undefined): Known {
+  const both = [cv, ...(reference ? [reference] : [])];
+  return {
+    skill: (text) => both.some((each) => each.skills.some((skill) => same(skill, text))),
+    languages: (name) => both.flatMap((each) => each.languages).filter((item) => same(item.name, name)),
+    diplomas: (degree) => both.flatMap((each) => each.education).filter((item) => same(item.degree, degree)),
+  };
 }
 
 /** What separates the items of a list: a skill rephrased into a list of them adds items. */
@@ -145,8 +171,8 @@ function proposedOf(
   const language = masterLanguage(master);
   /** The Declared Facts the edits bring, as their changes will name them. */
   const facts: string[] = [];
-  /** In the CV (or its reference) already: no Declared Fact needed. */
-  const inCv = (value: string) => said.includes(normalise(value));
+  /** In the CV (or its reference) already, on the item it qualifies: no Declared Fact needed. */
+  const known = knownOf(master, reference);
   const content: MasterCvContent = structuredClone(master);
   const origins = {
     experience: master.experience.map((_, index) => index),
@@ -167,7 +193,7 @@ function proposedOf(
   for (const [position, edit] of edits.entries()) {
     const invalid: MasterCvReviewRefusal = { ok: false, error: "invalid_edit", edit: position };
     if (edit.kind === "add") {
-      const added = addOf(edit, content, origins, inCv, declared);
+      const added = addOf(edit, content, origins, known, declared);
       if (added === "invalid") return invalid;
       if ("ok" in added) return added;
       facts.push(...added.facts);
@@ -217,15 +243,17 @@ function proposedOf(
       const text = edit.text.trim();
       if (!rephrasesSkill(master.skills[origin]!, text)) {
         // Another skill: only one the CV (or its reference) has, or one the Candidate declared (ADR-0113).
-        if (LIST_SEPARATOR.test(text) || !(inCv(text) || isDeclared(text, declared))) return { ok: false, error: "added_item", text };
-        if (!inCv(text)) facts.push(text);
+        if (LIST_SEPARATOR.test(text) || !(known.skill(text) || isDeclared(text, declared))) return { ok: false, error: "added_item", text };
+        if (!known.skill(text)) facts.push(text);
       }
       content.skills[place] = text;
     } else if (section === "languages" && edit.level?.trim()) {
       // A language's level corrected: a Declared Fact (« mon anglais est C1 »), or the level its reference says.
       const level = edit.level.trim();
-      if (!inCv(level) && !isDeclared(level, declared)) return { ok: false, error: "not_declared", text: level, section };
-      if (!inCv(level)) facts.push(level);
+      const name = master.languages[origin]!.name;
+      const stated = known.languages(name).some((item) => same(item.level, level));
+      if (!stated && !isDeclared(level, declared, name)) return { ok: false, error: "not_declared", text: level, section };
+      if (!stated) facts.push(level);
       content.languages[place] = { ...content.languages[place]!, level };
     } else {
       // A diploma or a language is cut, reordered or put forward, never reworded.
@@ -237,20 +265,23 @@ function proposedOf(
 
 /**
  * An `add` edit applied to `content`: a skill, a language or a diploma at the end of its section, from nowhere in the CV
- * (`origins` -1). In the CV already, nothing; in its reference, added as it is; else only a Declared Fact.
+ * (`origins` -1). In the CV already, nothing; in its reference, added as it says it; else only a Declared Fact, each
+ * value that qualifies the item (a level, an institution, a year) declared of it.
  */
 function addOf(
   edit: MasterCvEdit,
   content: MasterCvContent,
   origins: Record<ListSection, number[]>,
-  inCv: (value: string) => boolean,
+  known: Known,
   declared: CvEditOptions["declared"],
 ): { facts: string[] } | MasterCvReviewRefusal | "invalid" {
-  const check = (section: ListSection, values: (string | undefined)[]): { facts: string[] } | MasterCvReviewRefusal => {
+  /** Each value, with whether the CV says it of the item, and the item it qualifies (none for the item's own name). */
+  type Value = { value: string; stated: boolean; of?: string };
+  const check = (section: ListSection, values: Value[]): { facts: string[] } | MasterCvReviewRefusal => {
     const facts: string[] = [];
-    for (const value of values.map((each) => each?.trim() ?? "").filter(Boolean)) {
-      if (inCv(value)) continue;
-      if (!isDeclared(value, declared)) return { ok: false, error: "not_declared", text: value, section };
+    for (const { value, stated, of } of values.filter((each) => each.value)) {
+      if (stated) continue;
+      if (!isDeclared(value, declared, of)) return { ok: false, error: "not_declared", text: value, section };
       facts.push(value);
     }
     return { facts };
@@ -261,7 +292,7 @@ function addOf(
       const text = edit.text?.trim();
       if (!text || LIST_SEPARATOR.test(text)) return "invalid";
       if (has(content.skills, text)) return { facts: [] };
-      const checked = check("skills", [text]);
+      const checked = check("skills", [{ value: text, stated: known.skill(text) }]);
       if (!("ok" in checked)) {
         content.skills.push(text);
         origins.skills.push(-1);
@@ -273,7 +304,11 @@ function addOf(
       if (!name) return "invalid";
       if (has(content.languages.map((each) => each.name), name)) return "invalid";
       const level = edit.level?.trim() ?? "";
-      const checked = check("languages", [name, level]);
+      const items = known.languages(name);
+      const checked = check("languages", [
+        { value: name, stated: items.length > 0 },
+        { value: level, stated: items.some((item) => same(item.level, level)), of: name },
+      ]);
       if (!("ok" in checked)) {
         content.languages.push({ name, level });
         origins.languages.push(-1);
@@ -286,7 +321,12 @@ function addOf(
       if (has(content.education.map((each) => each.degree), degree)) return { facts: [] };
       const institution = edit.institution?.trim() ?? "";
       const year = edit.year?.trim() ?? "";
-      const checked = check("education", [degree, institution, year]);
+      const items = known.diplomas(degree);
+      const checked = check("education", [
+        { value: degree, stated: items.length > 0 },
+        { value: institution, stated: items.some((item) => same(item.institution, institution)), of: degree },
+        { value: year, stated: items.some((item) => same(item.year, year)), of: degree },
+      ]);
       if (!("ok" in checked)) {
         content.education.push({ degree, institution, year });
         origins.education.push(-1);

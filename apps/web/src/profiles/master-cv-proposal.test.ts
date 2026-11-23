@@ -159,6 +159,62 @@ describe("a Declared Fact enters a CV (ADR-0113, #1097)", () => {
     });
   });
 
+  describe("a value is in the CV only on the item it qualifies, never elsewhere in the CV", () => {
+    const cv: MasterCvContent = {
+      ...master,
+      experience: [{ title: "Contrôleuse de gestion", employer: "Renault", location: "Toulouse", period: "2019 – 2024", description: "Budget et reporting avec l'Université de Toulouse." }],
+      languages: [
+        { name: "Anglais", level: "C1" },
+        { name: "Espagnol", level: "B1" },
+      ],
+    };
+
+    it("a language level another language has is not said of this one: not_declared", () => {
+      expect(masterCvReview(cv, [{ kind: "rephrase", section: "languages", item: "Espagnol", level: "C1" }], { declared: ["Je voudrais retravailler mes langues."] })).toEqual({
+        ok: false,
+        error: "not_declared",
+        text: "C1",
+        section: "languages",
+      });
+    });
+
+    it("a language added with a level the Candidate did not declare for it: not_declared, even when another language has that level", () => {
+      expect(masterCvReview(cv, [{ kind: "add", section: "languages", item: "Allemand", level: "C1" }], { declared: ["Je parle allemand."] })).toEqual({
+        ok: false,
+        error: "not_declared",
+        text: "C1",
+        section: "languages",
+      });
+      // Declared for another language than the one added: not for this one.
+      expect(masterCvReview(cv, [{ kind: "add", section: "languages", item: "Allemand", level: "C1" }], { declared: ["Je parle allemand.", "Mon espagnol est C1."] })).toMatchObject({
+        ok: false,
+        error: "not_declared",
+      });
+      // Said of it: added, marked.
+      const review = masterCvReview(cv, [{ kind: "add", section: "languages", item: "Allemand", level: "C1" }], { declared: ["Je parle allemand, niveau C1."] });
+      expect(review.ok && review.changes).toEqual([expect.objectContaining({ kind: "added", item: "Allemand · C1", declared: true })]);
+    });
+
+    it("a diploma's institution and year written elsewhere in the CV are not said of it: not_declared", () => {
+      expect(
+        masterCvReview(cv, [{ kind: "add", section: "education", text: "Master audit", institution: "Université de Toulouse", year: "2019" }], { declared: ["J'ai aussi un Master audit."] }),
+      ).toEqual({ ok: false, error: "not_declared", text: "Université de Toulouse", section: "education" });
+    });
+
+    it("a language or a diploma the reference CV has is added back with what it says of it, not with another value", () => {
+      const tailored = { ...cv, languages: [cv.languages[0]!], education: [] };
+      expect(masterCvReview(tailored, [{ kind: "add", section: "languages", item: "Espagnol", level: "B1" }], { reference: cv }).ok).toBe(true);
+      expect(masterCvReview(tailored, [{ kind: "add", section: "languages", item: "Espagnol", level: "C1" }], { reference: cv })).toMatchObject({ ok: false, error: "not_declared", text: "C1" });
+      expect(masterCvReview(tailored, [{ kind: "add", section: "education", text: "Master Finance", institution: "ESSEC", year: "1998" }], { reference: cv }).ok).toBe(true);
+      expect(masterCvReview(tailored, [{ kind: "add", section: "education", text: "Master Finance", institution: "ESSEC", year: "2019" }], { reference: cv })).toMatchObject({ ok: false, error: "not_declared", text: "2019" });
+    });
+
+    it("a skill is in the CV when its skills, or its reference's, list it: a word of a job is not one", () => {
+      expect(masterCvReview(cv, [{ kind: "add", section: "skills", text: "Reporting" }])).toEqual({ ok: false, error: "not_declared", text: "Reporting", section: "skills" });
+      expect(masterCvReview(cv, [{ kind: "rephrase", section: "skills", item: "IFRS", text: "Budget" }])).toEqual({ ok: false, error: "added_item", text: "Budget" });
+    });
+  });
+
   it("adds back an item of the reference CV without it being declared: it is in the CV (a Tailored CV that cut it)", () => {
     const tailored = { ...master, skills: ["IFRS"] };
     const review = masterCvReview(tailored, [{ kind: "add", section: "skills", text: "SAP" }], { reference: master });

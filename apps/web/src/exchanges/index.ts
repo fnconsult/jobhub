@@ -131,7 +131,7 @@ export function shownText(text: string): string {
 
 const EXCHANGE_COLUMNS = `x.id, x.application_id AS "applicationId", x.sender AS "from", x.subject, x.text, x.sent_at AS "sentAt", x.received_at AS "receivedAt"`;
 
-export function createExchanges(database: Pool, options: { now?: () => Date } = {}): Exchanges {
+export function createExchanges(database: Queryable, options: { now?: () => Date } = {}): Exchanges {
   const now = options.now ?? (() => new Date());
 
   /** What the rules know of each of the Candidate's Applications. */

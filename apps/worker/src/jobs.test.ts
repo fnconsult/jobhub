@@ -29,7 +29,7 @@ import { createEmailIntakeActivity } from "../../web/src/email-intake/activity";
 import { alertEmail, inboundRequest } from "../../web/src/email-intake/fixtures/inbound-emails";
 import { createEmailIntakeInbound, receivedTextOf } from "@jobhub/web/email-intake";
 import { createAesGcmCipher } from "../../web/src/provider-secrets/cipher";
-import { ACCEPTANCES_PURGE, AI_USAGE_PURGE, APPOINTMENT_REMINDERS, CONSUMPTION_PURGE, EXTENSION_EVENTS_PURGE, DELIVERY_STATUS_EMAIL, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, DISCOVERY_RUNS_PURGE, OFFER_BOX_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, PUSH_NOTIFICATIONS_SEND, PUSH_FAILURES_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { ACCEPTANCES_PURGE, AI_USAGE_PURGE, APPOINTMENT_REMINDERS, CONSUMPTION_PURGE, EXTENSION_EVENTS_PURGE, DELIVERY_STATUS_EMAIL, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, DISCOVERY_RUNS_PURGE, OFFER_BOX_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, EXCHANGE_CHECK, EXCHANGES_PURGE, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, PUSH_NOTIFICATIONS_SEND, PUSH_FAILURES_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -756,6 +756,26 @@ describe("the Email intake reading job (#445)", () => {
     const job = createJobs({ ...otherDeps, database: noDatabase, emailReading: { read: async () => Promise.reject(new Error("provider down")) } })[EMAIL_INTAKE_READ];
 
     await expect(job!.handler({ receivedOfferEmailId: "email-1" })).rejects.toThrow("provider down");
+  });
+});
+
+describe("the Exchanges' jobs (#1099)", () => {
+  it("checks each Exchange the inbound route queued with the email Guardrail, tried 3 times", async () => {
+    const checked: string[] = [];
+    const logs: string[] = [];
+    const job = createJobs({ ...otherDeps, database: noDatabase, log: (line) => logs.push(line), exchangeCheck: async (id) => (checked.push(id), "kept") })[EXCHANGE_CHECK];
+
+    expect(EXCHANGE_CHECK).toBe("exchanges.check");
+    expect(job?.retry).toEqual({ limit: 2, delaySeconds: 600, backoff: true });
+    await job!.handler({ exchangeId: "exchange-1" });
+    await job!.handler({ nothing: true });
+
+    expect(checked).toEqual(["exchange-1"]);
+    expect(logs).toEqual(["[exchanges] Exchange exchange-1 checked: kept", "[exchanges] ignored a malformed job"]);
+  });
+
+  it("forgets the emails offered too long ago, hourly", () => {
+    expect(createJobs({ ...otherDeps, database: noDatabase })[EXCHANGES_PURGE]?.cron).toBe("25 * * * *");
   });
 });
 

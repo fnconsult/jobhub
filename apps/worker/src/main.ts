@@ -37,6 +37,8 @@ import { billingConfigFromEnv } from "@jobhub/web/billing/config";
 import { createQuotaReductions } from "@jobhub/web/quota-reductions";
 import { createEmailReadings } from "@jobhub/web/email-intake/reading";
 import { createReceivedOffers } from "@jobhub/web/email-intake/received-offers";
+import { createExchanges } from "@jobhub/web/exchanges";
+import { checkExchange } from "@jobhub/web/exchanges/check";
 import { workerGuardrails } from "@jobhub/web/guardrails/checks";
 import { createEuAiConsents } from "@jobhub/web/eu-ai-consent";
 import { followUpsFromEnv } from "@jobhub/web/follow-ups/env";
@@ -305,6 +307,9 @@ const jobs = createJobs({
     guardrails: workerGuardrails(database, worker.ai),
     taskPlaybooks,
   }),
+  // An Application's Exchanges (#1099, ADR-0115): each email the inbound route tied or offered, checked by the same
+  // « Contenu piégé dans un email » Guardrail before it is kept. Queued only while APPLICATION_EXCHANGES_ENABLED is on.
+  exchangeCheck: (exchangeId) => checkExchange({ exchanges: createExchanges(database), guardrails: workerGuardrails(database, worker.ai) }, exchangeId),
   enqueue: workerQueue.send,
 });
 

@@ -1,4 +1,5 @@
 import { getApplications } from "@/applications/server";
+import { exchangesOn, getExchanges } from "@/exchanges/server";
 import { sharedPool } from "@/database/pool";
 import { getJobOffers } from "@/job-offers/server";
 import { getJobQueue } from "@/job-queue/server";
@@ -50,7 +51,8 @@ export function getEmailIntake(): EmailIntake {
 
 /**
  * Email intake's door for the emails its MTA posts (#442, #580): the EMAIL_INTAKE_INBOUND_SECRET in use (Clés, else env), Email intake's
- * switch on the Sources tab (#448), its limits in use (Paramètres, else env), texts sealed under SECRETS_MASTER_KEYS, emails to read queued for the worker.
+ * switch on the Sources tab (#448), its limits in use (Paramètres, else env), texts sealed under SECRETS_MASTER_KEYS, emails to read queued for the worker;
+ * while APPLICATION_EXCHANGES_ENABLED is on, the emails about an Application arrive as Exchanges (#1099).
  */
 export function getEmailIntakeInbound(): EmailIntakeInbound {
   inbound ??= createEmailIntakeInbound(sharedPool(), {
@@ -58,6 +60,8 @@ export function getEmailIntakeInbound(): EmailIntakeInbound {
     switchedOn: async () => (await getSearchSites().jobDiscoverySources()).email_intake,
     cipher: () => (cipher ??= secretCipherFromEnv(process.env)),
     queue: getJobQueue(),
+    // An Application's Exchanges (#1099): off by default (APPLICATION_EXCHANGES_ENABLED), read at each email.
+    exchanges: { on: exchangesOn, arrive: (client, candidateId, email) => getExchanges().arrive(client, candidateId, email) },
     settings: () => {
       const { dailyCap, mtaIpRanges } = emailIntakeLimits(getPlatformSettingsResolver().current());
       return { secret: getSecretResolver().current().env.EMAIL_INTAKE_INBOUND_SECRET, mtaIpRanges, dailyCap };

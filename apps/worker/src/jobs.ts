@@ -17,6 +17,7 @@ import { purgeStaleCoachConversations, RETENTION_MONTHS } from "@jobhub/web/coac
 import {
   ACTIVITY_RETENTION_MONTHS as EMAIL_INTAKE_ACTIVITY_RETENTION_MONTHS,
   EMAIL_INTAKE_READ_QUEUE,
+  EXCHANGE_CHECK_QUEUE,
   purgeEmailIntakeActivity,
   purgeReceivedOfferEmails,
   RETENTION_MONTHS as RECEIVED_EMAIL_RETENTION_MONTHS,
@@ -24,6 +25,7 @@ import {
 } from "@jobhub/web/email-intake";
 import { purgeExpiredGuardrailTriggers, TRIGGER_RETENTION_MONTHS as GUARDRAIL_TRIGGER_RETENTION_MONTHS } from "@jobhub/web/guardrails";
 import { purgeUnansweredQuestions } from "@jobhub/web/unanswered-questions";
+import { createExchanges, OFFERED_RETENTION_DAYS } from "@jobhub/web/exchanges";
 import { purgeSignalements, RETENTION_MONTHS as SIGNALEMENT_RETENTION_MONTHS } from "@jobhub/web/signalements";
 import { GUEST_RETENTION_DAYS as EXTENSION_EVENT_GUEST_RETENTION_DAYS, purgeExtensionEvents, RETENTION_MONTHS as EXTENSION_EVENT_RETENTION_MONTHS,
 } from "@jobhub/web/extension-events";
@@ -172,6 +174,15 @@ export const EMAIL_INTAKE_PURGE = "email-intake.purge";
  */
 export const EMAIL_INTAKE_READ = EMAIL_INTAKE_READ_QUEUE;
 
+/**
+ * Queue name: check one Exchange with the « Contenu piégé dans un email » Guardrail before it is kept (#1099,
+ * exchanges/check.ts). Data: { exchangeId }, queued by the inbound route while APPLICATION_EXCHANGES_ENABLED is on. A
+ * try that fails is tried again; one never checked is forgotten after CHECK_RETENTION_HOURS (EXCHANGES_PURGE).
+ */
+export const EXCHANGE_CHECK = EXCHANGE_CHECK_QUEUE;
+/** Queue name: forget the emails offered to tie (« Rattacher à … ? ») past OFFERED_RETENTION_DAYS and those never checked (#1099). Runs hourly. */
+export const EXCHANGES_PURGE = "exchanges.purge";
+
 /** Queue name: delete the Back Office Audit entries made BACK_OFFICE_AUDIT_RETENTION_YEARS ago or more. Runs nightly. */
 export const BACK_OFFICE_AUDIT_PURGE = "back-office-audit.purge";
 /**
@@ -292,6 +303,8 @@ export interface JobsDeps {
   alertAppleFailure?: (failed: AppleFailure[]) => Promise<void>;
   /** Email intake's reading of a Received offer email (#445). Without it, nothing is read: the emails wait. */
   emailReading?: Pick<EmailReading, "read">;
+  /** An Exchange's check by the email Guardrail (#1099). Without it, none is checked: the Exchanges wait, then are forgotten. */
+  exchangeCheck?: (exchangeId: string) => Promise<"kept" | "offered" | "dropped" | null>;
   /** Queues another job of this worker. */
   enqueue: (name: string, data: object) => Promise<void>;
   log?: (line: string) => void;
@@ -1037,6 +1050,25 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         const { outcome } = await deps.emailReading.read(id);
         log(`[email-intake] Received offer email ${id} read: ${outcome}`);
       },
+    },
+
+    [EXCHANGE_CHECK]: {
+      retry: { limit: 2, delaySeconds: 600, backoff: true },
+      handler: async (data) => {
+        const id = typeof data === "object" && data !== null ? (data as { exchangeId?: unknown }).exchangeId : undefined;
+        if (typeof id !== "string") return log(`[exchanges] ignored a malformed job`);
+        if (!deps.exchangeCheck) return log(`[exchanges] Exchange ${id} not checked: no check in this worker`);
+        log(`[exchanges] Exchange ${id} checked: ${(await deps.exchangeCheck(id)) ?? "not waiting"}`);
+      },
+    },
+
+    [EXCHANGES_PURGE]: {
+      cron: "25 * * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const purged = await createExchanges(deps.database).purge(now());
+          if (purged) log(`[exchanges] ${purged} email(s) offered past ${OFFERED_RETENTION_DAYS} days, or never checked, forgotten`);
+        }),
     },
 
     [EMAIL_INTAKE_PURGE]: {

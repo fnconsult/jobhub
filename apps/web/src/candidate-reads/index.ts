@@ -223,6 +223,7 @@ const conversationRead = (conversation: CoachConversation, coachSpaceV2: boolean
     ...(message.jobOffer && { jobOffer: message.jobOffer }),
     ...(message.cards && { cards: message.cards }),
     ...(message.seenNames && { seenNames: message.seenNames }),
+    ...(message.redirect && { redirect: message.redirect }),
   })),
   context: {
     messages: conversation.context.messages,

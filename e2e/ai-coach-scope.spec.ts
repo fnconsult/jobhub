@@ -50,6 +50,8 @@ const REDIRECT_ROWS = [
   "search_criteria",
   "job_offer_unpublished",
   "interview_delete",
+  "coach_memory",
+  "coach_conversation_delete",
   "account_delete",
 ];
 
@@ -85,6 +87,8 @@ test.describe("the AI Coach's rules: which object, and where to send the Candida
     expect(table).toMatch(/restaurer une version du CV de référence/);
     expect(table).toMatch(/n'est plus publiée/);
     expect(table).toMatch(/supprimer/);
+    // Every deletion the Candidate makes themselves has its row: a Profile, an Interview, a Coach Memory item, a Coach Conversation, the account.
+    for (const deletion of [/archive/, /supprimer un entretien/, /supprimer un élément de la mémoire du coach/, /supprimer une conversation/, /supprimer son compte/]) expect(table).toMatch(deletion);
     expect(table).toMatch(/créer un profil/);
     expect(table).toMatch(/critère de recherche que la carte ne modifie pas/);
     // The model is told never to write the link itself.

@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { renderInFrench } from "@/design/testing";
+import { WorkPaneContext } from "@/components/work-pane";
 import { CoachRedirectLink } from "./CoachRedirectLink";
 
 describe("CoachRedirectLink, a reply's Typed redirect (ADR-0114)", () => {
@@ -22,5 +23,19 @@ describe("CoachRedirectLink, a reply's Typed redirect (ADR-0114)", () => {
     const { container } = renderInFrench(<CoachRedirectLink redirect={{ page: "Ailleurs", section: null, object: "x", href: "//example.org" }} />);
 
     expect(container.textContent).toBe("");
+  });
+
+  it("opens the Coach Memory beside the conversation, where its items are changed or deleted, without leaving the page", () => {
+    const open = vi.fn();
+    renderInFrench(
+      <WorkPaneContext.Provider value={{ item: null, open, close: vi.fn() }}>
+        <CoachRedirectLink redirect={{ page: "Coach", section: null, object: "Mémoire du coach", href: "/?memoire" }} />
+      </WorkPaneContext.Provider>,
+    );
+
+    const link = screen.getByRole("link", { name: "Coach › Mémoire du coach" });
+    expect(link.getAttribute("href")).toBe("/?memoire");
+    expect(fireEvent.click(link)).toBe(false);
+    expect(open).toHaveBeenCalledWith({ kind: "memory" });
   });
 });

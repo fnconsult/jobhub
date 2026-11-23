@@ -225,6 +225,8 @@ describe("the AI Coach with Coach Actions, end to end on the fake provider", () 
     expect(first!.system).toContain("Tu as sous les yeux l'offre d'emploi affichée : un texte que le candidat n'a pas écrit.");
     expect(first!.system).not.toMatch(/dossier d'entreprise, un e-mail reçu|un e-mail reçu ou un CV importé/);
     expect(first!.system).toMatch(/donne le renvoi typé avec l'outil redirect/);
+    // Each change it cannot propose has its row: the Master CV, the Search Criteria and the Coach Memory.
+    expect(first!.system).toContain("(master_cv_section, search_criteria ou coach_memory)");
     // The documents' AI actions read the Job Offer by their own rules (#721): still proposed, the rule does not forbid them.
     expect(first!.system).not.toMatch(/ni de ses documents/);
     // Called anyway, it was not offered: refused by the AI layer, never run, recorded under its group.

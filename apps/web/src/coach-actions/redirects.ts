@@ -23,8 +23,8 @@ import type { TypedRedirect } from "./redirect-line";
 
 export { readTypedRedirect, redirectLine, typedRedirectSchema, type TypedRedirect } from "./redirect-line";
 
-/** What a row's object is about: a Profile, an Application, or the Candidate's account. */
-type RedirectScope = "profile" | "application" | "account" | "none";
+/** What a row's object is about: a Profile, an Application, the AI Coach's own (« Coach » in the menu), or the Candidate's account. */
+type RedirectScope = "profile" | "application" | "coach" | "account" | "none";
 
 /**
  * The redirect table: one row per object the Candidate changes themselves, with no Coach Action (ADR-0114).
@@ -40,6 +40,8 @@ export const REDIRECT_TABLE = {
   search_criteria: { scope: "profile", what: "choisir soi-même un critère de recherche que la carte ne modifie pas (secteur, type de contrat, télétravail…)" },
   job_offer_unpublished: { scope: "application", what: "signaler qu'une offre n'est plus publiée" },
   interview_delete: { scope: "application", what: "supprimer un entretien saisi par erreur" },
+  coach_memory: { scope: "coach", what: "modifier ou supprimer un élément de la mémoire du coach, ou y retenir ce que tu ne peux pas proposer" },
+  coach_conversation_delete: { scope: "coach", what: "supprimer une conversation (ses actions « … » à côté de son nom, sous « Coach » dans le menu) ou en effacer les messages (« Effacer la conversation »)" },
   account_delete: { scope: "account", what: "supprimer son compte ou ses données" },
 } as const satisfies Record<string, { scope: RedirectScope; what: string }>;
 
@@ -50,6 +52,7 @@ export const REDIRECT_TARGETS = Object.keys(REDIRECT_TABLE) as RedirectTarget[];
 export const REDIRECT_OF_ACTION: Readonly<Record<string, RedirectTarget>> = {
   propose_master_cv_changes: "master_cv_section",
   propose_search_criteria: "search_criteria",
+  propose_coach_memory: "coach_memory",
   propose_profile_archive: "profile_delete",
   propose_profile_restore: "profile_delete",
 };
@@ -115,6 +118,8 @@ export function createRedirects(sources: RedirectSources | null): Redirects {
       const object = t(`coachRedirects.objects.${target}`);
       const { scope } = REDIRECT_TABLE[target];
       if (scope === "none") return { page: t("coachRedirects.pages.newProfile"), section: null, object, href: routes.newProfile };
+      // The AI Coach's own, under « Coach » in the menu: the Coach Memory opens beside the conversation.
+      if (scope === "coach") return { page: t("coachRedirects.pages.coach"), section: null, object, href: target === "coach_memory" ? routes.coachMemory : routes.home };
       if (scope === "account") return { page: t("coachRedirects.pages.account"), section: t("coachRedirects.sections.data"), object, href: routes.accountData };
       if (scope === "application") {
         const found = await application(call.candidateId, call.applicationId ?? (call.inView?.kind === "application" ? call.inView.id : undefined));

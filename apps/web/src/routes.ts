@@ -69,6 +69,8 @@ export const routes = {
   /** « Mes signalements » (#377): the Candidate's Signalements and the team's replies; where the Signalement notification leads. */
   accountSignalements: "/compte/signalements",
   accountData: "/compte/donnees",
+  /** The Coach Memory, opened in the Work Pane beside the page's conversation (`?memoire`, ADR-0114's Typed redirect). */
+  coachMemory: "/?memoire",
   newProfile: "/profils/nouveau",
   /**
    * « Reprendre la création » (#999): a Profile born during its onboarding and not finished, at its review on

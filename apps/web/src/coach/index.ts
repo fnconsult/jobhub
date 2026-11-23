@@ -296,7 +296,7 @@ ${redirectTableText()}
  * (ADR-0114): what is In view, as Coach Actions name it.
  */
 export const narrowedRule = (reason: string) =>
-  `Tu as sous les yeux ${reason} : un texte que le candidat n'a pas écrit. Dans cette réponse, tu ne peux proposer aucune modification qui en recopierait : ni de son CV de référence, ni de ses critères de recherche, ni de sa mémoire. S'il en demande une, dis-lui pourquoi en une phrase et donne le renvoi typé avec l'outil ${REDIRECT_ACTION} (master_cv_section ou search_criteria).`;
+  `Tu as sous les yeux ${reason} : un texte que le candidat n'a pas écrit. Dans cette réponse, tu ne peux proposer aucune modification qui en recopierait : ni de son CV de référence, ni de ses critères de recherche, ni de sa mémoire. S'il en demande une, dis-lui pourquoi en une phrase et donne le renvoi typé avec l'outil ${REDIRECT_ACTION} (master_cv_section, search_criteria ou coach_memory).`;
 
 /** What narrows a Session Report's reply (ADR-0098): its text, written by a Human Coach. */
 const SESSION_REPORT_REASON = "le compte rendu d'un coach humain";

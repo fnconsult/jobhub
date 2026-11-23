@@ -7224,7 +7224,8 @@
       "newProfile": "Create a profile",
       "application": "Application {{name}}",
       "applications": "My applications",
-      "account": "My account"
+      "account": "My account",
+      "coach": "Coach"
     },
     "sections": {
       "searchCriteria": "Search criteria",
@@ -7240,6 +7241,8 @@
       "search_criteria": "Your criteria",
       "job_offer_unpublished": "Report that the offer is no longer published",
       "interview_delete": "Delete the interview",
+      "coach_memory": "Coach memory",
+      "coach_conversation_delete": "Delete the conversation",
       "account_delete": "Delete my account"
     },
     "label": "Where to do it yourself"

@@ -79,6 +79,8 @@ describe("typed redirects (ADR-0114)", () => {
       "search_criteria",
       "job_offer_unpublished",
       "interview_delete",
+      "coach_memory",
+      "coach_conversation_delete",
       "account_delete",
     ]);
     const redirects = createRedirects(sources());
@@ -93,6 +95,23 @@ describe("typed redirects (ADR-0114)", () => {
     expect(await redirects.to("rename_everything", { candidateId: "marie", language: "fr" })).toBeNull();
     expect(redirectTableText().split("\n")).toHaveLength(REDIRECT_TARGETS.length);
     expect(Object.values(REDIRECT_OF_ACTION).every((target) => REDIRECT_TARGETS.includes(target))).toBe(true);
+  });
+
+  it("cover each deletion the Candidate makes themselves: an item of the Coach Memory, a Coach Conversation, under « Coach » in the menu", async () => {
+    const redirects = createRedirects(sources());
+    expect(await redirects.to("coach_memory", { candidateId: "marie", language: "fr", inView: { kind: "profile", id: "p-finance" } })).toEqual({
+      page: "Coach",
+      section: null,
+      object: "Mémoire du coach",
+      href: "/?memoire",
+    });
+    expect(await redirects.to("coach_conversation_delete", { candidateId: "marie", language: "en" })).toEqual({ page: "Coach", section: null, object: "Delete the conversation", href: "/" });
+    expect(redirectTableText()).toMatch(/- coach_memory : .*supprimer/);
+    expect(redirectTableText()).toMatch(/- coach_conversation_delete : supprimer une conversation/);
+  });
+
+  it("send each Coach Action a reply may be refused to the row where the Candidate does it themselves, a memory to remember included", () => {
+    expect(REDIRECT_OF_ACTION).toMatchObject({ propose_master_cv_changes: "master_cv_section", propose_search_criteria: "search_criteria", propose_coach_memory: "coach_memory" });
   });
 
   it("need no one's data to be built: on no objects, the page lists them", async () => {

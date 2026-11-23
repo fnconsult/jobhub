@@ -14,29 +14,14 @@
  * `REDIRECT_OF_ACTION` gives the row a refused Coach Action sends to (not offered, or narrowed by what was read).
  */
 import { createI18n } from "@jobhub/shared/i18n";
-import * as z from "zod";
 import type { Applications } from "../applications";
 import type { CoachFocus } from "../coach/context";
 import { MASTER_CV_EDIT_SECTIONS } from "../profiles/master-cv-proposal";
 import type { Profiles } from "../profiles";
 import { routes } from "../routes";
+import type { TypedRedirect } from "./redirect-line";
 
-/** A Typed redirect: where the Candidate does it themselves, shown under the reply as a link « page › section › object ». */
-export interface TypedRedirect {
-  page: string;
-  /** The page's Section, when the object is in one. */
-  section: string | null;
-  object: string;
-  /** Built by the server from the routes, never by the AI model. */
-  href: string;
-}
-
-export const typedRedirectSchema: z.ZodType<TypedRedirect> = z.object({
-  page: z.string().min(1).max(200),
-  section: z.string().max(200).nullable(),
-  object: z.string().min(1).max(200),
-  href: z.string().startsWith("/").max(500),
-});
+export { readTypedRedirect, redirectLine, typedRedirectSchema, type TypedRedirect } from "./redirect-line";
 
 /** What a row's object is about: a Profile, an Application, or the Candidate's account. */
 type RedirectScope = "profile" | "application" | "account" | "none";
@@ -164,6 +149,3 @@ export function createRedirects(sources: RedirectSources | null): Redirects {
 
 /** The redirect table as the AI Coach is told it: one line per row, the name to give `redirect`. */
 export const redirectTableText = () => REDIRECT_TARGETS.map((target) => `- ${target} : ${REDIRECT_TABLE[target].what}`).join("\n");
-
-/** A Typed redirect in one line, as the AI Coach and the Candidate read it: « Profil Finance › CV de référence › Langues ». */
-export const redirectLine = (redirect: TypedRedirect) => [redirect.page, redirect.section, redirect.object].filter(Boolean).join(" › ");

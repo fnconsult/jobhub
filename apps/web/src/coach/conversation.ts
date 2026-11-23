@@ -8,6 +8,7 @@
 
 import { CONTEXT_CATEGORIES, DEFAULT_COACH_CONTEXT_LIMITS, type ContextCategory, type ConversationContext, type Provenance, type ReplyCost } from "@jobhub/shared";
 import type { CoachProposalCard } from "../coach-proposals/card";
+import type { TypedRedirect } from "../coach-actions/redirect-line";
 
 export interface CoachMessage {
   /** A published human-written Session Report, visibly signed and never labelled as AI. */
@@ -38,6 +39,8 @@ export interface CoachMessage {
    * Never given to the AI Coach.
    */
   seenNames?: Record<string, string>;
+  /** On a saved AI Coach reply: the Typed redirect it gives (ADR-0114), shown under it as a link. Never given to the AI Coach. */
+  redirect?: TypedRedirect;
 }
 
 /**

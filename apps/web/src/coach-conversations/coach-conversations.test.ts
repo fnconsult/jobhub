@@ -902,6 +902,33 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
     expect(reply.seenNames).toEqual({ [applicationHref]: "Airbus · Contrôleuse de gestion", [`/profils/${profile.profile.id}`]: profile.profile.name });
   });
 
+  it("keeps a reply's Typed redirect (ADR-0114), shown under it now and when the conversation reopens; never sent to the AI Coach", async () => {
+    const redirect = { page: "Profil Finance", section: "CV de référence", object: "Langues", href: "/profils/p1/cv" };
+    coachReply = (n) => ({ ok: true, reply: n === 1 ? "Ajoutez-la vous-même dans la rubrique Langues." : "Réponse 2", outcome: "replied", cost: cost(0.01), provenance: PROVENANCE, playbooks: [], consultations: [], ...(n === 1 ? { redirect } : {}) });
+
+    const sent = await conversations.send(marie, { message: "Ajoute l'allemand à mon CV de référence." });
+    if (!sent.ok) throw new Error("refused");
+    expect(sent.redirect).toEqual(redirect);
+    const again = await conversations.send(marie, { conversationId: sent.conversation.id, message: "Merci." });
+    if (!again.ok) throw new Error("refused");
+    expect(again).not.toHaveProperty("redirect");
+
+    const reopened = (await conversations.open(marie, sent.conversation.id))!.messages;
+    expect(reopened[1]).toMatchObject({ from: "coach", redirect });
+    expect(reopened[3]).not.toHaveProperty("redirect");
+    expect(JSON.stringify(asked[1]!.input.messages)).not.toContain("/profils/p1/cv");
+  });
+
+  it("keeps no Typed redirect that is not one, nor one with a link elsewhere than one of Jobbbox's pages", async () => {
+    coachReply = () => ({ ok: true, reply: "Voir ici.", outcome: "replied", cost: cost(0.01), provenance: PROVENANCE, playbooks: [], consultations: [], redirect: { page: "Ailleurs", section: null, object: "x", href: "https://example.org" } });
+
+    const sent = await conversations.send(marie, { message: "Où ?" });
+    if (!sent.ok) throw new Error("refused");
+
+    expect(sent).not.toHaveProperty("redirect");
+    expect((await conversations.open(marie, sent.conversation.id))!.messages[1]).not.toHaveProperty("redirect");
+  });
+
   describe("each reply's Provenance and focus (#327, ADR-0034)", () => {
     const applicationId = "33333333-3333-4333-8333-333333333333";
 

@@ -144,7 +144,7 @@ export function readCoachActions(reader: CoachObjectReader): CoachAction[] {
       "read_application",
       "application",
       "applications",
-      "Lit une candidature du candidat par son id : son statut, ses entretiens, son score de correspondance avec ses raisons et l'offre d'emploi.",
+      "Lit une candidature du candidat par son id : son statut, chacun de ses entretiens, passés compris (son id, sa date et son heure, sa durée, son format, son lieu ou son lien, sa note et son annulation), son score de correspondance avec ses raisons et l'offre d'emploi.",
     ),
     readOne(
       reader,

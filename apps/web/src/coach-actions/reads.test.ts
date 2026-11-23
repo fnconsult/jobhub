@@ -250,6 +250,21 @@ describe("read_application (#714)", () => {
     expect(recorder.provenance().sites).toEqual([{ kind: "candidate", links: ["/candidatures/a-airbus"] }]);
   });
 
+  it("gives each Interview in full, past ones included: its id, date and time in French time, duration, format, place or link, note and cancellation (ADR-0114)", async () => {
+    const interviews: Application["interviews"] = [
+      // Past: a week before the day of the reply.
+      { id: "i-past", scheduledAt: new Date("2026-10-28T09:30:00Z"), note: "Questions sur la consolidation", durationMinutes: 45, format: "on_site", place: "Siège, Toulouse", cancelledAt: null, reschedules: [] },
+      { id: "i-next", scheduledAt: new Date("2026-11-10T13:00:00Z"), note: "", durationMinutes: null, format: "video", place: "https://meet.example.com/abc", cancelledAt: new Date("2026-11-03T08:00:00Z"), reschedules: [] },
+    ];
+    const { read } = await setUp(workspace({ applications: [{ ...airbus, status: "interview", interviews }] }));
+
+    const { content } = await read("read_application", { id: airbus.id });
+
+    expect(content).toContain("Entretiens (heure de Paris), passés compris :");
+    expect(content).toContain("- entretien (id i-past) le mercredi 28 octobre 2026 à 10:30, 45 min, sur place, lieu : Siège, Toulouse ; note : Questions sur la consolidation");
+    expect(content).toContain("- entretien (id i-next) le mardi 10 novembre 2026 à 14:00, visio, lien : https://meet.example.com/abc [annulé le 2026-11-03]");
+  });
+
   it("is not_found for an Application of an Archived Profile, another Candidate's or an unknown id", async () => {
     const { read, reply } = await setUp();
 

@@ -36,12 +36,13 @@ import {
   type CriterionStatus,
   type CvContent,
   type IndustryReference,
+  type InterviewFormat,
   type JobOffer,
   type MatchScore,
   type SearchCriteria,
 } from "@jobhub/shared";
 import type { AgendaItem } from "../agenda";
-import { INTERVIEW_TIME_ZONE, type Application, type Applications } from "../applications";
+import { INTERVIEW_TIME_ZONE, type Application, type Applications, type Interview } from "../applications";
 import type { IdentityNames } from "../candidate-identity";
 import type { JobDigest, JobDigestSettings, JobDigests } from "../job-digests";
 import type { JobOffers } from "../job-offers";
@@ -440,16 +441,34 @@ export function applicationDetails(application: Application): string {
   return [
     `Statut : ${APPLICATION_STATUS[application.status]} depuis le ${day(application.statusChangedAt)} (enregistrée le ${day(application.createdAt)}).`,
     application.reportedUnavailableAt ? `Le candidat a signalé que l'offre n'est plus publiée (le ${day(application.reportedUnavailableAt)}).` : "",
-    application.interviews.length
-      ? ["Entretiens :", ...application.interviews.map(
-          (interview) => `- le ${day(interview.scheduledAt)}${interview.cancelledAt ? ` [annulé le ${day(interview.cancelledAt)}]` : ""}${interview.note ? ` : ${interview.note}` : ""}`,
-        )].join("\n")
-      : "",
+    application.interviews.length ? ["Entretiens (heure de Paris), passés compris :", ...application.interviews.map((interview) => `- ${interviewLine(interview)}`)].join("\n") : "",
     `${matchScoreText(application.matchScore)}.`,
     jobOfferText(application.jobOffer),
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+const INTERVIEW_FORMAT: Record<InterviewFormat, string> = { video: "visio", phone: "téléphone", on_site: "sur place" };
+
+/**
+ * One Interview in full (ADR-0114), past or to come, for the AI Coach to change, cancel or annotate it by its id: its date and
+ * time in French time, duration, format, place or link, cancellation and note, each left out when the Candidate gave none.
+ */
+export function interviewLine(interview: Pick<Interview, "id" | "scheduledAt" | "durationMinutes" | "format" | "place" | "cancelledAt" | "note">): string {
+  const place = interview.place.trim();
+  return [
+    [
+      `entretien (id ${interview.id}) le ${AGENDA_WHEN.format(interview.scheduledAt)}`,
+      interview.durationMinutes ? `${interview.durationMinutes} min` : "",
+      interview.format ? INTERVIEW_FORMAT[interview.format] : "",
+      place ? `${/^https?:\/\//i.test(place) ? "lien" : "lieu"} : ${place}` : "",
+    ]
+      .filter(Boolean)
+      .join(", "),
+    interview.cancelledAt ? ` [annulé le ${day(interview.cancelledAt)}]` : "",
+    interview.note.trim() ? ` ; note : ${interview.note.trim()}` : "",
+  ].join("");
 }
 
 export const JOB_SEARCH_STATUS = { searching: "en cours", done: "terminée", failed: "échouée", stopped: "arrêtée par le candidat" } as const;

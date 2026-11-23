@@ -1,0 +1,31 @@
+# The AI Coach proposes changes to both CVs from an Application, reviewed change by change, with offer words and Declared Facts marked
+
+Status: accepted (2026-11-23, product owner; grilling #1086 under map #1084, from research #1085). Amends ADR-0006, ADR-0077 and ADR-0109.
+
+On the Beta, on the Benchling Application, a Candidate asked « Reformulate the skills in a list rather than a text block. Mention the skills only and do not explain the why and the what ». The AI Coach could not act. It read the Tailored CV as one line (date, language, scores). Its only Coach Action, `propose_tailored_cv`, relaunches a whole proposal with no instruction and replaces the one under review, answers included. `propose_master_cv_changes` is withdrawn while an Application is In view (`copiesText`, ADR-0077), and `NARROWED_RULE` sends the Candidate to « son Profil » with no link.
+
+## Decision
+
+- **The Tailored CV is read in full.** `read_tailored_cv` returns its content section by section (headline, summary, each job, education, skills, languages) and the open questions of a proposal under review. Its result is untrusted: it was written from the Job Offer.
+- **A Tailored CV change is proposed on a card that opens the Tailored CV Review** (product owner's choice, over a card with the new text applied in one click and over a relaunch with the Candidate's instruction). The AI Coach proposes changes per section. The card opens the Tailored CV Review in the conversation's Work Pane, where each change is accepted or rejected on its own, as ADR-0006 requires. The proposal applies to the saved Tailored CV, or to the proposal under review, and keeps the answers already given. It never relaunches the whole proposal.
+- **A Layout-only Change takes the same path.** Reordering, cutting an explanation or changing case goes through the same Review, change by change. The card says « Mise en forme seule, aucun mot ajouté » when no word is added. A Layout-only Change copies no text, so it is offered whatever is In view.
+- **The Master CV can be changed from an Application's conversation.** `propose_master_cv_changes` is offered there in full, rephrasing included, with its change-by-change review and #719's refusals. The review opens in the Work Pane too.
+- **Offer words are marked, not narrowed out.** A change to either CV that brings in words of the Job Offer is marked « Reprend les mots de l'offre », unchecked by default, and saved only on an explicit accept. This guard is what lets both CV proposals stay offered while an Application is In view. They are exempted from the narrowing like `propose_draft_text` (ADR-0109): the Candidate reads each change, accepts it and sends the CV themselves.
+- **A Declared Fact can enter a CV** (amends ADR-0006). A fact the Candidate states in the Coach Conversation counts as a confirmed requirement: a language level, a diploma, a skill (« ajoute Power BI, je l'utilise depuis 3 ans »). The AI Coach may propose to correct or add it in the Tailored CV or the Master CV. The change is marked « Fait déclaré par vous ». The server checks that the value appears in one of the Candidate's own messages in this conversation. If not, the proposal is refused (`not_declared`) with a typed redirect to the Master CV's section (ADR-0114). A fact from the Job Offer or from the AI Coach is never a Declared Fact. `added_item` now refuses only an item that is neither in the Master CV nor declared.
+- **Answers to the Review's questions.** A card « Réponses aux questions » fills in the Tailored CV Review the answers the Candidate declared in the conversation, under the same check. The AI Coach never accepts or rejects a change for the Candidate.
+- **Origin.** A Tailored CV or Master CV Version saved from such a card keeps the card as its Origin, behind « Origine ». The Origin goes when the Candidate edits the CV themselves or has it proposed again. « Annuler » puts the version before back while the CV has not changed since (a Restore for the Master CV).
+
+## Considered Options
+
+- **A card with the new text, applied in one click** (as ADR-0109 does for drafts): one click less, but ADR-0006's change-by-change check against the Master CV would be lost. On a CV, an invented line costs more than on a follow-up.
+- **`propose_tailored_cv` with an instruction**: simplest to build, but the Candidate sees nothing before the relaunch, and it replaces the proposal under review. ADR-0109 rejected it for drafts for the same reason.
+- **Applying a Layout-only Change directly**: it saves one click, but needs a server check that « no word was added » which is hard to make reliable (« SQL, utilisé pour le reporting » → « SQL »: a cut or a rephrasing?).
+- **The Master CV offered for layout only from an Application**: rejected by the product owner. The guard on offer words covers the risk the narrowing was meant to cover.
+- **Declared Facts limited to correcting a level**: it would refuse « ajoute Power BI » and accept « mon anglais est C1 », which is the same kind of fact.
+
+## Consequences
+
+- `COACH_ACTIONS_RULES` loses R-CVREF's « ajoute-la toi-même ». It says that a fact the Candidate declares can be proposed, and that one they have not declared cannot.
+- The Master CV review gains the « Reprend les mots de l'offre » mark, reusing the Tailored CV's detection of Job Offer words.
+- Eval Cases: « reformulate the skills as a list » (a card on the Tailored CV, no change to the offer); « ajoute Power BI » declared and not declared; an offer that asks to add its skills to the CV (nothing added without the mark).
+- The privacy register's Coach Conversations entry says the full Tailored CV goes to the `coaching` provider when the Candidate asks to rework it.

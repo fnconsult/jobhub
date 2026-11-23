@@ -28,7 +28,7 @@ import * as z from "zod";
 import { frenchDateTime, INTERVIEW_NOTE_MAX_LENGTH, INTERVIEW_TIME_ZONE, interviewWallClock, type Application, type ApplicationChangeResult, type Applications, type Interview, type InterviewState } from "../applications";
 import { readOrigin } from "../origin";
 import { routes } from "../routes";
-import { defineCoachAction, type ApplyProposalResult, type CoachAction, type ProposalField, type ProposedChange, type UndoProposalResult } from "./index";
+import { defineCoachAction, type ApplyProposalResult, type CoachAction, type CoachActionCall, type ProposalField, type ProposedChange, type UndoProposalResult } from "./index";
 
 type Translate = ReturnType<typeof createI18n>["t"];
 
@@ -43,6 +43,8 @@ export type AgendaApplications = Pick<
 /** A date and time as the Interview form takes it, in French time: "2026-11-12T14:00". */
 const wallClock = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "AAAA-MM-JJTHH:MM, heure de Paris");
 const id = z.string().min(1).max(200);
+/** The Application: omitted, the one In view. */
+const applicationIdArgument = id.optional().describe("L'id de la candidature ; omis, la candidature consultée.");
 const interviewFields = {
   scheduledAt: wallClock.describe("Date et heure absolues, heure de Paris, au format AAAA-MM-JJTHH:MM (ex. 2026-11-12T14:00)."),
   durationMinutes: z.number().int().min(1).max(1440).describe("Durée en minutes, si le candidat la donne."),
@@ -61,6 +63,16 @@ const interviewFields = {
 const NOTE =
   "La note (note) est le texte privé du candidat : propose-la quand il le demande (« note les questions qu'on m'a posées »), en entier, jamais dans ta réponse ; il la relit sur la carte et l'applique lui-même.";
 const EVERY_DATE = "Tout entretien, passé ou à venir, quelle que soit sa date : ses ids sont dans read_application (la candidature) ou list_objects (type agenda_item, à venir seulement).";
+
+/** The Application a call is about: the one named, else the one In view; undefined when there is neither. */
+const applicationIdOf = (named: string | undefined, call: CoachActionCall) => named ?? (call.inView?.kind === "application" ? call.inView.id : undefined);
+
+/** No Application named nor In view: the AI Coach is told to find it, no card is made. */
+const WHICH_APPLICATION = {
+  ok: true,
+  proposes: false,
+  data: { message: "Aucune candidature n'est consultée : précise-la (applicationId, lu avec list_objects ou read_application), ou demande au candidat de quelle candidature il s'agit." },
+} as const;
 
 const RELATIVE_DATES =
   "Une date relative (« jeudi prochain à 14 h », « demain matin ») se calcule à partir de la date du jour donnée dans le contexte : envoie toujours la date absolue, en heure de Paris.";
@@ -204,13 +216,13 @@ export function agendaCoachActions(applications: AgendaApplications): CoachActio
     defineCoachAction({
       name: AGENDA_ACTIONS.add,
       description: [
-        "Propose d'ajouter un entretien à une candidature du candidat (applicationId : l'id de la candidature, trouvé avec list_objects au besoin), à une date et heure absolues en heure de Paris, avec sa durée, son format et son lieu ou lien quand le candidat les donne.",
+        "Propose d'ajouter un entretien à une candidature du candidat (applicationId : l'id de la candidature, trouvé avec list_objects au besoin ; omis, la candidature consultée), à une date et heure absolues en heure de Paris, avec sa durée, son format et son lieu ou lien quand le candidat les donne.",
         "Si la candidature n'est pas au statut Entretien, la proposition l'y passe aussi.",
         RELATIVE_DATES,
         NOTE,
       ].join(" "),
       schema: z.object({
-        applicationId: id,
+        applicationId: applicationIdArgument,
         scheduledAt: interviewFields.scheduledAt,
         durationMinutes: interviewFields.durationMinutes.optional(),
         format: interviewFields.format.optional(),
@@ -221,7 +233,10 @@ export function agendaCoachActions(applications: AgendaApplications): CoachActio
       kind: "propose",
       copiesText: true,
       sentByCandidate: true,
-      async run({ applicationId, scheduledAt, durationMinutes, format, place, note }, { candidateId, language }) {
+      async run({ applicationId: named, scheduledAt, durationMinutes, format, place, note }, call) {
+        const { candidateId, language } = call;
+        const applicationId = applicationIdOf(named, call);
+        if (!applicationId) return WHICH_APPLICATION;
         const application = await activeApplication(candidateId, applicationId);
         const state = application ? await applications.statusOf(candidateId, applicationId) : null;
         const at = fromWallClock(scheduledAt);
@@ -282,7 +297,7 @@ export function agendaCoachActions(applications: AgendaApplications): CoachActio
     defineCoachAction({
       name: AGENDA_ACTIONS.change,
       description: [
-        "Propose de modifier un entretien du candidat (applicationId et interviewId) : une nouvelle date et heure absolues en heure de Paris (un report), sa durée, son format, son lieu ou lien, ou sa note. N'envoie que ce qui change.",
+        "Propose de modifier un entretien du candidat (interviewId, et applicationId ; omis, la candidature consultée) : une nouvelle date et heure absolues en heure de Paris (un report), sa durée, son format, son lieu ou lien, ou sa note. N'envoie que ce qui change.",
         EVERY_DATE,
         RELATIVE_DATES,
         NOTE,
@@ -290,7 +305,7 @@ export function agendaCoachActions(applications: AgendaApplications): CoachActio
       ].join(" "),
       schema: z
         .object({
-          applicationId: id,
+          applicationId: applicationIdArgument,
           interviewId: id,
           scheduledAt: interviewFields.scheduledAt.optional(),
           durationMinutes: interviewFields.durationMinutes.optional(),
@@ -306,7 +321,10 @@ export function agendaCoachActions(applications: AgendaApplications): CoachActio
       kind: "propose",
       copiesText: true,
       sentByCandidate: true,
-      async run({ applicationId, interviewId, scheduledAt, durationMinutes, format, place, note }, { candidateId, language }) {
+      async run({ applicationId: named, interviewId, scheduledAt, durationMinutes, format, place, note }, call) {
+        const { candidateId, language } = call;
+        const applicationId = applicationIdOf(named, call);
+        if (!applicationId) return WHICH_APPLICATION;
         const found = await interviewOf(candidateId, applicationId, interviewId);
         const at = scheduledAt === undefined ? null : fromWallClock(scheduledAt);
         if (!found || found.state.interview.cancelledAt || (scheduledAt !== undefined && !at)) return { ok: false, error: "not_found" };
@@ -348,15 +366,18 @@ export function agendaCoachActions(applications: AgendaApplications): CoachActio
     defineCoachAction({
       name: AGENDA_ACTIONS.cancel,
       description: [
-        "Propose d'annuler un entretien du candidat qui n'aura pas lieu ou n'a pas eu lieu (applicationId et interviewId) : il reste dans l'agenda, barré.",
+        "Propose d'annuler un entretien du candidat qui n'aura pas lieu ou n'a pas eu lieu (interviewId, et applicationId ; omis, la candidature consultée) : il reste dans l'agenda, barré.",
         EVERY_DATE,
         NO_DELETE,
       ].join(" "),
-      schema: z.object({ applicationId: id, interviewId: id }),
+      schema: z.object({ applicationId: applicationIdArgument, interviewId: id }),
       group: "agenda",
       kind: "propose",
       copiesText: false,
-      async run({ applicationId, interviewId }, { candidateId, language }) {
+      async run({ applicationId: named, interviewId }, call) {
+        const { candidateId, language } = call;
+        const applicationId = applicationIdOf(named, call);
+        if (!applicationId) return WHICH_APPLICATION;
         const found = await interviewOf(candidateId, applicationId, interviewId);
         if (!found || found.state.interview.cancelledAt) return { ok: false, error: "not_found" };
         const { t } = createI18n(language);

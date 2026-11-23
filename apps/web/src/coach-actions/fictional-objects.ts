@@ -1,7 +1,9 @@
 /**
  * An Eval Case's fictional objects as the read Coach Actions find them (#714): the same reads as the app's, on no one's
  * data. Each object is given as its read tells it (`text`) with what the index shows of it; an id the case does not give,
- * or given with another type, is not_found. It keeps which objects were read, for the Eval Run to check.
+ * or given with another type, is not_found. It keeps which objects were read, for the Eval Run to check: each by its id,
+ * and by its type and id (« company_dossier:a1 »), since an Application's Company Dossier, Enriched Contacts and Coach
+ * Reviews are read by the Application's id (ADR-0114).
  */
 import { fitted, type CoachObjectReader, type IndexedObjectType, type ReadObjectType } from "./reads";
 
@@ -34,7 +36,7 @@ export function fictionalObjects(objects: readonly FictionalObject[]): CoachObje
     async read(_candidateId, type, id, maxTokens) {
       const object = objects.find((each) => each.id === id && each.type === type);
       if (!object) return null;
-      if (!read.includes(id)) read.push(id);
+      for (const key of [id, `${type}:${id}`]) if (!read.includes(key)) read.push(key);
       return { text: fitted([object.text], maxTokens), pages: [], untrusted: UNTRUSTED.includes(object.type) };
     },
     readIds: () => [...read],

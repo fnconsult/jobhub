@@ -388,6 +388,16 @@ describe.skipIf(!connectionString)("the Agenda's Coach Actions, applied (#718, n
       expect(await run(AGENDA_ACTIONS.change, { applicationId, interviewId, note: "Avec la DRH" })).toMatchObject({ ok: true, proposes: false });
     });
 
+    it("needs no applicationId with the Application In view, as « enregistre-la » needs none", async () => {
+      const interviewId = await enteredInterview();
+      const action = catalog.find((each) => each.name === AGENDA_ACTIONS.change)!;
+
+      const inView = await action.run(action.schema.parse({ interviewId, note: "Avec la DRH" }), { candidateId: marie, language: "fr", inView: { kind: "application", id: applicationId } });
+      expect(inView).toMatchObject({ ok: true, data: { target: { id: applicationId }, value: { interviewId, note: "Avec la DRH" } } });
+      const none = await action.run(action.schema.parse({ interviewId, note: "Avec la DRH" }), { candidateId: marie, language: "fr" });
+      expect(none).toMatchObject({ ok: true, proposes: false });
+    });
+
     it("moves or cancels a past Interview too, whatever its date", async () => {
       const interviewId = await enteredInterview("2026-11-02T10:00");
 

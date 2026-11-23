@@ -1,4 +1,5 @@
 import {secretCipherFromEnv,type SecretCipher} from "../provider-secrets/cipher";
+import type { Exchanges } from "../exchanges";
 import {taxDataOf} from "../coaching-tax";
 import {contentReportsOf} from "../coaching-content-reports";
 import {coachingNotificationsOf} from "../coaching-notifications";
@@ -698,6 +699,8 @@ export interface CandidateDataDeps {
   tailoredDocuments: Pick<TailoredDocuments, "get">;
   /** The versions of the Tailored Documents (#1079); without it, the export lists none. */
   tailoredDocumentVersions?: Pick<TailoredDocumentVersions, "list">;
+  /** The Candidate's Exchanges (#1099), whose sender, subject and text only it can open (sealed under SECRETS_MASTER_KEYS). */
+  exchanges: Pick<Exchanges, "exportOf">;
   /** Ends the Candidate's paid Plan, if any, before the account goes. Without it, there is nothing to close. */
   billing?: { closeAccount(candidateId: string): Promise<void> };
 }
@@ -790,6 +793,15 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
     return (key) => groups.get(key) ?? [];
   }
 
+  /** Each Application's Exchanges: kept on it, or offered to it (an email offered to several Applications is listed under each). */
+  async function exchangesByApplication(candidateId: string): Promise<(applicationId: string) => ExportedApplicationExchange[]> {
+    const groups = new Map<string, ExportedApplicationExchange[]>();
+    for (const { applicationId, offeredTo, ...exchange } of await deps.exchanges.exportOf(candidateId)) {
+      for (const key of exchange.state === "kept" && applicationId ? [applicationId] : offeredTo) groups.set(key, [...(groups.get(key) ?? []), exchange]);
+    }
+    return (applicationId) => groups.get(applicationId) ?? [];
+  }
+
   async function exportApplications(candidateId: string): Promise<ExportedApplication[]> {
     const [summaries, followUpsOf, coachReviewsOf, enrichedContactsOf, companyDossiersOf, exchangesOf] = await Promise.all([
       deps.applications.list(candidateId),
@@ -814,13 +826,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
          FROM company_dossier d JOIN application a ON a.id = d.application_id WHERE a.candidate_id = $1`,
         candidateId,
       ),
-      // Kept on it, or offered to it (an email offered to several Applications is listed under each).
-      grouped<ExportedApplicationExchange>(
-      `SELECT a.id AS key, x.id, x.state, x.sender AS "from", x.subject, x.text, x.sent_at AS "sentAt", x.received_at AS "receivedAt"
-         FROM exchange x JOIN application a ON a.id = x.application_id OR (x.state = 'offered' AND a.id = ANY (x.offered_to))
-        WHERE x.candidate_id = $1 AND x.state IN ('kept', 'offered') ORDER BY x.received_at, x.id`,
-        candidateId,
-      ),
+      exchangesByApplication(candidateId),
     ]);
     const exported = await Promise.all(
       summaries.map(async ({ id }): Promise<ExportedApplication | null> => {

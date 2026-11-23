@@ -17,17 +17,21 @@
  *  - `checked`: the Guardrail's verdict. Blocked, nothing of it is kept; let through, its text is kept without what it
  *    hides from its reader, and it is kept on its Application, or offered (« Rattacher à Benchling ? »).
  *  - What is kept: its sender, the date it says it was sent, its subject and its text; never its attachments, images
- *    or headers (its Message-ID only, to find the replies in its thread and receive it once).
+ *    or headers (its Message-ID only, to find the replies in its thread and receive it once). Its sender, subject and
+ *    text are sealed at rest, per row, under SECRETS_MASTER_KEYS (AES-256-GCM, ../provider-secrets/cipher), as a Received
+ *    offer email's text is: the `exchange` table never holds them in clear, and a row's content opens on that row only.
  *  - Kept while the Application exists: deleted with it, or with the account (ON DELETE CASCADE); the Candidate can delete
  *    one (`remove`). An email offered and left waiting is forgotten after OFFERED_RETENTION_DAYS (`purge`), one the
  *    Guardrail never answered after CHECK_RETENTION_HOURS.
  *  - It never changes the Application Status.
  * Every read and change is scoped to the Candidate: another's id is not found.
  */
+import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import type { Queryable } from "../database/pool";
 import { utcBefore } from "../database/before";
 import { HIDDEN_TEXT_CLOSE, HIDDEN_TEXT_OPEN } from "../guardrails/email";
+import type { SealedSecret, SecretCipher, SecretPlace } from "../provider-secrets/cipher";
 import { matchExchange, type ApplicationLead } from "./matching";
 
 export { matchExchange, type ApplicationLead, type ExchangeMatch } from "./matching";
@@ -115,6 +119,11 @@ export interface Exchanges {
   exportOf(candidateId: string): Promise<ExportedExchange[]>;
   /** Forgets the emails offered past OFFERED_RETENTION_DAYS and those waiting for their Guardrail past CHECK_RETENTION_HOURS. */
   purge(now: Date): Promise<number>;
+  /**
+   * Seals again under the newest master key every Exchange sealed under an older one: how many moved. A row that does not
+   * open is left as it is. Without a keyring, none moves. Run by the worker with the Provider Secrets' (docs/ops/provider-secrets.md).
+   */
+  reencrypt(): Promise<number>;
 }
 
 /** The text its reader sees: what the email hides (marked by the inbound route) left out. */
@@ -130,10 +139,54 @@ export function shownText(text: string): string {
   return (shown + text.slice(from)).replace(/[ \t]{2,}/g, " ").trim();
 }
 
-const EXCHANGE_COLUMNS = `x.id, x.application_id AS "applicationId", x.sender AS "from", x.subject, x.text, x.sent_at AS "sentAt", x.received_at AS "receivedAt"`;
+/** What of an Exchange is sealed at rest: the email's own words and who wrote them. */
+export interface ExchangeContent {
+  from: string;
+  subject: string;
+  text: string;
+}
 
-export function createExchanges(database: Queryable, options: { now?: () => Date } = {}): Exchanges {
+/** Where an Exchange's sealed content belongs: it opens on its own row only. */
+const placeOf = (id: string): SecretPlace => ({ provider: "exchanges", name: "exchange", row: id });
+
+/** The content of the Exchange `id`, sealed for its row. */
+export function sealExchangeContent(cipher: SecretCipher, id: string, content: ExchangeContent): SealedSecret {
+  return cipher.seal(JSON.stringify({ from: content.from, subject: content.subject, text: content.text }), placeOf(id));
+}
+
+/** The content of the Exchange `id`, as sealed in its row. Throws SecretDecryptionError on a row moved, tampered or sealed under a key no longer held. */
+export function openExchangeContent(cipher: SecretCipher, id: string, sealed: SealedSecret): ExchangeContent {
+  const { from, subject, text } = JSON.parse(cipher.open(sealed, placeOf(id))) as ExchangeContent;
+  return { from, subject, text };
+}
+
+/** The sealed content's columns of `exchange x`, as a SealedSecret's fields. */
+const SEALED_COLUMNS = `x.content_ciphertext AS ciphertext, x.content_iv AS iv, x.content_tag AS tag, x.content_key_version AS "keyVersion"`;
+type SealedRow = { id: string } & SealedSecret;
+
+const EXCHANGE_COLUMNS = `x.id, x.application_id AS "applicationId", x.sent_at AS "sentAt", x.received_at AS "receivedAt", ${SEALED_COLUMNS}`;
+
+export interface ExchangesOptions {
+  /** The cipher over SECRETS_MASTER_KEYS that seals each Exchange's sender, subject and text; null while there is none (then none is kept nor read). */
+  cipher: () => SecretCipher | null;
+  now?: () => Date;
+}
+
+export function createExchanges(database: Queryable, options: ExchangesOptions): Exchanges {
   const now = options.now ?? (() => new Date());
+
+  function cipher(): SecretCipher {
+    const held = options.cipher();
+    // The inbound route receives nothing without it (503): an Exchange is never kept in clear.
+    if (!held) throw new Error("Exchanges are sealed under SECRETS_MASTER_KEYS, which holds no key");
+    return held;
+  }
+
+  /** A row's sealed content opened, its sealed columns left out. */
+  function opened<T extends SealedRow>(row: T, using: SecretCipher): Omit<T, keyof SealedSecret> & ExchangeContent {
+    const { ciphertext, iv, tag, keyVersion, ...rest } = row;
+    return { ...rest, ...openExchangeContent(using, row.id, { ciphertext, iv, tag, keyVersion }) };
+  }
 
   /** What the rules know of each of the Candidate's Applications. */
   async function leadsOf(client: Queryable, candidateId: string): Promise<ApplicationLead[]> {
@@ -149,21 +202,51 @@ export function createExchanges(database: Queryable, options: { now?: () => Date
   }
 
   return {
+    async reencrypt() {
+      const held = options.cipher();
+      if (!held) return 0;
+      const { rows } = await database.query<SealedRow>(`SELECT x.id, ${SEALED_COLUMNS} FROM exchange x WHERE x.content_key_version <> $1`, [held.activeVersion]);
+      let moved = 0;
+      for (const row of rows) {
+        let content: ExchangeContent;
+        try {
+          content = opened(row, held);
+        } catch {
+          continue;
+        }
+        const sealed = sealExchangeContent(held, row.id, content);
+        const { rowCount } = await database.query(
+          `UPDATE exchange SET content_ciphertext = $2, content_iv = $3, content_tag = $4, content_key_version = $5 WHERE id = $1 AND content_key_version = $6`,
+          [row.id, sealed.ciphertext, sealed.iv, sealed.tag, sealed.keyVersion, row.keyVersion],
+        );
+        moved += rowCount ?? 0;
+      }
+      return moved;
+    },
+
     async arrive(client, candidateId, email) {
       const match = matchExchange(email, await leadsOf(client, candidateId));
       if (match.kind === "none") return { arrived: "none" };
+      const id = randomUUID();
+      const sealed = sealExchangeContent(cipher(), id, {
+        from: email.from.trim().toLowerCase(),
+        subject: email.subject.trim().slice(0, MAX_SUBJECT_CHARACTERS),
+        text: email.text,
+      });
       const { rows } = await client.query<{ id: string }>(
-        `INSERT INTO exchange (candidate_id, application_id, offered_to, state, message_id, sender, subject, text, sent_at, received_at)
-         VALUES ($1, $2, $3, 'awaiting_check', $4, $5, $6, $7, $8, $9)
+        `INSERT INTO exchange (id, candidate_id, application_id, offered_to, state, message_id, content_ciphertext, content_iv, content_tag, content_key_version, sent_at, received_at)
+         VALUES ($1, $2, $3, $4, 'awaiting_check', $5, $6, $7, $8, $9, $10, $11)
          ON CONFLICT (candidate_id, message_id) DO NOTHING RETURNING id`,
         [
+          id,
           candidateId,
           match.kind === "tie" ? match.applicationId : null,
           match.kind === "offer" ? match.applicationIds : [],
           email.messageId,
-          email.from.trim().toLowerCase(),
-          email.subject.trim().slice(0, MAX_SUBJECT_CHARACTERS),
-          email.text,
+          sealed.ciphertext,
+          sealed.iv,
+          sealed.tag,
+          sealed.keyVersion,
           email.sentAt,
           now(),
         ],
@@ -176,22 +259,28 @@ export function createExchanges(database: Queryable, options: { now?: () => Date
         const { rowCount } = await database.query(`DELETE FROM exchange WHERE id = $1 AND state = 'awaiting_check'`, [id]);
         return rowCount ? "dropped" : null;
       }
-      const { rows } = await database.query<{ text: string }>(`SELECT text FROM exchange WHERE id = $1 AND state = 'awaiting_check'`, [id]);
+      const { rows } = await database.query<SealedRow>(`SELECT x.id, ${SEALED_COLUMNS} FROM exchange x WHERE x.id::text = $1 AND x.state = 'awaiting_check'`, [id]);
       if (!rows[0]) return null;
+      const using = cipher();
+      const { from, subject, text } = opened(rows[0], using);
+      // Sealed again: what it hides from its reader is not kept, in clear or sealed.
+      const sealed = sealExchangeContent(using, rows[0].id, { from, subject, text: shownText(text) });
       const { rows: updated } = await database.query<{ state: "kept" | "offered" }>(
-        `UPDATE exchange SET state = CASE WHEN application_id IS NULL THEN 'offered' ELSE 'kept' END, text = $2
-          WHERE id = $1 AND state = 'awaiting_check' RETURNING state`,
-        [id, shownText(rows[0].text)],
+        `UPDATE exchange SET state = CASE WHEN application_id IS NULL THEN 'offered' ELSE 'kept' END,
+                content_ciphertext = $2, content_iv = $3, content_tag = $4, content_key_version = $5
+          WHERE id::text = $1 AND state = 'awaiting_check' RETURNING state`,
+        [id, sealed.ciphertext, sealed.iv, sealed.tag, sealed.keyVersion],
       );
       return updated[0]?.state ?? null;
     },
 
     async toCheck(id) {
-      const { rows } = await database.query<{ candidateId: string; text: string }>(
-        `SELECT candidate_id AS "candidateId", text FROM exchange WHERE id = $1 AND state = 'awaiting_check'`,
+      const { rows } = await database.query<SealedRow & { candidateId: string }>(
+        `SELECT x.id, x.candidate_id AS "candidateId", ${SEALED_COLUMNS} FROM exchange x WHERE x.id::text = $1 AND x.state = 'awaiting_check'`,
         [id],
       );
-      return rows[0] ?? null;
+      if (!rows[0]) return null;
+      return { candidateId: rows[0].candidateId, text: opened(rows[0], cipher()).text };
     },
 
     async onApplication(candidateId, applicationId) {
@@ -203,22 +292,34 @@ export function createExchanges(database: Queryable, options: { now?: () => Date
       );
       if (!owned[0]) return null;
       const [kept, offered] = await Promise.all([
-        database.query<Exchange>(`SELECT ${EXCHANGE_COLUMNS} FROM exchange x WHERE x.candidate_id = $1 AND x.application_id::text = $2 AND x.state = 'kept' ORDER BY x.received_at, x.id`, [
-          candidateId,
-          applicationId,
-        ]),
-        database.query<Omit<OfferedExchange, "employer">>(
-          `SELECT x.id, x.sender AS "from", x.subject, x.sent_at AS "sentAt", x.received_at AS "receivedAt"
+        database.query<Omit<Exchange, keyof ExchangeContent> & SealedRow>(
+          `SELECT ${EXCHANGE_COLUMNS} FROM exchange x WHERE x.candidate_id = $1 AND x.application_id::text = $2 AND x.state = 'kept' ORDER BY x.received_at, x.id`,
+          [candidateId, applicationId],
+        ),
+        database.query<Pick<OfferedExchange, "id" | "sentAt" | "receivedAt"> & SealedRow>(
+          `SELECT x.id, x.sent_at AS "sentAt", x.received_at AS "receivedAt", ${SEALED_COLUMNS}
              FROM exchange x WHERE x.candidate_id = $1 AND x.state = 'offered' AND $2 = ANY (x.offered_to::text[]) ORDER BY x.received_at, x.id`,
           [candidateId, applicationId],
         ),
       ]);
-      return { kept: kept.rows, offered: offered.rows.map((row) => ({ ...row, employer: owned[0]!.employer })) };
+      if (kept.rows.length === 0 && offered.rows.length === 0) return { kept: [], offered: [] };
+      const using = cipher();
+      return {
+        kept: kept.rows.map((row) => opened(row, using)),
+        // Never its text before the Candidate's gesture.
+        offered: offered.rows.map((row) => {
+          const { from, subject } = opened(row, using);
+          return { id: row.id, from, subject, sentAt: row.sentAt, receivedAt: row.receivedAt, employer: owned[0]!.employer };
+        }),
+      };
     },
 
     async get(candidateId, id) {
-      const { rows } = await database.query<Exchange>(`SELECT ${EXCHANGE_COLUMNS} FROM exchange x WHERE x.id::text = $2 AND x.candidate_id = $1 AND x.state = 'kept'`, [candidateId, id]);
-      return rows[0] ?? null;
+      const { rows } = await database.query<Omit<Exchange, keyof ExchangeContent> & SealedRow>(
+        `SELECT ${EXCHANGE_COLUMNS} FROM exchange x WHERE x.id::text = $2 AND x.candidate_id = $1 AND x.state = 'kept'`,
+        [candidateId, id],
+      );
+      return rows[0] ? opened(rows[0], cipher()) : null;
     },
 
     async tie(candidateId, id, applicationId) {
@@ -243,13 +344,15 @@ export function createExchanges(database: Queryable, options: { now?: () => Date
     },
 
     async exportOf(candidateId) {
-      const { rows } = await database.query<ExportedExchange>(
-        `SELECT x.id, x.state, x.application_id AS "applicationId", x.offered_to::text[] AS "offeredTo", x.sender AS "from", x.subject, x.text,
-                x.sent_at AS "sentAt", x.received_at AS "receivedAt"
+      const { rows } = await database.query<Omit<ExportedExchange, keyof ExchangeContent> & SealedRow>(
+        `SELECT x.id, x.state, x.application_id AS "applicationId", x.offered_to::text[] AS "offeredTo",
+                x.sent_at AS "sentAt", x.received_at AS "receivedAt", ${SEALED_COLUMNS}
            FROM exchange x WHERE x.candidate_id = $1 AND x.state IN ('kept', 'offered') ORDER BY x.received_at, x.id`,
         [candidateId],
       );
-      return rows;
+      if (rows.length === 0) return [];
+      const using = cipher();
+      return rows.map((row) => opened(row, using));
     },
 
     async purge(at) {
@@ -271,7 +374,9 @@ export async function migrateExchanges(database: Pool | PoolClient): Promise<voi
   await database.query(`
     -- An Application's Exchanges (#1099, ADR-0115): an email about one of the Candidate's Applications, waiting for the
     -- email Guardrail, kept on its Application, or offered to the Candidate on one or several (« Rattacher à … ? »).
-    -- Its sender, date, subject and text; its Message-ID only to receive it once and find the replies in its thread.
+    -- Its date; its sender, subject and text sealed together under SECRETS_MASTER_KEYS (AES-256-GCM, bound to its row: the
+    -- additional data names exchanges|exchange|<id>|<key version>), never in clear; its Message-ID only to receive it once
+    -- and find the replies in its thread.
     CREATE TABLE IF NOT EXISTS exchange (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       candidate_id text NOT NULL REFERENCES candidate (id) ON DELETE CASCADE,
@@ -279,9 +384,10 @@ export async function migrateExchanges(database: Pool | PoolClient): Promise<voi
       offered_to uuid[] NOT NULL DEFAULT '{}',
       state text NOT NULL CHECK (state IN ('awaiting_check', 'kept', 'offered')),
       message_id text NOT NULL,
-      sender text NOT NULL,
-      subject text NOT NULL,
-      text text NOT NULL,
+      content_ciphertext bytea NOT NULL,
+      content_iv bytea NOT NULL,
+      content_tag bytea NOT NULL,
+      content_key_version integer NOT NULL,
       sent_at timestamptz,
       received_at timestamptz NOT NULL,
       UNIQUE (candidate_id, message_id),

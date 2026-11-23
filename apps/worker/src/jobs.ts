@@ -281,6 +281,8 @@ export interface JobsDeps {
   jobDigests: Pick<JobDigests, "claimDue" | "deliver">;
   /** The Provider Secrets, to move to the newest master key. Without them, nothing to re-encrypt. */
   providerSecrets?: { reencrypt(): Promise<number> };
+  /** An Application's Exchanges (#1099), sealed under the same master keys, moved with the Provider Secrets. Without them, none moves. */
+  exchanges?: { reencrypt(): Promise<number> };
   /** The Sign-in Providers, whose Apple client secret is signed again monthly. Without them, nothing to sign. */
   signInProviders?: { regenerateAppleClientSecrets(): Promise<{ regenerated: string[]; failed: AppleFailure[] }> };
   /** The Appointment Reminders, sent daily. Satisfied by the web app's Appointment Reminders module. Without them, nothing to send. */
@@ -854,13 +856,16 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         }),
     },
 
-    // Nightly, and once at start (main.ts): every row under the newest master key. Safe to run again.
+    // Nightly, and once at start (main.ts): every row under the newest master key, the Provider Secrets' and the
+    // Exchanges' (#1099), so that an older key can be removed (docs/ops/provider-secrets.md). Safe to run again.
     [PROVIDER_SECRETS_REENCRYPT]: {
       cron: "15 4 * * *",
       handler: () =>
         onceTablesExist(async () => {
           const moved = (await deps.providerSecrets?.reencrypt()) ?? 0;
           if (moved) log(`[provider-secrets] ${moved} Provider Secret(s) re-encrypted under the newest master key`);
+          const exchanges = (await deps.exchanges?.reencrypt()) ?? 0;
+          if (exchanges) log(`[exchanges] ${exchanges} Exchange(s) re-encrypted under the newest master key`);
         }),
     },
 
@@ -1066,7 +1071,8 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
       cron: "25 * * * *",
       handler: () =>
         onceTablesExist(async () => {
-          const purged = await createExchanges(deps.database).purge(now());
+          // Forgetting opens nothing: no cipher.
+          const purged = await createExchanges(deps.database, { cipher: () => null }).purge(now());
           if (purged) log(`[exchanges] ${purged} email(s) offered past ${OFFERED_RETENTION_DAYS} days, or never checked, forgotten`);
         }),
     },

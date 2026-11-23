@@ -5,6 +5,7 @@
  * documents) never see a write. Only its card's « Appliquer », the Candidate's own click, writes (coach-proposals).
  * A new proposing Coach Action must be listed in CALLS below, so that it is held to it too.
  */
+import { createSecretKey, randomBytes, randomUUID } from "node:crypto";
 import type { MasterCvContent } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,7 +20,8 @@ import { migrateJobDigests } from "../job-digests";
 import { createJobOffers, migrateJobOffers } from "../job-offers";
 import { migrateCompanyDossiers } from "../company-dossiers";
 import { migrateEnrichedContacts } from "../enriched-contacts";
-import { createExchanges, migrateExchanges } from "../exchanges";
+import { createExchanges, migrateExchanges, sealExchangeContent } from "../exchanges";
+import { createAesGcmCipher } from "../provider-secrets/cipher";
 import { migrateJobSearches } from "../job-searches";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import { shippedCoachActions, type CoachActionDomain } from "./catalog";
@@ -171,6 +173,8 @@ describe.skipIf(!connectionString)("a Coach Action never writes: only the Candid
     // The modules without a table here, in memory: their writes are spies, which proposing must never call.
     const write = () => vi.fn(async () => ({ ok: false as const, error: "not_found" as const }));
     const searching = { id: "s1", profile: { id: consultant, name: "Consultante finance", searchCriteria: {} }, status: "searching", failure: null, startedAt: new Date(), results: [], metrics: null, provenance: null };
+    // The keyring the Exchanges are sealed under (SECRETS_MASTER_KEYS).
+    const cipher = createAesGcmCipher(new Map([[1, createSecretKey(randomBytes(32))]]));
     const domain: CoachActionDomain = {
       applications,
       profiles,
@@ -224,11 +228,15 @@ describe.skipIf(!connectionString)("a Coach Action never writes: only the Candid
         restore: write() as never,
       },
       // An Exchange kept on the Application, to answer (#1099): the feature flag on.
-      exchanges: { on: () => true, exchanges: createExchanges(database) },
+      exchanges: { on: () => true, exchanges: createExchanges(database, { cipher: () => cipher }) },
     };
+    // Its sender, subject and text sealed, as the inbound route keeps them.
+    const exchangeId = randomUUID();
+    const sealed = sealExchangeContent(cipher, exchangeId, { from: "rh@acme.fr", subject: "Entretien", text: "Mardi à 14 h ?" });
     await database.query(
-      `INSERT INTO exchange (candidate_id, application_id, state, message_id, sender, subject, text, received_at) VALUES ($1, $2, 'kept', '<x@acme.fr>', 'rh@acme.fr', 'Entretien', 'Mardi à 14 h ?', now())`,
-      [marie, world.applicationId],
+      `INSERT INTO exchange (id, candidate_id, application_id, state, message_id, content_ciphertext, content_iv, content_tag, content_key_version, received_at)
+       VALUES ($1, $2, $3, 'kept', '<x@acme.fr>', $4, $5, $6, $7, now())`,
+      [exchangeId, marie, world.applicationId, sealed.ciphertext, sealed.iv, sealed.tag, sealed.keyVersion],
     );
     writes = [
       domain.jobSearches.start,

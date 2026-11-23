@@ -1042,6 +1042,17 @@ describe("the Provider Secrets re-encryption job", () => {
     expect(logs).toEqual(["[provider-secrets] 2 Provider Secret(s) re-encrypted under the newest master key"]);
   });
 
+  it("re-encrypts the Exchanges with them, sealed under the same master keys, so that an older key can be removed (#1099)", async () => {
+    const logs: string[] = [];
+    const exchanges = { reencrypt: vi.fn(async () => 3) };
+    const job = createJobs({ ...otherDeps, database: noDatabase, providerSecrets: { reencrypt: async () => 0 }, exchanges, log: (line) => logs.push(line) })[PROVIDER_SECRETS_REENCRYPT]!;
+
+    await job.handler({});
+
+    expect(exchanges.reencrypt).toHaveBeenCalledTimes(1);
+    expect(logs).toEqual(["[exchanges] 3 Exchange(s) re-encrypted under the newest master key"]);
+  });
+
   it("does nothing without Provider Secrets, or before the web app has created their table", async () => {
     await expect(createJobs({ ...otherDeps, database: noDatabase })[PROVIDER_SECRETS_REENCRYPT]!.handler({})).resolves.toBeUndefined();
     const missingTable = Object.assign(new Error("relation does not exist"), { code: "42P01" });

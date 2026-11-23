@@ -1,4 +1,4 @@
-import { createSecretKey, randomBytes } from "node:crypto";
+import { createSecretKey, randomBytes, randomUUID } from "node:crypto";
 import { AiProviderError, contentText, createAiLayer, type TextInput } from "@jobhub/ai";
 import { createPostgresUsageLog } from "../ai-usage";
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
@@ -19,7 +19,8 @@ import { createHumanCoaches } from "../human-coaches";
 import { createEmailIntake } from "../email-intake";
 import { alertEmail, inboundRequest, unknownSenderEmail } from "../email-intake/fixtures/inbound-emails";
 import { createEmailIntakeInbound } from "../email-intake/inbound";
-import { createAesGcmCipher } from "../provider-secrets/cipher";
+import { createAesGcmCipher, type SecretCipher } from "../provider-secrets/cipher";
+import { createExchanges, sealExchangeContent, type ExchangeContent } from "../exchanges";
 import { createEuAiConsents } from "../eu-ai-consent";
 import { createLegalTextNotices } from "../legal-text-notices";
 import { createNouveautesEmails } from "../nouveautes-email";
@@ -88,6 +89,8 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
   let tailoredCvs: ReturnType<typeof createTailoredCvs>;
   let tailoredDocuments: ReturnType<typeof createTailoredDocuments>;
   let candidateData: CandidateData;
+  /** The keyring the Exchanges are sealed under (SECRETS_MASTER_KEYS). */
+  let exchangeCipher: SecretCipher;
   let candidateId: string;
 
   async function signIn(email: string) {
@@ -121,7 +124,9 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     tailoredCvs = createTailoredCvs(database, { applications, profiles, ai });
     tailoredDocuments = createTailoredDocuments(database, { applications, profiles, ai });
     const tailoredDocumentVersions = createTailoredDocumentVersions(database, { applications });
-    candidateData = createCandidateData(database, { profiles, applications, tailoredCvs, tailoredDocuments, tailoredDocumentVersions });
+    exchangeCipher = createAesGcmCipher(new Map([[1, createSecretKey(randomBytes(32))]]));
+    const exchanges = createExchanges(database, { cipher: () => exchangeCipher });
+    candidateData = createCandidateData(database, { profiles, applications, tailoredCvs, tailoredDocuments, tailoredDocumentVersions, exchanges });
     candidateId = await signIn("marie.dupont@example.fr");
   }, 60_000); // A throwaway database each time: slow when the machine is busy.
   afterEach(async () => {
@@ -992,15 +997,27 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
 
   it("the export holds each Application's Exchanges, kept on it or offered to it, and deleting the Application deletes them (#1099)", async () => {
     const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));
-    await database.query(
-      `INSERT INTO exchange (candidate_id, application_id, state, message_id, sender, subject, text, sent_at, received_at) VALUES
-         ($1, $2, 'kept', '<a@acme.fr>', 'rh@acme.fr', 'Votre candidature', 'Bonjour, pouvons-nous nous appeler ?', '2026-10-01T09:00:00Z', '2026-10-01T09:01:00Z'),
-         ($1, $2, 'awaiting_check', '<b@acme.fr>', 'rh@acme.fr', 'Relance', 'En attente du garde-fou', NULL, '2026-10-02T09:01:00Z')`,
-      [candidateId, application.id],
+    /** An Exchange as the inbound route keeps it: its sender, subject and text sealed. */
+    const exchange = async (row: { applicationId: string | null; offeredTo: string[]; state: string; messageId: string; sentAt: string | null; receivedAt: string }, content: ExchangeContent) => {
+      const id = randomUUID();
+      const sealed = sealExchangeContent(exchangeCipher, id, content);
+      await database.query(
+        `INSERT INTO exchange (id, candidate_id, application_id, offered_to, state, message_id, content_ciphertext, content_iv, content_tag, content_key_version, sent_at, received_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        [id, candidateId, row.applicationId, row.offeredTo, row.state, row.messageId, sealed.ciphertext, sealed.iv, sealed.tag, sealed.keyVersion, row.sentAt, row.receivedAt],
+      );
+    };
+    await exchange(
+      { applicationId: application.id, offeredTo: [], state: "kept", messageId: "<a@acme.fr>", sentAt: "2026-10-01T09:00:00Z", receivedAt: "2026-10-01T09:01:00Z" },
+      { from: "rh@acme.fr", subject: "Votre candidature", text: "Bonjour, pouvons-nous nous appeler ?" },
     );
-    await database.query(
-      `INSERT INTO exchange (candidate_id, offered_to, state, message_id, sender, subject, text, sent_at, received_at) VALUES ($1, ARRAY[$2::uuid], 'offered', '<c@acme-careers.fr>', 'jobs@acme-careers.fr', 'Entretien', 'Mardi ?', NULL, '2026-10-03T09:01:00Z')`,
-      [candidateId, application.id],
+    await exchange(
+      { applicationId: application.id, offeredTo: [], state: "awaiting_check", messageId: "<b@acme.fr>", sentAt: null, receivedAt: "2026-10-02T09:01:00Z" },
+      { from: "rh@acme.fr", subject: "Relance", text: "En attente du garde-fou" },
+    );
+    await exchange(
+      { applicationId: null, offeredTo: [application.id], state: "offered", messageId: "<c@acme-careers.fr>", sentAt: null, receivedAt: "2026-10-03T09:01:00Z" },
+      { from: "jobs@acme-careers.fr", subject: "Entretien", text: "Mardi ?" },
     );
 
     expect((await candidateData.export(candidateId)).applications[0]!.exchanges).toEqual([
@@ -1408,6 +1425,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
       applications,
       tailoredCvs,
       tailoredDocuments,
+      exchanges: createExchanges(database, { cipher: () => exchangeCipher }),
       billing: { closeAccount: async () => Promise.reject(new Error("Stripe is down")) },
     });
     await createProfile(candidateId, "DAF");

@@ -9,6 +9,8 @@ import {
   unknownSenderEmail,
   type InboundTestEmail,
 } from "../apps/web/src/email-intake/fixtures/inbound-emails";
+import { openExchangeContent } from "../apps/web/src/exchanges";
+import { secretCipherFromEnv } from "../apps/web/src/provider-secrets/cipher";
 import { newAddress } from "./support/mailbox";
 import {
   signInByEmail,
@@ -159,6 +161,8 @@ function workerChecks(ids: string[]) {
         AI_OFFER_ANALYSIS_PROVIDER: "mistral",
         AI_OFFER_EMAIL_READING_PROVIDER: "mistral",
         MISTRAL_API_KEY: "e2e-mistral-key",
+        // The keyring the server sealed each Exchange under: the worker opens it to check it.
+        SECRETS_MASTER_KEYS: MASTER_KEYS,
         NODE_OPTIONS: `--import=${path.resolve("e2e/support/fake-mistral.mjs")}`,
       },
       encoding: "utf8",
@@ -189,11 +193,21 @@ type ExchangeRow = {
   subject: string;
   text: string;
 };
-const exchangesOf = (messageId: string) =>
-  query<ExchangeRow>(
-    `SELECT id::text, state, application_id::text, offered_to::text[] AS offered_to, message_id, sender, subject, text FROM exchange WHERE message_id = $1`,
-    [messageId],
-  );
+/** The server's keyring (SECRETS_MASTER_KEYS): each Exchange's sender, subject and text are sealed under it. */
+const exchangeCipher = secretCipherFromEnv({ SECRETS_MASTER_KEYS: MASTER_KEYS })!;
+/** The Exchanges of `messageId` in the database, their sealed content opened as the app opens it. */
+const exchangesOf = async (messageId: string): Promise<ExchangeRow[]> =>
+  (
+    await query<Omit<ExchangeRow, "sender" | "subject" | "text"> & { ciphertext: Buffer; iv: Buffer; tag: Buffer; key_version: number }>(
+      `SELECT id::text, state, application_id::text, offered_to::text[] AS offered_to, message_id,
+              content_ciphertext AS ciphertext, content_iv AS iv, content_tag AS tag, content_key_version AS key_version
+         FROM exchange WHERE message_id = $1`,
+      [messageId],
+    )
+  ).map(({ ciphertext, iv, tag, key_version, ...row }) => {
+    const { from, subject, text } = openExchangeContent(exchangeCipher, row.id, { ciphertext, iv, tag, keyVersion: key_version });
+    return { ...row, sender: from, subject, text };
+  });
 
 const conversation = (page: Page) =>
   page.getByRole("region", { name: fr.conversationFirst.label });
@@ -502,19 +516,28 @@ test.describe("An Application's Exchanges: tied by rules, shown in « Échanges 
       `SELECT column_name FROM information_schema.columns WHERE table_name = 'exchange'`,
       [],
     );
+    // Its sender, subject and text sealed together (content_*): none in clear.
     expect(columns.map((c) => c.column_name).sort()).toEqual([
       "application_id",
       "candidate_id",
+      "content_ciphertext",
+      "content_iv",
+      "content_key_version",
+      "content_tag",
       "id",
       "message_id",
       "offered_to",
       "received_at",
-      "sender",
       "sent_at",
       "state",
-      "subject",
-      "text",
     ]);
+    const stored = await query<{ row: string }>(
+      `SELECT row_to_json(x)::text AS row FROM exchange x WHERE message_id = $1`,
+      [email.messageId],
+    );
+    expect(stored).toHaveLength(1);
+    expect(stored[0]!.row).not.toContain("Ignore previous instructions");
+    expect(stored[0]!.row).not.toContain(email.from);
     const [row] = await exchangesOf(email.messageId);
     workerChecks([row!.id]);
     // Whatever the Guardrail decides, the Exchange moved no Application Status.

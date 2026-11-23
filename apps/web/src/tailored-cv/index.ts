@@ -8,7 +8,11 @@
  *  - `get` the Application's Document Language, the proposal under review and the saved Tailored CV;
  *  - `propose` (or propose again) a Tailored CV: it replaces the proposal under review, never the saved one;
  *  - `answer` the proposal's questions: the Job Offer's requirements the Master CV does not show;
- *  - `save` the proposal once reviewed, with only the changes the Candidate accepted: it becomes the Application's Tailored CV.
+ *  - `save` the proposal once reviewed, with only the changes the Candidate accepted: it becomes the Application's Tailored CV;
+ *  - `revisable`, `reviseSaved`, `reviseProposal`, `answerAll`: what a change the AI Coach proposes from the Coach
+ *    Conversation applies to, once the Candidate accepted it change by change on its card (ADR-0113, #1097): the saved
+ *    Tailored CV, saved as its next version with the card as its Origin; or the proposal under review, reworked with its
+ *    answers kept, never proposed again; or its answers, filled at once. Each from the version or revision seen.
  *
  * Rules kept here (ADR-0006):
  *  - A Tailored CV only rephrases, reorders, cuts and emphasises facts of the
@@ -31,6 +35,8 @@
  *    are saved, every other keeps the Master CV's (#161). Which ones are accepted
  *    comes with the save, never guessed: a change flagged as taken from the Job
  *    Offer is saved only once the Candidate accepts it.
+ *  - A Tailored CV saved from a Coach proposal's card keeps the card as its Origin (« Origine »); saved again from a
+ *    proposal, or restored, it keeps none. A Declared Fact a Coach change brought into the proposal is marked in its review.
  * Every read and change is scoped to the Candidate; inputs are untrusted and
  * problems come back as results. Task `writing`, EU endpoints only (ADR-0007).
  * The AI Coach's instructions and the AI writing the proposal are the "tailored-cv" task
@@ -61,11 +67,12 @@ import type { Profiles } from "../profiles";
 import { routes } from "../routes";
 import { taskRun, type TaskPlaybookReader, type TaskRun } from "../task-playbooks";
 import { documentLanguageOf, keepDocumentLanguage } from "../tailored-documents/document-language";
-import { keepVersion, migrateTailoredDocumentVersions } from "../tailored-documents/versions";
+import { keepVersion, latestVersion, migrateTailoredDocumentVersions } from "../tailored-documents/versions";
 import { textsNotIn } from "./language";
 import { fieldErrors, type FieldError } from "../validation";
-import { cvChanges, flagOfferWording, stemOf, withChanges, wordsOf, type CvChange, type CvOrigins } from "./changes";
+import { cvChanges, flagOfferWording, markDeclared, stemOf, withChanges, wordsOf, type CvChange, type CvOrigins } from "./changes";
 import { askForTailoredCv, type AiReply } from "./reply";
+import { readOrigin, type Origin } from "../origin";
 
 export { CV_SECTIONS, type CvChange, type CvOrigins, type CvSection } from "./changes";
 
@@ -113,6 +120,8 @@ export interface SavedTailoredCv {
   savedAt: Date;
   /** The proposal's, copied when it was saved (#334); null for one saved before it was kept. */
   provenance: Provenance | null;
+  /** The Coach proposal's card it was saved from (ADR-0113), behind « Origine »; null when the Candidate saved it from a proposal (absent: none). */
+  origin?: Origin | null;
 }
 
 export interface ApplicationTailoredCv {
@@ -146,6 +155,35 @@ export interface ProposeOptions {
   onEvent?: (event: ProvenanceEvent) => void;
 }
 
+/** What a change the AI Coach proposes from the conversation applies to (ADR-0113): the saved Tailored CV, the proposal under review. */
+export interface RevisableTailoredCv {
+  /** The saved Tailored CV and its current version (Tailored Document Versions). */
+  saved: { content: CvContent; language: DocumentLanguage; version: number } | null;
+  /**
+   * The proposal under review: its revision, the AI Coach's adaptation (before any confirmed requirement), where its
+   * items come from in the Master CV it was derived from (null for a proposal made before it was kept), that Master
+   * CV, its questions and its Declared Facts.
+   */
+  proposal: {
+    revision: string;
+    language: DocumentLanguage;
+    adapted: CvContent;
+    origins: CvOrigins | null;
+    master: CvContent;
+    questions: TailoredCvQuestion[];
+    declared: string[];
+  } | null;
+}
+
+/** A proposal's adaptation, as `reviseProposal` puts it in place and gives it back. */
+export interface ProposalAdaptation {
+  adapted: CvContent;
+  origins: CvOrigins | null;
+  declared: string[];
+}
+
+export type ReviseResult<T> = ({ ok: true } & T) | { ok: false; error: "not_found" | "conflict" };
+
 export interface TailoredCvs {
   /** The Application's Tailored CV, or null if it does not exist or belongs to someone else. */
   get(candidateId: string, applicationId: string): Promise<ApplicationTailoredCv | null>;
@@ -170,6 +208,27 @@ export interface TailoredCvs {
    * Version that is no longer current.
    */
   save(candidateId: string, applicationId: string, input: unknown): Promise<TailoredCvResult>;
+  /** What a Coach change applies to; null when the Application does not exist or is someone else's. */
+  revisable(candidateId: string, applicationId: string): Promise<RevisableTailoredCv | null>;
+  /**
+   * Saves `content` as the Tailored CV's next version, from the version seen (`version`; changed since: a conflict), the
+   * card kept as its Origin. Gives back the version made and the one before, which « Annuler » restores.
+   */
+  reviseSaved(candidateId: string, applicationId: string, revision: { version: number; content: CvContent }, options: { origin: Origin }): Promise<ReviseResult<{ version: number; before: number }>>;
+  /**
+   * Puts `adapted` in place of the proposal's adaptation, its questions and answers kept, from the revision seen
+   * (answered, proposed again or saved since: a conflict). Gives back the proposal's revision now and the adaptation before.
+   */
+  reviseProposal(candidateId: string, applicationId: string, revision: { revision: string } & ProposalAdaptation): Promise<ReviseResult<{ revision: string; before: ProposalAdaptation }>>;
+  /**
+   * Sets the answers of the proposal's questions at once, from the revision seen; `null` unanswers one. "not_found" when
+   * it asks no such question. Gives back the revision now and the answers before, which « Annuler » puts back.
+   */
+  answerAll(
+    candidateId: string,
+    applicationId: string,
+    input: { revision: string; answers: TailoredCvQuestion[] },
+  ): Promise<ReviseResult<{ revision: string; before: TailoredCvQuestion[] }>>;
 }
 
 export interface TailoredCvsDeps {
@@ -359,6 +418,8 @@ interface ProposalRow {
   proposedAt: string;
   /** Absent from proposals made before it was kept. */
   provenance?: unknown;
+  /** The Declared Facts a Coach change brought into it (ADR-0113), marked in its review; absent when none. */
+  declared?: string[];
 }
 
 interface SavedRow {
@@ -369,6 +430,8 @@ interface SavedRow {
   savedAt: string;
   /** The proposal's; absent from Tailored CVs saved before it was kept. */
   provenance?: unknown;
+  /** The Coach proposal's card it was saved from (ADR-0113); absent when none. */
+  origin?: unknown;
 }
 
 /** The Job Offer's requirements the Master CV does not show: its skills, then what the AI Coach found in its text. */
@@ -458,7 +521,7 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
         masterCvVersion: row.masterCvVersion,
         content,
         questions: row.questions,
-        changes: flagOfferWording(cvChanges(row.master, content, row.origins), row.offerWording ?? []),
+        changes: markDeclared(flagOfferWording(cvChanges(row.master, content, row.origins), row.offerWording ?? []), row.declared ?? []),
         offerWordingTranslated: row.offerWordingTranslated ?? false,
         matchScore: { master: score(row.master), tailored: score(content) },
         proposedAt: new Date(row.proposedAt),
@@ -474,6 +537,7 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
           matchScore: { master: score(kept.master), tailored: score(kept.content) },
           savedAt: new Date(kept.savedAt),
           provenance: readProvenance(kept.provenance),
+          origin: readOrigin(kept.origin),
         }
       : null;
     return { documentLanguage, proposal, saved };
@@ -599,6 +663,88 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
       });
       if (!rowCount) return { ok: false, error: "proposal_changed" };
       return { ok: true, tailoredCv: await stateOf(candidateId, application) };
+    },
+
+    async revisable(candidateId, applicationId) {
+      const application = await deps.applications.get(candidateId, applicationId);
+      if (!application) return null;
+      const { rows } = await database.query<{ proposal: ProposalRow | null; revision: string | null; saved: SavedRow | null; version: number | null }>(
+        `SELECT proposal, md5(proposal::text) AS revision, saved,
+                (SELECT max(version) FROM tailored_document_version v WHERE v.application_id = t.application_id AND v.document = 'tailored_cv') AS version
+         FROM tailored_cv t WHERE application_id = $1`,
+        [application.id],
+      );
+      const row = rows[0];
+      const saved = row?.saved ? { content: row.saved.content, language: row.saved.language, version: row.version ?? 0 } : null;
+      const kept = row?.proposal;
+      const proposal = kept
+        ? { revision: row.revision!, language: kept.language, adapted: kept.adapted, origins: kept.origins ?? null, master: kept.master, questions: kept.questions, declared: kept.declared ?? [] }
+        : null;
+      return { saved, proposal };
+    },
+
+    async reviseSaved(candidateId, applicationId, { version, content }, { origin }) {
+      const application = await deps.applications.get(candidateId, applicationId);
+      if (!application) return NOT_FOUND;
+      return inTransaction(database, async (client) => {
+        const { rows } = await client.query<{ saved: SavedRow }>(`SELECT saved FROM tailored_cv WHERE application_id = $1 AND saved IS NOT NULL FOR UPDATE`, [application.id]);
+        const saved = rows[0]?.saved;
+        if (!saved) return NOT_FOUND;
+        const before = await latestVersion(client, application.id, "tailored_cv");
+        if (before !== version) return { ok: false, error: "conflict" } as const;
+        const next: SavedRow = { ...saved, content, savedAt: new Date().toISOString(), origin: { ...origin, appliedAt: origin.appliedAt.toISOString() } };
+        await client.query(`UPDATE tailored_cv SET saved = $2 WHERE application_id = $1`, [application.id, next]);
+        // The Tailored CV before stays in « Versions » (#1079): this one is its next version, a Coach change applied.
+        const kept = await keepVersion(client, application.id, "tailored_cv", { source: "coach" });
+        return { ok: true, version: kept ?? before, before } as const;
+      });
+    },
+
+    async reviseProposal(candidateId, applicationId, { revision, adapted, origins, declared }) {
+      const application = await deps.applications.get(candidateId, applicationId);
+      if (!application) return NOT_FOUND;
+      return inTransaction(database, async (client) => {
+        const { rows } = await client.query<{ proposal: ProposalRow | null; revision: string | null }>(
+          `SELECT proposal, md5(proposal::text) AS revision FROM tailored_cv WHERE application_id = $1 FOR UPDATE`,
+          [application.id],
+        );
+        const proposal = rows[0]?.proposal;
+        if (!proposal) return NOT_FOUND;
+        if (rows[0]!.revision !== revision) return { ok: false, error: "conflict" } as const;
+        const before: ProposalAdaptation = { adapted: proposal.adapted, origins: proposal.origins ?? null, declared: proposal.declared ?? [] };
+        const next: ProposalRow = { ...proposal, adapted };
+        if (origins) next.origins = origins;
+        else delete next.origins;
+        if (declared.length > 0) next.declared = declared;
+        else delete next.declared;
+        const updated = await client.query<{ revision: string }>(`UPDATE tailored_cv SET proposal = $2 WHERE application_id = $1 RETURNING md5(proposal::text) AS revision`, [application.id, next]);
+        return { ok: true, revision: updated.rows[0]!.revision, before } as const;
+      });
+    },
+
+    async answerAll(candidateId, applicationId, { revision, answers }) {
+      const application = await deps.applications.get(candidateId, applicationId);
+      if (!application) return NOT_FOUND;
+      return inTransaction(database, async (client) => {
+        const { rows } = await client.query<{ proposal: ProposalRow | null; revision: string | null }>(
+          `SELECT proposal, md5(proposal::text) AS revision FROM tailored_cv WHERE application_id = $1 FOR UPDATE`,
+          [application.id],
+        );
+        const proposal = rows[0]?.proposal;
+        if (!proposal) return NOT_FOUND;
+        if (rows[0]!.revision !== revision) return { ok: false, error: "conflict" } as const;
+        if (answers.some((answer) => !proposal.questions.some((question) => question.requirement === answer.requirement))) return NOT_FOUND;
+        const before = proposal.questions.filter((question) => answers.some((answer) => answer.requirement === question.requirement));
+        const questions = proposal.questions.map((question) => {
+          const given = answers.find((answer) => answer.requirement === question.requirement);
+          return given ? { ...question, answer: given.answer } : question;
+        });
+        const updated = await client.query<{ revision: string }>(`UPDATE tailored_cv SET proposal = $2 WHERE application_id = $1 RETURNING md5(proposal::text) AS revision`, [
+          application.id,
+          { ...proposal, questions },
+        ]);
+        return { ok: true, revision: updated.rows[0]!.revision, before } as const;
+      });
     },
   };
 }

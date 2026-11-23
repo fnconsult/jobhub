@@ -243,3 +243,13 @@ export function layoutOnly(changes: readonly CvChange[]): boolean {
     return [...allWordsOf(change.tailored ?? "")].every((word) => before.has(word));
   });
 }
+
+/** Each change that brings one of `facts`, Declared Facts (ADR-0113), marked « Fait déclaré par vous ». */
+export function markDeclared(changes: CvChange[], facts: readonly string[]): CvChange[] {
+  if (facts.length === 0) return changes;
+  const told = facts.map(normalise);
+  return changes.map((change) => {
+    const text = change.kind === "added" ? change.item : change.kind === "rephrased" ? change.tailored : undefined;
+    return text && told.some((fact) => normalise(text).includes(fact)) ? { ...change, declared: true } : change;
+  });
+}

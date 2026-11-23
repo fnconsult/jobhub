@@ -20,7 +20,7 @@
  *   acceptedMasterCv(master, review.edits, accepted, { declared })        // the next Master CV Version's content
  */
 import { jobOfferLanguage, normalise, textLanguage, type DocumentLanguage, type MasterCvContent } from "@jobhub/shared";
-import { cvChanges, flagOfferWording, stemOf, withChanges, wordsOf, type CvChange, type CvOrigins } from "../tailored-cv/changes";
+import { cvChanges, flagOfferWording, markDeclared, stemOf, withChanges, wordsOf, type CvChange, type CvOrigins } from "../tailored-cv/changes";
 
 export const MASTER_CV_EDIT_KINDS = ["rephrase", "cut", "reorder", "highlight", "add"] as const;
 export const MASTER_CV_EDIT_SECTIONS = ["headline", "summary", "experience", "education", "skills", "languages"] as const;
@@ -298,15 +298,6 @@ function addOf(
   }
 }
 
-/** Each change that brings a Declared Fact, marked « Fait déclaré par vous ». */
-function markDeclared(changes: CvChange[], facts: readonly string[]): CvChange[] {
-  if (facts.length === 0) return changes;
-  const told = facts.map(normalise);
-  return changes.map((change) => {
-    const text = change.kind === "added" ? change.item : change.kind === "rephrased" ? change.tailored : undefined;
-    return text && told.some((fact) => normalise(text).includes(fact)) ? { ...change, declared: true } : change;
-  });
-}
 
 /**
  * The changes `edits` make to the Master CV, for the Candidate to review one by one: none added, a rephrasing that brings

@@ -835,4 +835,85 @@ Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experi
     expect(result).toEqual({ ok: false, error: "stopped" });
     expect((await tailoredCvs.get(candidateId, english))?.proposal).toBeNull();
   });
+
+  describe("reworked from the Coach Conversation, change by change (ADR-0113, #1097)", () => {
+    const origin = { origin: "coach_proposal" as const, cardId: "card-1", appliedAt: new Date("2026-11-23T10:00:00Z") };
+
+    it("gives what a Coach change applies to: the saved Tailored CV and its version, the proposal under review and its adaptation", async () => {
+      expect(await tailoredCvs.revisable(candidateId, applicationId)).toEqual({ saved: null, proposal: null });
+      const proposed = await tailoredCvs.propose(candidateId, applicationId, {});
+      if (!proposed.ok || !proposed.tailoredCv.proposal) throw new Error("not proposed");
+      const revisable = await tailoredCvs.revisable(candidateId, applicationId);
+      expect(revisable?.proposal).toMatchObject({ revision: proposed.tailoredCv.proposal.revision, adapted: { skills: ["IFRS", "SAP", "Reporting"] }, origins: { skills: [1, 2, 0] } });
+      await tailoredCvs.save(candidateId, applicationId, { revision: proposed.tailoredCv.proposal.revision, accepted: allOf(proposed.tailoredCv.proposal) });
+      expect((await tailoredCvs.revisable(candidateId, applicationId))?.saved).toMatchObject({ version: 1, content: { skills: ["IFRS", "SAP", "Reporting"] } });
+      expect(await tailoredCvs.revisable("someone-else", applicationId)).toBeNull();
+    });
+
+    it("saves a reworked Tailored CV as its next version, the card kept as its Origin, from the version seen; a new proposal saved drops it", async () => {
+      const proposed = await tailoredCvs.propose(candidateId, applicationId, {});
+      if (!proposed.ok || !proposed.tailoredCv.proposal) throw new Error("not proposed");
+      await tailoredCvs.save(candidateId, applicationId, { revision: proposed.tailoredCv.proposal.revision, accepted: allOf(proposed.tailoredCv.proposal) });
+      const saved = (await tailoredCvs.revisable(candidateId, applicationId))!.saved!;
+
+      const revised = await tailoredCvs.reviseSaved(candidateId, applicationId, { version: 1, content: { ...saved.content, skills: ["IFRS", "SAP"] } }, { origin });
+      expect(revised).toEqual({ ok: true, version: 2, before: 1 });
+      const state = await tailoredCvs.get(candidateId, applicationId);
+      expect(state?.saved).toMatchObject({ content: { skills: ["IFRS", "SAP"] }, origin });
+      // Changed since: not the Tailored CV the card was made from.
+      expect(await tailoredCvs.reviseSaved(candidateId, applicationId, { version: 1, content: saved.content }, { origin })).toEqual({ ok: false, error: "conflict" });
+      expect(await tailoredCvs.reviseSaved(candidateId, applicationId, { version: 7, content: saved.content }, { origin })).toEqual({ ok: false, error: "conflict" });
+
+      // Proposed again and saved: the Candidate's own Tailored CV, no Origin.
+      const again = await tailoredCvs.propose(candidateId, applicationId, {});
+      if (!again.ok || !again.tailoredCv.proposal) throw new Error("not proposed");
+      await tailoredCvs.save(candidateId, applicationId, { revision: again.tailoredCv.proposal.revision, accepted: [] });
+      expect((await tailoredCvs.get(candidateId, applicationId))?.saved?.origin).toBeNull();
+    });
+
+    it("reworks the proposal under review: its answers kept, never proposed again, from the revision seen", async () => {
+      reply = { ...PROPOSAL, missing: ["Power BI"] };
+      const proposed = await tailoredCvs.propose(candidateId, applicationId, {});
+      if (!proposed.ok || !proposed.tailoredCv.proposal) throw new Error("not proposed");
+      const answered = await tailoredCvs.answer(candidateId, applicationId, { requirement: "Power BI", confirmed: true });
+      if (!answered.ok) throw new Error("not answered");
+      const calls = provider.calls.length;
+      const before = (await tailoredCvs.revisable(candidateId, applicationId))!.proposal!;
+
+      const revised = await tailoredCvs.reviseProposal(candidateId, applicationId, {
+        revision: before.revision,
+        adapted: { ...before.adapted, skills: ["IFRS", "SAP", "Reporting", "Excel"] },
+        origins: { ...before.origins!, skills: [1, 2, 0, -1] },
+        declared: ["Excel"],
+      });
+      if (!revised.ok) throw new Error(`not revised: ${JSON.stringify(revised)}`);
+      expect(revised.before).toEqual({ adapted: before.adapted, origins: before.origins, declared: [] });
+      expect(provider.calls.length).toBe(calls);
+      const state = (await tailoredCvs.get(candidateId, applicationId))!.proposal!;
+      expect(state.revision).toBe(revised.revision);
+      expect(state.questions).toEqual([{ requirement: "Power BI", answer: "confirmed" }]);
+      expect(state.content.skills).toEqual(["IFRS", "SAP", "Reporting", "Excel", "Power BI"]);
+      // The Declared Fact, marked in the Tailored CV Review.
+      expect(state.changes.find((change) => change.item === "Excel")).toMatchObject({ kind: "added", declared: true });
+      expect(await tailoredCvs.reviseProposal(candidateId, applicationId, { revision: before.revision, adapted: before.adapted, origins: before.origins, declared: [] })).toEqual({ ok: false, error: "conflict" });
+    });
+
+    it("fills the Review's answers at once, from the revision seen, and puts them back", async () => {
+      reply = { ...PROPOSAL, missing: ["Power BI", "Kyriba"] };
+      const proposed = await tailoredCvs.propose(candidateId, applicationId, {});
+      if (!proposed.ok || !proposed.tailoredCv.proposal) throw new Error("not proposed");
+      const { revision } = proposed.tailoredCv.proposal;
+
+      const answered = await tailoredCvs.answerAll(candidateId, applicationId, { revision, answers: [{ requirement: "Power BI", answer: "confirmed" }, { requirement: "Kyriba", answer: "declined" }] });
+      if (!answered.ok) throw new Error(`not answered: ${JSON.stringify(answered)}`);
+      expect(answered.before).toEqual([{ requirement: "Power BI", answer: null }, { requirement: "Kyriba", answer: null }]);
+      expect((await tailoredCvs.get(candidateId, applicationId))?.proposal?.questions).toEqual([{ requirement: "Power BI", answer: "confirmed" }, { requirement: "Kyriba", answer: "declined" }]);
+      expect(await tailoredCvs.answerAll(candidateId, applicationId, { revision, answers: [] })).toEqual({ ok: false, error: "conflict" });
+      expect(await tailoredCvs.answerAll(candidateId, applicationId, { revision: answered.revision, answers: [{ requirement: "SQL", answer: "confirmed" }] })).toEqual({ ok: false, error: "not_found" });
+
+      const undone = await tailoredCvs.answerAll(candidateId, applicationId, { revision: answered.revision, answers: answered.before });
+      expect(undone.ok).toBe(true);
+      expect((await tailoredCvs.get(candidateId, applicationId))?.proposal?.questions).toEqual([{ requirement: "Power BI", answer: null }, { requirement: "Kyriba", answer: null }]);
+    });
+  });
 });

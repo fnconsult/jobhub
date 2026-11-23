@@ -166,6 +166,11 @@ function essence(document: VersionedDocument, language: DocumentLanguage, snapsh
   return { language, text, subject, channel: channel ?? null, contactRoles: contactRoles ?? [], contact: contact ?? null };
 }
 
+/** The number of the latest version kept of a document (its current one), 0 when it has none. Call it under the document's lock. */
+export async function latestVersion(client: Pick<PoolClient, "query">, applicationId: string, document: VersionedDocument): Promise<number> {
+  return (await latestOf(client, applicationId, document))?.version ?? 0;
+}
+
 /** The latest version kept of a document, or null. */
 async function latestOf(client: Pick<PoolClient, "query">, applicationId: string, document: VersionedDocument) {
   const { rows } = await client.query<Pick<VersionRow, "version" | "language" | "snapshot">>(
@@ -223,8 +228,11 @@ export function createTailoredDocumentVersions(database: Pool, deps: TailoredDoc
   /** Puts `snapshot` back as the document's content, under the lock taken. */
   async function write(client: PoolClient, applicationId: string, document: VersionedDocument, language: DocumentLanguage, snapshot: Snapshot, origin: Origin | null) {
     if (document === "tailored_cv") {
-      // Saved again now: the Tailored CV says the day it was restored.
-      await client.query(`UPDATE tailored_cv SET saved = $2 WHERE application_id = $1`, [applicationId, { ...(snapshot as CvSnapshot), savedAt: new Date().toISOString() }]);
+      // Saved again now: the Tailored CV says the day it was restored, and keeps no Origin but the one restoring it (ADR-0113).
+      const saved: CvSnapshot = { ...(snapshot as CvSnapshot), savedAt: new Date().toISOString() };
+      delete saved.origin;
+      if (origin) saved.origin = { ...origin, appliedAt: origin.appliedAt.toISOString() };
+      await client.query(`UPDATE tailored_cv SET saved = $2 WHERE application_id = $1`, [applicationId, saved]);
       return;
     }
     const draft = snapshot as DraftSnapshot;

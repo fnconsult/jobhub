@@ -7151,6 +7151,7 @@
       "profile": "Uses one active profile of your plan"
     },
     "by": "Proposed by your AI coach",
+    "profileName": "Profile {{name}}",
     "before": "Before:",
     "after": "after:",
     "changeOf": "{{what}}:",

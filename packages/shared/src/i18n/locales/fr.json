@@ -7151,6 +7151,7 @@
       "profile": "Utilise un profil actif de votre forfait"
     },
     "by": "Proposé par votre coach IA",
+    "profileName": "Profil {{name}}",
     "before": "Avant :",
     "after": "après :",
     "changeOf": "{{what}} :",

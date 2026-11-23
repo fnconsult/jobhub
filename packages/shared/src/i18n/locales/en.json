@@ -7260,6 +7260,36 @@
     },
     "label": "Where to do it yourself"
   },
+  "coachRedirects": {
+    "pages": {
+      "profile": "Profile {{name}}",
+      "profiles": "My profiles",
+      "newProfile": "Create a profile",
+      "application": "Application {{name}}",
+      "applications": "My applications",
+      "account": "My account",
+      "coach": "Coach"
+    },
+    "sections": {
+      "searchCriteria": "Search criteria",
+      "data": "My data"
+    },
+    "objects": {
+      "profile_rename": "Profile name",
+      "profile_duplicate": "Duplicate the profile",
+      "profile_create": "New profile",
+      "profile_delete": "Archive the profile",
+      "master_cv_version_restore": "Reference CV versions",
+      "master_cv_section": "CV sections",
+      "search_criteria": "Your criteria",
+      "job_offer_unpublished": "Report that the offer is no longer published",
+      "interview_delete": "Delete the interview",
+      "coach_memory": "Coach memory",
+      "coach_conversation_delete": "Delete the conversation",
+      "account_delete": "Delete my account"
+    },
+    "label": "Where to do it yourself"
+  },
   "coachProposalsDisplay": {
     "label": "Coach proposals",
     "card": "Card",

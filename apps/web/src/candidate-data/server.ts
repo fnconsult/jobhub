@@ -5,6 +5,7 @@ import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { sharedPool } from "@/database/pool";
 import { getApplications } from "@/applications/server";
 import { getBilling } from "@/billing/server";
+import { getExchanges } from "@/exchanges/server";
 import { getProfiles } from "@/profiles/server";
 import { getTailoredCvs } from "@/tailored-cv/server";
 import { getTailoredDocuments, getTailoredDocumentVersions } from "@/tailored-documents/server";
@@ -21,6 +22,7 @@ export function getCandidateData(): CandidateData {
     tailoredCvs: getTailoredCvs(),
     tailoredDocuments: getTailoredDocuments(),
     tailoredDocumentVersions: getTailoredDocumentVersions(),
+    exchanges: getExchanges(),
     billing: getBilling(),
     coachingCancellationOn: cancellationPolicyOn,
     coachSpaceV2: coachSpaceV2On,

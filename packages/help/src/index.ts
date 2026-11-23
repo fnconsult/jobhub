@@ -192,14 +192,15 @@ const served = new Map<string, readonly HelpArticle[]>();
 /**
  * The Help Articles served in `locale` under `settings` (#867, ADR-0107), the Administrators' too, in this build's order
  * (the page articles, the glossary, the frequent questions, then the tutorials, each by title). « Espace coach v2 » off
- * (the default): those main served, with main's text; on: the epic's, an article's `.v2` in its place. The one filter
+ * (the default): those main served, with main's text; on: the epic's, an article's `.v2` in its place. The Applications'
+ * Exchanges' articles (#1099) only with `applicationExchanges`. The one filter
  * every reader of the articles goes through: the Help Centre, its search and sitemap, « Sur cette page », the Coach
  * Panel, the AI Coach, the Back Office Assistant and /admin/aide. The same array for the same arguments.
  */
-export function articlesFor(locale: HelpLocale, { coachSpaceV2 = false }: HelpSettings = {}): readonly HelpArticle[] {
-  const key = `${locale} ${coachSpaceV2}`;
+export function articlesFor(locale: HelpLocale, { coachSpaceV2 = false, applicationExchanges = false }: HelpSettings = {}): readonly HelpArticle[] {
+  const key = `${locale} ${coachSpaceV2} ${applicationExchanges}`;
   let found = served.get(key);
-  if (!found) served.set(key, (found = Object.freeze(servedArticles(ARTICLES[locale], { coachSpaceV2 }))));
+  if (!found) served.set(key, (found = Object.freeze(servedArticles(ARTICLES[locale], { coachSpaceV2, applicationExchanges }))));
   return found;
 }
 

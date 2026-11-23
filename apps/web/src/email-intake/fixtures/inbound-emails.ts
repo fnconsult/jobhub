@@ -20,6 +20,8 @@ export interface InboundTestEmail {
   subject: string;
   html: string | null;
   text: string | null;
+  /** The Message-ID it answers (In-Reply-To and References), when it is a reply. */
+  inReplyTo: string | null;
   /**
    * The Authentication-Results: the first is the MTA's own stamp (sent beside the message), any other one a header
    * the message itself carried, which anyone can write.
@@ -51,6 +53,7 @@ export function inboundEmail(options: {
   subject?: string;
   messageId?: string;
   sentAt?: string;
+  inReplyTo?: string;
 }): InboundTestEmail {
   sequence += 1;
   const authentication = options.authentication ?? authenticationResults(options.from.split("@")[1]!);
@@ -64,6 +67,7 @@ export function inboundEmail(options: {
     subject: options.subject ?? "3 nouvelles offres pour « Chef de projet digital »",
     html: options.html === undefined ? null : options.html,
     text: options.text === undefined ? null : options.text,
+    inReplyTo: options.inReplyTo ?? null,
     authentication: Array.isArray(authentication) ? authentication : [authentication],
   };
 }
@@ -95,6 +99,7 @@ export function mimeOf(email: InboundTestEmail): string {
     `Subject: ${encodedWord(email.subject)}`,
     `Date: ${email.sentAt}`,
     `Message-ID: ${email.messageId}`,
+    ...(email.inReplyTo ? [`In-Reply-To: ${email.inReplyTo}`, `References: ${email.inReplyTo}`] : []),
     "MIME-Version: 1.0",
     "X-Mailer: Fixture Mailer 1.0",
     "Content-Type: multipart/mixed; boundary=\"mixed-boundary\"",
@@ -169,4 +174,22 @@ export function gmailForwardingConfirmation(to: string, options: { code?: string
       `https://mail-settings.google.com/mail/vf-%5BANGjdJ-fixture-${code}%5D-fixture`,
     ].join("\n\n"),
   });
+}
+
+/**
+ * A recruiter's answer about an Application (#1099): an invitation to an interview from the employer's own domain, a
+ * fictional company and person.
+ */
+export function recruiterEmail(to: string, options: { from?: string; messageId?: string; inReplyTo?: string; text?: string; subject?: string; authentication?: string | string[] } = {}): InboundTestEmail {
+  const from = options.from ?? "jane.recruiter@benchling.com";
+  const email = inboundEmail({
+    from,
+    to,
+    subject: options.subject ?? "Votre candidature : Data scientist",
+    text: options.text ?? "Bonjour Marie,\n\nMerci pour votre candidature. Seriez-vous disponible mardi à 14 h pour un premier entretien ?\n\nJane, Talent Acquisition",
+    ...(options.messageId ? { messageId: options.messageId } : {}),
+    ...(options.inReplyTo ? { inReplyTo: options.inReplyTo } : {}),
+    ...(options.authentication ? { authentication: options.authentication } : {}),
+  });
+  return { ...email, fromName: "Jane Recruiter" };
 }

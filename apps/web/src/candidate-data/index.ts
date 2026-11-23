@@ -1,4 +1,5 @@
 import {secretCipherFromEnv,type SecretCipher} from "../provider-secrets/cipher";
+import type { Exchanges } from "../exchanges";
 import {taxDataOf} from "../coaching-tax";
 import {contentReportsOf} from "../coaching-content-reports";
 import {coachingNotificationsOf} from "../coaching-notifications";
@@ -25,7 +26,7 @@ import type { Meeting } from "../coach-space/meeting";
   *    Appointment Reminders sent, the app's devices for Push notifications (never their token) and their switches; their Profiles
  *    (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and
  *    Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored
- *    Documents with their versions (#1079), Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach
+ *    Documents with their versions (#1079), Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier, Exchanges (#1099)); their Coach
  *    Conversations, Coach Memory, Coach Access, Coaching Sessions and Action Cards; as an Administrator,
  *    their Back Office Assistant conversations; the AI Message Log of their own AI calls; the Signalements they sent; their Extension Events (#924)
  *    (never which Administrator handled them); their Orders (#512) and their Withdrawals and refunds (#511); the Job Offers private to them (ADR-0049); their Offer box (ADR-0090). Profiles and Applications
@@ -213,6 +214,22 @@ export interface ExportedApplication extends Application {
   enrichedContacts: ExportedEnrichedContact[];
   /** What the app found about the employer, or null when nothing was looked up. */
   companyDossier: ExportedCompanyDossier | null;
+  /**
+   * Its Exchanges (#1099, ADR-0115): the emails about it kept on it, and those offered to tie to it (« Rattacher à … ? »),
+   * oldest first: sender, date, subject and text.
+   */
+  exchanges: ExportedApplicationExchange[];
+}
+
+/** An Exchange of an Application, as the Data export holds it (#1099). */
+export interface ExportedApplicationExchange {
+  id: string;
+  state: "kept" | "offered";
+  from: string;
+  subject: string;
+  text: string;
+  sentAt: Date | null;
+  receivedAt: Date;
 }
 
 /** The Company Dossier of an Application, as kept. */
@@ -516,6 +533,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coach_review: "applications[].coachReviews",
   enriched_contact: "applications[].enrichedContacts (no provider identifiers)",
   company_dossier: "applications[].companyDossier (with what served its last build)",
+  exchange: "applications[].exchanges (the emails about it kept on it, and those offered to tie to it: sender, date, subject and text; never attachments nor headers, #1099)",
   coach_conversation: "coachConversations (each with its Subject: kind, id and name)",
   coach_message: "coachConversations[].messages (blocked ones marked, a Job Offer card's Job Offer named, each reply's Provenance and focus; no AI costs)",
   coach_access: "coachAccess",
@@ -681,6 +699,8 @@ export interface CandidateDataDeps {
   tailoredDocuments: Pick<TailoredDocuments, "get">;
   /** The versions of the Tailored Documents (#1079); without it, the export lists none. */
   tailoredDocumentVersions?: Pick<TailoredDocumentVersions, "list">;
+  /** The Candidate's Exchanges (#1099), whose sender, subject and text only it can open (sealed under SECRETS_MASTER_KEYS). */
+  exchanges: Pick<Exchanges, "exportOf">;
   /** Ends the Candidate's paid Plan, if any, before the account goes. Without it, there is nothing to close. */
   billing?: { closeAccount(candidateId: string): Promise<void> };
 }
@@ -773,8 +793,17 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
     return (key) => groups.get(key) ?? [];
   }
 
+  /** Each Application's Exchanges: kept on it, or offered to it (an email offered to several Applications is listed under each). */
+  async function exchangesByApplication(candidateId: string): Promise<(applicationId: string) => ExportedApplicationExchange[]> {
+    const groups = new Map<string, ExportedApplicationExchange[]>();
+    for (const { applicationId, offeredTo, ...exchange } of await deps.exchanges.exportOf(candidateId)) {
+      for (const key of exchange.state === "kept" && applicationId ? [applicationId] : offeredTo) groups.set(key, [...(groups.get(key) ?? []), exchange]);
+    }
+    return (applicationId) => groups.get(applicationId) ?? [];
+  }
+
   async function exportApplications(candidateId: string): Promise<ExportedApplication[]> {
-    const [summaries, followUpsOf, coachReviewsOf, enrichedContactsOf, companyDossiersOf] = await Promise.all([
+    const [summaries, followUpsOf, coachReviewsOf, enrichedContactsOf, companyDossiersOf, exchangesOf] = await Promise.all([
       deps.applications.list(candidateId),
       grouped<{ sentAt: Date }>(
       `SELECT s.application_id AS key, s.sent_at AS "sentAt" FROM follow_up_sent s JOIN application a ON a.id = s.application_id
@@ -797,6 +826,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
          FROM company_dossier d JOIN application a ON a.id = d.application_id WHERE a.candidate_id = $1`,
         candidateId,
       ),
+      exchangesByApplication(candidateId),
     ]);
     const exported = await Promise.all(
       summaries.map(async ({ id }): Promise<ExportedApplication | null> => {
@@ -821,6 +851,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           coachReviews: coachReviewsOf(id),
           enrichedContacts: enrichedContactsOf(id),
           companyDossier: exportedDossier(companyDossiersOf(id)[0]),
+          exchanges: exchangesOf(id),
         };
       }),
     );

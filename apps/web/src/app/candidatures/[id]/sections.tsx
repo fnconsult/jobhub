@@ -23,6 +23,8 @@ import { RescheduleHistory } from "@/components/RescheduleHistory";
 import { TailoredDocuments } from "@/components/TailoredDocuments";
 import { getCompanyDossiers } from "@/company-dossiers/server";
 import { getEnrichedContacts } from "@/enriched-contacts/server";
+import { exchangesOn, getExchanges } from "@/exchanges/server";
+import { ApplicationExchanges } from "@/components/ApplicationExchanges";
 import { ABANDON_CARD, FOLLOW_UP_CARD, followUpCardApplies, type FollowUpPayload } from "@/follow-ups";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -64,7 +66,7 @@ function cardView({ id, kind, title, body, payload }: ActionCard, t: T): ActionC
  * Everything an Application's page shows, loaded once per request (the layout
  * and the Section shown share it), and which of its Sections there are, in
  * order (ADR-0024): Propositions while there are Action Cards, the Tailored
- * Documents once there are some, the Coach Reviews once there are some, and the
+ * Documents once there are some, the Exchanges while they are on (#1099), the Coach Reviews once there are some, and the
  * Enriched Contacts while a contact-data provider is on or some were found.
  * Sends anonymous visitors to sign in, and answers 404 for an Application that is not theirs.
  */
@@ -81,12 +83,15 @@ export const loadApplicationPage = cache(async (id: string) => {
     getTailoredDocuments().get(candidateId, application.id),
     getHumanCoaches().reviews(candidateId, application.id),
   ]);
+  // Its Exchanges (#1099, ADR-0115): only while APPLICATION_EXCHANGES_ENABLED is on.
+  const exchanges = exchangesOn() ? await getExchanges().onApplication(candidateId, application.id) : null;
   const shownCards = pendingCards.filter((card) => followUpCardApplies(card, application.status));
   const cards = shownCards.map((card) => cardView(card, t));
   const present: Record<ApplicationSection, boolean> = {
     propositions: cards.length > 0,
     documents: Boolean(tailoredCv || drafts),
     correspondance: true,
+    echanges: exchanges !== null,
     entretiens: true,
     avis: coachReviews.length > 0,
     dossier: true,
@@ -98,7 +103,7 @@ export const loadApplicationPage = cache(async (id: string) => {
   const now = new Date();
   const allPast = application.interviews.length > 0 && application.interviews.every((interview) => agendaPeriod(interview.scheduledAt, now) === "past");
   const agendaHref = routes.agenda(allPast);
-  return { candidateId, application, t, locale, inView, cards, shownCards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts, coachReviews, sections, agendaHref };
+  return { candidateId, application, t, locale, inView, cards, shownCards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts, coachReviews, exchanges, sections, agendaHref };
 });
 
 export type ApplicationPageData = Awaited<ReturnType<typeof loadApplicationPage>>;
@@ -193,6 +198,15 @@ function SectionView({ data, section, result }: { data: ApplicationPageData; sec
     }
     case "correspondance":
       return <MatchScoreView matchScore={application.matchScore} profileName={application.profile.name} t={t} locale={locale} />;
+    case "echanges":
+      return data.exchanges ? (
+        <ApplicationExchanges
+          key={`exchanges-${application.id}`}
+          applicationId={application.id}
+          kept={data.exchanges.kept.map(({ id, from, subject, text, sentAt, receivedAt }) => ({ id, from, subject, text, at: (sentAt ?? receivedAt).toISOString() }))}
+          offered={data.exchanges.offered.map(({ id, from, subject, sentAt, receivedAt, employer }) => ({ id, from, subject, employer, at: (sentAt ?? receivedAt).toISOString() }))}
+        />
+      ) : null;
     case "entretiens":
       return <Interviews data={data} />;
     case "avis":

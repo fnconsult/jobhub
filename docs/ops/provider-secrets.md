@@ -25,8 +25,10 @@ Two deployments, in this order. Nothing is down in between: both versions decryp
 1. **Add the new version.** Append it to the list, keeping the old one: `1:<old>,2:<new>`. Deploy the web app and the worker.
    - New values are encrypted under v2 at once.
    - The worker re-encrypts every row under v2 when it starts (job `provider-secrets.reencrypt`, also run nightly at 04:15 UTC). Its log says `[provider-secrets] N Provider Secret(s) re-encrypted under the newest master key`.
+   - The same job moves an Application's Exchanges (#1099: their sender, subject and text are sealed under the same keys, for as long as the Application lives): `[exchanges] N Exchange(s) re-encrypted under the newest master key`.
 2. **Check no row uses the old version.** The provider sheet lists the master key versions in use under its table ("Saved keys are encrypted with master key: v2 (active: v2)"). Or in SQL: `SELECT key_version, count(*) FROM provider_secret GROUP BY 1;`.
    - If v1 is still listed: a row that does not decrypt is left as it is (the worker logs it). Replace or clear that key on the provider sheet in Paramètres, then check again.
+   - The Exchanges too: `SELECT content_key_version, count(*) FROM exchange GROUP BY 1;` must list v2 only. An Exchange still under v1 is unreadable once v1 is removed.
 3. **Remove the old version.** Set `SECRETS_MASTER_KEYS=2:<new>` and deploy both apps again.
 
 A row whose master key was removed before it was re-encrypted no longer decrypts: the provider sheet shows it as "Unreadable: the environment stands in", and env's value is used. Replace or clear it.

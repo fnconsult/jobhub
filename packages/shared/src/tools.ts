@@ -887,7 +887,7 @@ export const TOOLS = [
     module: "apps/web/src/email-intake/inbound.ts",
     runsIn: "web",
     keys: ["EMAIL_INTAKE_INBOUND_SECRET"],
-    settings: [{ name: "EMAIL_INTAKE_DOMAIN" }, { name: "EMAIL_INTAKE_MTA_IP_RANGES" }, { name: "EMAIL_INTAKE_DAILY_CAP" }, { name: "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD" }],
+    settings: [{ name: "EMAIL_INTAKE_DOMAIN" }, { name: "EMAIL_INTAKE_MTA_IP_RANGES" }, { name: "EMAIL_INTAKE_DAILY_CAP" }, { name: "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD" }, { name: "APPLICATION_EXCHANGES_ENABLED" }],
     usage: null,
     residency: "eu",
     receivesPersonalData: true,

@@ -3,10 +3,11 @@ import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createAesGcmCipher, type SecretCipher } from "../provider-secrets/cipher";
-import { alertEmail, authenticationResults, inboundEmail, inboundRequest, unknownSenderEmail, type InboundTestEmail } from "./fixtures/inbound-emails";
+import type { Arrival, IncomingEmail } from "../exchanges";
+import { alertEmail, authenticationResults, inboundEmail, inboundRequest, recruiterEmail, unknownSenderEmail, type InboundTestEmail } from "./fixtures/inbound-emails";
 import { createEmailIntake, emailIntakeOf, migrateEmailIntake, type EmailIntake } from "./index";
 import { createCandidateSenders } from "./candidate-senders";
-import { createEmailIntakeInbound, EMAIL_INTAKE_READ_QUEUE, inIpRanges, MAX_MESSAGE_BYTES, purgeReceivedOfferEmails, receivedTextOf, type EmailIntakeInbound, type InboundSettings } from "./inbound";
+import { createEmailIntakeInbound, EMAIL_INTAKE_READ_QUEUE, EXCHANGE_CHECK_QUEUE, inIpRanges, MAX_MESSAGE_BYTES, purgeReceivedOfferEmails, receivedTextOf, type EmailIntakeInbound, type InboundSettings } from "./inbound";
 
 const SECRET = "email-intake-test-secret-0123456789";
 /** The MTA's address on the stack's own network, as Next.js adds it to X-Forwarded-For when no proxy did. */
@@ -24,6 +25,10 @@ describe.skipIf(!connectionString)("Email intake: the emails its MTA posts (need
   let settings: InboundSettings;
   let inbound: EmailIntakeInbound;
   let switchedOn: boolean;
+  /** The Exchanges as the inbound route sees them (#1099): switched on or off, and what each email arrived as. */
+  let exchangesOn: boolean;
+  let arrivals: { candidateId: string; email: IncomingEmail }[];
+  let arrival: Arrival;
 
   /** Posts each email as the MTA does, one request each, in turn; the last answer. */
   async function deliver(...emails: InboundTestEmail[]): Promise<Response> {
@@ -57,7 +62,17 @@ describe.skipIf(!connectionString)("Email intake: the emails its MTA posts (need
     sent = [];
     settings = { secret: SECRET, mtaIpRanges: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"], dailyCap: 3 };
     switchedOn = true;
+    exchangesOn = false;
+    arrivals = [];
+    arrival = { arrived: "none" };
     inbound = createEmailIntakeInbound(database, {
+      exchanges: {
+        on: () => exchangesOn,
+        arrive: async (_client, candidateId, email) => {
+          arrivals.push({ candidateId, email });
+          return arrival;
+        },
+      },
       emailIntake,
       switchedOn: async () => switchedOn,
       cipher: () => cipher,
@@ -247,6 +262,67 @@ describe.skipIf(!connectionString)("Email intake: the emails its MTA posts (need
 
       await expect(deliver(alertEmail(address))).rejects.toThrow("queue down");
       expect(await received()).toEqual([]);
+    });
+  });
+
+  describe("an email about one of the Candidate's Applications (#1099, ADR-0115)", () => {
+    it("is not looked at while Exchanges are switched off: an unrecognised sender's email is set aside, its text not kept", async () => {
+      arrival = { arrived: "new", id: "exchange-1" };
+      await deliver(recruiterEmail(address));
+
+      expect(arrivals).toEqual([]);
+      expect(await received()).toMatchObject([{ outcome: "unrecognised_sender" }]);
+    });
+
+    it("switched on, arrives as an Exchange awaiting the email Guardrail: no Received offer email, nothing read for offers", async () => {
+      exchangesOn = true;
+      arrival = { arrived: "new", id: "exchange-1" };
+      await deliver(recruiterEmail(address, { messageId: "<answer@benchling.com>", inReplyTo: "<sent-by-marie@example.fr>" }));
+
+      expect(arrivals).toEqual([
+        {
+          candidateId: marie,
+          email: {
+            messageId: "<answer@benchling.com>",
+            from: "jane.recruiter@benchling.com",
+            subject: "Votre candidature : Data scientist",
+            text: expect.stringContaining("premier entretien"),
+            sentAt: expect.any(Date),
+            threadIds: ["<sent-by-marie@example.fr>"],
+            recognisedSender: false,
+          },
+        },
+      ]);
+      expect(sent).toEqual([{ name: EXCHANGE_CHECK_QUEUE, data: { exchangeId: "exchange-1" } }]);
+      expect(await received()).toEqual([]);
+    });
+
+    it("matching no Application, keeps today's path; delivered twice, is received once", async () => {
+      exchangesOn = true;
+      await deliver(recruiterEmail(address));
+      expect(await received()).toMatchObject([{ outcome: "unrecognised_sender" }]);
+
+      arrival = { arrived: "duplicate" };
+      await deliver(recruiterEmail(address, { messageId: "<twice@benchling.com>" }));
+      expect(await received()).toHaveLength(1);
+      expect(sent).toEqual([]);
+    });
+
+    it("from a sender the MTA did not authenticate, or forwarded by the Candidate by hand, is never tied", async () => {
+      exchangesOn = true;
+      arrival = { arrived: "new", id: "exchange-1" };
+      await deliver(recruiterEmail(address, { authentication: "mx.jobbbox.test; dkim=none; spf=fail smtp.mailfrom=jane@benchling.com; dmarc=fail header.from=benchling.com" }));
+      await deliver(inboundEmail({ from: "marie.dupont@example.fr", to: address, text: "TR: Votre candidature" }));
+
+      expect(arrivals).toEqual([]);
+    });
+
+    it("from a Recognised sender, is looked at with that said: its domain alone never ties it", async () => {
+      exchangesOn = true;
+      await deliver(alertEmail(address));
+
+      expect(arrivals.map(({ email }) => email.recognisedSender)).toEqual([true]);
+      expect(await received()).toMatchObject([{ outcome: "awaiting_reading" }]);
     });
   });
 

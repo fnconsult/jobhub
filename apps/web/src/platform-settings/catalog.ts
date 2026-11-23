@@ -100,6 +100,10 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
   { name: "EMAIL_INTAKE_DAILY_CAP", group: "email_intake", type: whole(1, 1000), default: "50" },
   { name: "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD", group: "email_intake", type: whole(1, 1000), default: "20" },
   { name: "EMAIL_INTAKE_MTA_IP_RANGES", group: "email_intake", type: { kind: "text" }, default: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16" },
+  // An Application's Exchanges (#1099, ADR-0115, proposed): off by default. Off, Email intake keeps no text of an email
+  // about an Application (« autre », as ADR-0051 had it), and there is no « Échanges » Section nor Coach Action on them;
+  // on, an email tied to an Application by rules is kept on it. Switched on only once its Legal Review is done.
+  { name: "APPLICATION_EXCHANGES_ENABLED", group: "email_intake", type: { kind: "boolean" }, default: "false", confirm: "true" },
   // The Job Digest (worker): lowest Match Score, how many Job Offers it aims for, how far back a Profile's first one looks.
   { name: "JOB_DIGEST_MIN_MATCH_SCORE", group: "job_digest", type: whole(0, 100), default: "60" },
   { name: "JOB_DIGEST_TARGET_COUNT", group: "job_digest", type: whole(1, 100), default: "10" },

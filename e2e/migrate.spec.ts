@@ -117,6 +117,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "eu_ai_consent", // issue #121: the Candidate's dated EU AI consent
         "eval_case", // issue #231: a Coaching Playbook's Eval Cases, fictional, in each environment
         "eval_run", // issue #231: each Eval Run, with the text of the cases it played
+        "exchange", // issue #1099: the Exchanges of an Application: recruiter emails kept after the email Guardrail, deleted with it
         "extension_event", // issue #924: each extension action and error, its Candidate kept 12 months (30 days without one)
         "extension_job_site", // issue #188: the extension's Job Sites, set in the Back Office
         "external_api_usage", // issue #218: every call to France Travail and contact enrichment, no payload
@@ -330,6 +331,9 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "eu_ai_consent", from_column: "candidate_id", to_table: "candidate" },
         // A Coaching Playbook's Eval Cases (issue #231) belong to it; no Candidate in them.
         { from_table: "eval_case", from_column: "playbook_id", to_table: "coaching_playbook" },
+        // The Exchanges of an Application (issue #1099) go with it and with their Candidate.
+        { from_table: "exchange", from_column: "application_id", to_table: "application" },
+        { from_table: "exchange", from_column: "candidate_id", to_table: "candidate" },
         // The Extension Events (issue #924) follow their Candidate.
         { from_table: "extension_event", from_column: "candidate_id", to_table: "candidate" },
         // Follow-up Delays (issue #21) go with their Candidate, Follow-ups sent with their Application.

@@ -71,7 +71,7 @@ const aiStep = z.strictObject({
   euAiConsent: z.literal(true).optional(),
 });
 /** The kinds of the Candidate's objects a Coach Action reads or proposes on (#788), and `all` for a list of every kind. */
-export const SEEN_TYPES = ["profile", "application", "job_offer", "job_search", "job_digest", "tailored_documents", "agenda_item", "coach_memory", "all"] as const;
+export const SEEN_TYPES = ["profile", "application", "job_offer", "job_search", "job_digest", "tailored_documents", "agenda_item", "exchange", "coach_memory", "all"] as const;
 export type SeenType = (typeof SEEN_TYPES)[number];
 /** A Coach Action's name, as every provider takes it. */
 const COACH_ACTION_NAME = /^[a-z][a-z0-9_]{0,63}$/;

@@ -33,6 +33,10 @@ export interface InboundEmail {
   authenticationResults: string;
   /** Its text, capped at MAX_TEXT_CHARACTERS. */
   text: string;
+  /** Its subject, empty when it has none (#1099: an Exchange keeps it). */
+  subject: string;
+  /** The Message-IDs its In-Reply-To and References name (#1099: to find an Exchange's thread), never kept. */
+  threadIds: string[];
 }
 
 /** An anchor's words followed by its link, so the reading keeps where each offer is; other links (mailto:, tracking images) go. */
@@ -98,6 +102,11 @@ function dateOf(value: string | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+/** The Message-IDs In-Reply-To and References name, each `<…>`, once. */
+function threadIdsOf(...headers: (string | undefined)[]): string[] {
+  return [...new Set(headers.flatMap((header) => header?.match(/<[^<>\s]+>/g) ?? []))];
+}
+
 /** One email as the MTA posts it (raw message, envelope and stamp in headers); null when its message names no sender. */
 export async function readInboundEmail(request: Request): Promise<InboundEmail | null> {
   const raw = new Uint8Array(await request.arrayBuffer());
@@ -116,5 +125,7 @@ export async function readInboundEmail(request: Request): Promise<InboundEmail |
     sentAt: dateOf(message.date),
     authenticationResults: request.headers.get(AUTHENTICATION_RESULTS_HEADER)?.trim() ?? "",
     text,
+    subject: message.subject?.trim() ?? "",
+    threadIds: threadIdsOf(message.inReplyTo, message.references),
   };
 }

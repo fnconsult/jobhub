@@ -1743,6 +1743,7 @@
         "job_digest": "Job Digest",
         "tailored_documents": "Tailored documents",
         "agenda_item": "Appointment",
+        "exchange": "Exchange",
         "coach_memory": "Coach memory",
         "all": "Your data"
       }
@@ -3022,6 +3023,7 @@
         "EMAIL_INTAKE_DAILY_CAP": "Emails read a day per Linked mailbox, at most (Email intake)",
         "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD": "Emails a day from which the filter is « too broad »",
         "EMAIL_INTAKE_MTA_IP_RANGES": "Networks the receiving MTA posts emails from (CIDR)",
+        "APPLICATION_EXCHANGES_ENABLED": "Applications' Exchanges switched on (recruiters' emails kept on the application; only after the Legal Review)",
         "MAIL_TRANSPORT": "Email sending",
         "REVIEW_SIGN_IN": "Store review sign-in code switched on (on)",
         "REVIEW_SIGN_IN_EMAILS": "Demo accounts of the store review sign-in code",
@@ -4800,6 +4802,7 @@
       "propositions": "Suggestions",
       "documents": "Documents",
       "correspondance": "Match",
+      "echanges": "Exchanges",
       "entretiens": "Interviews",
       "avis": "Coach reviews",
       "dossier": "Company dossier",
@@ -7116,7 +7119,8 @@
         "tailored_cv": "Tailored CV: bring back version {{version}}",
         "cover_letter": "Cover letter: bring back version {{version}}",
         "outreach_message": "Outreach message: bring back version {{version}}"
-      }
+      },
+      "exchangeReply": "Reply to “{{subject}}”"
     },
     "interview": {
       "none": "None",
@@ -7215,7 +7219,16 @@
       "outreach_message": "Your outreach message is in Documents › Outreach message."
     },
     "runStopped": "If you stopped it, nothing was kept.",
-    "openResult": "Open beside the conversation"
+    "openResult": "Open beside the conversation",
+    "handOver": {
+      "copy": "Copy",
+      "open": "Open in my email",
+      "copied": "Reply copied: paste it into your email to send it.",
+      "copyFailed": "Copying did not work: select the text to copy it.",
+      "handedOver": "Taken by you at {{time}}: send it from your email.",
+      "nothingSent": "Jobbbox sends nothing: you send this reply yourself.",
+      "to": "To: {{to}} · Subject: {{subject}}"
+    }
   },
   "coachRedirects": {
     "pages": {
@@ -7993,5 +8006,23 @@
     "rebuild": "Replace unfiled preparation",
     "rebuildExplanation": "Recalculates data and retains the previous preparation as a superseded archive. If an initial file has already been filed, use the corrective procedure with its references; do not create another initial packet.",
     "confirmUnfiled": "I confirm that no initial file for this year has been filed and this preparation may be replaced."
+  },
+  "exchanges": {
+    "title": "Exchanges",
+    "intro": "The recruiter's emails about this application, received by your linked mailbox: sender, date, subject and text, never attachments. They are kept as long as the application exists.",
+    "offeredLabel": "Emails to link",
+    "from": "From {{from}}, {{date}}",
+    "noSubject": "(no subject)",
+    "tieQuestion": "Link to {{employer}}?",
+    "tie": "Link to {{employer}}",
+    "dismiss": "Ignore",
+    "none": "No exchange yet",
+    "noneHint": "The recruiter's replies received by your linked mailbox will show here.",
+    "delete": "Delete the exchange “{{subject}}”",
+    "deleteConfirm": "Delete this exchange? It cannot be recovered.",
+    "deleteYes": "Delete",
+    "deleteNo": "Keep",
+    "failed": "That did not work. Please try again.",
+    "coachHint": "Your AI coach can propose a reply: you copy it or open it in your email, and send it yourself. An exchange never changes the application's status."
   }
 }

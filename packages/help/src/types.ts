@@ -45,10 +45,11 @@ export type BackOfficeHelpTopic = (typeof BACK_OFFICE_HELP_TOPICS)[number];
 
 /**
  * What a Help Article may wait for (front matter `requires:`): `coach-space-v2`, the « Espace coach v2 » Platform Setting
- * (#867, ADR-0107). Such an article is served only while it is on; one that also `replaces: <id>` (its file
- * `<id>.v2.md`) then takes the place of the article `<id>`, which is served while it is off.
+ * (#867, ADR-0107), or `application-exchanges`, the Applications' Exchanges (APPLICATION_EXCHANGES_ENABLED, #1099,
+ * ADR-0115). Such an article is served only while it is on; one that also `replaces: <id>` (its file `<id>.v2.md`, for
+ * « Espace coach v2 ») then takes the place of the article `<id>`, which is served while it is off.
  */
-export const HELP_ARTICLE_REQUIREMENTS = ["coach-space-v2"] as const;
+export const HELP_ARTICLE_REQUIREMENTS = ["coach-space-v2", "application-exchanges"] as const;
 export type HelpArticleRequirement = (typeof HELP_ARTICLE_REQUIREMENTS)[number];
 
 /** A Help Article in one language: drafted by an agent or a person, never served before a person reviewed and merged it (ADR-0065). */

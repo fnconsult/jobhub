@@ -92,7 +92,7 @@ async function ask(page: Page, tool: string, args: object, { focus, message = "R
   });
   expect(asked.status(), await asked.text()).toBe(200);
   const body = await asked.json();
-  return { reply: String(body.reply ?? ""), cards: (body.cards ?? []) as { id: string; status: string; change: Record<string, any> }[], conversationId: body.conversation.id as string };
+  return { reply: String(body.reply ?? ""), cards: (body.cards ?? []) as { id: string; status: string; change: { quota?: { label: string; prompt?: unknown }; text?: unknown } }[], conversationId: body.conversation.id as string };
 }
 
 const toolResult = (reply: string, tool: string) => {

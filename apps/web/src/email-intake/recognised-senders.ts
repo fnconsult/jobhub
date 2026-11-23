@@ -104,6 +104,14 @@ function listed(sender: RecognisedSender, from: string): boolean {
   return domain === sender.value || domain.endsWith(`.${sender.value}`);
 }
 
+/**
+ * Whether the MTA authenticated the email's From domain (DMARC, or DKIM or SPF aligned on its organisation): only then may
+ * its domain tie it to an Application as an Exchange (#1099), as anyone can write a From.
+ */
+export function senderAuthenticated(email: Pick<InboundEmail, "from" | "authenticationResults">): boolean {
+  return authenticationOf(email.from.trim().toLowerCase(), email.authenticationResults).aligned;
+}
+
 /** Whether Email intake reads an email, and why: by its sender and how the MTA authenticated it. */
 export function senderStanding(
   email: Pick<InboundEmail, "from" | "authenticationResults">,

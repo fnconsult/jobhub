@@ -6,6 +6,7 @@ import { getCurrentCandidate } from "@/auth/server";
 import { coachActionsOn } from "@/coach-actions/on";
 import { GettingStartedProvider } from "@/coach-help/getting-started";
 import { HelpSettingsProvider } from "@/coach-help/settings";
+import { exchangesOn } from "@/exchanges/on";
 import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { currentGettingStarted } from "@/getting-started/server";
 import { CandidateProviders } from "@/components/CandidateProviders";
@@ -61,7 +62,7 @@ export default async function RootLayout({
         <ScrollbarActivity />
         <I18nProvider locale={locale}>
           {/* The Help Articles « Espace coach v2 » serves (ADR-0107): main's while it is off. */}
-          <HelpSettingsProvider coachSpaceV2={coachSpaceV2On()}>
+          <HelpSettingsProvider coachSpaceV2={coachSpaceV2On()} applicationExchanges={exchangesOn()}>
             <GettingStartedProvider account={gettingStarted}>
               {/* A session that expired, or too many requests, said wherever the page calls our API (#542). */}
               <ResponseWatcher signedIn={candidate !== null} />

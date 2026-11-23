@@ -73,6 +73,49 @@ afterEach(() => vi.unstubAllGlobals());
 
 const applied = (more: Partial<Card> = {}): Card => ({ ...PENDING, status: "accepted", decidedAt: "2026-11-04T17:20:00.000Z", undoable: true, ...more });
 
+describe("a reply to an Exchange proposed (#1099, ADR-0115)", () => {
+  const REPLY: Card = {
+    ...PENDING,
+    change: {
+      target: { kind: "application", id: "a1", name: "Data scientist · Benchling", href: "/candidatures/a1/echanges" },
+      what: "Réponse à « Entretien »",
+      before: "Entretien",
+      after: "Bonjour Jane,\n\nMardi à 14 h me convient.\n\nMarie",
+      handOver: { to: "jane@benchling.com", subject: "Re: Entretien" },
+      value: { exchangeId: "x1", text: "Bonjour Jane,\n\nMardi à 14 h me convient.\n\nMarie" },
+      fields: [],
+    },
+  };
+  const replyCard = () => screen.getByRole("article", { name: /Réponse à « Entretien »/ });
+
+  it("shows to whom and the whole text, with « Copier » and « Ouvrir dans ma messagerie » in place of « Appliquer »: Jobbbox sends nothing", () => {
+    renderInFrench(<Thread card={REPLY} />);
+
+    expect(replyCard().querySelector(".coach-proposal-card__text")?.textContent).toBe("Bonjour Jane,\n\nMardi à 14 h me convient.\n\nMarie");
+    expect(replyCard().textContent).toContain("À : jane@benchling.com · Objet : Re: Entretien");
+    expect(replyCard().textContent).toContain("Jobbbox n'envoie rien");
+    expect(within(replyCard()).getAllByRole("button").map((each) => each.textContent)).toEqual(["Copier", "Ignorer"]);
+    expect(within(replyCard()).getByRole("link", { name: "Ouvrir dans ma messagerie" }).getAttribute("href")).toBe(
+      "mailto:jane%40benchling.com?subject=Re%3A%20Entretien&body=Bonjour%20Jane%2C%0A%0AMardi%20%C3%A0%2014%20h%20me%20convient.%0A%0AMarie",
+    );
+  });
+
+  it("« Copier » puts the text on the clipboard and says the reply was taken", async () => {
+    const writeText = vi.fn(async () => {});
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    answers = [{ status: 200, body: { card: { ...REPLY, status: "accepted", decidedAt: "2026-11-04T17:20:00.000Z" } } }];
+    renderInFrench(<Thread card={REPLY} />);
+
+    await userEvent.click(within(replyCard()).getByRole("button", { name: "Copier" }));
+
+    expect(writeText).toHaveBeenCalledWith("Bonjour Jane,\n\nMardi à 14 h me convient.\n\nMarie");
+    expect(sent).toEqual([{ url: `/api/action-cards/${REPLY.id}`, body: { decision: "accept" } }]);
+    await vi.waitFor(() => expect(within(replyCard()).getByRole("status").textContent).toMatch(/^Prise par vous à \d\d:\d\d : envoyez-la depuis votre messagerie\. Réponse copiée/));
+    // Still there to copy again, or to open in the mailbox.
+    expect(within(replyCard()).getAllByRole("button").map((each) => each.textContent)).toEqual(["Copier"]);
+  });
+});
+
 describe("a draft's new text proposed (ADR-0109)", () => {
   const TEXT: Card = {
     ...PENDING,

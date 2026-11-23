@@ -1743,6 +1743,7 @@
         "job_digest": "Job Digest",
         "tailored_documents": "Documents adaptés",
         "agenda_item": "Rendez-vous",
+        "exchange": "Échange",
         "coach_memory": "Mémoire du coach",
         "all": "Vos données"
       }
@@ -3022,6 +3023,7 @@
         "EMAIL_INTAKE_DAILY_CAP": "Emails lus par jour et par boîte reliée, au plus (Réception par email)",
         "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD": "Emails par jour à partir desquels le filtre est « trop large »",
         "EMAIL_INTAKE_MTA_IP_RANGES": "Réseaux d'où le MTA de réception poste les emails (CIDR)",
+        "APPLICATION_EXCHANGES_ENABLED": "Échanges des candidatures allumés (e-mails du recruteur gardés sur la candidature ; seulement après la Legal Review)",
         "MAIL_TRANSPORT": "Envoi des e-mails",
         "REVIEW_SIGN_IN": "Code de revue des stores allumé (on)",
         "REVIEW_SIGN_IN_EMAILS": "Comptes de démonstration du code de revue des stores",
@@ -4800,6 +4802,7 @@
       "propositions": "Propositions",
       "documents": "Documents",
       "correspondance": "Correspondance",
+      "echanges": "Échanges",
       "entretiens": "Entretiens",
       "avis": "Avis des coachs",
       "dossier": "Dossier entreprise",
@@ -7117,7 +7120,8 @@
         "tailored_cv": "CV adapté : remettre la version {{version}}",
         "cover_letter": "Lettre de motivation : remettre la version {{version}}",
         "outreach_message": "Message d'approche : remettre la version {{version}}"
-      }
+      },
+      "exchangeReply": "Réponse à « {{subject}} »"
     },
     "interview": {
       "none": "Aucun",
@@ -7227,6 +7231,15 @@
     },
     "tailoredCvAnswers": {
       "what": "Réponses aux questions"
+    },
+    "handOver": {
+      "copy": "Copier",
+      "open": "Ouvrir dans ma messagerie",
+      "copied": "Réponse copiée : collez-la dans votre messagerie pour l'envoyer.",
+      "copyFailed": "La copie n'a pas abouti : sélectionnez le texte pour le copier.",
+      "handedOver": "Prise par vous à {{time}} : envoyez-la depuis votre messagerie.",
+      "nothingSent": "Jobbbox n'envoie rien : vous envoyez cette réponse vous-même.",
+      "to": "À : {{to}} · Objet : {{subject}}"
     }
   },
   "coachRedirects": {
@@ -8005,5 +8018,23 @@
     "rebuild": "Remplacer la préparation non déposée",
     "rebuildExplanation": "Recalcule les données et conserve l’ancienne préparation comme archive remplacée. Si un fichier initial a déjà été déposé, utilisez la procédure corrective avec ses références ; ne créez pas un nouvel initial.",
     "confirmUnfiled": "Je confirme qu’aucun fichier initial de cette année n’a été déposé et que cette préparation peut être remplacée."
+  },
+  "exchanges": {
+    "title": "Échanges",
+    "intro": "Les e-mails du recruteur sur cette candidature, reçus par votre boîte reliée : l'expéditeur, la date, l'objet et le texte, jamais les pièces jointes. Ils sont gardés tant que la candidature existe.",
+    "offeredLabel": "E-mails à rattacher",
+    "from": "De {{from}}, le {{date}}",
+    "noSubject": "(sans objet)",
+    "tieQuestion": "Rattacher à {{employer}} ?",
+    "tie": "Rattacher à {{employer}}",
+    "dismiss": "Ignorer",
+    "none": "Aucun échange pour l'instant",
+    "noneHint": "Les réponses du recruteur reçues par votre boîte reliée s'afficheront ici.",
+    "delete": "Supprimer l'échange « {{subject}} »",
+    "deleteConfirm": "Supprimer cet échange ? Il ne pourra pas être retrouvé.",
+    "deleteYes": "Supprimer",
+    "deleteNo": "Garder",
+    "failed": "L'action n'a pas abouti. Réessayez.",
+    "coachHint": "Votre coach IA peut vous proposer une réponse : vous la copiez ou l'ouvrez dans votre messagerie, et l'envoyez vous-même. Un échange ne change jamais le statut de la candidature."
   }
 }

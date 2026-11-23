@@ -13,12 +13,20 @@ import type { HelpArticle, HelpArticleRequirement } from "./types";
 export interface HelpSettings {
   /** « Espace coach v2 » (`COACH_SPACE_V2`) is on. */
   coachSpaceV2?: boolean;
+  /** The Applications' Exchanges (`APPLICATION_EXCHANGES_ENABLED`, #1099) are on. */
+  applicationExchanges?: boolean;
 }
 
-/** Both states of every setting, off first: what the build and the tests check the articles in. */
-export const HELP_SETTINGS_STATES: readonly Required<HelpSettings>[] = [{ coachSpaceV2: false }, { coachSpaceV2: true }];
+/** Every state of the settings, all off first: what the build and the tests check the articles in. */
+export const HELP_SETTINGS_STATES: readonly Required<HelpSettings>[] = [
+  { coachSpaceV2: false, applicationExchanges: false },
+  { coachSpaceV2: true, applicationExchanges: false },
+  { coachSpaceV2: false, applicationExchanges: true },
+  { coachSpaceV2: true, applicationExchanges: true },
+];
 
 function met(requirement: HelpArticleRequirement, settings: HelpSettings): boolean {
+  if (requirement === "application-exchanges") return settings.applicationExchanges === true;
   return requirement === "coach-space-v2" && settings.coachSpaceV2 === true;
 }
 

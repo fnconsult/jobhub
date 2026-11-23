@@ -18,6 +18,10 @@
  *  - else: a row awaiting reading, its text encrypted (AES-GCM under SECRETS_MASTER_KEYS, bound to its row), and a job
  *    on EMAIL_INTAKE_READ_QUEUE for the worker; Gmail's forwarding confirmation is kept the same way for the setup
  *    wizard, but neither queued nor counted.
+ * While an Application's Exchanges are on (#1099, ADR-0115, APPLICATION_EXCHANGES_ENABLED), an email from an authenticated
+ * sender other than the Candidate, which the rules of ../exchanges tie to one of their Applications or offer to the
+ * Candidate, is no Received offer email: it waits as an Exchange for the « Contenu piégé dans un email » Guardrail, a
+ * job on EXCHANGE_CHECK_QUEUE for the worker. One that matches nothing keeps the path above.
  * One email delivered twice (its Message-ID) is received once. A failure answers 5xx and keeps nothing of the email:
  * the MTA then answers its sender with a temporary failure (4xx), and the sender delivers it again. Rows keep the outcome, the sender's domain and the dates; the text goes at most
  * 72 hours after it arrived, the row 12 months after (`purgeReceivedOfferEmails`, nightly in the worker). Each row also
@@ -33,7 +37,8 @@ import type { EmailIntake } from "./index";
 import { readInboundEmail, type InboundEmail } from "./inbound-email";
 import { INBOUND_SECRET_HEADER, RAW_MESSAGE_TYPE } from "./inbound-headers";
 import { recognisedSendersFor } from "./candidate-senders";
-import { senderStanding } from "./recognised-senders";
+import { senderAuthenticated, senderStanding } from "./recognised-senders";
+import type { Exchanges } from "../exchanges";
 import { utcBefore } from "../database/before";
 
 // What the worker purges with them: Activité's Emails reçus rows and the Journal's Linked mailbox events (#449).
@@ -41,6 +46,9 @@ export { ACTIVITY_RETENTION_MONTHS, purgeEmailIntakeActivity } from "./activity"
 
 /** The worker's queue of Received offer emails to read: `{ receivedOfferEmailId }`. */
 export const EMAIL_INTAKE_READ_QUEUE = "email-intake.read";
+
+/** The worker's queue of Exchanges waiting for the email Guardrail (#1099): `{ exchangeId }`. */
+export const EXCHANGE_CHECK_QUEUE = "exchanges.check";
 
 
 /** How long a Received offer email's text may be kept, at most (to read it again after a failure). */
@@ -89,6 +97,8 @@ export interface EmailIntakeInboundOptions {
   cipher: () => SecretCipher | null;
   queue: { send(name: string, data: object): Promise<void> };
   settings: () => InboundSettings;
+  /** An Application's Exchanges (#1099): whether they are on, read at each email, and where an email arrives as one. None: off. */
+  exchanges?: { on(): boolean; arrive: Exchanges["arrive"] };
   now?: () => Date;
 }
 
@@ -178,6 +188,22 @@ export function createEmailIntakeInbound(database: Pool, options: EmailIntakeInb
 
       const receivedAt = now();
       const standing = senderStanding(email, { recognisedSenders: await recognisedSendersFor(client, owner), sendingAddresses });
+      // An email about one of the Candidate's Applications (#1099): from an authenticated sender, not the Candidate.
+      const exchanges = options.exchanges?.on() ? options.exchanges : null;
+      if (exchanges && (standing === "unrecognised" || standing === "recognised_sender") && senderAuthenticated(email)) {
+        const arrival = await exchanges.arrive(client, owner, {
+          messageId: email.messageId,
+          from: email.from,
+          subject: email.subject,
+          text: email.text,
+          sentAt: email.sentAt,
+          threadIds: email.threadIds,
+          recognisedSender: standing === "recognised_sender",
+        });
+        if (arrival.arrived === "duplicate") return;
+        // Last, inside the transaction, as for a Received offer email.
+        if (arrival.arrived === "new") return options.queue.send(EXCHANGE_CHECK_QUEUE, { exchangeId: arrival.id });
+      }
       let outcome: ReceivedOfferEmailOutcome;
       if (standing === "unrecognised") outcome = "unrecognised_sender";
       else if (standing === "forwarding_confirmation") outcome = "forwarding_confirmation";

@@ -765,6 +765,30 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Elle montre l'offre d'emploi : l'employeur, le lieu, le type de contrat, le télétravail et le salaire quand ils sont indiqués, les compétences demandées et le texte de l'offre.\n\nLe score de correspondance dit à quel point le CV de référence d'un de vos profils correspond à l'offre. Choisissez le profil à utiliser, puis « Enregistrer l'offre » : elle devient une candidature que vous suivez dans « Mes candidatures »."
     },
     {
+      "id": "page-application-exchanges",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "La rubrique Échanges d'une candidature",
+      "synonyms": [
+        "échanges",
+        "e-mail du recruteur",
+        "réponse du recruteur",
+        "invitation à un entretien",
+        "rattacher",
+        "répondre au recruteur",
+        "boîte reliée",
+        "adresse de transfert",
+        "mailto"
+      ],
+      "route": "/candidatures/[id]/echanges",
+      "motion": null,
+      "microAnimations": [],
+      "body": "La rubrique « Échanges » d'une candidature garde les e-mails du recruteur sur cette candidature, reçus par votre boîte reliée : sa réponse, une invitation à un entretien. De chaque e-mail, elle garde l'expéditeur, la date, l'objet et le texte, jamais les pièces jointes, les images ni les en-têtes. Ce n'est pas « Correspondance », qui détaille votre score de correspondance avec l'offre.\n\nUn e-mail se range de lui-même, par des règles et sans IA, quand il vient du domaine de l'employeur, de l'un des contacts enrichis de la candidature, ou qu'il répond à un échange déjà gardé. Seuls les e-mails dont l'expéditeur est authentifié se rangent ainsi. Quand il pourrait aller sur plusieurs de vos candidatures, ou que la correspondance est faible, la rubrique vous le montre (expéditeur, date et objet) avec « Rattacher à … ? » : « Rattacher à … » le range sur cette candidature, « Ignorer » l'écarte sans rien garder. Rien n'est rangé sans votre clic, et un e-mail laissé en attente est oublié au bout de 30 jours. Un e-mail qui ne concerne aucune de vos candidatures suit le chemin habituel de la réception par email : son texte n'est pas gardé.\n\nAvant d'être gardé, chaque e-mail passe le contrôle « Contenu piégé dans un email ». Les échanges sont gardés tant que la candidature existe, et supprimés avec elle ou avec votre compte. « Supprimer l'échange … » en supprime un, après confirmation. Ils figurent dans l'export de vos données.\n\nVotre coach IA peut lire un échange et vous proposer une réponse : elle s'affiche en entier sous sa réponse, avec le destinataire et l'objet. « Copier » la copie pour la coller dans votre messagerie ; « Ouvrir dans ma messagerie » ouvre un nouveau message prêt à envoyer. Jobbbox n'envoie rien : c'est vous qui l'envoyez. Un échange ne change jamais le statut de la candidature ; si l'e-mail vous invite à un entretien, votre coach peut vous proposer de passer la candidature en « Entretien », et rien ne change sans votre clic.",
+      "requires": "application-exchanges"
+    },
+    {
       "id": "page-side-panel",
       "locale": "fr",
       "kind": "page",
@@ -2239,6 +2263,26 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "Une offre est « Écartée » quand vous l'avez mise de côté dans « Offres à traiter » avec « Écarter », en donnant un motif si vous le souhaitez : « Pas pour moi », « Salaire », « Lieu », « Contrat » ou « Déjà postulé ailleurs ». Elle compte alors parmi les traitées.\n\nUne offre écartée compte comme déjà vue partout : aucun Job Digest ne vous la propose à nouveau, un e-mail d'offre qui la contient la compte comme déjà vue, et elle apparaît « Écartée » dans les résultats d'une recherche. L'offre elle-même n'est pas supprimée, et les autres candidats la voient toujours.\n\nLes offres écartées ces 30 derniers jours sont dans « Écartées », en bas d'« Offres à traiter », avec leur motif. « Revenir sur ce choix » remet une offre à traiter, à tout moment. Si vous enregistrez ensuite une offre écartée, depuis une recherche par exemple, elle devient « Suivie » et n'est plus écartée ; elle redevient à traiter si vous supprimez sa candidature. Votre décision et son motif sont gardés avec l'offre, 12 mois après son arrivée, et supprimés avec votre compte ou avec son profil."
+    },
+    {
+      "id": "glossary-exchange",
+      "locale": "fr",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Échange",
+      "synonyms": [
+        "échanges",
+        "e-mail du recruteur",
+        "réponse du recruteur",
+        "rattacher un e-mail",
+        "correspondance avec le recruteur"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "Un échange est un e-mail du recruteur sur l'une de vos candidatures (sa réponse, une invitation à un entretien), reçu par votre boîte reliée et gardé dans la rubrique « Échanges » de cette candidature : l'expéditeur, la date, l'objet et le texte, jamais les pièces jointes. Il s'y range par des règles, sans IA (le domaine de l'employeur, un contact enrichi, la réponse à un échange déjà gardé) ; dans le doute, Jobbbox vous demande « Rattacher à … ? » et ne range rien sans votre clic.\n\nIl est gardé tant que la candidature existe, vous pouvez le supprimer, et il figure dans l'export de vos données. Il ne change jamais le statut de la candidature. Votre coach IA peut le lire et vous proposer une réponse, que vous copiez ou ouvrez dans votre messagerie : Jobbbox n'envoie rien. Ce n'est pas « Correspondance », qui détaille votre score de correspondance.",
+      "requires": "application-exchanges"
     },
     {
       "id": "glossary-clear-conversation",
@@ -5795,6 +5839,30 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Activity's « Administrator actions » tab is the back office's journal, formerly « Journal ». It records every change made in the back office: who, when, the section, the item, the action, and the values before and after. It also records every attempt refused or failed, with its reason but without the values entered, and every AI call or Candidate's Job Search a super-admin opened.\n\nSecret values are never recorded: a key shows « Value replaced (never recorded) » or « Value cleared: the environment variable is used again ». An unanswered question or a piece of feedback is named by its identifier, never by its words. Each entry is kept 3 years.\n\n« Show » filters by section: « All », « Roles », « Plans », « Coupons », « Human Coaches », « Coaching Playbooks », « Guardrails », « Feedback »… The « Tools » filter adds every call to an external tool (Stripe, Brevo, sign-in, connection tests, pages read), with its tool, operation, outcome and duration: no content, no Candidate, no secret. The « Linked mailboxes » filter adds the Linked mailboxes switched on, replaced, switched off or at their daily cap, with no Candidate or address. The most recent changes come first.\n\nThe « Store review sign-in code » section records each sign-in of a demo account with the store review sign-in code (action « Sign-in »), and each « Wrong code » typed for it, under the demo account's name. The code is never shown. It only fills during a review of the app by the App Store or Google Play, while the code is switched on.\n\nSuper-admins and Technique read this journal. No one changes it or erases a line."
     },
     {
+      "id": "page-application-exchanges",
+      "locale": "en",
+      "kind": "page",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "An application's Exchanges section",
+      "synonyms": [
+        "exchanges",
+        "recruiter's email",
+        "recruiter's reply",
+        "interview invitation",
+        "link",
+        "reply to the recruiter",
+        "linked mailbox",
+        "forwarding address",
+        "mailto"
+      ],
+      "route": "/candidatures/[id]/echanges",
+      "motion": null,
+      "microAnimations": [],
+      "body": "An application's \"Exchanges\" section keeps the recruiter's emails about this application, received by your linked mailbox: their reply, an invitation to an interview. Of each email, it keeps the sender, the date, the subject and the text, never attachments, images or headers. It is not \"Match\", which details your match score with the offer.\n\nAn email is filed by itself, by rules and without AI, when it comes from the employer's domain, from one of the application's enriched contacts, or when it answers an exchange already kept. Only emails whose sender is authenticated are filed this way. When it could go on several of your applications, or the match is weak, the section shows it to you (sender, date and subject) with \"Link to …?\": \"Link to …\" files it on this application, \"Ignore\" sets it aside and keeps nothing. Nothing is filed without your click, and an email left waiting is forgotten after 30 days. An email about none of your applications takes the usual path of email intake: its text is not kept.\n\nBefore it is kept, each email goes through the \"Booby-trapped email content\" check. Exchanges are kept as long as the application exists, and deleted with it or with your account. \"Delete the exchange …\" deletes one, after you confirm. They are in your data export.\n\nYour AI coach can read an exchange and propose a reply: it shows in full under its answer, with the recipient and the subject. \"Copy\" copies it to paste into your email; \"Open in my email\" opens a new message ready to send. Jobbbox sends nothing: you send it yourself. An exchange never changes the application's status; if the email invites you to an interview, your coach can propose moving the application to \"Interview\", and nothing changes without your click.",
+      "requires": "application-exchanges"
+    },
+    {
       "id": "page-application",
       "locale": "en",
       "kind": "page",
@@ -7925,6 +7993,26 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "motion": null,
       "microAnimations": [],
       "body": "European AI is a consent you give, or not, in My account, « European AI » section, or when your coach offers it as you create a profile, before reading your CV (« Give my consent » or « Not now »). With your consent, every AI request that contains your identity data is processed by Mistral AI, a European AI provider. « Give my consent » records it, with its date; « Withdraw my consent » withdraws it, at any time.\n\nWhat changes from one choice to the other:\n\n- With consent: the requests that contain your identity data are processed by Mistral AI, in the European Union.\n- Without consent: they are processed by our usual provider, which may be outside the European Union.\n\nEither way, before sending, Jobbbox removes your identity from every request. Neither choice is recommended: choose the one that suits you. Reading your job offer emails stays in the European Union either way. The details are in the privacy policy, section [AI in Jobbbox](/legal/confidentialite#ia)."
+    },
+    {
+      "id": "glossary-exchange",
+      "locale": "en",
+      "kind": "glossary",
+      "audience": "candidate",
+      "topic": "utiliser",
+      "title": "Exchange",
+      "synonyms": [
+        "exchanges",
+        "recruiter's email",
+        "recruiter's reply",
+        "link an email",
+        "correspondence with the recruiter"
+      ],
+      "route": null,
+      "motion": null,
+      "microAnimations": [],
+      "body": "An exchange is a recruiter's email about one of your applications (their reply, an invitation to an interview), received by your linked mailbox and kept in that application's \"Exchanges\" section: the sender, the date, the subject and the text, never attachments. It is filed there by rules, without AI (the employer's domain, an enriched contact, a reply to an exchange already kept); when in doubt, Jobbbox asks you \"Link to …?\" and files nothing without your click.\n\nIt is kept as long as the application exists, you can delete it, and it is in your data export. It never changes the application's status. Your AI coach can read it and propose a reply, which you copy or open in your email: Jobbbox sends nothing. It is not \"Match\", which details your match score.",
+      "requires": "application-exchanges"
     },
     {
       "id": "glossary-admin-failure-reason",

@@ -46,6 +46,7 @@ import { migrateEmailIntake } from "./email-intake/index";
 import { migrateEmailReadings } from "./email-intake/reading";
 import { migrateEnrichedContacts } from "./enriched-contacts/index";
 import { migrateEuAiConsents } from "./eu-ai-consent/index";
+import { migrateExchanges } from "./exchanges/index";
 import { migrateEvals } from "./evals/index";
 import { migrateExtensionEvents } from "./extension-events/index";
 import { migrateFollowUps } from "./follow-ups/index";
@@ -96,6 +97,7 @@ export async function migrateDatabase(
     ["Applications are up to date", () => migrateApplications(database)],
     ["Company Dossiers are up to date", () => migrateCompanyDossiers(database)],
     ["Enriched Contacts are up to date", () => migrateEnrichedContacts(database)],
+    ["Exchanges are up to date", () => migrateExchanges(database)],
     ["Cover Letters and Outreach Messages are up to date", () => migrateTailoredDocuments(database)],
     ["Tailored CVs are up to date", () => migrateTailoredCvs(database)],
     ["Action Cards are up to date", () => migrateActionCards(database)],

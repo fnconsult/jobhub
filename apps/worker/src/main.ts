@@ -37,6 +37,8 @@ import { billingConfigFromEnv } from "@jobhub/web/billing/config";
 import { createQuotaReductions } from "@jobhub/web/quota-reductions";
 import { createEmailReadings } from "@jobhub/web/email-intake/reading";
 import { createReceivedOffers } from "@jobhub/web/email-intake/received-offers";
+import { createExchanges } from "@jobhub/web/exchanges";
+import { checkExchange } from "@jobhub/web/exchanges/check";
 import { workerGuardrails } from "@jobhub/web/guardrails/checks";
 import { createEuAiConsents } from "@jobhub/web/eu-ai-consent";
 import { followUpsFromEnv } from "@jobhub/web/follow-ups/env";
@@ -167,8 +169,9 @@ const stripeBilling = () => {
     return billing;
   }
 };
-// SECRETS_MASTER_KEYS: Apple's client secret is sealed under it, and so are the Received offer emails' texts.
+// SECRETS_MASTER_KEYS: Apple's client secret is sealed under it, and so are the Received offer emails' texts and the Exchanges.
 const secretCipher = secretCipherFromEnv(process.env);
+const exchanges = createExchanges(database, { cipher: () => secretCipher });
 const digestApplications = createApplications(database, { jobOffers, profiles });
 // The Job Digest schedule queues jobs on the runner, which starts once the jobs exist.
 const started: { runner?: JobRunner } = {};
@@ -305,6 +308,11 @@ const jobs = createJobs({
     guardrails: workerGuardrails(database, worker.ai),
     taskPlaybooks,
   }),
+  // An Application's Exchanges (#1099, ADR-0115): each email the inbound route tied or offered, checked by the same
+  // « Contenu piégé dans un email » Guardrail before it is kept. Queued only while APPLICATION_EXCHANGES_ENABLED is on.
+  exchangeCheck: (exchangeId) => checkExchange({ exchanges, guardrails: workerGuardrails(database, worker.ai) }, exchangeId),
+  // Their sender, subject and text are sealed under SECRETS_MASTER_KEYS: moved to its newest key with the Provider Secrets.
+  exchanges,
   enqueue: workerQueue.send,
 });
 

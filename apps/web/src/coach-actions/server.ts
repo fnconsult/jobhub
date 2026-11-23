@@ -3,7 +3,10 @@ import { getExternalApiLog } from "@/ai-usage/external-api-log";
 import { getApplications } from "@/applications/server";
 import { getBilling } from "@/billing/server";
 import { getCoachMemory } from "@/coach-memory/server";
+import { getCompanyDossiers } from "@/company-dossiers/server";
+import { getEnrichedContacts } from "@/enriched-contacts/server";
 import { exchangesOn, getExchanges } from "@/exchanges/server";
+import { getHumanCoaches } from "@/human-coaches/server";
 import { getFollowUps } from "@/follow-ups/server";
 import { getJobDigests } from "@/job-digests/server";
 import { getJobOffers } from "@/job-offers/server";
@@ -56,6 +59,10 @@ function shipped(): readonly CoachAction[] {
       },
       tailoredDocuments: getTailoredDocuments(),
       tailoredCvs: getTailoredCvs(),
+      // Reached when called: each is built on the Applications, as the reads are.
+      companyDossiers: { get: (candidateId, applicationId) => getCompanyDossiers().get(candidateId, applicationId) },
+      enrichedContacts: { get: (candidateId, applicationId) => getEnrichedContacts().get(candidateId, applicationId) },
+      coachReviews: { reviews: (candidateId, applicationId) => getHumanCoaches().reviews(candidateId, applicationId) },
       industries: readIndustryReference,
     }),
     {

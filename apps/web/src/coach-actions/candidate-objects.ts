@@ -7,6 +7,9 @@
  */
 import { NO_INDUSTRY_REFERENCE, type DocumentLanguage, type IndustryReference, type SeenName } from "@jobhub/shared";
 import type { Applications } from "../applications";
+import type { CompanyDossiers } from "../company-dossiers";
+import type { EnrichedContacts } from "../enriched-contacts";
+import type { HumanCoaches } from "../human-coaches";
 import { applicationDetails, criteriaTextOf, APPLICATION_STATUS, cvText, day, JOB_SEARCH_STATUS, jobDigestLine, jobOfferHeadline, jobOfferText, matchScoreText, scoredResultLine, type CoachAgendaSource } from "../coach/context";
 import type { JobDigests } from "../job-digests";
 import type { JobSearches } from "../job-searches";
@@ -14,6 +17,7 @@ import type { Profiles } from "../profiles";
 import { routes } from "../routes";
 import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
 import type { OutreachChannel, TailoredDocuments } from "../tailored-documents";
+import { coachReviewsText, companyDossierText, enrichedContactsText, type ApplicationReadText } from "./application-reads";
 import { fitted, fittedLines, type CoachObjectReader, type IndexedObject, type ReadObject } from "./reads";
 
 /** The domain modules the reads go through, each scoped to the Candidate. */
@@ -26,6 +30,10 @@ export interface CandidateObjectSources {
   agenda: CoachAgendaSource;
   tailoredDocuments: Pick<TailoredDocuments, "get">;
   tailoredCvs: Pick<TailoredCvs, "get">;
+  /** An Application's Company Dossier, Enriched Contacts and Coach Reviews (ADR-0114); never a Private Coach Note. */
+  companyDossiers: Pick<CompanyDossiers, "get">;
+  enrichedContacts: Pick<EnrichedContacts, "get">;
+  coachReviews: Pick<HumanCoaches, "reviews">;
   /** The Sectors' and Domains' labels; without them none is named. */
   industries?: () => Promise<IndustryReference>;
   now?: () => Date;
@@ -212,9 +220,46 @@ export function candidateObjects(sources: CandidateObjectSources): CoachObjectRe
             seen: { ...offerSeen(application.jobOffer, routes.applicationSection(application.id, "documents")), type: "tailored_documents" },
           };
         }
+        case "company_dossier":
+        case "enriched_contacts":
+        case "coach_reviews": {
+          const application = await sources.applications.get(candidateId, id);
+          if (!application || !(await isActive(candidateId, application.profile.id))) return null;
+          const told = await applicationRead(candidateId, application.id, type);
+          if (!told) return null;
+          const page = routes.applicationSection(application.id, SECTION[type]);
+          return { text: fitted([told.text], maxTokens), pages: [page], untrusted: told.untrusted, seen: { ...offerSeen(application.jobOffer, page), type: "application" } };
+        }
         default:
           return null;
       }
     },
   };
+
+  /** An Application's Company Dossier, Enriched Contacts or Coach Reviews, told; null when its module finds none of it. */
+  async function applicationRead(candidateId: string, applicationId: string, type: keyof typeof SECTION): Promise<ApplicationReadText | null> {
+    switch (type) {
+      case "company_dossier": {
+        const state = await sources.companyDossiers.get(candidateId, applicationId);
+        return state ? companyDossierText(applicationId, state) : null;
+      }
+      case "enriched_contacts": {
+        const state = await sources.enrichedContacts.get(candidateId, applicationId);
+        // Only their names and roles go on: their details stay here.
+        return state
+          ? enrichedContactsText(applicationId, {
+              enabled: state.enabled,
+              searchable: state.searchable,
+              found: state.found.map(({ id, name, jobTitle }) => ({ id, name, ...(jobTitle ? { jobTitle } : {}) })),
+              contacts: state.contacts.map(({ id, name, jobTitle }) => ({ id, name, ...(jobTitle ? { jobTitle } : {}) })),
+            })
+          : null;
+      }
+      case "coach_reviews":
+        return coachReviewsText(applicationId, await sources.coachReviews.reviews(candidateId, applicationId));
+    }
+  }
 }
+
+/** The Section of an Application each of these reads shows. */
+const SECTION = { company_dossier: "dossier", enriched_contacts: "contacts", coach_reviews: "avis" } as const;

@@ -67,6 +67,7 @@ import * as z from "zod";
 import { COACH_FOCUS_KINDS, type Coach, type CoachMessageCost, type CoachReply, type PlaybookConsultation, type PlaybookUsed } from "../coach";
 import { contextBar, MAX_MESSAGE_LENGTH, recentConversation, type CoachMessage, type ContextUpgrade, type ConversationContext, type ContextSplit, type ReplyCost, type JobOfferCard } from "../coach/conversation";
 import type { GuardrailLanguage } from "../guardrails";
+import { readTypedRedirect, type TypedRedirect } from "../coach-actions/redirects";
 import type { CoachProposalCard, CoachProposals } from "../coach-proposals";
 import { migrateOfferBox, recordArrivals } from "../offer-box";
 import type { Profiles } from "../profiles";
@@ -137,6 +138,8 @@ export type SendResult =
       couldNotAnswer: boolean;
       context: ConversationContext;
       cards?: CoachProposalCard[];
+      /** The Typed redirect the reply gives (ADR-0114), under it as a link; absent when it gives none. */
+      redirect?: TypedRedirect;
     }
   | { ok: false; error: "stopped"; conversation: CoachConversationSummary; context: ConversationContext }
   | { ok: false; error: "unavailable"; reason: FailureReason }
@@ -276,6 +279,12 @@ function focusFor(subject: Subject | null, inView: FocusInput): Focus | null {
   return focusOf(inView);
 }
 
+/** A reply's Typed redirect (ADR-0114), as a message carries it: only a valid one, a path of Jobbbox's. */
+const redirectOf = (value: unknown): { redirect?: TypedRedirect } => {
+  const redirect = readTypedRedirect(value);
+  return redirect ? { redirect } : {};
+};
+
 /** What a saved AI Coach reply kept of what served it, as `SAVED_REPLY_COLUMNS` reads it from `coach_message` (aliased `m`). */
 export interface SavedReply {
   provenance: unknown;
@@ -325,6 +334,7 @@ interface MessageRow extends SavedReply {
   text: string;
   blocked: boolean;
   jobOffer: JobOfferCard | null;
+  redirect: unknown;
 }
 
 /** What a Subject's name is made of, as `SUBJECT_COLUMNS` reads it. */
@@ -511,7 +521,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
    */
   async function lastMessages(candidateId: string, conversationId: string, limit: number | null, forCoach = false): Promise<CoachMessage[]> {
     let { rows } = await database.query<MessageRow>(
-      `SELECT recent.seq, recent.human_coach AS "humanCoach", recent.author AS "from", recent.text, recent.blocked,
+      `SELECT recent.seq, recent.human_coach AS "humanCoach", recent.author AS "from", recent.text, recent.blocked, recent.redirect,
               CASE WHEN o.id IS NULL THEN NULL ELSE jsonb_strip_nulls(jsonb_build_object('id', o.id, 'title', o.title, 'employer', o.employer, 'followed', a.id IS NOT NULL)) END AS "jobOffer",
               ${SAVED_REPLY_COLUMNS.replaceAll("m.", "recent.")}, ${replyCostOf("recent")} AS sent
          FROM (SELECT * FROM coach_message WHERE conversation_id = $1 ${forCoach ? "AND NOT unchecked" : ""} ORDER BY seq DESC LIMIT $2) recent
@@ -537,6 +547,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
         ...(row.from === "coach" ? { provenance, at: row.at.toISOString(), sent: row.sent } : {}),
         ...(cards.has(String(row.seq)) ? { cards: cards.get(String(row.seq))! } : {}),
         ...(Object.keys(seen).length > 0 ? { seenNames: seen } : {}),
+        ...redirectOf(forCoach ? null : row.redirect),
       };
     });
   }
@@ -713,6 +724,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
           couldNotAnswer: answer.couldNotAnswer === true,
           context: await contextOf(saved.id, limits),
           ...(cards.length > 0 ? { cards } : {}),
+          ...redirectOf(blocked.reply ? null : (answer.redirect ?? null)),
         };
       });
     },
@@ -873,8 +885,8 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
         const { cost } = answer;
         const inserted = await client.query<{ seq: string; sent: ReplyCost | null }>(
           `INSERT INTO coach_message (conversation_id, author, text, created_at, provider, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, playbooks, consultations, blocked, job_offer_id,
-                                     provenance, focus_kind, focus_id, context_tokens, context_split, ai_call_id, share_capture, ai_call_ids, ai_turn_ids, tool_rounds, tool_names)
-           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+                                     provenance, focus_kind, focus_id, context_tokens, context_split, ai_call_id, share_capture, ai_call_ids, ai_turn_ids, tool_rounds, tool_names, redirect)
+           VALUES ($1, 'coach', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
            RETURNING seq, ${replyCostOf("coach_message")} AS sent`,
           [
             id,
@@ -901,6 +913,8 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
             answer.calls?.turns ?? null,
             answer.calls?.rounds ?? null,
             answer.calls?.tools ?? null,
+            // A Typed redirect (ADR-0114), only on a reply the Candidate sees.
+            !reply.blocked && readTypedRedirect(answer.redirect) ? JSON.stringify(readTypedRedirect(answer.redirect)) : null,
           ],
         );
         const row = inserted.rows[0]!;
@@ -1136,6 +1150,9 @@ export async function migrateCoachConversations(database: Pool): Promise<void> {
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS ai_turn_ids uuid[];
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS tool_rounds smallint;
     ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS tool_names text[];
+    -- The Typed redirect an AI Coach reply gives (ADR-0114): { page, section, object, href }, built by the server, shown under
+    -- it as a link. Null on the Candidate's messages, on a reply that gives none, and before.
+    ALTER TABLE coach_message ADD COLUMN IF NOT EXISTS redirect jsonb;
     CREATE INDEX IF NOT EXISTS coach_message_ai_call_ids_idx ON coach_message USING gin (ai_call_ids) WHERE ai_call_ids IS NOT NULL;
     -- Whether the conversation opened with the AI disclosure (#324): true for every new one, false for those saved before.
     ALTER TABLE coach_conversation ADD COLUMN IF NOT EXISTS ai_disclosure boolean NOT NULL DEFAULT false;

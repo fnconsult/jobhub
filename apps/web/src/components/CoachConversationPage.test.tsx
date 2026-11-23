@@ -107,14 +107,19 @@ const MENU_CONVERSATION = {
   lastMessageAt: "2026-10-31T10:00:00.000Z",
 };
 
+/** A Typed redirect, as the server builds it (ADR-0114). */
+const REDIRECT = { page: "Profil Finance", section: "CV de référence", object: "Versions du CV de référence", href: "/profils/p1/versions" };
+
 /** The server, for a menu's conversation: replies at once (not live), and gives back the one saved. */
-function menuServer({ saved = false }: { saved?: boolean } = {}) {
+function menuServer({ saved = false, redirect = false }: { saved?: boolean; redirect?: boolean } = {}) {
   return vi.fn(async (url: string, init?: RequestInit) => {
     if (url === "/api/coach" && init?.method === "POST")
-      return Response.json({ conversation: MENU_CONVERSATION, reply: "Commencez par la relance chez Acme.", blocked: { message: false, reply: false }, couldNotAnswer: false });
+      return Response.json({ conversation: MENU_CONVERSATION, reply: "Commencez par la relance chez Acme.", blocked: { message: false, reply: false }, couldNotAnswer: false, ...(redirect ? { redirect: REDIRECT } : {}) });
     if (url === `/api/coach/conversations/${MENU_CONVERSATION.id}` && init?.method === "DELETE") return new Response(null, { status: 204 });
     if (url === `/api/coach/conversations/${MENU_CONVERSATION.id}` && saved)
-      return Response.json({ conversation: { ...MENU_CONVERSATION, aiDisclosure: true, messages: [{ from: "candidate", text: "Par quoi commencer ?" }, { from: "coach", text: "Par la relance." }] } });
+      return Response.json({
+        conversation: { ...MENU_CONVERSATION, aiDisclosure: true, messages: [{ from: "candidate", text: "Par quoi commencer ?" }, { from: "coach", text: "Par la relance.", ...(redirect ? { redirect: REDIRECT } : {}) }] },
+      });
     return new Response(null, { status: 404 });
   });
 }
@@ -184,6 +189,22 @@ describe("a Sidebar menu's conversation as its page: Mes candidatures (ADR-0070,
       expect(body.conversationId).toBeUndefined();
     }
     expect(window.location.pathname).toBe("/candidatures");
+  });
+
+  it("shows a reply's Typed redirect under it as a link, as it comes and when the conversation reopens (ADR-0114)", async () => {
+    vi.stubGlobal("fetch", menuServer({ redirect: true }));
+    const user = userEvent.setup();
+    renderInFrench(<ApplicationsPage />);
+
+    await user.type(screen.getByRole("textbox", { name: "Votre message" }), "Restaure ma version 2.{Enter}");
+    await screen.findByText("Commencez par la relance chez Acme.");
+    expect(screen.getByRole("link", { name: "Profil Finance › CV de référence › Versions du CV de référence" }).getAttribute("href")).toBe("/profils/p1/versions");
+    cleanup();
+
+    vi.stubGlobal("fetch", menuServer({ saved: true, redirect: true }));
+    renderInFrench(<ApplicationsPage conversationId={MENU_CONVERSATION.id} />);
+    await screen.findByText("Par la relance.");
+    expect(screen.getByRole("link", { name: "Profil Finance › CV de référence › Versions du CV de référence" })).toBeTruthy();
   });
 
   it("brings back the menu's saved conversation", async () => {

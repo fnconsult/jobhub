@@ -79,7 +79,7 @@ describe("the Document Version Coach Actions (#1079)", () => {
     const actions = createCoachActions({ catalog: documentVersionCoachActions(world().sources), settings: async () => ({ enabled: true, maxRounds: 2 }), externalApis: { record: () => {} } });
     const offered = await actions.forReply("marie", { recorder: { step: async () => undefined as never, site: () => {} }, untrustedInView: true });
 
-    expect(offered?.tools.map((tool) => tool.name)).toEqual(Object.values(DOCUMENT_VERSION_ACTIONS));
+    expect(offered?.tools.map((tool) => tool.name)).toEqual([...Object.values(DOCUMENT_VERSION_ACTIONS), "redirect"]);
   });
 
   describe("read_document_versions", () => {

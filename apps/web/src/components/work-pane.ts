@@ -57,3 +57,11 @@ export function askCoachAddress(articleId: string): string {
 export function askedAbout(search: string): string | null {
   return new URLSearchParams(search).get(ASK_ABOUT) || null;
 }
+
+/** The address's parameter that opens the Coach Memory in the Work Pane (`routes.coachMemory`, a Typed redirect's, ADR-0114). */
+const COACH_MEMORY = "memoire";
+
+/** Whether an address's query (`location.search`) asks for the Coach Memory in the Work Pane. */
+export function opensCoachMemory(search: string): boolean {
+  return new URLSearchParams(search).has(COACH_MEMORY);
+}

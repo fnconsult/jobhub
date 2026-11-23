@@ -19,6 +19,8 @@ import { focusFirstSuggestion, HelpForUnanswered, HelpIntro, HelpSuggestions, Re
 import { CoachBadge, CoachComposer, SendButton, WelcomePanel } from "@/components/CoachBox";
 import { CoachMemoryProposals } from "@/components/CoachMemory";
 import { CoachJobOfferCard } from "@/components/CoachJobOfferCard";
+import { CoachRedirectLink } from "@/components/CoachRedirectLink";
+import { readTypedRedirect, type TypedRedirect } from "@/coach-actions/redirect-line";
 import { CoachProposalCard } from "@/components/CoachProposalCard";
 import { CoachReplyText, replyWordCount } from "@/components/CoachReplyText";
 import { namesByPage, NO_STEP_YET, stepEnded, stepStarted, type LiveReply } from "@/components/coach-tool-steps";
@@ -28,7 +30,7 @@ import { InActivity } from "@/components/CoachLine";
 import { ProvenanceLine } from "@/components/ProvenanceLine";
 import { useOpenSignalement } from "@/components/Signalement";
 import { showLatest } from "@/components/thread-scroll";
-import { askedAbout, useWorkPane } from "@/components/work-pane";
+import { askedAbout, opensCoachMemory, useWorkPane } from "@/components/work-pane";
 import { useAutoGrow } from "@/design/auto-grow";
 import { buttonClass } from "@/design/Button";
 import { readNdjson } from "@/ndjson";
@@ -126,6 +128,8 @@ type ReplyBody = {
   cards?: ProposalCard[];
   /** With `cards`, the Candidate's « Propositions du coach » (#717): « form » opens the first one's form by itself. */
   proposalsDisplay?: string;
+  /** The Typed redirect the reply gives (ADR-0114), shown under it as a link. */
+  redirect?: TypedRedirect;
 };
 
 /** Below this width the Work Pane covers the conversation, full screen (#608): a phone. */
@@ -317,11 +321,14 @@ export function CoachConversationPage(page: PagePlacement) {
 
   // « Demander au coach » from a page without a conversation (Mon compte, #602) leads here, the article named in the
   // address: the box starts a question about it, and the address drops it.
+  // A Typed redirect to the Coach Memory (ADR-0114) from another page leads here too: it opens in the Work Pane.
   useEffect(() => {
     const asked = askedAbout(window.location.search);
+    const memory = opensCoachMemory(window.location.search);
     const article = asked ? helpArticle(asked, locale, helpSettings) : null;
-    if (!asked) return;
+    if (!asked && !memory) return;
     window.history.replaceState(null, "", window.location.pathname);
+    if (memory) workPane?.open({ kind: "memory" });
     if (article) pageActions.current?.askAbout({ id: article.id, title: article.title });
     // Once, as the page opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -524,6 +531,7 @@ export function CoachConversationPage(page: PagePlacement) {
           ...(body.couldNotAnswer === true && !blocked?.reply ? { couldNotAnswer: true as const } : {}),
           ...(cards.length > 0 ? { cards } : {}),
           ...(Object.keys(seenNames).length > 0 ? { seenNames: { ...seenNames } } : {}),
+          ...(readTypedRedirect(body.redirect) && !blocked?.reply ? { redirect: readTypedRedirect(body.redirect)! } : {}),
           ...(openForm ? { openForm } : {}),
           // Its words one by one, in this browser only: all at once under reduced motion, and from the history.
           ...(wordsMove() ? { revealing: replyWordCount(body.reply) } : {}),
@@ -698,6 +706,8 @@ export function CoachConversationPage(page: PagePlacement) {
                   {message.blocked ? <span className="chat-blocked-label">{t("coachPanel.blocked")}</span> : null}
                   {message.from === "coach" ? <CoachReplyText text={message.text} reveal={message.revealing !== undefined} /> : <p>{message.text}</p>}
                   {message.jobOffer ? <CoachJobOfferCard jobOffer={message.jobOffer} /> : null}
+                  {/* Where the Candidate does it themselves (ADR-0114): the Typed redirect the server built, under the reply. */}
+                  {message.from === "coach" && message.redirect && !message.blocked ? <CoachRedirectLink redirect={message.redirect} /> : null}
                   {/* What the AI Coach consulted in Jobbbox (#788), folded, before the Provenance line. */}
                   {message.from === "coach" && !message.humanCoach ? <CoachToolsConsulted provenance={message.provenance ?? null} names={message.seenNames ?? {}} /> : null}
                   {message.from === "coach" && !message.humanCoach && message.at ? <ProvenanceLine provenance={message.provenance ?? null} at={message.at} /> : null}

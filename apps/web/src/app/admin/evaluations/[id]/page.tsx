@@ -100,7 +100,8 @@ export default async function EvalRunPage({ params }: { params: Params }) {
               </Property>
             ) : null}
             {subject.kind === "guardrails" ? (
-              <Property term={t("admin.evals.run.settings")}>{GUARDRAIL_IDS.map((id) => `${guardrailName(id)} : ${t(`admin.guardrails.settings.${subject.settings[id]}`)}`).join(" ; ")}</Property>
+              <Property term={t("admin.evals.run.settings")}>{/* A run kept before a Guardrail existed (« Périmètre du coach », ADR-0114) names only those it played. */}
+                {GUARDRAIL_IDS.filter((id) => subject.settings[id]).map((id) => `${guardrailName(id)} : ${t(`admin.guardrails.settings.${subject.settings[id]}`)}`).join(" ; ")}</Property>
             ) : null}
             <Property term={t("admin.evals.run.judge")}>{run.judge ? `${run.judge.provider} · ${run.judge.model}` : t("admin.evals.run.noJudge")}</Property>
             <Property term={t("admin.evals.runs.score")}>{format.score(run.score)}</Property>

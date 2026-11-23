@@ -435,7 +435,7 @@ test.describe("Guardrails: distress, unavailable checks, no alert", () => {
 
     await withDatabase(async (db) => {
       const columns = (await db.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'guardrail_trigger' ORDER BY ordinal_position")).rows.map((row) => row.column_name);
-      expect(columns).toEqual(["id", "guardrail", "setting", "action", "agent", "at", "reason"]);
+      expect(columns).toEqual(["id", "guardrail", "setting", "action", "agent", "at", "reason", "scope_check"]);
       const dump = JSON.stringify((await db.query("SELECT * FROM guardrail_trigger")).rows);
       expect(dump).not.toContain(secretWords);
       expect(dump).not.toContain(email);

@@ -8,7 +8,8 @@
  *  - `propose_application_status`: a new Application Status, « Refusée » and « Abandonnée » included (which archive it).
  *  - `propose_application_profile`: another active Profile for the Application.
  *  - `propose_follow_up_sent`: a Follow-up marked as sent (« Relancée »), at most MAX_FOLLOW_UPS.
- * None copies text (`copiesText: false`): they stay offered while a Job Offer is In view. None deletes: asked to, the AI
+ * None copies text (`copiesText: false`): they stay offered while a Job Offer is In view. None reads text the Candidate did
+ * not write either (`untrusted: false`, ADR-0114): a proposal never narrows the rest of the reply. None deletes: asked to, the AI
  * Coach points to the Application's page. Each is scoped to the session's Candidate: another's id, an Archived Profile's
  * Application or an unknown id is `not_found`. Applied from the version seen (moved on since: a conflict); the object keeps
  * its Origin; « Annuler » puts the state before back while it has not moved on since.
@@ -124,7 +125,7 @@ export function applicationCoachActions(sources: ApplicationActionSources): Coac
         fields: [await profileField(candidateId, t("coachProposals.fields.applicationProfile"))],
         version: "",
       };
-      return { ok: true, data: change, pages: [href], untrusted: true };
+      return { ok: true, data: change, pages: [href], untrusted: false };
     },
     async apply(change, call) {
       const { candidateId } = call;
@@ -173,7 +174,7 @@ export function applicationCoachActions(sources: ApplicationActionSources): Coac
         fields: [{ name: "status", label: what, type: "select", options: APPLICATION_STATUSES.map((each) => ({ value: each, label: label(each) })) }],
         version: state.version,
       };
-      return { ok: true, data: change, pages: [href], untrusted: true };
+      return { ok: true, data: change, pages: [href], untrusted: false };
     },
     async apply(change, call) {
       const { candidateId } = call;
@@ -221,7 +222,7 @@ export function applicationCoachActions(sources: ApplicationActionSources): Coac
         fields: [field],
         version: found.profile.id,
       };
-      return { ok: true, data: change, pages: [href], untrusted: true };
+      return { ok: true, data: change, pages: [href], untrusted: false };
     },
     async apply(change, call) {
       const { candidateId } = call;
@@ -273,7 +274,7 @@ export function applicationCoachActions(sources: ApplicationActionSources): Coac
         fields: [],
         version: sent.version,
       };
-      return { ok: true, data: change, pages: [href], untrusted: true };
+      return { ok: true, data: change, pages: [href], untrusted: false };
     },
     async apply(change, call) {
       const { candidateId } = call;

@@ -2,6 +2,7 @@ import type { CoachMessage, ConversationContext, JobOfferCard, ReplyCost } from 
 import type { ConversationSummary } from "@/components/CoachConversationList";
 import type { CoachProposalCard } from "@/coach-proposals/card";
 import type { Provenance } from "@jobhub/shared";
+import { readTypedRedirect, type TypedRedirect } from "@/coach-actions/redirect-line";
 
 /**
  * What the Candidate's Coach Conversations and the Back Office Assistant's conversations share in the browser (#608): a
@@ -26,6 +27,8 @@ export type ServerMessage = {
   cards?: CoachProposalCard[];
   /** On an AI Coach reply: what its Coach Actions saw, named by page (#788). */
   seenNames?: Record<string, string>;
+  /** On an AI Coach reply: its Typed redirect (ADR-0114). */
+  redirect?: TypedRedirect;
 };
 
 /** A message as it is shown: the person's own, or the AI's reply. */
@@ -38,6 +41,7 @@ export const asShownMessage = (message: ServerMessage): CoachMessage => ({
   ...(message.at ? { provenance: message.provenance ?? null, at: message.at, ...(message.sent !== undefined ? { sent: message.sent } : {}) } : {}),
   ...(Array.isArray(message.cards) && message.cards.length > 0 ? { cards: message.cards } : {}),
   ...(message.seenNames && typeof message.seenNames === "object" ? { seenNames: message.seenNames } : {}),
+  ...(readTypedRedirect(message.redirect) ? { redirect: readTypedRedirect(message.redirect)! } : {}),
 });
 
 /** A saved conversation with its messages, as shown. */

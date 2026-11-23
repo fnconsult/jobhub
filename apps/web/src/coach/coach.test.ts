@@ -156,6 +156,9 @@ function sourcesOf(workspace: Workspace): CoachSources {
     jobDigests: {
       get: async (candidateId, id) => mine(candidateId, workspace.jobDigests).find((d) => d.id === id) ?? null,
       latest: async (candidateId, profileId) => mine(candidateId, workspace.jobDigests).find((d) => d.profile.id === profileId) ?? null,
+      // Marie's Profile is not subscribed to its Job Digest, which her Plan includes weekly.
+      settings: async (candidateId, profileId) =>
+        candidateId === "marie" && profileId === profile.id ? { subscribed: false, chosenFrequency: null, frequency: "none", planFrequency: "weekly", upgradeTo: null, digests: [] } : null,
     },
     coachMemory: { items: async (candidateId) => mine(candidateId, workspace.memory) },
     names: { of: async (candidateId) => (candidateId === "marie" ? { givenName: "Marie", familyName: "Dupont", preferredName: workspace.preferredName } : null) },
@@ -605,6 +608,8 @@ describe("the item In view, in full", () => {
     expect(contextOf(provider)).toContain("Directrice financière");
     expect(contextOf(provider)).toContain("Groupe Seb");
     expect(contextOf(provider)).toContain("version 2");
+    // Its Job Digest frequency (ADR-0114).
+    expect(contextOf(provider)).toContain("Job Digest : aucun, le candidat n'y est pas abonné (son offre le permet chaque semaine).");
   });
 
   it("an Application: its status, interviews, Match Score and the whole Job Offer", async () => {

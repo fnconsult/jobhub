@@ -28,10 +28,12 @@ describe.skipIf(!connectionString)("Guardrail settings, Guardrail messages and G
   });
 
   describe("settings", () => {
-    it("blocks with every Guardrail until a super-admin says otherwise", async () => {
+    it("blocks with every Guardrail until a super-admin says otherwise, but « Périmètre du coach », which flags only (ADR-0114)", async () => {
       const { settings } = await store.config.current();
 
-      expect(settings).toEqual(Object.fromEntries(GUARDRAIL_IDS.map((id) => [id, "block"])));
+      expect(settings).toEqual(Object.fromEntries(GUARDRAIL_IDS.map((id) => [id, id === "coach_scope" ? "flag" : "block"])));
+      expect((await store.list()).find((each) => each.id === "coach_scope")).toMatchObject({ setting: "flag", settings: ["block", "flag"], alwaysOn: false });
+      expect(await store.setSetting("coach_scope", "block")).toEqual({ ok: true, before: "flag", after: "block", changed: true });
     });
 
     it("sets one that can be switched to flag only, and back", async () => {
@@ -145,7 +147,19 @@ describe.skipIf(!connectionString)("Guardrail settings, Guardrail messages and G
         { day: "2026-10-18", guardrail: "distress", blocked: 1, flagged: 0, unavailable: 0, unavailableBy: { guardrail_timeout: 0, invalid_verdict: 0, provider_error: 0, unrecorded: 0 } },
       ]);
       const { rows } = await database.query("SELECT column_name FROM information_schema.columns WHERE table_name = 'guardrail_trigger' ORDER BY ordinal_position");
-      expect(rows.map((row) => row.column_name)).toEqual(["id", "guardrail", "setting", "action", "agent", "at", "reason"]);
+      expect(rows.map((row) => row.column_name)).toEqual(["id", "guardrail", "setting", "action", "agent", "at", "reason", "scope_check"]);
+    });
+
+    it("keep which check of « Périmètre du coach » found it (ADR-0114), and only one of its checks", async () => {
+      await store.triggers.record({ guardrail: "coach_scope", setting: "block", action: "blocked", agent: "ai_coach", at: at("2026-10-19T08:00:00Z"), check: "private_repeated" });
+      await store.triggers.record({ guardrail: "coach_scope", setting: "flag", action: "flagged", agent: "ai_coach", at: at("2026-10-19T08:00:00Z"), check: "refusal_without_redirect" });
+
+      const { rows } = await database.query("SELECT guardrail, action, scope_check FROM guardrail_trigger ORDER BY id");
+      expect(rows).toEqual([
+        { guardrail: "coach_scope", action: "blocked", scope_check: "private_repeated" },
+        { guardrail: "coach_scope", action: "flagged", scope_check: "refusal_without_redirect" },
+      ]);
+      await expect(database.query("INSERT INTO guardrail_trigger (guardrail, setting, action, agent, at, scope_check) VALUES ('coach_scope', 'flag', 'flagged', 'ai_coach', now(), 'anything')")).rejects.toThrow();
     });
 
     it("count the checks that could not be made per Failure Reason; one recorded before reasons were is unrecorded", async () => {

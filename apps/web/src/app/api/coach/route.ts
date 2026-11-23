@@ -34,7 +34,9 @@ const STATUS = { invalid: 400, not_found: 404, unavailable: 503, stopped: 499 } 
  * `cards`: the Action Cards of the Coach proposals the reply makes (#715), under it (CoachProposalCard); absent when none.
  * `proposalsDisplay`, with `cards`: the Candidate's « Propositions du coach » (#717), "card" or "form" (the first card's
  * form opens by itself in the Work Pane).
- * 200 { conversation, reply, blocked: { message, reply }, jobOffer?, provenance, at, sent, couldNotAnswer, context, cards?, proposalsDisplay? } · 400 { error: "invalid" } · 401 · 403 · 404 { error: "not_found" }
+ * `redirect`: the Typed redirect the reply gives (ADR-0114) { page, section, object, href }, built by the server, shown under
+ * it as a link; absent when it gives none.
+ * 200 { conversation, reply, blocked: { message, reply }, jobOffer?, provenance, at, sent, couldNotAnswer, context, cards?, proposalsDisplay?, redirect? } · 400 { error: "invalid" } · 401 · 403 · 404 { error: "not_found" }
  * · 503 { error: "unavailable", reason } (its Failure Reason, never the technical message) · 499 { error: "stopped", conversation, context }.
  *
  * Live (#328), with `Accept: application/x-ndjson`: 200, one JSON event per line as the reply runs:
@@ -72,8 +74,21 @@ async function displayOf(candidateId: string, result: SendResult): Promise<Coach
     .catch(() => null);
 }
 
-function replyOf({ conversation, reply, blocked, jobOffer, provenance, at, sent, couldNotAnswer, context, cards }: Extract<SendResult, { ok: true }>, proposalsDisplay: CoachProposalsDisplay | null) {
-  return { conversation, reply, blocked, ...(jobOffer ? { jobOffer } : {}), provenance, at, sent, couldNotAnswer, context, ...(cards ? { cards } : {}), ...(cards && proposalsDisplay ? { proposalsDisplay } : {}) };
+function replyOf({ conversation, reply, blocked, jobOffer, provenance, at, sent, couldNotAnswer, context, cards, redirect }: Extract<SendResult, { ok: true }>, proposalsDisplay: CoachProposalsDisplay | null) {
+  return {
+    conversation,
+    reply,
+    blocked,
+    ...(jobOffer ? { jobOffer } : {}),
+    provenance,
+    at,
+    sent,
+    couldNotAnswer,
+    context,
+    ...(cards ? { cards } : {}),
+    ...(cards && proposalsDisplay ? { proposalsDisplay } : {}),
+    ...(redirect ? { redirect } : {}),
+  };
 }
 
 function failureOf(result: Extract<SendResult, { ok: false }>) {

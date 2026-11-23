@@ -3,7 +3,8 @@ import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import type { ExternalApiCall, ProvenanceEvent } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import * as z from "zod";
-import { coachActionCatalog, createCoachActions, defineCoachAction, MAX_PROPOSALS_PER_REPLY, type CoachAction, type CoachActionsSettings } from "./index";
+import { coachActionCatalog, createCoachActions, defineCoachAction, MAX_PROPOSALS_PER_REPLY, REDIRECT_ACTION, type CoachAction, type CoachActionsSettings } from "./index";
+import { createRedirects, type RedirectSources } from "./redirects";
 
 /** Marie's Applications, as a domain module scoped to its Candidate gives them: anyone else's id is not found. */
 const APPLICATIONS = {
@@ -22,7 +23,9 @@ const readApplication = defineCoachAction({
   copiesText: false,
   async run({ id }, { candidateId }) {
     const found = await applications.get(candidateId, id);
-    return found ? { ok: true, data: found, pages: [`/candidatures/${found.id}`], untrusted: true } : { ok: false, error: "not_found" };
+    return found
+      ? { ok: true, data: found, pages: [`/candidatures/${found.id}`], untrusted: true, seen: [{ type: "application", name: `${found.employer} · ${found.title}`, href: `/candidatures/${found.id}` }] }
+      : { ok: false, error: "not_found" };
   },
 });
 
@@ -55,6 +58,15 @@ const proposeSummary = defineCoachAction({
 
 const CATALOG = [readApplication, proposeStatus, proposeSummary] as readonly CoachAction[];
 
+/** Marie's Profile « Finance », where a Typed redirect sends her. */
+const REDIRECT_SOURCES = {
+  profiles: { get: async (candidateId: string, id: string) => (candidateId === "marie" && id === "p1" ? { id: "p1", name: "Finance", archived: false } : null), list: async () => [{ id: "p1", name: "Finance", archived: false }] },
+  applications: { get: async () => null },
+} as unknown as RedirectSources;
+
+/** A fake Master CV proposal under its shipped name: refused, it sends to the Master CV's page. */
+const proposeMasterCv = defineCoachAction({ ...proposeSummary, name: "propose_master_cv_changes" } as unknown as CoachAction);
+
 function setUp(options: { settings?: Partial<CoachActionsSettings>; catalog?: readonly CoachAction[] } = {}) {
   const calls: ExternalApiCall[] = [];
   let tick = 0;
@@ -62,6 +74,7 @@ function setUp(options: { settings?: Partial<CoachActionsSettings>; catalog?: re
     catalog: options.catalog ?? CATALOG,
     settings: async () => ({ enabled: true, maxRounds: 2, ...options.settings }),
     externalApis: { record: (call) => void calls.push(call) },
+    redirects: createRedirects(REDIRECT_SOURCES),
     now: () => new Date("2026-11-04T10:00:00Z"),
     clock: () => (tick += 5),
   });
@@ -77,7 +90,7 @@ describe("the catalogue of Coach Actions (ADR-0077, #713)", () => {
     const { actions, recorder } = setUp();
     const reply = (await actions.forReply("marie", { recorder, untrustedInView: false }))!;
 
-    expect(reply.tools.map((tool) => tool.name)).toEqual(["lire_candidature", "proposer_statut", "proposer_resume_cv"]);
+    expect(reply.tools.map((tool) => tool.name)).toEqual(["lire_candidature", "proposer_statut", "proposer_resume_cv", REDIRECT_ACTION]);
     expect(reply.tools[0]).toEqual({
       name: "lire_candidature",
       description: "Lit une candidature du candidat par son id.",
@@ -120,7 +133,7 @@ describe("the Coach Actions offered to a reply", () => {
     const { actions, recorder } = setUp();
     const reply = (await actions.forReply("marie", { recorder, untrustedInView: true }))!;
 
-    expect(reply.tools.map((tool) => tool.name)).toEqual(["lire_candidature", "proposer_statut"]);
+    expect(reply.tools.map((tool) => tool.name)).toEqual(["lire_candidature", "proposer_statut", REDIRECT_ACTION]);
     expect(reply.narrowed).toBe(true);
   });
 });
@@ -281,7 +294,7 @@ describe("untrusted content read during a reply (the allow-list)", () => {
     const stillOffered = await reply.runTool(run("proposer_statut", { id: "a1", status: "offer" }), {});
 
     expect(after.error).toBe(true);
-    expect(after.content).toMatch(/Profil/);
+    expect(after.content).toMatch(/tu as lu la candidature/);
     expect(stillOffered.error).toBeUndefined();
     expect(reply.proposals().map((proposal) => proposal.action)).toEqual(["proposer_resume_cv", "proposer_statut"]);
     expect(calls.map((call) => [call.operation, call.reason ?? null])).toEqual([
@@ -322,4 +335,79 @@ describe("untrusted content read during a reply (the allow-list)", () => {
     expect((await reportContext.runTool(run("proposer_statut", { id: "a1", status: "interview" }), {})).error).toBeUndefined();
   });
 
+});
+
+describe("what the AI Coach cannot do: one true sentence and a Typed redirect (ADR-0114)", () => {
+  it("narrows on what was really read, and says so: the Application read, never « un dossier d'entreprise » nor « un e-mail reçu »", async () => {
+    const { actions, recorder } = setUp();
+    const reply = (await actions.forReply("marie", { recorder, untrustedInView: false }))!;
+    expect(reply.narrowedBy).toBeNull();
+
+    await reply.runTool(run("lire_candidature", { id: "a1" }), {});
+    const refused = await reply.runTool(run("proposer_resume_cv", { summary: "Recopié de l'offre" }), {});
+
+    expect(reply.narrowedBy).toBe("la candidature « Acme · DAF H/F » et son offre");
+    expect(refused).toMatchObject({ error: true, content: expect.stringContaining("tu as lu la candidature « Acme · DAF H/F » et son offre") });
+    expect(refused.content).not.toMatch(/dossier d'entreprise|e-mail reçu/);
+  });
+
+  it("narrows from the start on what is In view, as the caller names it", async () => {
+    const { actions, recorder } = setUp({ catalog: [readApplication, proposeStatus, proposeMasterCv] });
+    const reply = (await actions.forReply("marie", { recorder, untrustedInView: true, untrustedBecause: "l'offre d'emploi affichée", focus: { kind: "profile", id: "p1" } }))!;
+
+    expect(reply.narrowedBy).toBe("l'offre d'emploi affichée");
+    // The AI layer refuses a Coach Action not offered in the words `unknownTool` gives: French, with its Typed redirect.
+    const refused = await reply.unknownTool(run("propose_master_cv_changes", { summary: "x" }));
+    expect(refused).toEqual({ error: true, content: expect.stringContaining("« propose_master_cv_changes » n'est pas une action qui t'est proposée dans cette réponse") });
+    expect(refused.content).toContain("Profil Finance › CV de référence › Rubriques du CV");
+    expect(refused.content).not.toMatch(/was not offered|it was not run|\/profils/);
+    expect(reply.redirect()).toEqual({ page: "Profil Finance", section: "CV de référence", object: "Rubriques du CV", href: "/profils/p1/cv" });
+  });
+
+  it("refuses an unknown name in French too, with no redirect when no row stands for it", async () => {
+    const { actions, recorder } = setUp();
+    const reply = (await actions.forReply("marie", { recorder, untrustedInView: false }))!;
+
+    expect((await reply.unknownTool(run("supprimer_candidature", { id: "a1" }))).content).toMatch(/^« supprimer_candidature » n'est pas une action qui t'est proposée/);
+    expect(reply.redirect()).toBeNull();
+  });
+
+  it("gives the row of the redirect table the model names, built by the server: the model is told the line, never a link to write", async () => {
+    const { actions, recorder, calls } = setUp();
+    const reply = (await actions.forReply("marie", { recorder, untrustedInView: false, focus: { kind: "profile", id: "p1" } }))!;
+    const tool = reply.tools.find((each) => each.name === REDIRECT_ACTION)!;
+    expect(JSON.stringify(tool.parameters)).toContain("profile_rename");
+
+    const given = await reply.runTool(run(REDIRECT_ACTION, { target: "profile_rename" }), {});
+
+    expect(given.error).toBeUndefined();
+    expect(given.content).toContain("« Profil Finance › Nom du profil »");
+    expect(given.content).not.toContain("/profils/");
+    expect(reply.redirect()).toEqual({ page: "Profil Finance", section: null, object: "Nom du profil", href: "/profils/p1" });
+    expect(reply.proposals()).toEqual([]);
+    // Our own code, no route: nothing recorded in external_api_usage.
+    expect(calls).toEqual([]);
+  });
+
+  it("refuses a row the table does not have, in French, giving none", async () => {
+    const { actions, recorder } = setUp();
+    const reply = (await actions.forReply("marie", { recorder, untrustedInView: false }))!;
+
+    const refused = await reply.runTool(run(REDIRECT_ACTION, { target: "rename_everything" }), {});
+
+    expect(refused).toMatchObject({ error: true, content: expect.stringContaining("Ce renvoi n'existe pas") });
+    expect(reply.redirect()).toBeNull();
+  });
+
+  it("gives the Typed redirect of a Coach Action refused once narrowed, the reason being what was read", async () => {
+    const { actions, recorder } = setUp({ catalog: [readApplication, proposeMasterCv] });
+    const reply = (await actions.forReply("marie", { recorder, untrustedInView: false, focus: { kind: "profile", id: "p1" } }))!;
+
+    await reply.runTool(run("lire_candidature", { id: "a1" }), {});
+    const refused = await reply.runTool(run("propose_master_cv_changes", { summary: "Recopié" }), {});
+
+    expect(refused.content).toContain("« propose_master_cv_changes » n'est plus proposée dans cette réponse : tu as lu la candidature « Acme · DAF H/F » et son offre");
+    expect(refused.content).toContain("Profil Finance › CV de référence");
+    expect(reply.redirect()?.href).toBe("/profils/p1/cv");
+  });
 });

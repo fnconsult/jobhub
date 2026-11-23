@@ -192,6 +192,8 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
   );
 
   const pending = card.status === "pending";
+  // The object it changes, named in its title (ADR-0114): « CV de référence · Profil Finance », « CV adapté · Benchling ».
+  const objectName = change.target.kind === "profile" ? t("coachProposals.profileName", { name: change.target.name }) : change.target.name;
   const shownAfter = card.edited && card.status !== "pending" ? afterEdited(card) : change.after;
   // A draft's new text (ADR-0109): its form has the text as a textarea, shown in full rather than as « before → after ».
   const textField = change.fields.find((field) => field.type === "textarea" && field.name === "text");
@@ -203,7 +205,7 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
         <h4 className="ds-card__title coach-proposal-card__title" id={titleId} tabIndex={-1}>
           {change.what}
           {" · "}
-          {change.target.href ? <Link href={change.target.href}>{change.target.name}</Link> : change.target.name}
+          {change.target.href ? <Link href={change.target.href}>{objectName}</Link> : objectName}
         </h4>
       </div>
       {textField ? (

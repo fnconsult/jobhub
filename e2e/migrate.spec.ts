@@ -331,6 +331,9 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "eu_ai_consent", from_column: "candidate_id", to_table: "candidate" },
         // A Coaching Playbook's Eval Cases (issue #231) belong to it; no Candidate in them.
         { from_table: "eval_case", from_column: "playbook_id", to_table: "coaching_playbook" },
+        // The Exchanges of an Application (issue #1099) go with it and with their Candidate.
+        { from_table: "exchange", from_column: "application_id", to_table: "application" },
+        { from_table: "exchange", from_column: "candidate_id", to_table: "candidate" },
         // The Extension Events (issue #924) follow their Candidate.
         { from_table: "extension_event", from_column: "candidate_id", to_table: "candidate" },
         // Follow-up Delays (issue #21) go with their Candidate, Follow-ups sent with their Application.

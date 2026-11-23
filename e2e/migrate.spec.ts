@@ -117,6 +117,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "eu_ai_consent", // issue #121: the Candidate's dated EU AI consent
         "eval_case", // issue #231: a Coaching Playbook's Eval Cases, fictional, in each environment
         "eval_run", // issue #231: each Eval Run, with the text of the cases it played
+        "exchange", // issue #1099: the Exchanges of an Application: recruiter emails kept after the email Guardrail, deleted with it
         "extension_event", // issue #924: each extension action and error, its Candidate kept 12 months (30 days without one)
         "extension_job_site", // issue #188: the extension's Job Sites, set in the Back Office
         "external_api_usage", // issue #218: every call to France Travail and contact enrichment, no payload

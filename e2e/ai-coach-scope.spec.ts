@@ -101,21 +101,35 @@ test.describe("what a read restricts, and why the Candidate is told (#1096)", ()
     const r = run({
       settings: ON,
       shipped: true,
-      replies: [ask(`Lis ma candidature puis reformule mon résumé. ${marker("read_application", { id: "a-airbus" })} ${marker("propose_master_cv_changes", SUMMARY_CHANGE)}`, PROFILE)],
+      replies: [ask(`Lis ma candidature puis ajoute Lyon à mes lieux. ${marker("read_application", { id: "a-airbus" })} ${marker("propose_search_criteria", { profileId: "p-consultant", addLocations: ["Lyon"] })}`, PROFILE)],
     });
 
     expect(r.replies[0]).toMatchObject({ ok: true, proposals: [] });
     const results = given(r);
-    expect(results).toContain("« propose_master_cv_changes » n'est plus proposée dans cette réponse : tu as lu la candidature « ");
+    expect(results).toContain("« propose_search_criteria » n'est plus proposée dans cette réponse : tu as lu la candidature « ");
     expect(results).toContain("et son offre, un texte que le candidat n'a pas écrit");
     expect(results).not.toMatch(/dossier d'entreprise|e-mail reçu|email reçu/i);
     // The refusal sends to the page: the model is told the link the server shows, and writes none.
     expect(results).toContain("s'affiche sous ta réponse, comme un lien : n'écris aucun lien toi-même");
     // The reply the Candidate gets has that redirect, built by the server.
-    expect(r.replies[0]!.redirect).toMatchObject({ page: "Profil Consultante finance", section: "CV de référence" });
+    expect(r.replies[0]!.redirect).toMatchObject({ page: "Profil Consultante finance", section: "Critères de recherche" });
     expect(r.replies[0]!.redirect!.href).toMatch(/^\/profils\/p-consultant/);
     // The rules the model is given name the real reason too.
     expect(r.systems.join("\n")).not.toMatch(/dossier d'entreprise|e-mail reçu/i);
+  });
+
+  test("the same read leaves the Master CV proposed as a card the Candidate reviews change by change (#1097, ADR-0113)", () => {
+    const r = run({
+      settings: ON,
+      shipped: true,
+      replies: [ask(`Lis ma candidature puis reformule mon résumé. ${marker("read_application", { id: "a-airbus" })} ${marker("propose_master_cv_changes", SUMMARY_CHANGE)}`, PROFILE)],
+    });
+
+    // Not refused by the read: the call reaches the Master CV, which this harness does not have (not_found). The card itself,
+    // on the application's server, is in coach-scope.spec.ts.
+    expect(given(r)).not.toContain("« propose_master_cv_changes » n'est plus proposée dans cette réponse");
+    expect(given(r)).toContain('{"error":"not_found"}');
+    expect(r.replies[0]!.steps).toContainEqual(expect.objectContaining({ action: "propose_master_cv_changes", proposes: true, outcome: "ok" }));
   });
 });
 

@@ -43,7 +43,7 @@ import {
 import type { AgendaItem } from "../agenda";
 import { INTERVIEW_TIME_ZONE, type Application, type Applications } from "../applications";
 import type { IdentityNames } from "../candidate-identity";
-import type { JobDigest, JobDigests } from "../job-digests";
+import type { JobDigest, JobDigestSettings, JobDigests } from "../job-digests";
 import type { JobOffers } from "../job-offers";
 import type { JobSearch, JobSearches } from "../job-searches";
 import type { Profile, Profiles } from "../profiles";
@@ -78,8 +78,11 @@ export interface CoachSources {
   applications: Pick<Applications, "get" | "list">;
   jobOffers: Pick<JobOffers, "get">;
   jobSearches: Pick<JobSearches, "get" | "latest">;
-  /** `latest`: the Profile's latest Job Digest, or null. */
-  jobDigests: Pick<JobDigests, "get"> & { latest(candidateId: string, profileId: string): Promise<JobDigest | null> };
+  /**
+   * `latest`: the Profile's latest Job Digest, or null. `settings`: its Job Digest frequency, told with a Profile In view
+   * (ADR-0114); without it, none is told.
+   */
+  jobDigests: Pick<JobDigests, "get"> & Partial<Pick<JobDigests, "settings">> & { latest(candidateId: string, profileId: string): Promise<JobDigest | null> };
   /** Absent until the Coach Memory exists. */
   coachMemory?: CoachMemorySource;
   /** The Candidate's names (#918): the AI Coach is told their Preferred Name alone (#921). */
@@ -120,6 +123,16 @@ export const AGENDA_IN_VIEW_DAYS = 30;
 interface Summary {
   heading: string;
   lines: string[];
+}
+
+const DIGEST_FREQUENCY: Record<"daily" | "weekly", string> = { daily: "chaque jour", weekly: "chaque semaine" };
+
+/** A Profile's Job Digest frequency in one line (ADR-0114), as the AI Coach is told it: how often it is sent, what was chosen, what the Plan allows. */
+export function jobDigestLine(settings: Pick<JobDigestSettings, "subscribed" | "chosenFrequency" | "frequency" | "planFrequency">): string {
+  if (settings.planFrequency === "none") return "Job Digest : non compris dans l'offre du candidat.";
+  if (!settings.subscribed || settings.frequency === "none") return `Job Digest : aucun, le candidat n'y est pas abonné (son offre le permet ${DIGEST_FREQUENCY[settings.planFrequency]}).`;
+  const capped = settings.chosenFrequency && settings.chosenFrequency !== settings.frequency ? ` (choisi : ${DIGEST_FREQUENCY[settings.chosenFrequency]}, limité par son offre)` : "";
+  return `Job Digest : ${DIGEST_FREQUENCY[settings.frequency]}${capped}.`;
 }
 
 export async function coachContext(sources: CoachSources, candidateId: string, focus: CoachFocus | undefined, maxTokens: number): Promise<string> {
@@ -383,9 +396,11 @@ async function inViewText(
     case "profile": {
       const profile = await sources.profiles.get(candidateId, focus.id);
       if (!profile) return null;
+      const digest = await sources.jobDigests.settings?.(candidateId, profile.id).catch(() => null);
       return [
         `Le candidat consulte son profil « ${profile.name} ».`,
         `Critères de recherche : ${criteriaText(profile.searchCriteria)}.`,
+        ...(digest ? [jobDigestLine(digest)] : []),
         `CV de référence (version ${profile.masterCv.version}) :`,
         cvText(profile.masterCv.content),
       ].join("\n");

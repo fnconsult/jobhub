@@ -103,6 +103,11 @@ function world({ used = 0, limit = 5 as number | null, planFrequency = "weekly" 
       get: async (candidateId, id) => (candidateId === "marie" && id === "d-daf" ? { id, profile: { id: "p-daf", name: "DAF" }, sentAt: new Date(), results: [], provenance: null } : null),
     },
     jobSearchQuota: async () => ({ used: quotaUsed, limit, refusal: limit !== null && quotaUsed >= limit ? NO_ROOM : null }),
+    // Marie's Application with « Consultante », and one with her archived Profile.
+    applications: {
+      get: async (candidateId, id) =>
+        candidateId !== "marie" ? null : id === "a-conseil" ? ({ id, profile: { id: "p-conseil", name: "Consultante" } } as never) : id === "a-old" ? ({ id, profile: { id: "p-old", name: "Ancien" } } as never) : null,
+    },
   };
   return { sources, searches, digests, queue, jobSearchOf, useQuota: () => (quotaUsed += 1) };
 }
@@ -314,6 +319,18 @@ describe("propose_job_digest_frequency (#720)", () => {
 
     const none = await proposed(actionOf(world({ planFrequency: "none" }).sources, SEARCH_ACTIONS.digestFrequency), { profileId: "p-daf", frequency: "weekly" });
     expect(none.quota?.prompt).toMatchObject({ upgradeTo: "standard" });
+  });
+
+  it("take the Profile of the Application In view by default, which the card names (ADR-0114); never an Archived Profile's", async () => {
+    const { sources } = world();
+    const inApplication = call("marie", { inView: { kind: "application", id: "a-conseil" } });
+
+    expect((await proposed(actionOf(sources, SEARCH_ACTIONS.start), {}, inApplication)).target).toMatchObject({ kind: "profile", id: "p-conseil", name: "Consultante" });
+    expect((await proposed(actionOf(sources, SEARCH_ACTIONS.digestFrequency), { frequency: "weekly" }, inApplication)).target).toMatchObject({ id: "p-conseil", name: "Consultante" });
+    // The Candidate can still name another one.
+    expect((await proposed(actionOf(sources, SEARCH_ACTIONS.start), { profileId: "p-daf" }, inApplication)).target.id).toBe("p-daf");
+    expect(await actionOf(sources, SEARCH_ACTIONS.start).run({}, call("marie", { inView: { kind: "application", id: "a-old" } }))).toEqual({ ok: false, error: "not_found" });
+    expect(await actionOf(sources, SEARCH_ACTIONS.start).run({}, call("paul", { inView: { kind: "application", id: "a-conseil" } }))).toEqual({ ok: false, error: "not_found" });
   });
 
   it("finds the Profile of a Job Digest In view; proposes nothing at the frequency it already has", async () => {

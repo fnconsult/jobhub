@@ -7,7 +7,7 @@
  */
 import { NO_INDUSTRY_REFERENCE, type DocumentLanguage, type IndustryReference, type SeenName } from "@jobhub/shared";
 import type { Applications } from "../applications";
-import { applicationDetails, criteriaTextOf, APPLICATION_STATUS, cvText, day, JOB_SEARCH_STATUS, jobOfferHeadline, jobOfferText, matchScoreText, scoredResultLine, type CoachAgendaSource } from "../coach/context";
+import { applicationDetails, criteriaTextOf, APPLICATION_STATUS, cvText, day, JOB_SEARCH_STATUS, jobDigestLine, jobOfferHeadline, jobOfferText, matchScoreText, scoredResultLine, type CoachAgendaSource } from "../coach/context";
 import type { JobDigests } from "../job-digests";
 import type { JobSearches } from "../job-searches";
 import type { Profiles } from "../profiles";
@@ -21,7 +21,8 @@ export interface CandidateObjectSources {
   profiles: Pick<Profiles, "get" | "list">;
   applications: Pick<Applications, "get" | "list">;
   jobSearches: Pick<JobSearches, "get" | "list">;
-  jobDigests: Pick<JobDigests, "get" | "list">;
+  /** `settings`: a Profile's Job Digest frequency, read with it (ADR-0114). */
+  jobDigests: Pick<JobDigests, "get" | "list" | "settings">;
   agenda: CoachAgendaSource;
   tailoredDocuments: Pick<TailoredDocuments, "get">;
   tailoredCvs: Pick<TailoredCvs, "get">;
@@ -168,8 +169,9 @@ export function candidateObjects(sources: CandidateObjectSources): CoachObjectRe
           const profile = await sources.profiles.get(candidateId, id);
           if (!profile || profile.archived) return null;
           const criteria = (await criteriaText())(profile.searchCriteria);
+          const digest = await sources.jobDigests.settings(candidateId, profile.id).catch(() => null);
           const told = (descriptions: boolean) =>
-            [`Profil « ${profile.name} » (id ${profile.id}).`, `Critères de recherche : ${criteria}.`, `CV de référence (version ${profile.masterCv.version}) :`, cvText(profile.masterCv.content, { descriptions })].join("\n");
+            [`Profil « ${profile.name} » (id ${profile.id}).`, `Critères de recherche : ${criteria}.`, ...(digest ? [jobDigestLine(digest)] : []), `CV de référence (version ${profile.masterCv.version}) :`, cvText(profile.masterCv.content, { descriptions })].join("\n");
           return { text: fitted([told(true), told(false)], maxTokens), pages: [routes.profile(profile.id)], untrusted: false, seen: named("profile", profile.name, routes.profile(profile.id)) };
         }
         case "application": {

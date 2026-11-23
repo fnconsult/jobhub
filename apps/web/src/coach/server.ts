@@ -40,6 +40,8 @@ export function getCoach(): Coach {
       jobSearches: getJobSearches(),
       jobDigests: {
         get: (candidateId, jobDigestId) => jobDigests.get(candidateId, jobDigestId),
+        // A Profile In view tells its Job Digest frequency (ADR-0114).
+        settings: (candidateId, profileId) => jobDigests.settings(candidateId, profileId),
         async latest(candidateId, profileId) {
           const latest = (await jobDigests.settings(candidateId, profileId))?.digests[0];
           return latest ? jobDigests.get(candidateId, latest.id) : null;

@@ -158,6 +158,9 @@ function sourcesOf(data: Workspace): CandidateObjectSources {
     jobDigests: {
       get: async (candidateId, id) => mine(candidateId, data.jobDigests).find((each) => each.id === id) ?? null,
       list: async (candidateId) => mine(candidateId, data.jobDigests).map(({ id, profile, sentAt, results }) => ({ id, profile, sentAt, count: results.length })),
+      // The Consultant Profile's Job Digest: chosen daily, the Plan capping it to weekly.
+      settings: async (candidateId, profileId) =>
+        candidateId === "marie" && profileId === consultant.id ? { subscribed: true, chosenFrequency: "daily", frequency: "weekly", planFrequency: "weekly", upgradeTo: null, digests: [] } : null,
     },
     agenda: { upcoming: async (candidateId) => mine(candidateId, data.agenda) },
     tailoredDocuments: { get: async (candidateId, applicationId) => (candidateId === "marie" && applicationId === airbus.id ? drafts : null) },
@@ -191,6 +194,14 @@ describe("read_profile (#714)", () => {
     expect(content).toContain("Consolidation IFRS de 12 filiales");
     for (const value of [IDENTITY.fullName, IDENTITY.email, IDENTITY.phone, IDENTITY.location]) expect(content).not.toContain(value);
     expect(recorder.provenance().sites).toEqual([{ kind: "candidate", links: ["/profils/p-consultant"] }]);
+  });
+
+  it("says how often its Job Digest is sent (ADR-0114): the frequency the Plan allows, what was chosen", async () => {
+    const { read } = await setUp();
+
+    const { content } = await read("read_profile", { id: consultant.id });
+
+    expect(content).toContain("Job Digest : chaque semaine (choisi : chaque jour, limité par son offre).");
   });
 
   it("is not_found for an Archived Profile, another Candidate's or an unknown id, saying nothing of why", async () => {

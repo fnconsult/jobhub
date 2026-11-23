@@ -990,6 +990,27 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     ]);
   });
 
+  it("the export holds each Application's Exchanges, kept on it or offered to it, and deleting the Application deletes them (#1099)", async () => {
+    const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));
+    await database.query(
+      `INSERT INTO exchange (candidate_id, application_id, state, message_id, sender, subject, text, sent_at, received_at) VALUES
+         ($1, $2, 'kept', '<a@acme.fr>', 'rh@acme.fr', 'Votre candidature', 'Bonjour, pouvons-nous nous appeler ?', '2026-10-01T09:00:00Z', '2026-10-01T09:01:00Z'),
+         ($1, $2, 'awaiting_check', '<b@acme.fr>', 'rh@acme.fr', 'Relance', 'En attente du garde-fou', NULL, '2026-10-02T09:01:00Z')`,
+      [candidateId, application.id],
+    );
+    await database.query(
+      `INSERT INTO exchange (candidate_id, offered_to, state, message_id, sender, subject, text, sent_at, received_at) VALUES ($1, ARRAY[$2::uuid], 'offered', '<c@acme-careers.fr>', 'jobs@acme-careers.fr', 'Entretien', 'Mardi ?', NULL, '2026-10-03T09:01:00Z')`,
+      [candidateId, application.id],
+    );
+
+    expect((await candidateData.export(candidateId)).applications[0]!.exchanges).toEqual([
+      { id: expect.any(String), state: "kept", from: "rh@acme.fr", subject: "Votre candidature", text: "Bonjour, pouvons-nous nous appeler ?", sentAt: new Date("2026-10-01T09:00:00Z"), receivedAt: new Date("2026-10-01T09:01:00Z") },
+      { id: expect.any(String), state: "offered", from: "jobs@acme-careers.fr", subject: "Entretien", text: "Mardi ?", sentAt: null, receivedAt: new Date("2026-10-03T09:01:00Z") },
+    ]);
+    await database.query(`DELETE FROM application WHERE id = $1`, [application.id]);
+    expect((await database.query(`SELECT 1 FROM exchange WHERE application_id = $1`, [application.id])).rowCount).toBe(0);
+  });
+
   it("the export holds each Application's Match Score, whether the Candidate reported its Job Offer unavailable, and its Company Dossier", async () => {
     const application = await saveApplication(candidateId, await createProfile(candidateId, "DAF"));
     await applications.change(candidateId, application.id, { reportedUnavailable: true });

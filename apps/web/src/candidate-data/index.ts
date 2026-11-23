@@ -25,7 +25,7 @@ import type { Meeting } from "../coach-space/meeting";
   *    Appointment Reminders sent, the app's devices for Push notifications (never their token) and their switches; their Profiles
  *    (Search Criteria, every Master CV Version, ATS Score, Job Searches, Job Digest settings and
  *    Job Digests sent); their Applications (Job Offer, Interviews, Match Score, Tailored
- *    Documents with their versions (#1079), Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier); their Coach
+ *    Documents with their versions (#1079), Follow-ups sent, Coach Reviews, Enriched Contacts, Company Dossier, Exchanges (#1099)); their Coach
  *    Conversations, Coach Memory, Coach Access, Coaching Sessions and Action Cards; as an Administrator,
  *    their Back Office Assistant conversations; the AI Message Log of their own AI calls; the Signalements they sent; their Extension Events (#924)
  *    (never which Administrator handled them); their Orders (#512) and their Withdrawals and refunds (#511); the Job Offers private to them (ADR-0049); their Offer box (ADR-0090). Profiles and Applications
@@ -213,6 +213,22 @@ export interface ExportedApplication extends Application {
   enrichedContacts: ExportedEnrichedContact[];
   /** What the app found about the employer, or null when nothing was looked up. */
   companyDossier: ExportedCompanyDossier | null;
+  /**
+   * Its Exchanges (#1099, ADR-0115): the emails about it kept on it, and those offered to tie to it (« Rattacher à … ? »),
+   * oldest first: sender, date, subject and text.
+   */
+  exchanges: ExportedApplicationExchange[];
+}
+
+/** An Exchange of an Application, as the Data export holds it (#1099). */
+export interface ExportedApplicationExchange {
+  id: string;
+  state: "kept" | "offered";
+  from: string;
+  subject: string;
+  text: string;
+  sentAt: Date | null;
+  receivedAt: Date;
 }
 
 /** The Company Dossier of an Application, as kept. */
@@ -516,6 +532,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coach_review: "applications[].coachReviews",
   enriched_contact: "applications[].enrichedContacts (no provider identifiers)",
   company_dossier: "applications[].companyDossier (with what served its last build)",
+  exchange: "applications[].exchanges (the emails about it kept on it, and those offered to tie to it: sender, date, subject and text; never attachments nor headers, #1099)",
   coach_conversation: "coachConversations (each with its Subject: kind, id and name)",
   coach_message: "coachConversations[].messages (blocked ones marked, a Job Offer card's Job Offer named, each reply's Provenance and focus; no AI costs)",
   coach_access: "coachAccess",
@@ -774,7 +791,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
   }
 
   async function exportApplications(candidateId: string): Promise<ExportedApplication[]> {
-    const [summaries, followUpsOf, coachReviewsOf, enrichedContactsOf, companyDossiersOf] = await Promise.all([
+    const [summaries, followUpsOf, coachReviewsOf, enrichedContactsOf, companyDossiersOf, exchangesOf] = await Promise.all([
       deps.applications.list(candidateId),
       grouped<{ sentAt: Date }>(
       `SELECT s.application_id AS key, s.sent_at AS "sentAt" FROM follow_up_sent s JOIN application a ON a.id = s.application_id
@@ -795,6 +812,13 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
       `SELECT d.application_id AS key, d.presumed_employer AS "presumedEmployer", d.presumed_employer_description AS "presumedEmployerDescription",
               d.agency, d.confirmed_employer AS "confirmedEmployer", d.dossier, d.updated_at AS "updatedAt", d.provenance
          FROM company_dossier d JOIN application a ON a.id = d.application_id WHERE a.candidate_id = $1`,
+        candidateId,
+      ),
+      // Kept on it, or offered to it (an email offered to several Applications is listed under each).
+      grouped<ExportedApplicationExchange>(
+      `SELECT a.id AS key, x.id, x.state, x.sender AS "from", x.subject, x.text, x.sent_at AS "sentAt", x.received_at AS "receivedAt"
+         FROM exchange x JOIN application a ON a.id = x.application_id OR (x.state = 'offered' AND a.id = ANY (x.offered_to))
+        WHERE x.candidate_id = $1 AND x.state IN ('kept', 'offered') ORDER BY x.received_at, x.id`,
         candidateId,
       ),
     ]);
@@ -821,6 +845,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           coachReviews: coachReviewsOf(id),
           enrichedContacts: enrichedContactsOf(id),
           companyDossier: exportedDossier(companyDossiersOf(id)[0]),
+          exchanges: exchangesOf(id),
         };
       }),
     );

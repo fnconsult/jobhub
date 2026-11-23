@@ -1,28 +1,40 @@
 /**
- * A Master CV change the AI Coach proposes (#719, ADR-0077), reviewed change by change like a Tailored CV (ADR-0006):
- * a list of edits on what the Master CV already says (rephrase, cut, reorder, put forward), never an item it does not
- * have, never a job's employer or dates, never a figure it does not state. `masterCvReview` tells the edits as the
- * changes the Candidate accepts or rejects one by one (`CvChange`, the Tailored CV Review's), a rephrasing that brings
- * words of the Candidate's Job Offers the Master CV lacks flagged (a Flagged Change); `acceptedMasterCv` gives the
- * Master CV with only the changes accepted, sent explicitly, every other keeping what the Master CV says.
+ * A CV change the AI Coach proposes (#719, ADR-0077), reviewed change by change like a Tailored CV (ADR-0006): a list
+ * of edits on what the CV already says (rephrase, cut, reorder, put forward), never an item it does not have, never a
+ * job's employer or dates, never a figure it does not state. `masterCvReview` tells the edits as the changes the
+ * Candidate accepts or rejects one by one (`CvChange`, the Tailored CV Review's), a rephrasing that brings words of the
+ * Candidate's Job Offers the CV lacks flagged (a Flagged Change, « Reprend les mots de l'offre »); `acceptedMasterCv`
+ * gives the CV with only the changes accepted, sent explicitly, every other keeping what the CV says.
+ *
+ * The same edits rework a Tailored CV (ADR-0113, #1097): the CV edited is then the Tailored CV (saved, or the proposal
+ * under review), and `reference` its Master CV, whose items and figures count as said: an item the Tailored CV cut
+ * can be added back.
+ *
+ * A Declared Fact (ADR-0113): a skill, a language or its level, a diploma the Candidate states in the Coach Conversation
+ * (`declared`: their own messages there, never the Job Offer's nor the AI Coach's). It may be added (`add`) or put in
+ * place of what the CV says, marked `declared` (« Fait déclaré par vous »). Not in the CV nor declared, it is refused:
+ * `not_declared` for an addition or a language level, `added_item` for a skill rephrased into another one.
  * Safe to use in the browser.
  *
- *   const review = masterCvReview(master, edits, { offers });   // { ok, changes, edits } | { ok: false, error }
- *   acceptedMasterCv(master, review.edits, accepted)            // the next Master CV Version's content
+ *   const review = masterCvReview(master, edits, { offers, declared });   // { ok, changes, edits } | { ok: false, error }
+ *   acceptedMasterCv(master, review.edits, accepted, { declared })        // the next Master CV Version's content
  */
 import { jobOfferLanguage, normalise, textLanguage, type DocumentLanguage, type MasterCvContent } from "@jobhub/shared";
 import { cvChanges, flagOfferWording, stemOf, withChanges, wordsOf, type CvChange, type CvOrigins } from "../tailored-cv/changes";
 
-export const MASTER_CV_EDIT_KINDS = ["rephrase", "cut", "reorder", "highlight"] as const;
+export const MASTER_CV_EDIT_KINDS = ["rephrase", "cut", "reorder", "highlight", "add"] as const;
 export const MASTER_CV_EDIT_SECTIONS = ["headline", "summary", "experience", "education", "skills", "languages"] as const;
-type ListSection = Exclude<(typeof MASTER_CV_EDIT_SECTIONS)[number], "headline" | "summary">;
+export type ListSection = Exclude<(typeof MASTER_CV_EDIT_SECTIONS)[number], "headline" | "summary">;
 
 /**
  * One edit, as the AI Coach proposes it:
  *  - `rephrase` the headline or summary (`text`), a job (`item`, its new `title` and/or `description`) or a skill (`item`, `text`);
  *  - `cut` an item of a list section;
  *  - `reorder` a list section (`order`: its items named in the new order, the others after them as they were);
- *  - `highlight` an item: put forward, first of its section.
+ *  - `highlight` an item: put forward, first of its section;
+ *  - `rephrase` a language's `level` (`item`, its name): a Declared Fact;
+ *  - `add` a skill (`text`), a language (`item`, its name, and its `level`) or a diploma (`text`, its degree, with its
+ *    `institution` and `year`): a Declared Fact, or an item of the reference CV the CV does not have.
  * `item` names an item as the Master CV writes it: a job by its title or employer, a diploma by its degree, a skill, a language.
  */
 export type MasterCvEdit = {
@@ -33,6 +45,9 @@ export type MasterCvEdit = {
   title?: string;
   description?: string;
   order?: string[];
+  level?: string;
+  institution?: string;
+  year?: string;
 };
 
 /**
@@ -47,6 +62,8 @@ export type MasterCvReviewRefusal =
   | { ok: false; error: "invented_figure"; text: string }
   | { ok: false; error: "translated"; text: string }
   | { ok: false; error: "invalid_edit"; edit: number }
+  /** A fact to add or correct (a skill, a language level, a diploma) the CV does not say and the Candidate never declared. */
+  | { ok: false; error: "not_declared"; text: string; section: ListSection }
   | { ok: false; error: "no_change" };
 
 export type MasterCvReview = { ok: true; changes: CvChange[]; edits: MasterCvEdit[] } | MasterCvReviewRefusal;
@@ -86,6 +103,24 @@ const inventedFigure = (text: string, master: string) => {
   return figuresIn(text).some((figure) => !stated.has(figure));
 };
 
+/**
+ * How edits are read: `declared`, the Candidate's own messages in the Coach Conversation (a value found in one, as whole
+ * words, is a Declared Fact; `true`: checked already, when the card was made); `reference`, the Master CV of the
+ * Tailored CV being edited, whose items and figures count as said.
+ */
+export interface CvEditOptions {
+  declared?: readonly string[] | true;
+  reference?: MasterCvContent;
+}
+
+/** Whether `value` is a Declared Fact: found, as whole words, in one of the Candidate's messages. */
+export function isDeclared(value: string, declared: CvEditOptions["declared"]): boolean {
+  if (declared === true) return true;
+  const wanted = normalise(value);
+  if (!wanted.trim() || !declared) return false;
+  return declared.some((message) => normalise(message).includes(wanted));
+}
+
 /** What separates the items of a list: a skill rephrased into a list of them adds items. */
 const LIST_SEPARATOR = /[,;•·|\n]/;
 
@@ -101,9 +136,17 @@ function rephrasesSkill(skill: string, text: string): boolean {
 }
 
 /** The Master CV with `edits` applied, and where each item of its list sections comes from. */
-function proposedOf(master: MasterCvContent, edits: readonly MasterCvEdit[]): { content: MasterCvContent; origins: CvOrigins & { experience: number[] } } | MasterCvReviewRefusal {
-  const said = masterText(master);
+function proposedOf(
+  master: MasterCvContent,
+  edits: readonly MasterCvEdit[],
+  { declared, reference }: CvEditOptions = {},
+): { content: MasterCvContent; origins: CvOrigins & { experience: number[] }; facts: string[] } | MasterCvReviewRefusal {
+  const said = `${masterText(master)}${reference ? masterText(reference) : ""}`;
   const language = masterLanguage(master);
+  /** The Declared Facts the edits bring, as their changes will name them. */
+  const facts: string[] = [];
+  /** In the CV (or its reference) already: no Declared Fact needed. */
+  const inCv = (value: string) => said.includes(normalise(value));
   const content: MasterCvContent = structuredClone(master);
   const origins = {
     experience: master.experience.map((_, index) => index),
@@ -123,6 +166,13 @@ function proposedOf(master: MasterCvContent, edits: readonly MasterCvEdit[]): { 
 
   for (const [position, edit] of edits.entries()) {
     const invalid: MasterCvReviewRefusal = { ok: false, error: "invalid_edit", edit: position };
+    if (edit.kind === "add") {
+      const added = addOf(edit, content, origins, inCv, declared);
+      if (added === "invalid") return invalid;
+      if ("ok" in added) return added;
+      facts.push(...added.facts);
+      continue;
+    }
     const texts = [edit.text, edit.title, edit.description].filter((text): text is string => typeof text === "string");
     const invented = texts.find((text) => inventedFigure(text, said));
     if (invented !== undefined) return { ok: false, error: "invented_figure", text: invented };
@@ -164,26 +214,110 @@ function proposedOf(master: MasterCvContent, edits: readonly MasterCvEdit[]): { 
       content.experience[place] = { ...job, ...(edit.title !== undefined ? { title: edit.title.trim() } : {}), ...(edit.description !== undefined ? { description: edit.description.trim() } : {}) };
     } else if (section === "skills") {
       if (!edit.text?.trim()) return invalid;
-      if (!rephrasesSkill(master.skills[origin]!, edit.text)) return { ok: false, error: "added_item", text: edit.text.trim() };
-      content.skills[place] = edit.text.trim();
+      const text = edit.text.trim();
+      if (!rephrasesSkill(master.skills[origin]!, text)) {
+        // Another skill: only one the CV (or its reference) has, or one the Candidate declared (ADR-0113).
+        if (LIST_SEPARATOR.test(text) || !(inCv(text) || isDeclared(text, declared))) return { ok: false, error: "added_item", text };
+        if (!inCv(text)) facts.push(text);
+      }
+      content.skills[place] = text;
+    } else if (section === "languages" && edit.level?.trim()) {
+      // A language's level corrected: a Declared Fact (« mon anglais est C1 »), or the level its reference says.
+      const level = edit.level.trim();
+      if (!inCv(level) && !isDeclared(level, declared)) return { ok: false, error: "not_declared", text: level, section };
+      if (!inCv(level)) facts.push(level);
+      content.languages[place] = { ...content.languages[place]!, level };
     } else {
       // A diploma or a language is cut, reordered or put forward, never reworded.
       return invalid;
     }
   }
-  return { content, origins };
+  return { content, origins, facts };
+}
+
+/**
+ * An `add` edit applied to `content`: a skill, a language or a diploma at the end of its section, from nowhere in the CV
+ * (`origins` -1). In the CV already, nothing; in its reference, added as it is; else only a Declared Fact.
+ */
+function addOf(
+  edit: MasterCvEdit,
+  content: MasterCvContent,
+  origins: Record<ListSection, number[]>,
+  inCv: (value: string) => boolean,
+  declared: CvEditOptions["declared"],
+): { facts: string[] } | MasterCvReviewRefusal | "invalid" {
+  const check = (section: ListSection, values: (string | undefined)[]): { facts: string[] } | MasterCvReviewRefusal => {
+    const facts: string[] = [];
+    for (const value of values.map((each) => each?.trim() ?? "").filter(Boolean)) {
+      if (inCv(value)) continue;
+      if (!isDeclared(value, declared)) return { ok: false, error: "not_declared", text: value, section };
+      facts.push(value);
+    }
+    return { facts };
+  };
+  const has = (values: string[], value: string) => values.some((each) => same(each, value));
+  switch (edit.section) {
+    case "skills": {
+      const text = edit.text?.trim();
+      if (!text || LIST_SEPARATOR.test(text)) return "invalid";
+      if (has(content.skills, text)) return { facts: [] };
+      const checked = check("skills", [text]);
+      if (!("ok" in checked)) {
+        content.skills.push(text);
+        origins.skills.push(-1);
+      }
+      return checked;
+    }
+    case "languages": {
+      const name = (edit.item ?? edit.text)?.trim();
+      if (!name) return "invalid";
+      if (has(content.languages.map((each) => each.name), name)) return "invalid";
+      const level = edit.level?.trim() ?? "";
+      const checked = check("languages", [name, level]);
+      if (!("ok" in checked)) {
+        content.languages.push({ name, level });
+        origins.languages.push(-1);
+      }
+      return checked;
+    }
+    case "education": {
+      const degree = edit.text?.trim();
+      if (!degree) return "invalid";
+      if (has(content.education.map((each) => each.degree), degree)) return { facts: [] };
+      const institution = edit.institution?.trim() ?? "";
+      const year = edit.year?.trim() ?? "";
+      const checked = check("education", [degree, institution, year]);
+      if (!("ok" in checked)) {
+        content.education.push({ degree, institution, year });
+        origins.education.push(-1);
+      }
+      return checked;
+    }
+    default:
+      return "invalid";
+  }
+}
+
+/** Each change that brings a Declared Fact, marked « Fait déclaré par vous ». */
+function markDeclared(changes: CvChange[], facts: readonly string[]): CvChange[] {
+  if (facts.length === 0) return changes;
+  const told = facts.map(normalise);
+  return changes.map((change) => {
+    const text = change.kind === "added" ? change.item : change.kind === "rephrased" ? change.tailored : undefined;
+    return text && told.some((fact) => normalise(text).includes(fact)) ? { ...change, declared: true } : change;
+  });
 }
 
 /**
  * The changes `edits` make to the Master CV, for the Candidate to review one by one: none added, a rephrasing that brings
  * words of `offers` (the Candidate's Job Offers) the Master CV lacks flagged with them (`fromOffer`).
  */
-export function masterCvReview(master: MasterCvContent, edits: readonly MasterCvEdit[], { offers = [] }: { offers?: readonly string[] } = {}): MasterCvReview {
-  const proposed = proposedOf(master, edits);
+export function masterCvReview(master: MasterCvContent, edits: readonly MasterCvEdit[], { offers = [], ...options }: { offers?: readonly string[] } & CvEditOptions = {}): MasterCvReview {
+  const proposed = proposedOf(master, edits, options);
   if ("ok" in proposed) return proposed;
-  const masterStems = new Set(wordsOf(masterText(master)).map(stemOf));
+  const masterStems = new Set(wordsOf(`${masterText(master)}${options.reference ? masterText(options.reference) : ""}`).map(stemOf));
   const offerStems = [...new Set(wordsOf(offers.join(" ")).map(stemOf))].filter((stem) => !masterStems.has(stem));
-  const changes = flagOfferWording(cvChanges(master, proposed.content, proposed.origins), offerStems);
+  const changes = markDeclared(flagOfferWording(cvChanges(master, proposed.content, proposed.origins), offerStems), proposed.facts);
   if (changes.length === 0) return { ok: false, error: "no_change" };
   return { ok: true, changes, edits: [...edits] };
 }
@@ -191,9 +325,10 @@ export function masterCvReview(master: MasterCvContent, edits: readonly MasterCv
 /**
  * The Master CV with only the changes `accepted` (by `CvChange.id`, as sent with « Enregistrer »): every other keeps
  * what the Master CV says; an id that names no change changes nothing. Edits that no longer read keep it as it is.
+ * `options`: as the review was made (`declared: true` once its Declared Facts were checked, when the card was made).
  */
-export function acceptedMasterCv(master: MasterCvContent, edits: readonly MasterCvEdit[], accepted: Iterable<string>): MasterCvContent {
-  const proposed = proposedOf(master, edits);
+export function acceptedMasterCv(master: MasterCvContent, edits: readonly MasterCvEdit[], accepted: Iterable<string>, options: CvEditOptions = {}): MasterCvContent {
+  const proposed = proposedOf(master, edits, options);
   if ("ok" in proposed) return master;
   return withChanges(master, proposed.content, accepted, proposed.origins);
 }

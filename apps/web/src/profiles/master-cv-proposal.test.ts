@@ -109,3 +109,59 @@ describe("a Master CV change proposed by the AI Coach, reviewed change by change
     expect(masterCvReview(master, [{ kind: "rephrase", section: "headline", text: master.headline }])).toEqual({ ok: false, error: "no_change" });
   });
 });
+
+describe("a Declared Fact enters a CV (ADR-0113, #1097)", () => {
+  const said = ["Ajoute Power BI à mes compétences, je l'utilise depuis 3 ans.", "Mon anglais est C1 maintenant, et j'ai un MBA de l'INSEAD."];
+
+  it("adds a skill the Candidate declared in the conversation, marked « Fait déclaré par vous »", () => {
+    const review = masterCvReview(master, [{ kind: "add", section: "skills", text: "Power BI" }], { declared: said });
+    if (!review.ok) throw new Error(`not reviewed: ${JSON.stringify(review)}`);
+    expect(review.changes).toEqual([{ id: "skills.added.Power BI", section: "skills", kind: "added", item: "Power BI", declared: true }]);
+    expect(acceptedMasterCv(master, review.edits, ["skills.added.Power BI"], { declared: said }).skills).toEqual([...master.skills, "Power BI"]);
+    expect(acceptedMasterCv(master, review.edits, [], { declared: said }).skills).toEqual(master.skills);
+  });
+
+  it("refuses a skill the Candidate never declared: not_declared, with its section", () => {
+    expect(masterCvReview(master, [{ kind: "add", section: "skills", text: "Tableau" }], { declared: said })).toEqual({ ok: false, error: "not_declared", text: "Tableau", section: "skills" });
+    // What the Job Offer or the AI Coach says is never a Declared Fact: only the Candidate's own messages count.
+    expect(masterCvReview(master, [{ kind: "add", section: "skills", text: "Power BI" }])).toEqual({ ok: false, error: "not_declared", text: "Power BI", section: "skills" });
+    // A whole word, not a piece of one.
+    expect(masterCvReview(master, [{ kind: "add", section: "skills", text: "BI" }], { declared: ["Je fais du BIM"] })).toMatchObject({ ok: false, error: "not_declared" });
+  });
+
+  it("rephrases a skill into another only when the Candidate declared it; else added_item", () => {
+    expect(masterCvReview(master, [{ kind: "rephrase", section: "skills", item: "IFRS", text: "Power BI" }], { declared: said })).toMatchObject({ ok: true });
+    expect(masterCvReview(master, [{ kind: "rephrase", section: "skills", item: "IFRS", text: "Tableau" }], { declared: said })).toEqual({ ok: false, error: "added_item", text: "Tableau" });
+  });
+
+  it("corrects a language level, and adds a language or a diploma, the Candidate declared", () => {
+    const review = masterCvReview(
+      master,
+      [
+        { kind: "rephrase", section: "languages", item: "Anglais", level: "C1" },
+        { kind: "add", section: "education", text: "MBA", institution: "INSEAD" },
+      ],
+      { declared: said },
+    );
+    if (!review.ok) throw new Error(`not reviewed: ${JSON.stringify(review)}`);
+    expect(review.changes).toEqual([
+      { id: "education.added.MBA · INSEAD", section: "education", kind: "added", item: "MBA · INSEAD", declared: true },
+      { id: "languages.rephrased.0", section: "languages", kind: "rephrased", item: "Anglais · courant", master: "Anglais · courant", tailored: "Anglais · C1", declared: true },
+    ]);
+    const all = acceptedMasterCv(master, review.edits, review.changes.map((change) => change.id), { declared: said });
+    expect(all.languages).toEqual([{ name: "Anglais", level: "C1" }]);
+    expect(all.education).toEqual([...master.education, { degree: "MBA", institution: "INSEAD", year: "" }]);
+    expect(masterCvReview(master, [{ kind: "rephrase", section: "languages", item: "Anglais", level: "bilingue" }], { declared: said })).toEqual({
+      ok: false,
+      error: "not_declared",
+      text: "bilingue",
+      section: "languages",
+    });
+  });
+
+  it("adds back an item of the reference CV without it being declared: it is in the CV (a Tailored CV that cut it)", () => {
+    const tailored = { ...master, skills: ["IFRS"] };
+    const review = masterCvReview(tailored, [{ kind: "add", section: "skills", text: "SAP" }], { reference: master });
+    expect(review.ok && review.changes).toEqual([{ id: "skills.added.SAP", section: "skills", kind: "added", item: "SAP" }]);
+  });
+});

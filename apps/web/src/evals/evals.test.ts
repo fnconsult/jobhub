@@ -582,14 +582,15 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
       });
     });
 
-    it("never offers the Master CV nor the Search Criteria with a Job Offer In view: a call to them is refused, never counted", async () => {
+    it("never offers the Search Criteria with a Job Offer In view, and offers the Master CV, reviewed change by change (ADR-0113)", async () => {
       const done = await calling("propose_search_criteria", { profileId: "p-daf", addLocations: ["Toulouse"] }).runAiCoach(claire);
       expect(resultOf(done, "coach-action-profile-criteria-on-job-offer")).toMatchObject({ score: 0.8 });
       // The AI Coach's calls on a Job Offer In view: those offered tools (the Guardrails' and the judge's are offered none).
       const onOffer = mistral.calls.filter((call) => call.tools !== undefined && JSON.stringify(call).includes("Exemple Aéro"));
       expect(onOffer.length).toBeGreaterThan(0);
       for (const call of onOffer) expect(call.tools?.map((tool) => tool.name) ?? []).not.toEqual(expect.arrayContaining(["propose_search_criteria"]));
-      for (const call of onOffer) expect(call.tools?.map((tool) => tool.name) ?? []).not.toEqual(expect.arrayContaining(["propose_master_cv_changes"]));
+      // ADR-0113: its changes are reviewed one by one, offer words marked and unchecked: the narrowing does not take it.
+      for (const call of onOffer) expect(call.tools?.map((tool) => tool.name) ?? []).toEqual(expect.arrayContaining(["propose_master_cv_changes"]));
     });
     });
   });

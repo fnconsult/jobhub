@@ -6,10 +6,12 @@
  *  - `propose_search_criteria`: the fields changed (places through Place suggestion, role, Sectors, salary…), before →
  *    after, from the version seen; « Annuler » puts the criteria before back. Copies text.
  *  - `propose_master_cv_changes`: edits on what the Master CV says (rephrase, reorder, cut, put forward), reviewed change
- *    by change in the Work Pane like a Tailored CV (ADR-0006): never an item or a figure it does not have; a rephrasing
- *    with words of the Candidate's Job Offers it lacks is a Flagged Change; the changes accepted, sent explicitly, make one
- *    Master CV Version from the version seen (newer since: a conflict). No one-click « Appliquer ». « Annuler » is a
- *    Restore of the version before. Copies text.
+ *    by change in the Work Pane like a Tailored CV (ADR-0006): never an item or a figure it does not have, unless a
+ *    Declared Fact the Candidate stated in the conversation (ADR-0113, « Fait déclaré par vous »); a rephrasing with words
+ *    of the Candidate's Job Offers it lacks is a Flagged Change (« Reprend les mots de l'offre »); the changes accepted,
+ *    sent explicitly, make one Master CV Version from the version seen (newer since: a conflict). No one-click
+ *    « Appliquer ». « Annuler » is a Restore of the version before. Copies text, but offered with an Application In view
+ *    (ADR-0113: the Candidate reviews each change, `sentByCandidate`).
  *  - `propose_profile_archive` / `propose_profile_restore`: within the Plan Quota (restoring uses one active Profile; the
  *    Upgrade prompt without room). « Annuler » does the other. Copy no text. An Archived Profile is out of every other
  *    Coach Action's reach; restoring finds one by its id or its name.
@@ -38,6 +40,7 @@ import type { PlaceSuggestions } from "../places/geo-api";
 import { searchCriteriaSchema, searchCriteriaVersion, type Profile, type Profiles } from "../profiles";
 import { acceptedMasterCv, masterCvReview } from "../profiles/master-cv-proposal";
 import { routes } from "../routes";
+import { cvEditRefusal } from "./cv-edits";
 import { defineCoachAction, masterCvEditSchema, type ApplyProposalResult, type CoachAction, type CoachActionResult, type ProposalCall, type ProposedChange, type UndoProposalResult } from "./index";
 
 export const PROFILE_ACTIONS = {
@@ -298,32 +301,20 @@ function masterCvAction(sources: ProfileActionSources): CoachAction {
   return defineCoachAction({
     name: PROFILE_ACTIONS.masterCv,
     description:
-      "Propose des modifications du CV de référence d'un profil actif, que le candidat relira une par une : reformuler (le titre, le résumé, un poste, une compétence), couper, réordonner ou mettre en avant (en premier) un élément. Uniquement ce que le CV dit déjà : jamais un élément, un chiffre ni un fait qu'il ne contient pas ; jamais une compétence ajoutée, même sous couvert de reformuler une compétence (le candidat ajoute les siennes lui-même dans la section « CV de référence »). Un élément est nommé comme le CV l'écrit (un poste par son intitulé ou son employeur). Jamais une traduction : le CV de référence reste dans sa langue ; un CV dans une autre langue est le CV adapté d'une candidature, dans sa « Langue des documents ».",
+      "Propose des modifications du CV de référence d'un profil actif, que le candidat relira une par une dans le panneau de travail, y compris depuis la conversation d'une candidature : reformuler (le titre, le résumé, un poste, une compétence), couper, réordonner ou mettre en avant (en premier) un élément. Uniquement ce que le CV dit déjà, ou un fait que le candidat t'a déclaré lui-même dans cette conversation (une compétence, une langue ou son niveau, un diplôme : « ajoute Power BI, je l'utilise depuis 3 ans ») : add l'ajoute (section skills avec text ; languages avec item et level ; education avec text, institution, year), rephrase d'une langue avec level corrige son niveau ; la carte le marque « Fait déclaré par vous ». Jamais un élément, un chiffre ni un fait tiré de l'offre ou de toi : le serveur vérifie que le candidat l'a écrit. Un changement qui reprend des mots d'une offre est marqué pour le candidat, qui l'accepte ou non. Un élément est nommé comme le CV l'écrit (un poste par son intitulé ou son employeur). Jamais une traduction : le CV de référence reste dans sa langue ; un CV dans une autre langue est le CV adapté d'une candidature, dans sa « Langue des documents ».",
     schema: z.object({ profileId: id.describe("L'id du profil (actif) dont le CV de référence change."), changes: z.array(masterCvEditSchema).min(1).max(20) }),
     group: "profile",
     kind: "propose",
     copiesText: true,
-    async run({ profileId, changes }, { candidateId, language }) {
+    // ADR-0113: offered even with an Application In view; the Candidate reads each change, a change with offer words
+    // marked and unchecked, and saves the CV themselves.
+    sentByCandidate: true,
+    async run({ profileId, changes }, { candidateId, language, said }) {
       const profile = await activeProfile(sources, candidateId, profileId);
       if (!profile) return NOT_FOUND;
       const offers = await sources.offersOf(candidateId, profile.id).catch(() => []);
-      const review = masterCvReview(profile.masterCv.content, changes, { offers });
-      if (!review.ok) {
-        switch (review.error) {
-          case "unknown_item":
-            return refused(`« ${review.item} » n'est pas dans le CV de référence : propose seulement de reformuler, couper, réordonner ou mettre en avant ce qu'il dit déjà, nommé comme il l'écrit.`);
-          case "added_item":
-            return refused(`« ${review.text} » n'est pas une reformulation d'une compétence du CV de référence : ajouter des compétences ne se propose pas. Dis au candidat de les ajouter lui-même depuis la section « CV de référence » de son profil.`);
-          case "invented_figure":
-            return refused(`« ${review.text} » avance un chiffre que le CV de référence ne donne pas : ne propose jamais un fait qu'il ne contient pas ; demande-le au candidat.`);
-          case "translated":
-            return refused(`« ${review.text} » n'est pas dans la langue du CV de référence : il ne se traduit pas par des modifications, qui en laisseraient une partie dans sa langue. Un CV, une lettre ou un message dans une autre langue se prépare pour une candidature, dans sa « Langue des documents » : propose de le préparer avec l'outil prévu et son argument language.`);
-          case "invalid_edit":
-            return refused(`La modification n° ${review.edit + 1} ne se lit pas : une formation ou une langue se coupe, se réordonne ou se met en avant, sans être reformulée ; un poste se reformule par son intitulé ou sa description.`);
-          case "no_change":
-            return refused("Ces modifications ne changent rien au CV de référence : rien n'a été proposé.");
-        }
-      }
+      const review = masterCvReview(profile.masterCv.content, changes, { offers, declared: said ?? [] });
+      if (!review.ok) return cvEditRefusal(review, "le CV de référence");
       const { t } = createI18n(language);
       const change: ProposedChange = {
         target: { kind: "profile", id: profile.id, name: profile.name, href: routes.profileSection(profile.id, "cv-de-reference") },
@@ -347,7 +338,8 @@ function masterCvAction(sources: ProfileActionSources): CoachAction {
       if (!profile) return NOT_FOUND;
       const seen = Number(change.version);
       if (profile.masterCv.version !== seen) return { ok: false, error: "conflict" };
-      const content = acceptedMasterCv(profile.masterCv.content, change.review.edits, accepted);
+      // Its Declared Facts were checked when the card was made, against the Candidate's own messages.
+      const content = acceptedMasterCv(profile.masterCv.content, change.review.edits, accepted, { declared: true });
       const saved = await sources.profiles.saveMasterCv(call.candidateId, profile.id, { basedOnVersion: seen, content }, { origin: originOf(call) });
       if (!saved) return NOT_FOUND;
       if (!saved.ok) return "conflict" in saved ? { ok: false, error: "conflict" } : { ok: false, error: "invalid", errors: saved.errors };

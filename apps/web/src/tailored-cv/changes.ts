@@ -15,6 +15,7 @@ export type CvSection = (typeof CV_SECTIONS)[number];
  * Each is accepted or rejected by the Candidate; only the accepted ones are saved (`withChanges`).
  * `fromOffer`: the words a rephrasing takes from the Job Offer that the Master CV does not say, for the
  * Candidate to check (ADR-0006, #68); absent when there are none.
+ * `declared`: it brings a Declared Fact, one the Candidate stated in the Coach Conversation (ADR-0113): « Fait déclaré par vous ».
  */
 export interface CvChange {
   /** Names the change in its proposal, for the Candidate to accept it (see `withChanges`). */
@@ -25,6 +26,7 @@ export interface CvChange {
   master?: string;
   tailored?: string;
   fromOffer?: string[];
+  declared?: true;
 }
 
 /**
@@ -221,4 +223,23 @@ export function withChanges(master: CvContent, tailored: CvContent, accepted: It
     skills: listWithChanges(LIST_SECTIONS.skills, master.skills, tailored.skills, ok, origins?.skills),
     languages: listWithChanges(LIST_SECTIONS.languages, master.languages, tailored.languages, ok, origins?.languages),
   };
+}
+
+/** The words of a text, normalised (lower case, no accents nor punctuation), each once: what a Layout-only Change keeps. */
+const allWordsOf = (text: string) => new Set(normalise(text).split(" ").filter(Boolean));
+
+/**
+ * Whether `changes` only lay the CV out (ADR-0113): reorder, cut, or rephrase with no word the CV did not have (a case
+ * changed, an explanation cut, a text made a list). A Layout-only Change says « Mise en forme seule, aucun mot ajouté »;
+ * it is still reviewed change by change, a cut and a rephrasing being hard to tell apart.
+ */
+export function layoutOnly(changes: readonly CvChange[]): boolean {
+  if (changes.length === 0) return false;
+  return changes.every((change) => {
+    if (change.declared) return false;
+    if (change.kind === "cut" || change.kind === "reordered") return true;
+    if (change.kind !== "rephrased") return false;
+    const before = allWordsOf(change.master ?? "");
+    return [...allWordsOf(change.tailored ?? "")].every((word) => before.has(word));
+  });
 }

@@ -482,6 +482,8 @@ export function createCoach(deps: CoachDeps): Coach {
                 language: options.language ?? "fr",
                 ...(focus ? { focus } : {}),
                 ...(guard ? { guard } : {}),
+                // Where a Declared Fact is checked (ADR-0113): the Candidate's own messages, as the conversation keeps them.
+                said: messages.filter((message) => message.role === "user").map((message) => message.content),
               })
             : null;
           prepared ??= await prepare(offered?.readRoom ?? 0);

@@ -121,6 +121,14 @@ describe("the help of a page that is a conversation, in the Work Pane (#602, ADR
     await waitFor(() => expect(coach.sent).toHaveLength(1));
     expect(coach.sent[0]).toMatchObject({ helpArticle: { id: "page-account", title: "Mon compte" } });
   });
+
+  it("opens the Coach Memory in the Work Pane when its address says so (a Typed redirect, ADR-0114), and drops it from the address", async () => {
+    window.history.replaceState(null, "", "/?memoire");
+    renderInFrench(<HomePage />);
+
+    expect(await within(workPane()).findByRole("heading", { level: 2, name: "Mémoire du coach" })).toBeTruthy();
+    expect(window.location.search).toBe("");
+  });
 });
 
 describe("a HelpTerm on a Candidate's page (#602, #608)", () => {

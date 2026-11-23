@@ -143,6 +143,19 @@ describe("tool calling through the AI layer (#712)", () => {
       expect(result.tools?.runs).toEqual([expect.objectContaining({ name: "candidatures_supprimer", ran: false, result: { content: 'Unknown tool "candidatures_supprimer": it was not run.', error: true } })]);
     });
 
+    it("an unknown tool is refused in the caller's own words when it gives them (ADR-0114), still never run", async () => {
+      const { claude, runTool, ask } = setUp([{ toolCalls: [{ name: "candidatures_supprimer", arguments: { id: "a1" } }] }, { text: "Je ne peux pas supprimer." }]);
+      const unknownTool = vi.fn(async (run: { name: string }) => ({ content: `« ${run.name} » n'est pas proposée : elle n'a pas été lancée.`, error: true }));
+
+      const result = await ask({ unknownTool });
+
+      expect(runTool).not.toHaveBeenCalled();
+      expect(unknownTool).toHaveBeenCalledWith(expect.objectContaining({ name: "candidatures_supprimer", arguments: { id: "a1" } }));
+      const said = "« candidatures_supprimer » n'est pas proposée : elle n'a pas été lancée.";
+      expect(claude.calls[1]!.messages[2]).toEqual({ role: "user", content: [{ type: "tool_result", id: "call_1", content: said, error: true }] });
+      expect(result.tools?.runs).toEqual([expect.objectContaining({ name: "candidatures_supprimer", ran: false, result: { content: said, error: true } })]);
+    });
+
     it("arguments that are not a JSON object are never run", async () => {
       const { claude, runTool, ask } = setUp([{ toolCalls: [{ name: "candidatures_lister", arguments: '{"statut": ' }] }, { text: "ok" }]);
 

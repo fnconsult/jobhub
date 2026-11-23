@@ -3,6 +3,9 @@ import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import { describe, expect, it, vi } from "vitest";
 import {
   ALWAYS_ON_GUARDRAILS,
+  COACH_SCOPE_CHECKS,
+  defaultGuardrailSetting,
+  privateIdentityOf,
   createGuardrails,
   DEFAULT_GUARDRAIL_MESSAGES,
   GUARDRAIL_IDS,
@@ -90,7 +93,7 @@ const guardrailIds = (triggers: GuardrailTrigger[]) => triggers.map((trigger) =>
 
 describe("the catalogue of Guardrails, fixed in code", () => {
   it("has a stable id for each Guardrail", () => {
-    expect(GUARDRAIL_IDS).toEqual(["prompt_injection", "personal_data_leak", "secret_disclosure", "harmful_advice", "distress", "email_injection", "ungrounded_answer"]);
+    expect(GUARDRAIL_IDS).toEqual(["prompt_injection", "personal_data_leak", "secret_disclosure", "harmful_advice", "distress", "email_injection", "ungrounded_answer", "coach_scope"]);
   });
 
   it("never lets the distress, personal data leak and secret disclosure Guardrails be switched off", () => {
@@ -105,7 +108,8 @@ describe("the catalogue of Guardrails, fixed in code", () => {
 
   it("gives the AI Coach and Playbook Agents every conversation's Guardrail, the Back Office Assistant only injection, leaks and secrets, Email intake its own, and nothing else any", () => {
     expect(guardrailsOf("ai_coach")).toEqual(MESSAGE_GUARDRAILS);
-    expect(guardrailsOf("playbook_agent")).toEqual(MESSAGE_GUARDRAILS);
+    // « Périmètre du coach » checks the AI Coach's final reply only (ADR-0114).
+    expect(guardrailsOf("playbook_agent")).toEqual(MESSAGE_GUARDRAILS.filter((id) => id !== "coach_scope"));
     expect(guardrailsOf("back_office_assistant")).toEqual(["prompt_injection", "personal_data_leak", "secret_disclosure"]);
     expect(guardrailsOf("email_intake")).toEqual(["email_injection"]);
     expect(guardrailsOf("tailored_cv" as GuardrailAgent)).toEqual([]);
@@ -554,5 +558,164 @@ describe("what a Coach Action read, before the AI Coach reads it (#713, ADR-0077
 
     expect((await guardrails.guardData("ai_coach", { candidateId: "marie", text: offer })).outcome).toBe("passed");
     expect(triggers).toMatchObject([{ guardrail: "prompt_injection", action: "unavailable", reason: "invalid_verdict" }]);
+  });
+});
+
+describe("« Périmètre du coach » on the AI Coach's reply (ADR-0114)", () => {
+  /** What the reply proposes with it, as the AI Coach tells it: its cards, its Typed redirect, what it must never repeat. */
+  const scoped = (text: string, scope: Partial<NonNullable<Awaited<ReturnType<GuardRequest["reply"]>>["scope"]>> = {}) => {
+    const told: (string | null)[] = [];
+    const replies = [text];
+    return {
+      told,
+      replies,
+      reply: async (feedback: string | null) => {
+        told.push(feedback);
+        return { text: replies[Math.min(told.length - 1, replies.length - 1)]!, secrets: [], scope: { cards: 0, redirect: false, identity: [], notes: [], ...scope } };
+      },
+    };
+  };
+  const scopeTriggers = (triggers: GuardrailTrigger[]) => triggers.filter((trigger) => trigger.guardrail === "coach_scope").map((trigger) => `${trigger.check}:${trigger.action}:${trigger.setting}`);
+  const IDENTITY = ["Marie Dupont", "marie.dupont@example.fr", "06 12 34 56 78", "12 rue des Lilas, 69003 Lyon"];
+
+  it("is an output Guardrail of the AI Coach with its four checks, set to flag only by default, never switched off", () => {
+    expect(guardrailsOf("ai_coach")).toContain("coach_scope");
+    expect(guardrailsOf("back_office_assistant")).not.toContain("coach_scope");
+    expect(COACH_SCOPE_CHECKS).toEqual(["change_without_card", "content_in_reply", "refusal_without_redirect", "private_repeated"]);
+    expect(guardrailSettingsOf("coach_scope")).toEqual(["block", "flag"]);
+    expect(defaultGuardrailSetting("coach_scope")).toBe("flag");
+    expect(defaultGuardrailSetting("ungrounded_answer")).toBe("block");
+    expect(DEFAULT_GUARDRAIL_MESSAGES.coach_scope.fr).toMatch(/proposition|renvoi|page/);
+  });
+
+  describe("check 4, by fixed rules: the Master CV's identity block or a Private Coach Note repeated", () => {
+    it("blocks from launch, whatever the setting: written again once, told why, and goes out once it passes", async () => {
+      const { guardrails, triggers, provider } = setUp({ settings: { coach_scope: "flag" } });
+      const writer = scoped("Votre CV commence par Marie Dupont, marie.dupont@example.fr.", { identity: IDENTITY });
+      writer.replies.push("Votre CV commence par votre titre, Directrice financière.");
+
+      const guarded = await guardrails.guard("ai_coach", request("Que dit le haut de mon CV ?", writer.reply));
+
+      expect(guarded).toMatchObject({ text: "Votre CV commence par votre titre, Directrice financière.", outcome: "replied" });
+      expect(writer.told[1]).toMatch(/identité du CV de référence ou une note privée/);
+      expect(scopeTriggers(triggers)).toEqual(["private_repeated:blocked:block"]);
+      // Fixed rules: no model was asked about the reply that repeated it.
+      expect(provider.calls.filter((call) => call.system?.startsWith("Tu contrôles la réponse"))).toHaveLength(1);
+    });
+
+    it("is replaced by its Guardrail message when written again with it still", async () => {
+      const { guardrails, triggers } = setUp({ settings: { coach_scope: "flag" } });
+
+      const guarded = await guardrails.guard("ai_coach", request("Mon adresse ?", scoped("Vous habitez 12 rue des Lilas, 69003 Lyon.", { identity: IDENTITY }).reply));
+
+      expect(guarded).toMatchObject({ text: DEFAULT_GUARDRAIL_MESSAGES.coach_scope.fr, outcome: "blocked_reply" });
+      expect(scopeTriggers(triggers)).toEqual(["private_repeated:blocked:block", "private_repeated:blocked:block"]);
+    });
+
+    it("finds a phone written otherwise, and a Private Coach Note copied", async () => {
+      const { guardrails, triggers } = setUp();
+      const note = "Candidate anxieuse avant les entretiens collectifs, à rassurer sur son âge et sur sa reconversion récente.";
+
+      await guardrails.guard("ai_coach", request("?", scoped("Appelez le 0612345678.", { identity: IDENTITY }).reply));
+      await guardrails.guard("ai_coach", request("?", scoped("Votre coach note : candidate anxieuse avant les entretiens collectifs, à rassurer sur son âge.", { notes: [note] }).reply));
+
+      expect(scopeTriggers(triggers)).toEqual(["private_repeated:blocked:block", "private_repeated:blocked:block", "private_repeated:blocked:block", "private_repeated:blocked:block"]);
+    });
+
+    it("lets through the Preferred Name, a town from the Search Criteria, and what the Candidate wrote themselves", async () => {
+      const { guardrails, triggers } = setUp();
+      const identity = privateIdentityOf({ fullName: "Marie Dupont", email: "marie.dupont@example.fr", phone: "", location: "Lyon" });
+      expect(identity).toEqual(["Marie Dupont", "marie.dupont@example.fr"]);
+
+      const guarded = await guardrails.guard(
+        "ai_coach",
+        request("Mon e-mail est marie.dupont@example.fr : je le mets en tête ?", scoped("Oui Marie : marie.dupont@example.fr en tête, et visez Lyon.", { identity }).reply),
+      );
+
+      expect(guarded.outcome).toBe("replied");
+      expect(scopeTriggers(triggers)).toEqual([]);
+    });
+  });
+
+  describe("check 3, by fixed rules: a refusal with no reason or no Typed redirect", () => {
+    it("flags « I can't rewrite them here » (seen on Benchling), set to flag only by default; nothing blocked", async () => {
+      const { guardrails, triggers } = setUp({ settings: { coach_scope: "flag" } });
+
+      const guarded = await guardrails.guard("ai_coach", request("reformulate the skills as a list", scoped("I can't rewrite them here. Go to your reference CV.").reply));
+
+      expect(guarded).toMatchObject({ outcome: "replied", text: "I can't rewrite them here. Go to your reference CV." });
+      expect(scopeTriggers(triggers)).toEqual(["refusal_without_redirect:flagged:flag"]);
+    });
+
+    it("flags a refusal with no Typed redirect; not one with its redirect and its reason, nor one that proposes a card", async () => {
+      const { guardrails, triggers } = setUp({ settings: { coach_scope: "flag" } });
+
+      await guardrails.guard("ai_coach", request("Renomme mon profil", scoped("Je ne peux pas renommer un profil.").reply));
+      await guardrails.guard("ai_coach", request("Renomme mon profil", scoped("Je ne peux pas renommer un profil : aucun outil ne le fait, le lien est sous ma réponse.", { redirect: true }).reply));
+      await guardrails.guard("ai_coach", request("Passe-la en Entretien", scoped("Je ne peux pas l'appliquer moi-même : je vous propose ce changement de statut.", { cards: 1 }).reply));
+
+      expect(scopeTriggers(triggers)).toEqual(["refusal_without_redirect:flagged:flag"]);
+    });
+
+    it("blocks once set to block, the reply written again with its reason", async () => {
+      const { guardrails, triggers } = setUp({ settings: { coach_scope: "block" } });
+      const writer = scoped("Ici je ne peux pas.");
+      writer.replies.push("Aucun outil ne renomme un profil : le lien sous ma réponse mène à la page où vous le faites.");
+
+      const guarded = await guardrails.guard("ai_coach", request("Renomme mon profil", async (feedback) => ({ ...(await writer.reply(feedback)), scope: { cards: 0, redirect: writer.told.length > 1, identity: [], notes: [] } })));
+
+      expect(guarded.outcome).toBe("replied");
+      expect(writer.told[1]).toMatch(/vraie raison en une phrase et donne le renvoi typé/);
+      expect(scopeTriggers(triggers)).toEqual(["refusal_without_redirect:blocked:block"]);
+    });
+  });
+
+  describe("checks 1 and 2, by an AI model on the output check", () => {
+    it("asks the model about a change announced with no card, only when no card comes with the reply, and about content written in the reply", async () => {
+      const { guardrails, provider } = setUp();
+
+      await guardrails.guard("ai_coach", request("Ajoute SQL", scoped("C'est fait : j'ai ajouté SQL à votre CV.").reply));
+      const withoutCard = provider.calls.at(-1)!.system!;
+      await guardrails.guard("ai_coach", request("Ajoute SQL", scoped("Je vous propose d'ajouter SQL : la carte est sous ma réponse.", { cards: 1 }).reply));
+      const withCard = provider.calls.at(-1)!.system!;
+
+      expect(withoutCard).toMatch(/coach_scope_change : la réponse annonce qu'une modification a été faite/);
+      expect(withoutCard).toMatch(/coach_scope_content : la réponse rédige elle-même/);
+      expect(withCard).not.toMatch(/coach_scope_change/);
+      expect(withCard).toMatch(/coach_scope_content/);
+    });
+
+    it("flags each, by default; never asked of a reply with no scope given (another agent)", async () => {
+      const { guardrails, triggers, provider } = setUp({ settings: { coach_scope: "flag" }, verdicts: { output: '{"coach_scope_change": true, "coach_scope_content": true}' } });
+
+      const guarded = await guardrails.guard("ai_coach", request("Ajoute SQL", scoped("C'est fait. Compétences : SQL, Python, Excel.").reply));
+      await guardrails.guard("ai_coach", request("?", writer(["Bonjour."]).reply));
+
+      expect(guarded.outcome).toBe("replied");
+      expect(scopeTriggers(triggers)).toEqual(["change_without_card:flagged:flag", "content_in_reply:flagged:flag"]);
+      expect(provider.calls.at(-1)!.system).not.toMatch(/coach_scope/);
+    });
+
+    it("blocks once set to block: written again once, told what was wrong", async () => {
+      let checked = 0;
+      const { guardrails, triggers } = setUp({ settings: { coach_scope: "block" }, verdicts: { output: () => (++checked === 1 ? '{"coach_scope_content": true}' : "{}") } });
+      const writer = scoped("Voici votre lettre : Madame, Monsieur, …");
+      writer.replies.push("Je vous propose de rédiger la lettre : lancez-la sous ma réponse.");
+
+      const guarded = await guardrails.guard("ai_coach", request("Écris ma lettre", writer.reply));
+
+      expect(guarded).toMatchObject({ outcome: "replied", text: "Je vous propose de rédiger la lettre : lancez-la sous ma réponse." });
+      expect(writer.told[1]).toMatch(/au lieu de le proposer avec l'outil prévu/);
+      expect(scopeTriggers(triggers)).toEqual(["content_in_reply:blocked:block"]);
+    });
+
+    it("lets the reply through when the model cannot be reached, the fixed rules still applied", async () => {
+      const { guardrails, triggers } = setUp({ verdicts: { output: "pas du JSON" } });
+
+      const guarded = await guardrails.guard("ai_coach", request("?", scoped("C'est fait.").reply));
+
+      expect(guarded.outcome).toBe("replied");
+      expect(triggers.filter((trigger) => trigger.guardrail === "coach_scope").map((trigger) => trigger.action)).toEqual(["unavailable"]);
+    });
   });
 });

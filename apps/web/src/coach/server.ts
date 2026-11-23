@@ -13,7 +13,9 @@ import { getJobOffers } from "@/job-offers/server";
 import { getJobSearches } from "@/job-searches/server";
 import { getProfiles } from "@/profiles/server";
 import { readIndustryReference } from "@/reference-data/server";
+import { sharedPool } from "@/database/pool";
 import { createCoach, type Coach } from "./index";
+import { privateTextsOf } from "./private-texts";
 
 let instance: Coach | undefined;
 
@@ -32,6 +34,8 @@ export function getCoach(): Coach {
       guardrails: getGuardrails(),
       jobOfferLinks: getJobOfferLinks(),
       coachActions: getCoachActions(),
+      // What a reply must never repeat (ADR-0114): the Master CVs' identity, the Private Coach Notes.
+      privateTexts: privateTextsOf(sharedPool(), getProfiles()),
       // The Help Article the Candidate read, as « Espace coach v2 » serves it at the time of the reply (#867).
       helpSettings,
       profiles: getProfiles(),
@@ -40,6 +44,8 @@ export function getCoach(): Coach {
       jobSearches: getJobSearches(),
       jobDigests: {
         get: (candidateId, jobDigestId) => jobDigests.get(candidateId, jobDigestId),
+        // A Profile In view tells its Job Digest frequency (ADR-0114).
+        settings: (candidateId, profileId) => jobDigests.settings(candidateId, profileId),
         async latest(candidateId, profileId) {
           const latest = (await jobDigests.settings(candidateId, profileId))?.digests[0];
           return latest ? jobDigests.get(candidateId, latest.id) : null;

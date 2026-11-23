@@ -144,13 +144,23 @@ describe.skipIf(!connectionString)("the Candidatures Coach Actions (#716, needs 
     ]);
   });
 
+  it("narrow nothing after them: a proposal reads no text the Candidate did not write, it returns untrusted: false (ADR-0114)", async () => {
+    const ran = [
+      await run(PROPOSE_APPLICATION, {}, { inView: { kind: "job_offer", id: strangerOfferId } }),
+      await run(PROPOSE_APPLICATION_STATUS, { applicationId, status: "interview" }),
+      await run(PROPOSE_APPLICATION_PROFILE, { applicationId, profileId: consultant }),
+      await run(PROPOSE_FOLLOW_UP_SENT, { applicationId }),
+    ];
+    expect(ran.map((each) => each.ok && each.untrusted)).toEqual([false, false, false, false]);
+  });
+
   describe("propose_application", () => {
     it("proposes to save the Job Offer In view with the first active Profile, the Candidate's active Profiles to choose from; nothing saved", async () => {
       const ran = await run(PROPOSE_APPLICATION, {}, { inView: { kind: "job_offer", id: strangerOfferId } });
 
       expect(ran).toEqual({
         ok: true,
-        untrusted: true,
+        untrusted: false,
         pages: [`/offres/${strangerOfferId}`],
         data: {
           target: { kind: "job_offer", id: strangerOfferId, name: "DSI · Initech", href: `/offres/${strangerOfferId}` },

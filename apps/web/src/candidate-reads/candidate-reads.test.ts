@@ -92,6 +92,8 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
   let offers: number;
   /** The clock the Withdrawals read: a Coaching Session is withdrawable within its Withdrawal period. */
   let withdrawalsNow: Date;
+  /** The Typed redirect the AI Coach's next replies give (ADR-0114); none unless a test sets one. */
+  let coachRedirect: { page: string; section: string | null; object: string; href: string } | undefined;
 
   async function signIn(email: string) {
     const cookie = await signInWithMagicLink(testAuth, email);
@@ -176,8 +178,9 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
     tailoredCvs = createTailoredCvs(database, { applications, profiles, ai });
     tailoredDocuments = createTailoredDocuments(database, { applications, profiles, ai });
     // The AI Coach's reply, by rules in the tests: what is saved with it is what the app reads.
+    coachRedirect = undefined;
     const coach = {
-      reply: async () => ({ ok: true as const, reply: "Voici mes conseils.", outcome: "replied" as const, cost: null, playbooks: [], consultations: [], provenance: rulesProvenance("ats_score", { at: NOW }), contextTokens: 3_300, contextSplit: CONTEXT_SPLIT }),
+      reply: async () => ({ ok: true as const, reply: "Voici mes conseils.", outcome: "replied" as const, cost: null, playbooks: [], consultations: [], provenance: rulesProvenance("ats_score", { at: NOW }), contextTokens: 3_300, contextSplit: CONTEXT_SPLIT, ...(coachRedirect ? { redirect: coachRedirect } : {}) }),
     };
     conversations = createCoachConversations(database, { coach, profiles, now: () => NOW });
     // An hour after now: a Coaching Session is paid at the database's time.
@@ -742,6 +745,20 @@ describe.skipIf(!connectionString)("The Candidate's reads over HTTP, the Jobbbox
         expect.objectContaining({ from: "coach", text: "Voici mes conseils.", at: NOW.toISOString(), provenance: expect.objectContaining({ v: 1 }) }),
       ]);
       expect(overHttp(coachConversationResponseSchema, await reads.coachConversation(marie, id)).conversation?.id).toBe(id);
+    });
+
+    it("gives a reopened conversation each reply's Typed redirect, the link under it (ADR-0114), as the Subject's conversation too", async () => {
+      const subject = { kind: "menu", id: "applications" };
+      coachRedirect = { page: "Profil Directrice financière", section: null, object: "Nom du profil", href: "/profils/p1" };
+      const id = await send(marie, { subject, message: "Renomme mon profil." });
+      coachRedirect = undefined;
+      await send(marie, { conversationId: id, message: "Merci." });
+
+      for (const read of [await reads.coachConversation(marie, id), await reads.coachConversationOfSubject(marie, subject)]) {
+        const messages = overHttp(coachConversationResponseSchema, read).conversation!.messages;
+        expect(messages[1]).toMatchObject({ from: "coach", redirect: { page: "Profil Directrice financière", section: null, object: "Nom du profil", href: "/profils/p1" } });
+        expect(messages[3]).not.toHaveProperty("redirect");
+      }
     });
 
     it("gives a reopened conversation its Context bar as the reply said it: the Plan's Coach context limits, the split (#731) and no Plan to name below 80 % (#732)", async () => {

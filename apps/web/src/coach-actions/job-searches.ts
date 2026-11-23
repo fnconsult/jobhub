@@ -3,7 +3,7 @@
  * Candidate's Job Searches and Job Digests, each an Action Card under its reply, applied through the Job Searches and
  * Job Digests modules the pages' routes call (the same validation, the same Plan Quota):
  *  - `propose_job_search`: launch a Job Search of an active Profile on its Search Criteria (the Profile named, In view,
- *    or the one of the Job Search or Job Digest In view). Its card says the Plan Quota it uses (« 1 recherche sur 5 cette
+ *    or the one of the Application, Job Search or Job Digest In view: ADR-0114, the card names it, the Candidate can change it). Its card says the Plan Quota it uses (« 1 recherche sur 5 cette
  *    semaine ») and, without room, is the Upgrade prompt in place of « Lancer »: the worker is never asked. « Lancer »
  *    starts it (`JobSearches.start`, which uses the Plan Quota and queues Job discovery); it is followed in AI Activity
  *    and ends with Stop: no « Annuler ». Other Search Criteria are proposed first (`propose_search_criteria`, #719).
@@ -22,6 +22,7 @@ import type { Billing } from "../billing";
 import { upgradePrompt, type QuotaRefusal, type UpgradePrompt } from "../billing/upgrade-prompt";
 import { searchCriteriaInWords } from "../components/job-search-words";
 import type { JobDigests, SubscribeResult } from "../job-digests";
+import type { Applications } from "../applications";
 import type { JobSearches } from "../job-searches";
 import type { Profile, Profiles } from "../profiles";
 import { routes } from "../routes";
@@ -42,6 +43,8 @@ export interface SearchActionSources {
   jobSearches: Pick<JobSearches, "start" | "stop" | "get" | "latest" | "searching">;
   jobDigests: Pick<JobDigests, "settings" | "allows" | "subscribe" | "unsubscribe" | "get">;
   jobSearchQuota(candidateId: string): Promise<JobSearchQuota>;
+  /** The Application In view, for the Profile it uses (ADR-0114). */
+  applications: Pick<Applications, "get">;
 }
 
 export const SEARCH_ACTIONS = { start: "propose_job_search", stop: "propose_job_search_stop", digestFrequency: "propose_job_digest_frequency" } as const;
@@ -83,13 +86,14 @@ export function searchCoachActions(sources: SearchActionSources): CoachAction[] 
   }
 
   /**
-   * The Profile the call is about: the one named, else the one In view (a Profile, or the Profile of the Job Search or
-   * Job Digest In view), else the Candidate's only active Profile. `undefined`: several, none named.
+   * The Profile the call is about: the one named, else the one In view (a Profile, or the Profile of the Application,
+   * Job Search or Job Digest In view, ADR-0114), else the Candidate's only active Profile. `undefined`: several, none named.
    */
   async function profileIdOf(named: string | undefined, call: CoachActionCall): Promise<string | null | undefined> {
     if (named) return named;
     const inView = call.inView;
     if (inView?.kind === "profile") return inView.id;
+    if (inView?.kind === "application") return (await sources.applications.get(call.candidateId, inView.id))?.profile.id ?? null;
     if (inView?.kind === "job_search") return (await sources.jobSearches.get(call.candidateId, inView.id))?.profile.id ?? null;
     if (inView?.kind === "job_digest") return (await sources.jobDigests.get(call.candidateId, inView.id))?.profile.id ?? null;
     const active = (await sources.profiles.list(call.candidateId)).filter((profile) => !profile.archived);
@@ -115,7 +119,7 @@ export function searchCoachActions(sources: SearchActionSources): CoachAction[] 
   const start = defineCoachAction({
     name: SEARCH_ACTIONS.start,
     description:
-      "Propose de lancer une recherche d'offres (Job Search) pour un profil actif du candidat, sur les critères de recherche de ce profil, quand il le demande (« relance une recherche », « cherche-moi des offres »). profileId : omis, le profil consulté (ou celui de la recherche ou du Job Digest consulté). Elle consomme une recherche du quota hebdomadaire de son offre : la carte le dit, ou propose de changer d'offre s'il n'en reste plus. Le candidat la lance lui-même sous ta réponse et la suit dans Activité IA. Si le candidat veut d'autres critères de recherche, propose d'abord de les modifier (propose_search_criteria si elle t'est offerte, sinon depuis son profil), jamais de les contourner.",
+      "Propose de lancer une recherche d'offres (Job Search) pour un profil actif du candidat, sur les critères de recherche de ce profil, quand il le demande (« relance une recherche », « cherche-moi des offres »). profileId : omis, le profil consulté (ou celui de la candidature, de la recherche ou du Job Digest consulté). Elle consomme une recherche du quota hebdomadaire de son offre : la carte le dit, ou propose de changer d'offre s'il n'en reste plus. Le candidat la lance lui-même sous ta réponse et la suit dans Activité IA. Si le candidat veut d'autres critères de recherche, propose d'abord de les modifier (propose_search_criteria si elle t'est offerte, sinon depuis son profil), jamais de les contourner.",
     schema: z.object({ profileId: id.optional() }),
     group: "job_searches",
     kind: "propose",
@@ -228,7 +232,7 @@ export function searchCoachActions(sources: SearchActionSources): CoachAction[] 
   const digestFrequency = defineCoachAction({
     name: SEARCH_ACTIONS.digestFrequency,
     description:
-      "Propose d'abonner un profil actif du candidat à son Job Digest (e-mail des nouvelles offres), d'en changer la fréquence ou de l'en désabonner, quand il le demande. frequency : weekly (chaque semaine), daily (chaque jour) ou none (désabonnement). profileId : omis, le profil consulté (ou celui du Job Digest consulté). Une fréquence que son offre ne comprend pas : la carte propose de changer d'offre. Le candidat l'applique lui-même sous ta réponse.",
+      "Propose d'abonner un profil actif du candidat à son Job Digest (e-mail des nouvelles offres), d'en changer la fréquence ou de l'en désabonner, quand il le demande. frequency : weekly (chaque semaine), daily (chaque jour) ou none (désabonnement). profileId : omis, le profil consulté (ou celui de la candidature ou du Job Digest consulté). Une fréquence que son offre ne comprend pas : la carte propose de changer d'offre. Le candidat l'applique lui-même sous ta réponse.",
     schema: z.object({ profileId: id.optional(), frequency: z.enum(DIGEST_CHOICES) }),
     group: "job_digests",
     kind: "propose",

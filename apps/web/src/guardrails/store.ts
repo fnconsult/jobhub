@@ -9,7 +9,8 @@
  * and `purgeExpiredGuardrailTriggers(database, now)` (the worker, nightly) and `migrateGuardrails(database)`.
  *
  * Rules kept here, whoever calls:
- *  - A Guardrail blocks until set to flag only; distress, personal data leak and secret disclosure can never be. Only the
+ *  - A Guardrail blocks until set to flag only, « Périmètre du coach » flags only until set to block (ADR-0114, its check 4
+ *    blocking whatever); distress, personal data leak and secret disclosure can never be set to flag only. Only the
  *    email Guardrail (« Contenu piégé dans un email », #446) can be switched off; it has no Guardrail message, as no one
  *    reads its answer.
  *  - Each saved Guardrail message is a new version, by its author; a version is Human-validated once, by a named
@@ -29,6 +30,8 @@ import type { Pool } from "pg";
 import type { Queryable } from "../database/pool";
 import {
   ALWAYS_ON_GUARDRAILS,
+  COACH_SCOPE_CHECKS,
+  defaultGuardrailSetting,
   DEFAULT_GUARDRAIL_MESSAGES,
   GUARDRAIL_IDS,
   GUARDRAIL_LANGUAGES,
@@ -157,6 +160,11 @@ export async function migrateGuardrails(database: Pool): Promise<void> {
     ALTER TABLE guardrail_trigger DROP CONSTRAINT IF EXISTS guardrail_trigger_reason_check;
     ALTER TABLE guardrail_trigger ADD CONSTRAINT guardrail_trigger_reason_check
       CHECK (reason IS NULL OR (action = 'unavailable' AND reason IN (${GUARDRAIL_FAILURE_REASONS.map((reason) => `'${reason}'`).join(", ")})));
+    -- Which check of « Périmètre du coach » found it (ADR-0114): a check's code, never text; none for the other Guardrails.
+    ALTER TABLE guardrail_trigger ADD COLUMN IF NOT EXISTS scope_check text;
+    ALTER TABLE guardrail_trigger DROP CONSTRAINT IF EXISTS guardrail_trigger_scope_check_check;
+    ALTER TABLE guardrail_trigger ADD CONSTRAINT guardrail_trigger_scope_check_check
+      CHECK (scope_check IS NULL OR scope_check IN (${COACH_SCOPE_CHECKS.map((check) => `'${check}'`).join(", ")}));
   `);
 }
 
@@ -202,7 +210,7 @@ export function createGuardrailStore(database: Pool, deps: { serving: GuardrailM
     return Object.fromEntries(
       GUARDRAIL_IDS.map((id) => {
         const setting = stored.get(id);
-        return [id, setting && guardrailSettingsOf(id).includes(setting) ? setting : "block"];
+        return [id, setting && guardrailSettingsOf(id).includes(setting) ? setting : defaultGuardrailSetting(id)];
       }),
     ) as Record<GuardrailId, GuardrailSetting>;
   }
@@ -232,13 +240,14 @@ export function createGuardrailStore(database: Pool, deps: { serving: GuardrailM
 
     triggers: {
       async record(trigger) {
-        await database.query("INSERT INTO guardrail_trigger (guardrail, setting, action, agent, at, reason) VALUES ($1, $2, $3, $4, $5, $6)", [
+        await database.query("INSERT INTO guardrail_trigger (guardrail, setting, action, agent, at, reason, scope_check) VALUES ($1, $2, $3, $4, $5, $6, $7)", [
           trigger.guardrail,
           trigger.setting,
           trigger.action,
           trigger.agent,
           trigger.at,
           trigger.action === "unavailable" ? trigger.reason : null,
+          trigger.check ?? null,
         ]);
       },
     },

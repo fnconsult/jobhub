@@ -1,0 +1,11 @@
+/* A reply's Typed redirect (ADR-0114), under it in the thread (beside its component, ADR-0053): a quiet line, its label in
+   the secondary text colour, its link the page's own. */
+.coach-redirect {
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-size-meta);
+  overflow-wrap: anywhere;
+}
+
+.coach-redirect__label {
+  color: var(--color-secondary);
+}

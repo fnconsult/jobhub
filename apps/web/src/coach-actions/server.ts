@@ -19,6 +19,7 @@ import { shippedCoachActions } from "./catalog";
 import { e2eCoachActions } from "./e2e-catalog";
 import { createCoachActions, type CoachAction, type CoachActions } from "./index";
 import { jobSearchQuotaOf } from "./job-searches";
+import { createRedirects } from "./redirects";
 import { coachActionsSettings } from "./settings";
 
 let instance: CoachActions | undefined;
@@ -101,6 +102,8 @@ export function getCoachActions(): CoachActions {
     catalog: coachActionsInUse(),
     settings: async () => coachActionsSettings(getPlatformSettingsResolver().current()),
     externalApis: getExternalApiLog(),
+    // Typed redirects (ADR-0114), named after the Candidate's own Profiles and Applications.
+    redirects: createRedirects({ profiles: getProfiles(), applications: getApplications() }),
   });
   return instance;
 }

@@ -67,6 +67,7 @@
 // reply holding "E2E_GUARDRAIL_ADVICE", nothing else; a message holding "E2E_GUARDRAIL_DOWN"
 // makes them fail with a 503, so the checks are unavailable; "E2E_GUARDRAIL_ECHO", with a 400 whose body echoes the key, an email and a long text. "E2E_GUARDRAIL_DISTRESS" in a message is
 // distress, "E2E_GUARDRAIL_LEAK" / "E2E_GUARDRAIL_SECRET" in a reply a leak / a secret.
+// "E2E_SCOPE_CHANGE" / "E2E_SCOPE_CONTENT" in a reply: a modification announced with no card / a content written in the reply (« Périmètre du coach », #1096).
 // A message holding "E2E_COACH_SAY=<text>" (to the end of the line) has the AI Coach or the Back Office
 // Assistant reply that text; written again (told its reply was blocked) it replies a clean text, unless the
 // message also holds "E2E_STUBBORN" ("[at]", "[sp]", "[dash]" in the text become "@", a space and "-", so a reply can hold
@@ -152,7 +153,14 @@ globalThis.fetch = async (input, init) => {
       ? { prompt_injection: prompt.includes("E2E_GUARDRAIL_INJECTION"), distress: prompt.includes("E2E_GUARDRAIL_DISTRESS") }
       : system.startsWith("Tu contrôles des données")
         ? { prompt_injection: prompt.includes("E2E_GUARDRAIL_INJECTION") }
-      : { harmful_advice: prompt.includes("E2E_GUARDRAIL_ADVICE"), personal_data_leak: prompt.includes("E2E_GUARDRAIL_LEAK"), secret_disclosure: prompt.includes("E2E_GUARDRAIL_SECRET") };
+      : {
+          harmful_advice: prompt.includes("E2E_GUARDRAIL_ADVICE"),
+          personal_data_leak: prompt.includes("E2E_GUARDRAIL_LEAK"),
+          secret_disclosure: prompt.includes("E2E_GUARDRAIL_SECRET"),
+          // « Périmètre du coach »'s checks 1 and 2 (#1096, ADR-0114): a modification announced with no card, a content written in the reply.
+          coach_scope_change: prompt.includes("E2E_SCOPE_CHANGE"),
+          coach_scope_content: prompt.includes("E2E_SCOPE_CONTENT"),
+        };
     return completion(body, JSON.stringify(verdict));
   }
   // The email Guardrail's model check (#446, "Tu contrôles un email") finds indirect prompt injection in an email holding
@@ -165,7 +173,7 @@ globalThis.fetch = async (input, init) => {
     return completion(body, JSON.stringify({ score: low ? 2 : 8, raison: low ? "E2E : la réponse ne remplit pas les critères." : "E2E : la réponse remplit les critères." }));
   }
   const shown = /E2E_SHOW_CONTEXT(#[\w-]+)?/.exec(prompt);
-  const said = /E2E_COACH_SAY=(.*)/.exec(prompt)?.[1].trim();
+  const said = /E2E_COACH_SAY(?:_AFTER)?=(.*)/.exec(prompt)?.[1].trim();
   if (shown) console.log(`[fake-mistral] system prompt ${shown[1] ?? "#"}: ${JSON.stringify(system)}`);
   if (system.startsWith("Tu choisis quels Playbook Agents")) {
     content = JSON.stringify(/E2E_CONSULT=([\w,-]+)/.exec(prompt)?.[1].split(",") ?? []);
@@ -417,7 +425,10 @@ function coachToolCall(body, signal) {
   if (results.length > 0 && (!next || body.tool_choice === "none")) {
     // E2E_COACH_SLOW: the answer written after the calls takes that long too (#788), so its step is seen live.
     const slow = Number(/E2E_COACH_SLOW=(\d+)/.exec(String(messages[lastAsked]?.content ?? ""))?.[1] ?? 0);
-    const answer = () => completion(body, silent ? "[jobbbox:non]" : `Résultat de l'outil « ${asked[called - 1].name} » : ${results.join("\n")}`);
+    // E2E_COACH_SAY_AFTER on a line of its own: the text written once the calls were made (#1096), in place of the result echoed;
+    // E2E_COACH_SAY alone keeps its meaning (the reply when no tool was offered, the result echoed after a call).
+    const said = /^E2E_COACH_SAY_AFTER=(.*)$/m.exec(String(messages[lastAsked]?.content ?? ""))?.[1].trim();
+    const answer = () => completion(body, silent ? "[jobbbox:non]" : said ? saidText(said, String(messages.find((message) => message.role === "system")?.content ?? ""), String(messages[lastAsked]?.content ?? "")) : `Résultat de l'outil « ${asked[called - 1].name} » : ${results.join("\n")}`);
     return slow > 0 ? answerAfter(slow, signal).then(answer) : answer();
   }
   if (body.tool_choice === "none" || !next) return null;

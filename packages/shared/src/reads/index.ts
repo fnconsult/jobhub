@@ -670,6 +670,20 @@ export const replyCostSchema = z.object({
   outputTokens: z.number().int().min(0),
 });
 
+/**
+ * A Typed redirect (ADR-0114): where the Candidate does themselves what no Coach Action does, shown under the AI Coach's
+ * reply as a link « page › section › object ». Built by the server from its routes, never by the AI model.
+ */
+export const typedRedirectSchema = z.object({
+  page: z.string().min(1).max(200),
+  /** The page's Section, when the object is in one. */
+  section: z.string().max(200).nullable(),
+  object: z.string().min(1).max(200),
+  // One of Jobbbox's own pages: a path, never another site (not « //… »).
+  href: z.string().regex(/^\/(?![/\\])/).max(500),
+});
+export type TypedRedirect = z.infer<typeof typedRedirectSchema>;
+
 /** One message of a Coach Conversation, as the web shows it. */
 export const coachMessageSchema = z.object({
   humanCoach: z.object({ id:z.string(),name:z.string(),photoUrl:z.string().nullable() }).optional(),
@@ -684,6 +698,8 @@ export const coachMessageSchema = z.object({
   seenNames: z.record(z.string(), z.string().max(80)).optional(),
   /** On an AI Coach reply: what it sent in all its AI calls (#805), null for one saved before #791. */
   sent: replyCostSchema.nullable().optional(),
+  /** On an AI Coach reply: its Typed redirect (ADR-0114), shown under it as a link, as it came and once reopened. */
+  redirect: typedRedirectSchema.optional(),
 });
 
 /** A Coach Conversation with its messages and its Context bar's figures. */

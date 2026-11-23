@@ -404,6 +404,13 @@ const MASTER_CV: Card = {
 describe("a Master CV change's card, reviewed change by change (#719, ADR-0006)", () => {
   const masterCard = () => screen.getByRole("article", { name: /CV de référence/ });
 
+  it("names the object it changes in its title: « CV de référence · Profil Directrice financière » (ADR-0114)", () => {
+    renderInFrench(<Thread card={MASTER_CV} />);
+
+    expect(within(masterCard()).getByRole("heading", { level: 4 }).textContent).toBe("CV de référence · Profil Directrice financière");
+    expect(within(masterCard()).getByRole("link", { name: "Profil Directrice financière" }).getAttribute("href")).toBe("/profils/p1/cv-de-reference");
+  });
+
   it("has no « Appliquer » in one click: « Relire les changements » opens them in the Work Pane, none accepted in advance", async () => {
     renderInFrench(<Thread card={MASTER_CV} />);
     expect(within(masterCard()).getAllByRole("button").map((each) => each.textContent)).toEqual(["Relire les changements", "Ignorer"]);

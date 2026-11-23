@@ -28,7 +28,8 @@ import { shippedCoachActions } from "../../apps/web/src/coach-actions/catalog";
 import type { Profile } from "../../apps/web/src/profiles";
 import { coachActionCatalog, createCoachActions, defineCoachAction, forEvalRun, type CoachAction } from "../../apps/web/src/coach-actions";
 import { AI_COACH_EVAL_CASES } from "../../apps/web/src/evals/cases";
-import { createGuardrails, DEFAULT_GUARDRAIL_MESSAGES, GUARDRAIL_IDS, type GuardrailId, type GuardrailSetting } from "../../apps/web/src/guardrails";
+import { createRedirects, type TypedRedirect } from "../../apps/web/src/coach-actions/redirects";
+import { createGuardrails, DEFAULT_GUARDRAIL_MESSAGES, defaultGuardrailSetting, GUARDRAIL_IDS, type GuardrailId, type GuardrailSetting, type GuardrailTrigger } from "../../apps/web/src/guardrails";
 
 export interface Scenario {
   /** COACH_ACTIONS_ENABLED and COACH_TOOL_ROUNDS_MAX as Paramètres sets them. */
@@ -37,6 +38,13 @@ export interface Scenario {
   withoutCoachActions?: boolean;
   /** The Guardrails (input check on what a Coach Action read included) in front of the AI Coach. */
   guarded?: boolean;
+  /**
+   * With `guarded`: the Guardrails' settings in place of « block » for every one (« Périmètre du coach » keeps its default,
+   * « signaler », #1096), the Back Office's `guardSettings` as saved.
+   */
+  guardSettings?: Partial<Record<GuardrailId, GuardrailSetting>>;
+  /** With `guarded`: what the reply must never repeat (« Périmètre du coach », check 4): the Master CVs' identity, the Private Coach Notes. */
+  privateTexts?: { identity: string[]; notes: string[] };
   /** The text of Marie's Application a1 (a Job Offer's posting, written by someone else). */
   posting?: string;
   replies: { candidateId: string; text: string; focus?: CoachFocus }[];
@@ -58,6 +66,11 @@ export interface HarnessReply {
   proposals?: unknown[];
   steps?: unknown[];
   sites?: unknown[];
+  /** `blocked_reply` when a Guardrail replaced it (with `guarded`), else `replied`. */
+  outcome?: string;
+  /** The Typed redirect the reply gives (ADR-0114), as the server built it. */
+  redirect?: TypedRedirect;
+  /** The tools each reply of the scenario was offered (the first `coaching` request's). */
   /** The Tools AI Activity names for the reply, as its pane shows them (activityElement). */
   activityTools?: (string | null)[];
   error?: string;
@@ -72,6 +85,8 @@ export interface HarnessResult {
   /** The `coaching` requests' tool results (the messages with role `tool`), in order. */
   toolResults: string[][];
   externalApi: ExternalApiCall[];
+  /** The Guardrail Triggers recorded (with `guarded`), in order. */
+  triggers: GuardrailTrigger[];
   /** The AI Message Log: each AI call's task and its transcript. */
   messageLog: { task: string; transcript: string }[];
   /** Marie's Application a1 and Paul's p1 after the replies: a Coach Action writes nothing. */
@@ -164,14 +179,16 @@ const MARIES_APPLICATIONS = [
   shippedApplication("a-archived", PROFILES[1]!, postingOf("o-old", "DAF", "Ancienne Société", "Poste de DAF.")),
 ];
 const mine = <T>(candidateId: string, items: T[]) => (candidateId === "marie" ? items : []);
+const PROFILES_MODULE = {
+  get: async (candidateId: string, id: string) => mine(candidateId, PROFILES).find((each) => each.id === id) ?? null,
+  list: async (candidateId: string) => mine(candidateId, PROFILES).map(({ id, name, archived }) => ({ id, name, archived })),
+};
+const APPLICATIONS_GET = async (candidateId: string, id: string) => mine(candidateId, MARIES_APPLICATIONS).find((each) => each.id === id) ?? null;
 const SHIPPED = shippedCoachActions(
   candidateObjects({
-    profiles: {
-      get: async (candidateId, id) => mine(candidateId, PROFILES).find((each) => each.id === id) ?? null,
-      list: async (candidateId) => mine(candidateId, PROFILES).map(({ id, name, archived }) => ({ id, name, archived })),
-    },
+    profiles: PROFILES_MODULE,
     applications: {
-      get: async (candidateId, id) => mine(candidateId, MARIES_APPLICATIONS).find((each) => each.id === id) ?? null,
+      get: APPLICATIONS_GET,
       list: async (candidateId) =>
         mine(candidateId, MARIES_APPLICATIONS).map(({ id, status, statusChangedAt, createdAt, jobOffer, profile, interviews }) => ({
           id,
@@ -227,11 +244,22 @@ const env = {
 };
 const ai = createAiLayerFromEnv(env, { usage });
 const externalApi: ExternalApiCall[] = [];
-const coachActions = createCoachActions({ catalog: scenario.shipped ? SHIPPED : CATALOG, settings: async () => scenario.settings, externalApis: { record: (call) => void externalApi.push(call) } });
+const coachActions = createCoachActions({
+  catalog: scenario.shipped ? SHIPPED : CATALOG,
+  settings: async () => scenario.settings,
+  externalApis: { record: (call) => void externalApi.push(call) },
+  ...(scenario.shipped ? { redirects: createRedirects({ profiles: PROFILES_MODULE, applications: { get: APPLICATIONS_GET } }) } : {}),
+});
+const triggers: GuardrailTrigger[] = [];
 const guardrails = createGuardrails({
   ai,
-  config: { current: async () => ({ settings: Object.fromEntries(GUARDRAIL_IDS.map((id) => [id, "block"])) as Record<GuardrailId, GuardrailSetting>, messages: DEFAULT_GUARDRAIL_MESSAGES }) },
-  triggers: { record: () => {} },
+  config: {
+    current: async () => ({
+      settings: Object.fromEntries(GUARDRAIL_IDS.map((id) => [id, scenario.guardSettings?.[id] ?? (id === "coach_scope" ? defaultGuardrailSetting(id) : "block")])) as Record<GuardrailId, GuardrailSetting>,
+      messages: DEFAULT_GUARDRAIL_MESSAGES,
+    }),
+  },
+  triggers: { record: (trigger) => void triggers.push(trigger) },
 });
 const coach = createCoach({
   ai,
@@ -239,10 +267,11 @@ const coach = createCoach({
   context: async () => "Le candidat s'appelle Marie (prénom seulement).",
   ...(scenario.withoutCoachActions ? {} : { coachActions }),
   ...(scenario.guarded ? { guardrails } : {}),
+  ...(scenario.privateTexts ? { privateTexts: async () => scenario.privateTexts! } : {}),
   warn: () => {},
 });
 
-const result: HarnessResult = { replies: [], offered, systems, toolResults, externalApi, messageLog: [], applications: {}, undeclared: { catalogue: null, offered: null }, evals: [] };
+const result: HarnessResult = { replies: [], offered, systems, toolResults, externalApi, triggers, messageLog: [], applications: {}, undeclared: { catalogue: null, offered: null }, evals: [] };
 
 for (const each of scenario.replies ?? []) {
   const replied = await coach.reply(each.candidateId, { messages: [{ from: "candidate", text: each.text }], ...(each.focus ? { focus: each.focus } : {}) });
@@ -251,6 +280,8 @@ for (const each of scenario.replies ?? []) {
       ? {
           ok: true,
           reply: replied.reply,
+          outcome: replied.outcome,
+          ...(replied.redirect ? { redirect: replied.redirect } : {}),
           proposals: replied.proposals,
           steps: replied.provenance.steps,
           sites: replied.provenance.sites,

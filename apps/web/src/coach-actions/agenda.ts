@@ -9,10 +9,14 @@
  *    the Candidate's Applications. One not at « Entretien » is moved there too, as from the Agenda: one card, both changes
  *    listed. A relative date (« jeudi prochain à 14 h ») is the model's to resolve, from the date of the day the Coach
  *    context gives; the card shows it absolute.
- *  - `propose_interview_change`: a new date (a Reschedule as the hour rule says), format, place or link.
+ *  - `propose_interview_change`: a new date (a Reschedule as the hour rule says), format, place or link, or note.
  *  - `propose_interview_cancel`: a Cancelled Agenda Item, which stays on the Agenda.
- * Never the Interview's note (free text the Coach does not write), never a deletion: « Supprimer » on the Interview is for
- * an entry made by mistake, the Candidate's own. None copies text: the place and link are fields of the Interview.
+ * Every Interview, past ones included, whatever its date (ADR-0114): « note les questions qu'on m'a posées » after one.
+ * An Interview's note (ADR-0114, lifting « never its note »): `propose_interview` and `propose_interview_change` take a
+ * `note`, which their card shows in full (`text`), the current one folded under « Texte actuel ». Its text is the AI
+ * Coach's, so both copy text (`copiesText`), yet stay offered with an Application In view (`sentByCandidate`): the note is
+ * the Candidate's private text, read in full on the card and applied by them, the Interview's version catching a conflict.
+ * Never a deletion: « Supprimer » on the Interview is for an entry made by mistake, the Candidate's own.
  * « Annuler » puts the state before back: an Interview added is removed and its Application back at its status, in one
  * transaction (#770); a status changed since is left as it is, and the card says so (`status_kept`). One changed or
  * cancelled is restored, a Reschedule undone within the hour leaving no trace.
@@ -21,10 +25,10 @@
 import { APPLICATION_STATUSES, INTERVIEW_FORMATS, type ApplicationStatus } from "@jobhub/shared";
 import { createI18n } from "@jobhub/shared/i18n";
 import * as z from "zod";
-import { frenchDateTime, INTERVIEW_TIME_ZONE, interviewWallClock, type Application, type ApplicationChangeResult, type Applications, type Interview, type InterviewState } from "../applications";
+import { frenchDateTime, INTERVIEW_NOTE_MAX_LENGTH, INTERVIEW_TIME_ZONE, interviewWallClock, type Application, type ApplicationChangeResult, type Applications, type Interview, type InterviewState } from "../applications";
 import { readOrigin } from "../origin";
 import { routes } from "../routes";
-import { defineCoachAction, type ApplyProposalResult, type CoachAction, type ProposalField, type ProposedChange, type UndoProposalResult } from "./index";
+import { defineCoachAction, type ApplyProposalResult, type CoachAction, type CoachActionCall, type ProposalField, type ProposedChange, type UndoProposalResult } from "./index";
 
 type Translate = ReturnType<typeof createI18n>["t"];
 
@@ -39,12 +43,36 @@ export type AgendaApplications = Pick<
 /** A date and time as the Interview form takes it, in French time: "2026-11-12T14:00". */
 const wallClock = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "AAAA-MM-JJTHH:MM, heure de Paris");
 const id = z.string().min(1).max(200);
+/** The Application: omitted, the one In view. */
+const applicationIdArgument = id.optional().describe("L'id de la candidature ; omis, la candidature consultée.");
 const interviewFields = {
   scheduledAt: wallClock.describe("Date et heure absolues, heure de Paris, au format AAAA-MM-JJTHH:MM (ex. 2026-11-12T14:00)."),
   durationMinutes: z.number().int().min(1).max(1440).describe("Durée en minutes, si le candidat la donne."),
   format: z.enum(INTERVIEW_FORMATS).describe("video (visio), phone (téléphone) ou on_site (sur place), si le candidat le donne."),
   place: z.string().max(500).describe("Lieu (adresse) ou lien de visio, tel que le candidat le donne."),
+  note: z
+    .string()
+    .trim()
+    .min(1)
+    .max(INTERVIEW_NOTE_MAX_LENGTH)
+    .describe(
+      "La note complète de l'entretien, telle qu'elle sera enregistrée (elle remplace la note actuelle : reprends-en ce qu'il faut garder) : ce que le candidat veut noter (les questions posées, ses interlocuteurs, ce qu'il doit préparer), en ses mots, sans rien inventer.",
+    ),
 };
+
+const NOTE =
+  "La note (note) est le texte privé du candidat : propose-la quand il le demande (« note les questions qu'on m'a posées »), en entier, jamais dans ta réponse ; il la relit sur la carte et l'applique lui-même.";
+const EVERY_DATE = "Tout entretien, passé ou à venir, quelle que soit sa date : ses ids sont dans read_application (la candidature) ou list_objects (type agenda_item, à venir seulement).";
+
+/** The Application a call is about: the one named, else the one In view; undefined when there is neither. */
+const applicationIdOf = (named: string | undefined, call: CoachActionCall) => named ?? (call.inView?.kind === "application" ? call.inView.id : undefined);
+
+/** No Application named nor In view: the AI Coach is told to find it, no card is made. */
+const WHICH_APPLICATION = {
+  ok: true,
+  proposes: false,
+  data: { message: "Aucune candidature n'est consultée : précise-la (applicationId, lu avec list_objects ou read_application), ou demande au candidat de quelle candidature il s'agit." },
+} as const;
 
 const RELATIVE_DATES =
   "Une date relative (« jeudi prochain à 14 h », « demain matin ») se calcule à partir de la date du jour donnée dans le contexte : envoie toujours la date absolue, en heure de Paris.";
@@ -76,15 +104,17 @@ function formFields(t: Translate): ProposalField[] {
       options: [{ value: "", label: t("application.interviewFormatNone") }, ...INTERVIEW_FORMATS.map((format) => ({ value: format, label: t(`interviewFormats.${format}`) }))],
     },
     { name: "place", label: t("application.interviewPlace"), type: "text" },
+    { name: "note", label: t("application.interviewNote"), type: "textarea" },
   ];
 }
 
 /** An Interview as the form holds it: every value as text, "" for nothing said. */
-const formValue = (interview: Pick<Interview, "scheduledAt" | "durationMinutes" | "format" | "place">): Record<string, string> => ({
+const formValue = (interview: Pick<Interview, "scheduledAt" | "durationMinutes" | "format" | "place" | "note">): Record<string, string> => ({
   scheduledAt: interviewWallClock(interview.scheduledAt),
   durationMinutes: interview.durationMinutes ? String(interview.durationMinutes) : "",
   format: interview.format ?? "",
   place: interview.place,
+  note: interview.note,
 });
 
 /** What the form's value sends to the Applications module, as the Interview form sends it: a duration typed as digits goes as a number. */
@@ -95,8 +125,13 @@ function interviewInput(value: Record<string, string>) {
     durationMinutes: duration === "" ? null : /^\d+$/.test(duration) ? Number(duration) : duration,
     format: value.format ? value.format : null,
     place: value.place ?? "",
+    // A card made before ADR-0114 holds no note: it leaves the Interview's as it is.
+    ...(value.note === undefined ? {} : { note: value.note }),
   };
 }
+
+/** A proposed note, shown in full on its card, the current one folded (ADR-0114). */
+const noteText = (t: Translate, before: string, after: string): NonNullable<ProposedChange["text"]> => ({ name: "note", what: t("coachProposals.fields.interviewNote"), before, after });
 
 /** The instant a form's date and time stands for, read as the Interview form reads it (French time); null when it does not read. */
 function fromWallClock(value: string): Date | null {
@@ -181,28 +216,33 @@ export function agendaCoachActions(applications: AgendaApplications): CoachActio
     defineCoachAction({
       name: AGENDA_ACTIONS.add,
       description: [
-        "Propose d'ajouter un entretien à une candidature du candidat (applicationId : l'id de la candidature, trouvé avec list_objects au besoin), à une date et heure absolues en heure de Paris, avec sa durée, son format et son lieu ou lien quand le candidat les donne.",
+        "Propose d'ajouter un entretien à une candidature du candidat (applicationId : l'id de la candidature, trouvé avec list_objects au besoin ; omis, la candidature consultée), à une date et heure absolues en heure de Paris, avec sa durée, son format et son lieu ou lien quand le candidat les donne.",
         "Si la candidature n'est pas au statut Entretien, la proposition l'y passe aussi.",
         RELATIVE_DATES,
-        "Ne propose pas de note sur l'entretien.",
+        NOTE,
       ].join(" "),
       schema: z.object({
-        applicationId: id,
+        applicationId: applicationIdArgument,
         scheduledAt: interviewFields.scheduledAt,
         durationMinutes: interviewFields.durationMinutes.optional(),
         format: interviewFields.format.optional(),
         place: interviewFields.place.optional(),
+        note: interviewFields.note.optional(),
       }),
       group: "agenda",
       kind: "propose",
-      copiesText: false,
-      async run({ applicationId, scheduledAt, durationMinutes, format, place }, { candidateId, language }) {
+      copiesText: true,
+      sentByCandidate: true,
+      async run({ applicationId: named, scheduledAt, durationMinutes, format, place, note }, call) {
+        const { candidateId, language } = call;
+        const applicationId = applicationIdOf(named, call);
+        if (!applicationId) return WHICH_APPLICATION;
         const application = await activeApplication(candidateId, applicationId);
         const state = application ? await applications.statusOf(candidateId, applicationId) : null;
         const at = fromWallClock(scheduledAt);
         if (!application || !state || !at) return { ok: false, error: "not_found" };
         const { t } = createI18n(language);
-        const interview = { scheduledAt: at, durationMinutes: durationMinutes ?? null, format: format ?? null, place: place?.trim() ?? "" };
+        const interview = { scheduledAt: at, durationMinutes: durationMinutes ?? null, format: format ?? null, place: place?.trim() ?? "", note: note ?? "" };
         const label = (status: ApplicationStatus) => t(`applicationStatuses.${status}`);
         const change: ProposedChange = {
           target: targetOf(application),
@@ -210,6 +250,7 @@ export function agendaCoachActions(applications: AgendaApplications): CoachActio
           before: t("coachProposals.interview.none"),
           after: interviewText(t, language, interview),
           ...(state.status === "interview" ? {} : { also: [{ what: t("coachProposals.fields.applicationStatus"), before: label(state.status), after: label("interview") }] }),
+          ...(note ? { text: noteText(t, "", note) } : {}),
           value: { ...formValue(interview), scheduledAt },
           fields: formFields(t),
           version: state.version,
@@ -256,25 +297,34 @@ export function agendaCoachActions(applications: AgendaApplications): CoachActio
     defineCoachAction({
       name: AGENDA_ACTIONS.change,
       description: [
-        "Propose de modifier un entretien du candidat (applicationId et interviewId, trouvés avec list_objects : type agenda_item) : une nouvelle date et heure absolues en heure de Paris (un report), sa durée, son format ou son lieu ou lien. N'envoie que ce qui change.",
+        "Propose de modifier un entretien du candidat (interviewId, et applicationId ; omis, la candidature consultée) : une nouvelle date et heure absolues en heure de Paris (un report), sa durée, son format, son lieu ou lien, ou sa note. N'envoie que ce qui change.",
+        EVERY_DATE,
         RELATIVE_DATES,
-        "Ne propose pas de note sur l'entretien.",
+        NOTE,
         NO_DELETE,
       ].join(" "),
       schema: z
         .object({
-          applicationId: id,
+          applicationId: applicationIdArgument,
           interviewId: id,
           scheduledAt: interviewFields.scheduledAt.optional(),
           durationMinutes: interviewFields.durationMinutes.optional(),
           format: interviewFields.format.optional(),
           place: interviewFields.place.optional(),
+          note: interviewFields.note.optional(),
         })
-        .refine((args) => args.scheduledAt !== undefined || args.durationMinutes !== undefined || args.format !== undefined || args.place !== undefined, "Rien à modifier."),
+        .refine(
+          (args) => args.scheduledAt !== undefined || args.durationMinutes !== undefined || args.format !== undefined || args.place !== undefined || args.note !== undefined,
+          "Rien à modifier.",
+        ),
       group: "agenda",
       kind: "propose",
-      copiesText: false,
-      async run({ applicationId, interviewId, scheduledAt, durationMinutes, format, place }, { candidateId, language }) {
+      copiesText: true,
+      sentByCandidate: true,
+      async run({ applicationId: named, interviewId, scheduledAt, durationMinutes, format, place, note }, call) {
+        const { candidateId, language } = call;
+        const applicationId = applicationIdOf(named, call);
+        if (!applicationId) return WHICH_APPLICATION;
         const found = await interviewOf(candidateId, applicationId, interviewId);
         const at = scheduledAt === undefined ? null : fromWallClock(scheduledAt);
         if (!found || found.state.interview.cancelledAt || (scheduledAt !== undefined && !at)) return { ok: false, error: "not_found" };
@@ -285,12 +335,17 @@ export function agendaCoachActions(applications: AgendaApplications): CoachActio
           durationMinutes: durationMinutes ?? before.durationMinutes,
           format: format ?? before.format,
           place: place?.trim() ?? before.place,
+          note: note ?? before.note,
         };
+        const changesNote = after.note !== before.note;
+        const unchanged = interviewText(t, language, before) === interviewText(t, language, after);
+        if (unchanged && !changesNote) return { ok: true, proposes: false, data: { message: "Cet entretien est déjà ainsi : rien à proposer." } };
         const change: ProposedChange = {
           target: found.target,
           what: t("coachProposals.fields.interview"),
           before: interviewText(t, language, before),
           after: interviewText(t, language, after),
+          ...(changesNote ? { text: noteText(t, before.note, after.note) } : {}),
           // Which Interview goes with what applying sends; the form's fields are the rest.
           value: { ...formValue(after), interviewId },
           fields: formFields(t),
@@ -311,14 +366,18 @@ export function agendaCoachActions(applications: AgendaApplications): CoachActio
     defineCoachAction({
       name: AGENDA_ACTIONS.cancel,
       description: [
-        "Propose d'annuler un entretien du candidat qui n'aura pas lieu (applicationId et interviewId, trouvés avec list_objects : type agenda_item) : il reste dans l'agenda, barré.",
+        "Propose d'annuler un entretien du candidat qui n'aura pas lieu ou n'a pas eu lieu (interviewId, et applicationId ; omis, la candidature consultée) : il reste dans l'agenda, barré.",
+        EVERY_DATE,
         NO_DELETE,
       ].join(" "),
-      schema: z.object({ applicationId: id, interviewId: id }),
+      schema: z.object({ applicationId: applicationIdArgument, interviewId: id }),
       group: "agenda",
       kind: "propose",
       copiesText: false,
-      async run({ applicationId, interviewId }, { candidateId, language }) {
+      async run({ applicationId: named, interviewId }, call) {
+        const { candidateId, language } = call;
+        const applicationId = applicationIdOf(named, call);
+        if (!applicationId) return WHICH_APPLICATION;
         const found = await interviewOf(candidateId, applicationId, interviewId);
         if (!found || found.state.interview.cancelledAt) return { ok: false, error: "not_found" };
         const { t } = createI18n(language);

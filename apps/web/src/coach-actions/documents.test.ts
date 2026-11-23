@@ -37,6 +37,13 @@ function world({ documentLanguage = "fr" as DocumentLanguage } = {}) {
     },
     tailoredCvs: { get: async (candidateId, id) => (mine(candidateId, id) ? tailoredCv : null) },
     tailoredDocuments: { get: async (candidateId, id) => (mine(candidateId, id) ? drafts : null) },
+    // One revealed Enriched Contact on a1 (ADR-0114): her details never go on a card.
+    enrichedContacts: {
+      contact: async (candidateId, applicationId, contactId) =>
+        mine(candidateId, applicationId) && applicationId === "a1" && contactId === "c-revealed"
+          ? { id: "c-revealed", name: "Sophie Bernard", jobTitle: "DRH", emails: ["sophie.bernard@acme.example"], phones: ["+33 6 98 76 54 32"], source: { provider: "lusha", providerPersonId: "p1", foundAt: DRAFTED, retrievedAt: DRAFTED } }
+          : null,
+    },
   };
   return { sources, tailoredCv, drafts };
 }
@@ -224,6 +231,29 @@ describe("the « Documents » Coach Actions (#721)", () => {
         replaces: "Votre brouillon actuel sera remplacé : il restera dans « Versions », modifications comprises.",
         runs: { kind: "tailored_documents", url: "/api/applications/a1/tailored-documents", body: { document: "outreach_message", language: "fr", channel: "inmail" }, opens: "/candidatures/a1/documents?resultat=message" },
       });
+    });
+
+    it("an Outreach Message to a revealed Enriched Contact (ADR-0114): addressed to that person, by their contactId; their details never on the card", async () => {
+      const { sources } = world();
+
+      const change = await proposed(actionOf(sources, DOCUMENT_ACTIONS.outreachMessage), { contactId: "c-revealed" });
+
+      expect(change).toMatchObject({
+        after: "Un nouveau brouillon que votre coach IA rédigera quand vous lancerez la rédaction · Français · pour Sophie Bernard (DRH)",
+        runs: { kind: "tailored_documents", body: { document: "outreach_message", language: "fr", contactId: "c-revealed" } },
+      });
+      expect(JSON.stringify(change)).not.toMatch(/sophie\.bernard@|98 76/);
+    });
+
+    it("refuses a contactId that is not a revealed Enriched Contact of the Application, and says what to do", async () => {
+      const { sources } = world();
+      const action = actionOf(sources, DOCUMENT_ACTIONS.outreachMessage);
+
+      const result = await action.run(action.schema.parse({ contactId: "c-found" }), onApplication());
+
+      expect(result).toMatchObject({ ok: true, proposes: false });
+      expect(JSON.stringify(result)).toContain("propose_contact_reveal");
+      expect(action.description).toMatch(/contactId/);
     });
 
     it("« Rédiger » from the draft seen; a draft written or edited since is a conflict: not what the Candidate confirmed", async () => {

@@ -4,6 +4,9 @@ import { getApplications } from "@/applications/server";
 import { getBilling } from "@/billing/server";
 import { getCoachMemory } from "@/coach-memory/server";
 import { exchangesOn, getExchanges } from "@/exchanges/server";
+import { getCompanyDossiers } from "@/company-dossiers/server";
+import { getEnrichedContacts } from "@/enriched-contacts/server";
+import { getHumanCoaches } from "@/human-coaches/server";
 import { getFollowUps } from "@/follow-ups/server";
 import { getJobDigests } from "@/job-digests/server";
 import { getJobOffers } from "@/job-offers/server";
@@ -21,6 +24,7 @@ import { e2eCoachActions } from "./e2e-catalog";
 import { createCoachActions, type CoachAction, type CoachActions } from "./index";
 import { jobSearchQuotaOf } from "./job-searches";
 import { createRedirects } from "./redirects";
+import { weeklyQuotaOf } from "./quota";
 import { coachActionsSettings } from "./settings";
 
 let instance: CoachActions | undefined;
@@ -56,6 +60,10 @@ function shipped(): readonly CoachAction[] {
       },
       tailoredDocuments: getTailoredDocuments(),
       tailoredCvs: getTailoredCvs(),
+      // Reached when called: each is built on the Applications, as the reads are.
+      companyDossiers: { get: (candidateId, applicationId) => getCompanyDossiers().get(candidateId, applicationId) },
+      enrichedContacts: { get: (candidateId, applicationId) => getEnrichedContacts().get(candidateId, applicationId) },
+      coachReviews: { reviews: (candidateId, applicationId) => getHumanCoaches().reviews(candidateId, applicationId) },
       industries: readIndustryReference,
     }),
     {
@@ -85,6 +93,18 @@ function shipped(): readonly CoachAction[] {
       tailoredDocumentVersions: getTailoredDocumentVersions(),
       // An Application's Exchanges (#1099): offered only while APPLICATION_EXCHANGES_ENABLED is on, read at each reply.
       exchanges: { on: exchangesOn, exchanges: getExchanges() },
+      // Reached when called, as the reads are (ADR-0114).
+      companyDossiers: {
+        get: (candidateId, applicationId) => getCompanyDossiers().get(candidateId, applicationId),
+        confirmEmployer: (candidateId, applicationId, input) => getCompanyDossiers().confirmEmployer(candidateId, applicationId, input),
+      },
+      enrichedContacts: {
+        get: (candidateId, applicationId) => getEnrichedContacts().get(candidateId, applicationId),
+        find: (candidateId, applicationId) => getEnrichedContacts().find(candidateId, applicationId),
+        reveal: (candidateId, applicationId, contactId) => getEnrichedContacts().reveal(candidateId, applicationId, contactId),
+        contact: (candidateId, applicationId, contactId) => getEnrichedContacts().contact(candidateId, applicationId, contactId),
+      },
+      enrichedContactQuota: weeklyQuotaOf(getBilling(), "enrichedContacts"),
     },
   );
 }

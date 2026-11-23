@@ -154,9 +154,10 @@ test.describe("the AI Coach with Coach Actions, end to end on the fake provider 
       ],
     });
 
-    // Offered: the index and the six reads, the Agenda's proposals (#718), the Candidatures proposals (#716), then the Profil group's
-    // proposals (#719), the Recherches d'offres and Job Digests proposals (#720), the Documents proposals (#721), its drafts' (ADR-0109) and its documents' versions (#1079), a Profile
-    // In view being the Candidate's own;
+    // Offered: the index and the nine reads (the Company Dossier, Enriched Contacts and Coach Reviews among them, #1098), the Agenda's
+    // proposals (#718), the Candidatures proposals (#716), then the Profil group's proposals (#719), the Recherches d'offres and Job
+    // Digests proposals (#720), the Documents proposals (#721), the employer's side of an Application (#1098, ADR-0114), its drafts'
+    // (ADR-0109) and its documents' versions (#1079), a Profile In view being the Candidate's own;
     // with nothing that copies text but the proposals that may.
     expect(r.offered[0]).toEqual([
       "list_objects",
@@ -166,6 +167,9 @@ test.describe("the AI Coach with Coach Actions, end to end on the fake provider 
       "read_job_search",
       "read_job_digest",
       "read_tailored_documents",
+      "read_company_dossier",
+      "read_enriched_contacts",
+      "read_coach_reviews",
       "propose_interview",
       "propose_interview_change",
       "propose_interview_cancel",
@@ -184,6 +188,10 @@ test.describe("the AI Coach with Coach Actions, end to end on the fake provider 
       "propose_tailored_cv",
       "propose_cover_letter",
       "propose_outreach_message",
+      "propose_company_dossier_rebuild",
+      "propose_dossier_employer",
+      "propose_contact_search",
+      "propose_contact_reveal",
       "read_draft",
       "propose_draft_text",
       "read_document_versions",

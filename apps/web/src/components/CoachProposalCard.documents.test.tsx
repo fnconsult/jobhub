@@ -252,3 +252,62 @@ describe("a « Documents » proposal's card (#721)", () => {
     expect(within(card).getByRole("link", { name: "Ouvrir à côté de la conversation" }).getAttribute("href")).toBe(OPENS_CV);
   });
 });
+
+describe("a Company Dossier's « Mettre à jour » card (ADR-0114)", () => {
+  const OPENS_DOSSIER = "/candidatures/a1/dossier";
+  const DOSSIER: Card = {
+    id: "88888888-8888-4888-8888-888888888888",
+    status: "pending",
+    change: {
+      target: { kind: "application", id: "a1", name: "DAF H/F · Acme Industrie", href: OPENS_DOSSIER },
+      what: "Dossier entreprise",
+      before: "Dossier du 30 octobre 2026",
+      after: "Mis à jour quand vous lancerez « Mettre à jour » : registre des entreprises ou pages web, et actualités",
+      value: {},
+      fields: [],
+      quota: { label: "Ne compte dans aucun quota de votre offre" },
+      launches: true,
+      runs: { kind: "company_dossier", url: "/api/applications/a1/company-dossier", body: {}, opens: OPENS_DOSSIER },
+    },
+    undoable: false,
+  };
+
+  it("says its Plan Quota and offers « Mettre à jour » and « Ignorer »", () => {
+    renderInFrench(<Thread card={DOSSIER} />);
+    const card = cardNamed(/Dossier entreprise/);
+
+    expect(card.textContent).toContain("Ne compte dans aucun quota de votre offre");
+    expect(buttonsOf(card)).toEqual(["Mettre à jour", "Ignorer"]);
+  });
+
+  it("« Mettre à jour » applies the card, then rebuilds the dossier through its Section's route, and opens it", async () => {
+    answers = [{ status: 200, body: { status: "accepted", card: accepted(DOSSIER) } }, { ndjson: [{ type: "done", status: "built" }] }];
+    renderInFrench(<Thread card={DOSSIER} />);
+
+    await userEvent.click(within(cardNamed(/Dossier entreprise/)).getByRole("button", { name: "Mettre à jour" }));
+
+    expect(sent).toEqual([
+      { url: `/api/action-cards/${DOSSIER.id}`, body: { decision: "accept" } },
+      { url: "/api/applications/a1/company-dossier", body: {} },
+    ]);
+    await waitFor(() => expect(push).toHaveBeenCalledWith(OPENS_DOSSIER, { scroll: false }));
+  });
+
+  it("the rebuild failing: the card says so and where to try again", async () => {
+    answers = [{ status: 200, body: { status: "accepted", card: accepted(DOSSIER) } }, { status: 503, body: { error: "unavailable" } }];
+    renderInFrench(<Thread card={DOSSIER} />);
+
+    await userEvent.click(within(cardNamed(/Dossier entreprise/)).getByRole("button", { name: "Mettre à jour" }));
+
+    expect((await within(cardNamed(/Dossier entreprise/)).findByRole("alert")).textContent).toContain("Le dossier entreprise n'a pas pu être mis à jour");
+  });
+
+  it("launched before, the card says where the dossier is, and that a stop keeps what was found", () => {
+    renderInFrench(<Thread card={accepted(DOSSIER)} />);
+    const card = cardNamed(/Dossier entreprise/);
+
+    expect(card.textContent).toContain("Le dossier entreprise est dans la section Dossier de la candidature.");
+    expect(within(card).getByRole("link", { name: "Ouvrir à côté de la conversation" }).getAttribute("href")).toBe(OPENS_DOSSIER);
+    expect(card.textContent).toContain("Si vous l'avez arrêtée, ce qui était déjà trouvé est gardé.");
+  });
+});

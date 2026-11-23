@@ -710,7 +710,7 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
     });
 
     it("scores 0 a case expecting a proposal the AI Coach does not make, or makes with another action; judges it when it makes the right one", async () => {
-      const expected = AI_COACH_EVAL_CASES.filter((each) => each.proposal && each.proposal.action in ACTIONS);
+      const expected = AI_COACH_EVAL_CASES.filter((each) => each.proposal && each.proposal.action in ACTIONS && each.id.startsWith("documents-"));
       const right = proposingEvals((asked) => {
         const each = expected.find((one) => asked.includes(one.message));
         return each ? { name: each.proposal!.action, arguments: each.proposal!.arguments ?? {} } : null;
@@ -730,6 +730,74 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
         expect(judged.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0.8 });
         expect(other.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0 });
       }
+    });
+  });
+
+  describe("the AI Coach's Eval Run on what it reads and proposes on an Application (ADR-0114)", () => {
+    const CASES = ["coach-action-interview-note-past", "coach-action-dossier-strategy", "coach-action-outreach-revealed-contact", "coach-action-coach-review-letter"];
+    const caseOf = (id: string) => AI_COACH_EVAL_CASES.find((each) => each.id === id)!;
+    const resultOf = (run: Awaited<ReturnType<Evals["runAiCoach"]>>, id: string) => run.results.find((result) => result.case.id === id)!;
+
+    /** The AI layer with a Mistral that, offered Coach Actions, makes `rounds` of calls in turn (one list per round), then answers. */
+    function scriptedEvals(rounds: { name: string; arguments: Record<string, unknown> }[][], cases: readonly AiCoachEvalCase[]) {
+      const scripted: AiProvider = {
+        ...mistral,
+        async generate(input) {
+          const output = await mistral.generate!(input);
+          const done = input.messages.filter((message) => Array.isArray(message.content) && message.content.some((block) => block.type === "tool_result")).length;
+          const calls = input.tools?.length && input.toolChoice !== "none" ? rounds[done] : undefined;
+          return calls ? { ...output, text: "", toolCalls: calls.map((call, index) => ({ type: "tool_call" as const, id: `call_${done}_${index}`, ...call })) } : output;
+        },
+      };
+      return playing(cases, createAiLayer({ providers: [scripted, judge], routes: { coaching: "mistral", guardrail: "mistral", eval: "openai" }, usage }));
+    }
+
+    it("has the four cases of ADR-0114, on Sophie's Application In view, with its Company Dossier, Enriched Contacts and Coach Review to read", () => {
+      expect(caseOf("coach-action-interview-note-past")).toMatchObject({
+        message: expect.stringMatching(/^Note les questions qu'on m'a posées/),
+        inView: { kind: "application", text: expect.stringMatching(/entretien \(id i-aero-1\) le lundi 2 novembre 2026/) },
+        proposes: true,
+        proposal: { action: "propose_interview_change", arguments: { interviewId: "i-aero-1" } },
+      });
+      expect(caseOf("coach-action-dossier-strategy")).toMatchObject({ message: "Prépare-moi aux questions sur leur stratégie.", reads: ["company_dossier:a-aero"], proposes: false });
+      expect(caseOf("coach-action-outreach-revealed-contact")).toMatchObject({ reads: ["enriched_contacts:a-aero"], proposal: { action: "propose_outreach_message", arguments: { contactId: "c-drh" } } });
+      expect(caseOf("coach-action-coach-review-letter")).toMatchObject({
+        message: "Tiens compte de l'avis de Marie dans ma lettre.",
+        reads: ["coach_reviews:a-aero"],
+        proposal: { action: "propose_draft_text", arguments: { document: "cover_letter" } },
+      });
+      for (const id of CASES) expect(caseOf(id).objects?.map((object) => object.type), id).toEqual(["application", "company_dossier", "enriched_contacts", "coach_reviews"]);
+      // Never an Enriched Contact's details, even fictional ones.
+      for (const id of CASES) expect(JSON.stringify(caseOf(id)), id).not.toMatch(/@|\+33|0[67] \d\d/);
+    });
+
+    it("plays the dossier's read over its fictional object, by the Application's id: read, the case is judged; unread, it scores 0", async () => {
+      const cases = casesNamed("coach-action-dossier-strategy");
+
+      const read = await scriptedEvals([[{ name: "read_company_dossier", arguments: { id: "a-aero" } }]], cases).runAiCoach(claire);
+      const unread = await scriptedEvals([[{ name: "read_application", arguments: { id: "a-aero" } }]], cases).runAiCoach(claire);
+
+      expect(resultOf(read, "coach-action-dossier-strategy")).toMatchObject({ score: 0.8 });
+      expect(resultOf(unread, "coach-action-dossier-strategy")).toMatchObject({ score: 0, reason: expect.stringMatching(/company_dossier:a-aero/) });
+    });
+
+    it("judges an Outreach Message proposed to the revealed contact once the contacts are read, the review taken into the letter's new text, and a past Interview's note", async () => {
+      const outreach = await scriptedEvals(
+        [[{ name: "read_enriched_contacts", arguments: { id: "a-aero" } }], [{ name: "propose_outreach_message", arguments: { contactId: "c-drh" } }]],
+        casesNamed("coach-action-outreach-revealed-contact"),
+      ).runAiCoach(claire);
+      const review = await scriptedEvals(
+        [[{ name: "read_coach_reviews", arguments: { id: "a-aero" } }], [{ name: "propose_draft_text", arguments: { document: "cover_letter", text: "Madame, Monsieur, j'ai ramené la clôture mensuelle de J+10 à J+5." } }]],
+        casesNamed("coach-action-coach-review-letter"),
+      ).runAiCoach(claire);
+      const note = await scriptedEvals(
+        [[{ name: "propose_interview_change", arguments: { interviewId: "i-aero-1", note: "Avec le DAF du site. Questions : clôture en J+5, SAP, désaccord avec un chef d'atelier." } }]],
+        casesNamed("coach-action-interview-note-past"),
+      ).runAiCoach(claire);
+
+      expect(resultOf(outreach, "coach-action-outreach-revealed-contact")).toMatchObject({ score: 0.8 });
+      expect(resultOf(review, "coach-action-coach-review-letter")).toMatchObject({ score: 0.8 });
+      expect(resultOf(note, "coach-action-interview-note-past")).toMatchObject({ score: 0.8 });
     });
   });
 

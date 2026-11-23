@@ -3,7 +3,8 @@
  * its page's route calls, with its Eval Cases: the reads of every group (#714), the Agenda's proposals (#718), the
  * Candidatures proposals (#716), the Profil group's proposals (#719), the Recherches d'offres and Job Digests proposals
  * (#720), the Documents proposals (#721), the drafts reworked from the conversation (ADR-0109) and the versions of the
- * documents, read and restored (#1079), and an Application's Exchanges, read and answered (#1099, behind its feature flag).
+ * documents, read and restored (#1079), an Application's Exchanges, read and answered (#1099, behind its feature flag);
+ * and the employer's side of an Application, its Company Dossier and Enriched Contacts (ADR-0114).
  *
  *   shippedCoachActions(candidateObjects(sources), domain)   // the app's, over the Candidate's objects
  *   shippedCoachActions(NO_OBJECTS)                          // on no one's data: every read finds nothing, nothing to propose on
@@ -12,6 +13,7 @@ import type { ApplicationChangeResult } from "../applications";
 import { agendaCoachActions, type AgendaApplications } from "./agenda";
 import { applicationCoachActions, type ApplicationActionSources } from "./applications";
 import { documentCoachActions, type DocumentActionSources } from "./documents";
+import { employerCoachActions, type EmployerActionSources } from "./employer";
 import { draftCoachActions, type DraftActionSources } from "./drafts";
 import { documentVersionCoachActions, type DocumentVersionActionSources } from "./versions";
 import { exchangeCoachActions, type ExchangeActionSources } from "./exchanges";
@@ -27,7 +29,10 @@ export type CoachActionDomain = Omit<ApplicationActionSources, "applications" | 
     profiles: ApplicationActionSources["profiles"] & SearchActionSources["profiles"];
     /** The Profil group's: Search Criteria, Master CV, archive and restore, Coach Memory. */
     profile: ProfileActionSources;
-  } & Pick<DocumentActionSources, "tailoredCvs"> & {
+  } & Pick<DocumentActionSources, "tailoredCvs"> &
+  Pick<EmployerActionSources, "companyDossiers" | "enrichedContactQuota"> & {
+    /** The Enriched Contacts, searched and revealed (ADR-0114), and the one an Outreach Message is addressed to. */
+    enrichedContacts: EmployerActionSources["enrichedContacts"] & DocumentActionSources["enrichedContacts"];
     /** The Documents group's: the drafts launched (#721), and reworked from the conversation (ADR-0109). */
     tailoredDocuments: DocumentActionSources["tailoredDocuments"] & DraftActionSources["tailoredDocuments"];
     followUps: ApplicationActionSources["followUps"] & DraftActionSources["followUps"];
@@ -47,6 +52,7 @@ export function shippedCoachActions(objects: CoachObjectReader, domain: CoachAct
     ...profileCoachActions(domain.profile),
     ...searchCoachActions(domain),
     ...documentCoachActions(domain),
+    ...employerCoachActions(domain),
     ...draftCoachActions(domain),
     ...documentVersionCoachActions(domain),
     ...exchangeCoachActions({ on: () => false, exchanges: NO_EXCHANGES, ...domain.exchanges, applications: domain.applications, profiles: domain.profiles }),
@@ -96,6 +102,14 @@ export const NO_DOMAIN: CoachActionDomain = {
   },
   jobSearchQuota: async () => ({ used: 0, limit: 0, refusal: null }),
   tailoredCvs: { get: async () => null },
+  companyDossiers: { get: async () => null, confirmEmployer: async () => ({ ok: false, error: "not_found" }) },
+  enrichedContacts: {
+    get: async () => null,
+    find: async () => ({ ok: false, error: "not_found" }),
+    reveal: async () => ({ ok: false, error: "not_found" }),
+    contact: async () => null,
+  },
+  enrichedContactQuota: async () => ({ used: 0, limit: 0, refusal: null }),
   tailoredDocuments: { get: async () => null, rework: async () => ({ ok: false, error: "not_found" }), unrework: async () => ({ ok: false, error: "not_found" }) },
   tailoredDocumentVersions: { list: async () => null, restore: async () => ({ ok: false, error: "not_found" }) },
   followUps: {

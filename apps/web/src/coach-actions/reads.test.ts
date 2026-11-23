@@ -15,6 +15,8 @@ import type { CoachReview } from "../human-coaches";
 import { estimateTokens } from "../coach/context";
 import { COACH_ACTION_READS_MAX_TOKENS, COACH_ACTION_RESULT_MAX_TOKENS, createCoachActions } from "./index";
 import { candidateObjects, type CandidateObjectSources } from "./candidate-objects";
+import * as z from "zod";
+import { NO_OBJECTS, shippedCoachActions } from "./catalog";
 import { readCoachActions } from "./reads";
 
 // The read Coach Actions (#714, ADR-0077), through the seam the AI Coach calls them by: `forReply(...).runTool`, on the
@@ -563,6 +565,12 @@ describe("read_coach_reviews (ADR-0114)", () => {
     expect(content).not.toContain("Lefèvre");
     expect(reply.narrowed).toBe(true);
     expect(recorder.provenance().sites).toEqual([{ kind: "candidate", links: ["/candidatures/a-airbus/avis"] }]);
+  });
+
+  it("is the only Coach Action about Coach Reviews in the catalogue shipped: none proposes to change or delete one", () => {
+    const aboutReviews = shippedCoachActions(NO_OBJECTS).filter((action) => /review|avis/i.test(`${action.name} ${JSON.stringify(z.toJSONSchema(action.schema))}`));
+
+    expect(aboutReviews.map((action) => [action.name, action.kind])).toEqual([["read_coach_reviews", "read"]]);
   });
 
   it("says when the Application has none", async () => {

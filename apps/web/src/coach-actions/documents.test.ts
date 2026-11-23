@@ -74,7 +74,7 @@ describe("the « Documents » Coach Actions (#721)", () => {
     const actions = createCoachActions({ catalog: documentCoachActions(world().sources), settings: async () => ({ enabled: true, maxRounds: 2 }), externalApis: { record: () => {} } });
     const offered = await actions.forReply("marie", { recorder: { step: async () => undefined as never, site: () => {} }, untrustedInView: true });
 
-    expect(offered?.tools.map((tool) => tool.name)).toEqual(Object.values(DOCUMENT_ACTIONS));
+    expect(offered?.tools.map((tool) => tool.name)).toEqual([...Object.values(DOCUMENT_ACTIONS), "redirect"]);
   });
 
   describe("propose_tailored_cv: « Préparer » runs the Tailored CV proposal, its Review opened in the Work Pane", () => {

@@ -391,6 +391,6 @@ describe("the Coach Actions offered with a Job Offer In view (#720)", () => {
 
     const offered = await actions.forReply("marie", { recorder: { step: async (_subject, run) => run(), site: () => {} }, untrustedInView: true });
 
-    expect(offered?.tools.map((tool) => tool.name)).toEqual(Object.values(SEARCH_ACTIONS));
+    expect(offered?.tools.map((tool) => tool.name)).toEqual([...Object.values(SEARCH_ACTIONS), "redirect"]);
   });
 });

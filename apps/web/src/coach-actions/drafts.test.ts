@@ -161,7 +161,7 @@ describe("the draft Coach Actions (ADR-0109)", () => {
       untrustedInView: true,
     });
 
-    expect(offered?.tools.map((tool) => tool.name)).toEqual(Object.values(DRAFT_ACTIONS));
+    expect(offered?.tools.map((tool) => tool.name)).toEqual([...Object.values(DRAFT_ACTIONS), "redirect"]);
   });
 
   describe("read_draft", () => {

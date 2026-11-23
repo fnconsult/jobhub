@@ -91,14 +91,14 @@ export interface Redirects {
   to(target: string, call: RedirectCall): Promise<TypedRedirect | null>;
 }
 
-const CV_SECTION_KEY: Record<(typeof MASTER_CV_EDIT_SECTIONS)[number], string> = {
+const CV_SECTION_KEY = {
   headline: "cvReview.headline",
   summary: "cvReview.summary",
   experience: "cvReview.experience",
   education: "cvReview.education",
   skills: "cvReview.skills",
   languages: "cvReview.languages",
-};
+} as const satisfies Record<(typeof MASTER_CV_EDIT_SECTIONS)[number], string>;
 
 export const isRedirectTarget = (value: unknown): value is RedirectTarget => typeof value === "string" && Object.hasOwn(REDIRECT_TABLE, value);
 
@@ -155,6 +155,8 @@ export function createRedirects(sources: RedirectSources | null): Redirects {
           return { page, section: t("profilePage.sections.cv-de-reference"), object: call.section ? t(CV_SECTION_KEY[call.section]) : object, href: routes.editMasterCv(profile.id) };
         case "search_criteria":
           return { page, section: t("coachRedirects.sections.searchCriteria"), object, href: routes.profile(profile.id) };
+        default:
+          return null;
       }
     },
   };

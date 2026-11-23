@@ -86,6 +86,11 @@ export interface GenerateRequest {
   /** Runs one tool call the model made; required with `tools`. */
   runTool?: ToolRunner;
   /**
+   * The caller's own refusal of a call to a tool it did not give (ADR-0114: in the Candidate's words, with where to go):
+   * what the model is told; the call is still never run, recorded `ran: false`. Default: « Unknown tool … ».
+   */
+  unknownTool?: (run: ToolRun) => ToolOutcome | Promise<ToolOutcome>;
+  /**
    * How many rounds of tool calls at most, 0 to 4 (ADR-0077; default 2). Past them, a last turn asks the model for
    * text only, its tools kept to read the calls made.
    */
@@ -944,7 +949,10 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     const args = call.arguments;
     const run: ToolRun = { id: call.id, name: call.name, arguments: isObject(args) ? args : {}, round };
     const done = (ran: boolean, result: ToolRunRecord["result"], containsIdentity = false) => ({ ...run, ran, result, durationMs: Math.round(clock() - started), containsIdentity });
-    if (!request.tools?.some((tool) => tool.name === call.name)) return done(false, { content: `Unknown tool "${call.name}": it was not run.`, error: true });
+    if (!request.tools?.some((tool) => tool.name === call.name)) {
+      const refused = request.unknownTool ? await Promise.resolve(request.unknownTool(run)).catch(() => null) : null;
+      return done(false, { content: refused?.content ?? `Unknown tool "${call.name}": it was not run.`, error: true });
+    }
     if (!isObject(args)) return done(false, { content: `The arguments of "${call.name}" are not a JSON object: it was not run.`, error: true });
     try {
       const outcome = await request.runTool!(run, request.signal ? { signal: request.signal } : {});

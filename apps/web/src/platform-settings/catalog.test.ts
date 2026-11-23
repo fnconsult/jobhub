@@ -48,8 +48,8 @@ const WEB_SEARCH = [
 /** The prices of the Tools' billed units and the EUR/USD rate (#403), overridden on each Tool's sheet. */
 const PRICES = ["PERPLEXITY_FAST_SEARCH_PRICE_USD", "PERPLEXITY_SEARCH_PRICE_USD", "BRAVE_SEARCH_PRICE_USD", "TAVILY_CREDIT_PRICE_USD", "EUR_PER_USD"];
 
-/** Email intake's: the domain of the Candidates' Forwarding addresses (#441), its daily cap, « filtre trop large » threshold and Brevo's IP ranges (#442). */
-const EMAIL_INTAKE = ["EMAIL_INTAKE_DOMAIN", "EMAIL_INTAKE_DAILY_CAP", "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD", "EMAIL_INTAKE_MTA_IP_RANGES"];
+/** Email intake's: the domain of the Candidates' Forwarding addresses (#441), its daily cap, « filtre trop large » threshold and Brevo's IP ranges (#442), and the Applications' Exchanges switch (#1099). */
+const EMAIL_INTAKE = ["EMAIL_INTAKE_DOMAIN", "EMAIL_INTAKE_DAILY_CAP", "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD", "EMAIL_INTAKE_MTA_IP_RANGES", "APPLICATION_EXCHANGES_ENABLED"];
 
 /** Livraison's daily email: who gets it (empty, nobody). */
 const DELIVERY = ["DELIVERY_STATUS_EMAIL_TO"];

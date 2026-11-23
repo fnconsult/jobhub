@@ -3022,6 +3022,7 @@
         "EMAIL_INTAKE_DAILY_CAP": "Emails lus par jour et par boîte reliée, au plus (Réception par email)",
         "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD": "Emails par jour à partir desquels le filtre est « trop large »",
         "EMAIL_INTAKE_MTA_IP_RANGES": "Réseaux d'où le MTA de réception poste les emails (CIDR)",
+        "APPLICATION_EXCHANGES_ENABLED": "Échanges des candidatures allumés (e-mails du recruteur gardés sur la candidature ; seulement après la Legal Review)",
         "MAIL_TRANSPORT": "Envoi des e-mails",
         "REVIEW_SIGN_IN": "Code de revue des stores allumé (on)",
         "REVIEW_SIGN_IN_EMAILS": "Comptes de démonstration du code de revue des stores",

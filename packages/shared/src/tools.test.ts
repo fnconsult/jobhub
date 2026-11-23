@@ -172,7 +172,7 @@ describe("the Tools", () => {
     expect(names("tavily")).toEqual([...search, "TAVILY_SEARCH_DEPTH", "AI_WEB_SEARCH_MODEL", "TAVILY_CREDIT_PRICE_USD", ...filters]);
     expect(names("brevo-api")).toEqual(["MAIL_FROM", "MAIL_TRANSPORT"]);
     // Jobbbox's own MTA receives the emails sent to the Forwarding addresses (#580), within Email intake's limits (#442).
-    expect(names("email-intake")).toEqual(["EMAIL_INTAKE_DOMAIN", "EMAIL_INTAKE_MTA_IP_RANGES", "EMAIL_INTAKE_DAILY_CAP", "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD"]);
+    expect(names("email-intake")).toEqual(["EMAIL_INTAKE_DOMAIN", "EMAIL_INTAKE_MTA_IP_RANGES", "EMAIL_INTAKE_DAILY_CAP", "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD", "APPLICATION_EXCHANGES_ENABLED"]);
     expect(names("brevo-smtp")).toEqual(["MAIL_FROM", "MAIL_TRANSPORT"]);
     for (const id of ["lusha", "kaspr", "apollo"]) expect(names(id), id).toEqual(["CONTACT_ENRICHMENT_PROVIDER", "CONTACT_ENRICHMENT_DPA_SIGNED"]);
     expect(names("stripe")).toEqual(["STRIPE_PRICE_STANDARD", "STRIPE_PRICE_PREMIUM", "STRIPE_PRICE_COACHING_SESSION", "STRIPE_PRICE_COACHING_SESSION_PREMIUM"]);

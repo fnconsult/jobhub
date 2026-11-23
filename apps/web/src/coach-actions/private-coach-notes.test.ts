@@ -103,7 +103,7 @@ describe.skipIf(!connectionString)("read_coach_reviews, on Postgres: a Private C
       profiles,
       applications,
       jobSearches: { get: async () => null, list: async () => [] },
-      jobDigests: { get: async () => null, list: async () => [] },
+      jobDigests: { get: async () => null, list: async () => [], settings: async () => ({ subscribed: false, chosenFrequency: null, frequency: "none", planFrequency: "weekly", upgradeTo: null, digests: [] }) },
       agenda: { upcoming: async () => [] },
       tailoredDocuments: { get: async () => null },
       tailoredCvs: { get: async () => null },

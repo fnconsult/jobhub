@@ -7099,6 +7099,7 @@
     "fields": {
       "applicationStatus": "Application status",
       "newInterview": "New interview",
+      "interviewNote": "Interview note",
       "interview": "Interview",
       "application": "Application",
       "applicationProfile": "Application's profile",

@@ -123,7 +123,9 @@ export const PROPOSAL_TARGET_KINDS = ["profile", "application", "job_offer", "jo
  * `launches`: applying it launches an action (a Job Search, #720), « Lancer » on its card, followed in AI Activity and
  * ended with Stop: never undone. `runs` (#721): the AI action it launches runs in the Candidate's own request, as its page
  * runs it (a Tailored CV proposed, a Cover Letter or an Outreach Message drafted). `replaces`: what applying it replaces,
- * said on its card, which asks the Candidate to confirm it first.
+ * said on its card, which asks the Candidate to confirm it first. `text`: a text it proposes in full beside its other
+ * changes (ADR-0114: an Interview's note), the `value` field `name` holds: its card shows it whole, the current one folded
+ * under « Texte actuel » (nothing folded when there is none).
  */
 export interface ProposedChange {
   target: { kind: ProposalTargetKind; id: string; name: string; href: string };
@@ -131,6 +133,7 @@ export interface ProposedChange {
   before: string;
   after: string;
   also?: { what: string; before: string; after: string }[];
+  text?: { name: string; what: string; before: string; after: string };
   value: Record<string, string>;
   fields: ProposalField[];
   version: string;
@@ -188,6 +191,7 @@ export const proposedChangeSchema: z.ZodType<ProposedChange> = z.object({
   before: z.string(),
   after: z.string(),
   also: z.array(z.object({ what: z.string(), before: z.string(), after: z.string() })).optional(),
+  text: z.object({ name: z.string(), what: z.string(), before: z.string(), after: z.string() }).optional(),
   value: z.record(z.string(), z.string()),
   fields: z.array(
     z.object({

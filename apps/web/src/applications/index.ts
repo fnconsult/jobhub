@@ -370,9 +370,12 @@ export function interviewPlaceParts(place: string): InterviewPlacePart[] {
 /** A form's empty field ("") means nothing was said. */
 const blankAsNull = (value: unknown) => (value === "" ? null : value);
 
+/** The longest note an Interview keeps, in characters. */
+export const INTERVIEW_NOTE_MAX_LENGTH = 500;
+
 const interviewFields = {
   scheduledAt: frenchDateTime,
-  note: z.string().trim().max(500),
+  note: z.string().trim().max(INTERVIEW_NOTE_MAX_LENGTH),
   /** Up to a day. */
   durationMinutes: z.preprocess(blankAsNull, z.number().int().positive().max(1440).nullable()),
   format: z.preprocess(blankAsNull, z.enum(INTERVIEW_FORMATS).nullable()),

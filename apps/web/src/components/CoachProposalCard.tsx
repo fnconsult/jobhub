@@ -221,6 +221,9 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
   // A draft's new text (ADR-0109): its form has the text as a textarea, shown in full rather than as « before → after ».
   const textField = change.fields.find((field) => field.type === "textarea" && field.name === "text");
   const shownText = textField && card.edited && card.status !== "pending" ? (card.edited[textField.name] ?? change.after) : change.after;
+  // A text proposed in full beside the other changes (ADR-0114: an Interview's note), as the Candidate applied it.
+  const fullText = change.text;
+  const shownFullText = fullText && card.edited && card.status !== "pending" ? (card.edited[fullText.name] ?? fullText.after) : fullText?.after;
   return (
     <article className="ds-card coach-proposal-card" aria-labelledby={titleId} data-status={card.status}>
       <p className="coach-proposal-card__by">{t("coachProposals.by")}</p>
@@ -254,11 +257,26 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
             </li>
           ))}
         </ul>
+      ) : fullText && change.before === change.after ? (
+        // Only its text changes: the object named as it is (the Interview), the text below.
+        <p className="coach-proposal-card__change">{change.after}</p>
       ) : (
         <p className="coach-proposal-card__change">
           <BeforeAfter before={change.before} after={shownAfter} />
         </p>
       )}
+      {fullText ? (
+        <div className="coach-proposal-card__texts">
+          <p className="coach-proposal-card__what">{t("coachProposals.changeOf", { what: fullText.what })}</p>
+          <p className="coach-proposal-card__text">{shownFullText}</p>
+          {fullText.before ? (
+            <details className="coach-proposal-card__current">
+              <summary>{t("coachProposals.currentText")}</summary>
+              <p className="coach-proposal-card__text">{fullText.before}</p>
+            </details>
+          ) : null}
+        </div>
+      ) : null}
       {change.quota && !change.quota.prompt ? <p className="hint">{change.quota.label}</p> : null}
       {card.status !== "pending" && card.accepted ? <p className="hint">{t("coachProposals.review.saved", { count: card.accepted.length })}</p> : null}
       {/* Its decision, said politely as it is made (ADR-0009). */}
@@ -386,6 +404,8 @@ function BeforeAfter({ before, after }: { before: string; after: string }) {
 /** What an applied card set, when the Candidate edited it before applying: the label of each field's value. */
 function afterEdited(card: Card): string {
   const labels = card.change.fields.flatMap((field) => {
+    // Its full text is shown apart, whole (ADR-0114).
+    if (field.name === card.change.text?.name) return [];
     const value = card.edited?.[field.name];
     if (value === undefined || value === "") return [];
     return [field.options?.find((option) => option.value === value)?.label ?? value];

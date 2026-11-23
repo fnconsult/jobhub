@@ -16,7 +16,7 @@ import { createJobOffers, migrateJobOffers } from "../job-offers";
 import { migrateJobSearches } from "../job-searches";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import { AGENDA_ACTIONS, agendaCoachActions } from "./agenda";
-import type { CoachAction, CoachActionResult, CoachProposal } from "./index";
+import { createCoachActions, type CoachAction, type CoachActionResult, type CoachProposal } from "./index";
 
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -34,25 +34,41 @@ const masterCv: MasterCvContent = {
 describe("the Agenda's Coach Actions, as declared (#718)", () => {
   const catalog = agendaCoachActions({} as Applications);
 
-  it("adds, moves and cancels an Interview: three proposing actions of the Agenda group, none copying text, none deleting", () => {
-    expect(catalog.map((action) => [action.name, action.group, action.kind, action.copiesText])).toEqual([
-      [AGENDA_ACTIONS.add, "agenda", "propose", false],
-      [AGENDA_ACTIONS.change, "agenda", "propose", false],
-      [AGENDA_ACTIONS.cancel, "agenda", "propose", false],
+  it("adds, moves, annotates and cancels an Interview: three proposing actions of the Agenda group, none deleting; the two that take a note copy text the Candidate applies themselves (ADR-0114)", () => {
+    expect(catalog.map((action) => [action.name, action.group, action.kind, action.copiesText, action.sentByCandidate ?? false])).toEqual([
+      [AGENDA_ACTIONS.add, "agenda", "propose", true, true],
+      [AGENDA_ACTIONS.change, "agenda", "propose", true, true],
+      [AGENDA_ACTIONS.cancel, "agenda", "propose", false, false],
     ]);
     expect(catalog.every((action) => action.apply && action.undo)).toBe(true);
     expect(catalog.some((action) => /delete|supprim|remove/i.test(action.name))).toBe(false);
   });
 
-  it("asks the model for an absolute date and time in French time, a relative one resolved from the date of the day, and never for a note", () => {
+  it("asks the model for an absolute date and time in French time, a relative one resolved from the date of the day, and a note when the Candidate wants one (ADR-0114)", () => {
     const add = catalog.find((action) => action.name === AGENDA_ACTIONS.add)!;
+    const change = catalog.find((action) => action.name === AGENDA_ACTIONS.change)!;
 
     expect(add.description).toMatch(/date du jour/);
     expect(add.description).toMatch(/heure de Paris/);
-    expect(Object.keys(add.schema.shape)).toEqual(["applicationId", "scheduledAt", "durationMinutes", "format", "place"]);
+    expect(Object.keys(add.schema.shape)).toEqual(["applicationId", "scheduledAt", "durationMinutes", "format", "place", "note"]);
     expect(add.schema.safeParse({ applicationId: "a1", scheduledAt: "jeudi 14 h" }).success).toBe(false);
     expect(add.schema.safeParse({ applicationId: "a1", scheduledAt: "2026-11-12T14:00" }).success).toBe(true);
-    expect(catalog.find((action) => action.name === AGENDA_ACTIONS.change)!.description).toMatch(/Supprimer/);
+    expect(change.description).toMatch(/Supprimer/);
+    // A note alone is a change: « note les questions qu'on m'a posées ».
+    expect(change.schema.safeParse({ applicationId: "a1", interviewId: "i1", note: "Questions sur la consolidation" }).success).toBe(true);
+    expect(change.schema.safeParse({ applicationId: "a1", interviewId: "i1", note: "x".repeat(501) }).success).toBe(false);
+    // The rule « Ne propose pas de note » is gone; every Interview can be changed or cancelled, whatever its date.
+    for (const action of catalog) expect(action.description).not.toMatch(/Ne propose pas de note/);
+    expect(change.description).toMatch(/passé/);
+    expect(catalog.find((action) => action.name === AGENDA_ACTIONS.cancel)!.description).toMatch(/passé/);
+  });
+
+  it("stays offered with an Application In view, or once text the Candidate did not write was read (`sentByCandidate`)", async () => {
+    const actions = createCoachActions({ catalog, settings: async () => ({ enabled: true, maxRounds: 2 }), externalApis: { record: () => {} } });
+
+    const reply = await actions.forReply("marie", { recorder: { step: async () => undefined, site: () => {} } as never, untrustedInView: true });
+
+    expect(reply!.tools.map((tool) => tool.name)).toEqual([AGENDA_ACTIONS.add, AGENDA_ACTIONS.change, AGENDA_ACTIONS.cancel]);
   });
 });
 
@@ -157,15 +173,25 @@ describe.skipIf(!connectionString)("the Agenda's Coach Actions, applied (#718, n
         before: "Aucun",
         after: "jeudi 12 novembre 2026 à 14:00 · 45 min · Visio · https://meet.example.com/abc",
         also: [{ what: "Statut de la candidature", before: "Postulée", after: "Entretien" }],
-        value: { scheduledAt: "2026-11-12T14:00", durationMinutes: "45", format: "video", place: "https://meet.example.com/abc" },
+        value: { scheduledAt: "2026-11-12T14:00", durationMinutes: "45", format: "video", place: "https://meet.example.com/abc", note: "" },
       });
       expect(card.change.fields.map((field) => [field.name, field.type])).toEqual([
         ["scheduledAt", "datetime"],
         ["durationMinutes", "number"],
         ["format", "select"],
         ["place", "text"],
+        ["note", "textarea"],
       ]);
+      expect(card.change).not.toHaveProperty("text");
       expect(await application()).toMatchObject({ status: "applied", interviews: [] });
+    });
+
+    it("with a note: the card shows it in full, nothing folded (there is no note yet); « Appliquer » adds the Interview with it (ADR-0114)", async () => {
+      const card = await cardFor(AGENDA_ACTIONS.add, { ...args(), note: "Préparer deux exemples de clôture en J+5." });
+
+      expect(card.change).toMatchObject({ value: { note: "Préparer deux exemples de clôture en J+5." }, text: { name: "note", what: "Note de l'entretien", before: "", after: "Préparer deux exemples de clôture en J+5." } });
+      await actionCards.decide(marie, card.id, "accept");
+      expect((await application()).interviews).toMatchObject([{ note: "Préparer deux exemples de clôture en J+5." }]);
     });
 
     it("on an Application at « Entretien »: one change only", async () => {
@@ -309,6 +335,65 @@ describe.skipIf(!connectionString)("the Agenda's Coach Actions, applied (#718, n
 
       expect(await actionCards.decide(marie, card.id, "accept")).toEqual({ ok: false, error: "conflict" });
       expect((await application()).interviews[0]).toMatchObject({ scheduledAt: new Date("2026-11-12T13:00:00.000Z"), place: "Blagnac" });
+    });
+  });
+
+  describe(`${AGENDA_ACTIONS.change}: an Interview's note (ADR-0114)`, () => {
+    it("« note les questions qu'on m'a posées » after a past Interview: the note in full, the current one folded, the Interview named; « Appliquer » sets it, « Annuler » puts the one before back", async () => {
+      const interviewId = await enteredInterview("2026-11-02T10:00");
+      await applications.editInterview(marie, applicationId, interviewId, { note: "Avec la DAF" });
+      const note = "Questions posées : la clôture en J+5, la consolidation IFRS, mon management d'une équipe de 6.";
+
+      const card = await cardFor(AGENDA_ACTIONS.change, { applicationId, interviewId, note });
+
+      expect(card.change).toMatchObject({
+        target: { kind: "application", id: applicationId, href: `/candidatures/${applicationId}/entretiens` },
+        what: "Entretien",
+        before: "lundi 2 novembre 2026 à 10:00 · 60 min · Sur place · Siège, Toulouse",
+        after: "lundi 2 novembre 2026 à 10:00 · 60 min · Sur place · Siège, Toulouse",
+        text: { name: "note", what: "Note de l'entretien", before: "Avec la DAF", after: note },
+        value: { interviewId, note },
+      });
+      expect(card.change.fields.find((field) => field.name === "note")).toMatchObject({ type: "textarea" });
+
+      await actionCards.decide(marie, card.id, "accept");
+      expect((await application()).interviews).toMatchObject([{ id: interviewId, note, scheduledAt: new Date("2026-11-02T09:00:00.000Z"), origin: origin(card.id) }]);
+
+      await actionCards.undo(marie, card.id);
+      expect((await application()).interviews).toMatchObject([{ id: interviewId, note: "Avec la DAF" }]);
+    });
+
+    it("applies the note the Candidate edited in « Modifier avant d'appliquer »", async () => {
+      const interviewId = await enteredInterview();
+      const card = await cardFor(AGENDA_ACTIONS.change, { applicationId, interviewId, note: "Avec la DRH" });
+
+      await actionCards.decide(marie, card.id, "accept", { edited: { ...card.change.value, note: "Avec la DRH et le DAF" } });
+
+      expect((await application()).interviews).toMatchObject([{ note: "Avec la DRH et le DAF" }]);
+    });
+
+    it("refuses « Appliquer » as a conflict once the note changed on the page since the proposal", async () => {
+      const interviewId = await enteredInterview();
+      const card = await cardFor(AGENDA_ACTIONS.change, { applicationId, interviewId, note: "Avec la DRH" });
+      await applications.editInterview(marie, applicationId, interviewId, { note: "Écrit sur la page" }); // meanwhile
+
+      expect(await actionCards.decide(marie, card.id, "accept")).toEqual({ ok: false, error: "conflict" });
+      expect((await application()).interviews).toMatchObject([{ note: "Écrit sur la page" }]);
+    });
+
+    it("finds nothing to propose when the note is the one the Interview has", async () => {
+      const interviewId = await enteredInterview();
+      await applications.editInterview(marie, applicationId, interviewId, { note: "Avec la DRH" });
+
+      expect(await run(AGENDA_ACTIONS.change, { applicationId, interviewId, note: "Avec la DRH" })).toMatchObject({ ok: true, proposes: false });
+    });
+
+    it("moves or cancels a past Interview too, whatever its date", async () => {
+      const interviewId = await enteredInterview("2026-11-02T10:00");
+
+      expect(await run(AGENDA_ACTIONS.change, { applicationId, interviewId, scheduledAt: "2026-11-03T10:00" })).toMatchObject({ ok: true });
+      const card = await cardFor(AGENDA_ACTIONS.cancel, { applicationId, interviewId });
+      expect(await actionCards.decide(marie, card.id, "accept")).toMatchObject({ ok: true });
     });
   });
 

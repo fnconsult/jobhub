@@ -3,7 +3,7 @@
  * its page's route calls, with its Eval Cases: the reads of every group (#714), the Agenda's proposals (#718), the
  * Candidatures proposals (#716), the Profil group's proposals (#719), the Recherches d'offres and Job Digests proposals
  * (#720), the Documents proposals (#721), the drafts reworked from the conversation (ADR-0109) and the versions of the
- * documents, read and restored (#1079).
+ * documents, read and restored (#1079), and the Tailored CV read in full and reworked change by change (#1097, ADR-0113).
  *
  *   shippedCoachActions(candidateObjects(sources), domain)   // the app's, over the Candidate's objects
  *   shippedCoachActions(NO_OBJECTS)                          // on no one's data: every read finds nothing, nothing to propose on
@@ -14,6 +14,7 @@ import { applicationCoachActions, type ApplicationActionSources } from "./applic
 import { documentCoachActions, type DocumentActionSources } from "./documents";
 import { draftCoachActions, type DraftActionSources } from "./drafts";
 import { documentVersionCoachActions, type DocumentVersionActionSources } from "./versions";
+import { tailoredCvCoachActions, type TailoredCvActionSources } from "./tailored-cv";
 import { coachActionCatalog, type CoachAction } from "./index";
 import { profileCoachActions, type ProfileActionSources } from "./profile";
 import { searchCoachActions, type SearchActionSources } from "./job-searches";
@@ -26,12 +27,15 @@ export type CoachActionDomain = Omit<ApplicationActionSources, "applications" | 
     profiles: ApplicationActionSources["profiles"] & SearchActionSources["profiles"];
     /** The Profil group's: Search Criteria, Master CV, archive and restore, Coach Memory. */
     profile: ProfileActionSources;
-  } & Pick<DocumentActionSources, "tailoredCvs"> & {
+  } & {
+    /** The Tailored CV: proposed (#721), read in full and reworked from the conversation (ADR-0113). */
+    tailoredCvs: DocumentActionSources["tailoredCvs"] & TailoredCvActionSources["tailoredCvs"];
+  } & {
     /** The Documents group's: the drafts launched (#721), and reworked from the conversation (ADR-0109). */
     tailoredDocuments: DocumentActionSources["tailoredDocuments"] & DraftActionSources["tailoredDocuments"];
     followUps: ApplicationActionSources["followUps"] & DraftActionSources["followUps"];
     /** The versions of an Application's documents, read and restored (#1079). */
-    tailoredDocumentVersions: DocumentVersionActionSources["tailoredDocumentVersions"];
+    tailoredDocumentVersions: DocumentVersionActionSources["tailoredDocumentVersions"] & TailoredCvActionSources["tailoredDocumentVersions"];
   };
 
 export function shippedCoachActions(objects: CoachObjectReader, domain: CoachActionDomain = NO_DOMAIN): readonly CoachAction[] {
@@ -46,6 +50,7 @@ export function shippedCoachActions(objects: CoachObjectReader, domain: CoachAct
     ...documentCoachActions(domain),
     ...draftCoachActions(domain),
     ...documentVersionCoachActions(domain),
+    ...tailoredCvCoachActions(domain),
   ]);
 }
 
@@ -88,7 +93,13 @@ export const NO_DOMAIN: CoachActionDomain = {
     get: async () => null,
   },
   jobSearchQuota: async () => ({ used: 0, limit: 0, refusal: null }),
-  tailoredCvs: { get: async () => null },
+  tailoredCvs: {
+    get: async () => null,
+    revisable: async () => null,
+    reviseSaved: async () => ({ ok: false, error: "not_found" }),
+    reviseProposal: async () => ({ ok: false, error: "not_found" }),
+    answerAll: async () => ({ ok: false, error: "not_found" }),
+  },
   tailoredDocuments: { get: async () => null, rework: async () => ({ ok: false, error: "not_found" }), unrework: async () => ({ ok: false, error: "not_found" }) },
   tailoredDocumentVersions: { list: async () => null, restore: async () => ({ ok: false, error: "not_found" }) },
   followUps: {

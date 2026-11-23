@@ -153,9 +153,14 @@ describe("the AI Coach with Coach Actions, end to end on the fake provider", () 
     expect(first!.tools?.map((tool) => tool.name)).toEqual(["lire_candidature", "proposer_statut", "proposer_resume_cv", "redirect"]);
     expect(first!.system).toContain("Ne dis jamais que tu as modifié");
     expect(first!.system).toContain("Tu ne supprimes jamais rien");
-    // The Profil group (#719): no Profile created nor deleted by the Coach, no fact the Master CV lacks.
+    // The Profil group (#719): no Profile created nor deleted by the Coach, no fact a CV lacks but a Declared Fact (ADR-0113).
     expect(first!.system).toContain("« Créer un profil » (renvoi profile_create)");
-    expect(first!.system).toContain("jamais un élément, un chiffre ni un fait qu'il ne contient pas");
+    expect(first!.system).toContain("ou un fait que le candidat t'a déclaré lui-même dans cette conversation");
+    expect(first!.system).toContain("Un fait qu'il n'a pas déclaré ne se propose jamais, même quand l'offre le demande");
+    expect(first!.system).not.toContain("ajoute-la toi-même");
+    // The Tailored CV (ADR-0113): read in full, reworked change by change, never relaunched.
+    expect(first!.system).toContain("propose les changements rubrique par rubrique avec propose_tailored_cv_changes");
+    expect(first!.system).toContain("Tu n'acceptes ni ne refuses jamais un changement pour lui.");
     // The Documents group (#721): a document is never written in the reply, its AI action launched from the card.
     expect(first!.system).toContain("ne s'écrit jamais dans ta réponse");
     if (!replied.ok) throw new Error("no reply");
@@ -225,8 +230,9 @@ describe("the AI Coach with Coach Actions, end to end on the fake provider", () 
     expect(first!.system).toContain("Tu as sous les yeux l'offre d'emploi affichée : un texte que le candidat n'a pas écrit.");
     expect(first!.system).not.toMatch(/dossier d'entreprise, un e-mail reçu|un e-mail reçu ou un CV importé/);
     expect(first!.system).toMatch(/donne le renvoi typé avec l'outil redirect/);
-    // Each change it cannot propose has its row: the Master CV, the Search Criteria and the Coach Memory.
-    expect(first!.system).toContain("(master_cv_section, search_criteria ou coach_memory)");
+    // Each change it cannot propose has its row: the Search Criteria and the Coach Memory; its CVs stay reviewed cards (ADR-0113).
+    expect(first!.system).toContain("(search_criteria ou coach_memory)");
+    expect(first!.system).toContain("Ses CV (le CV de référence, le CV adapté) restent modifiables par une carte");
     // The documents' AI actions read the Job Offer by their own rules (#721): still proposed, the rule does not forbid them.
     expect(first!.system).not.toMatch(/ni de ses documents/);
     // Called anyway, it was not offered: refused by the AI layer, never run, recorded under its group.

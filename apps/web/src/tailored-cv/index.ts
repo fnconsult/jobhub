@@ -157,8 +157,8 @@ export interface ProposeOptions {
 
 /** What a change the AI Coach proposes from the conversation applies to (ADR-0113): the saved Tailored CV, the proposal under review. */
 export interface RevisableTailoredCv {
-  /** The saved Tailored CV and its current version (Tailored Document Versions). */
-  saved: { content: CvContent; language: DocumentLanguage; version: number } | null;
+  /** The saved Tailored CV, its current version (Tailored Document Versions) and the Master CV it was derived from. */
+  saved: { content: CvContent; language: DocumentLanguage; version: number; master: CvContent } | null;
   /**
    * The proposal under review: its revision, the AI Coach's adaptation (before any confirmed requirement), where its
    * items come from in the Master CV it was derived from (null for a proposal made before it was kept), that Master
@@ -675,7 +675,7 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
         [application.id],
       );
       const row = rows[0];
-      const saved = row?.saved ? { content: row.saved.content, language: row.saved.language, version: row.version ?? 0 } : null;
+      const saved = row?.saved ? { content: row.saved.content, language: row.saved.language, version: row.version ?? 0, master: row.saved.master } : null;
       const kept = row?.proposal;
       const proposal = kept
         ? { revision: row.revision!, language: kept.language, adapted: kept.adapted, origins: kept.origins ?? null, master: kept.master, questions: kept.questions, declared: kept.declared ?? [] }

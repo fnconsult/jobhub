@@ -76,6 +76,8 @@ const CALLS: Record<string, (world: World) => Record<string, unknown>> = {
   propose_cover_letter: (w) => ({ applicationId: w.applicationId }),
   propose_outreach_message: (w) => ({ applicationId: w.applicationId }),
   propose_document_restore: (w) => ({ applicationId: w.applicationId, document: "cover_letter", version: 1 }),
+  propose_tailored_cv_changes: (w) => ({ applicationId: w.applicationId, changes: [{ kind: "highlight", section: "skills", item: "Consolidation" }] }),
+  propose_tailored_cv_answers: (w) => ({ applicationId: w.applicationId, answers: [{ requirement: "Power BI", confirmed: true }] }),
 };
 
 const RECORDER = { step: <T>(_step: unknown, run: () => Promise<T>) => run(), site: () => {} };
@@ -113,6 +115,8 @@ describe.skipIf(!connectionString)("a Coach Action never writes: only the Candid
     const forReply = await createCoachActions({ catalog, settings: async () => ({ enabled: true, maxRounds: 2 }), externalApis: { record: () => {} } }).forReply(marie, {
       recorder: RECORDER,
       untrustedInView: false,
+      // What the Candidate said in the conversation: a Declared Fact for an answer (ADR-0113).
+      said: ["J'utilise Power BI tous les jours."],
     });
     if (!forReply) throw new Error("no Coach Action offered");
     return forReply;
@@ -188,7 +192,17 @@ describe.skipIf(!connectionString)("a Coach Action never writes: only the Candid
         get: async () => null,
       },
       jobSearchQuota: async () => ({ used: 0, limit: 5, refusal: null }),
-      tailoredCvs: { get: async () => ({ documentLanguage: "fr", proposal: null, saved: null }) },
+      // A proposal under review asking about Power BI, which the Candidate says they use (ADR-0113).
+      tailoredCvs: {
+        get: async () => ({ documentLanguage: "fr", proposal: null, saved: null }),
+        revisable: async () => ({
+          saved: null,
+          proposal: { revision: "rev-1", language: "fr", adapted: masterCv, origins: null, master: masterCv, questions: [{ requirement: "Power BI", answer: null }], declared: [] },
+        }),
+        reviseSaved: write() as never,
+        reviseProposal: write() as never,
+        answerAll: write() as never,
+      },
       tailoredDocuments: {
         // A Cover Letter drafted, for its text to be reworked (ADR-0109).
         get: async () => ({
@@ -228,6 +242,9 @@ describe.skipIf(!connectionString)("a Coach Action never writes: only the Candid
       domain.tailoredDocuments.rework,
       domain.tailoredDocuments.unrework,
       domain.tailoredDocumentVersions.restore,
+      domain.tailoredCvs.reviseSaved,
+      domain.tailoredCvs.reviseProposal,
+      domain.tailoredCvs.answerAll,
     ] as unknown as ReturnType<typeof vi.fn>[];
     // A Job Offer is within reach when one of the Candidate's objects shows it: the new one, which her Job Search found.
     const objects: CoachObjectReader = { index: async () => [], read: async (_candidateId, type, id) => (type === "job_offer" && id === world.newOfferId ? ({ text: "" } as never) : null) };

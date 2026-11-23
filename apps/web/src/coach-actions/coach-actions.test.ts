@@ -410,4 +410,25 @@ describe("what the AI Coach cannot do: one true sentence and a Typed redirect (A
     expect(refused.content).toContain("Profil Finance › CV de référence");
     expect(reply.redirect()?.href).toBe("/profils/p1/cv");
   });
+
+  it("gives the Typed redirect a refusal names, with its section, and hands each call the Candidate's own messages (ADR-0113)", async () => {
+    const heard: unknown[] = [];
+    const notDeclared = defineCoachAction({
+      ...proposeSummary,
+      name: "propose_tailored_cv_changes",
+      async run(_args: unknown, call: { said?: readonly string[] }) {
+        heard.push(call.said);
+        return { ok: false, error: "refused", reason: "« Power BI » n'est pas déclaré (not_declared).", redirect: { target: "master_cv_section", section: "skills" } };
+      },
+    } as unknown as CoachAction);
+    const { actions, recorder } = setUp({ catalog: [notDeclared] });
+    const reply = (await actions.forReply("marie", { recorder, untrustedInView: false, focus: { kind: "profile", id: "p1" }, said: ["Ajoute les compétences de l'offre."] }))!;
+
+    const refused = await reply.runTool(run("propose_tailored_cv_changes", { summary: "x" }), {});
+
+    expect(heard).toEqual([["Ajoute les compétences de l'offre."]]);
+    expect(refused).toMatchObject({ error: true, content: expect.stringContaining("not_declared") });
+    expect(refused.content).toContain("Profil Finance › CV de référence");
+    expect(reply.redirect()).toMatchObject({ href: "/profils/p1/cv" });
+  });
 });

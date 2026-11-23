@@ -97,7 +97,7 @@ export function documentCoachActions(sources: DocumentActionSources): CoachActio
 
   const tailoredCv = defineCoachAction({
     name: DOCUMENT_ACTIONS.tailoredCv,
-    description: `Propose de préparer le CV adapté d'une candidature du candidat, quand il le demande (« adapte mon CV à cette offre ») : une proposition tirée de son CV de référence, qu'il relit changement par changement avant de l'enregistrer ; elle ne remplace jamais le CV adapté déjà enregistré, mais remplace une proposition encore en relecture (réponses comprises) : la carte le lui fait confirmer. applicationId : omis, la candidature consultée. ${languageArgument} ${NOT_IN_THE_REPLY}`,
+    description: `Propose de préparer le CV adapté d'une candidature du candidat, quand il le demande (« adapte mon CV à cette offre ») : une proposition tirée de son CV de référence, qu'il relit changement par changement avant de l'enregistrer ; elle ne remplace jamais le CV adapté déjà enregistré, mais remplace une proposition encore en relecture (réponses comprises) : la carte le lui fait confirmer. Pour retravailler un CV adapté qui existe (enregistré ou en relecture), n'utilise pas cet outil : propose ses changements avec propose_tailored_cv_changes. applicationId : omis, la candidature consultée. ${languageArgument} ${NOT_IN_THE_REPLY}`,
     schema: letterSchema,
     group: "documents",
     kind: "propose",

@@ -846,7 +846,7 @@ Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experi
       const revisable = await tailoredCvs.revisable(candidateId, applicationId);
       expect(revisable?.proposal).toMatchObject({ revision: proposed.tailoredCv.proposal.revision, adapted: { skills: ["IFRS", "SAP", "Reporting"] }, origins: { skills: [1, 2, 0] } });
       await tailoredCvs.save(candidateId, applicationId, { revision: proposed.tailoredCv.proposal.revision, accepted: allOf(proposed.tailoredCv.proposal) });
-      expect((await tailoredCvs.revisable(candidateId, applicationId))?.saved).toMatchObject({ version: 1, content: { skills: ["IFRS", "SAP", "Reporting"] } });
+      expect((await tailoredCvs.revisable(candidateId, applicationId))?.saved).toMatchObject({ version: 1, content: { skills: ["IFRS", "SAP", "Reporting"] }, master: { skills: masterCv.skills } });
       expect(await tailoredCvs.revisable("someone-else", applicationId)).toBeNull();
     });
 

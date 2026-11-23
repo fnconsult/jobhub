@@ -20,7 +20,7 @@
  *   acceptedMasterCv(master, review.edits, accepted, { declared })        // the next Master CV Version's content
  */
 import { jobOfferLanguage, normalise, textLanguage, type DocumentLanguage, type MasterCvContent } from "@jobhub/shared";
-import { cvChanges, flagOfferWording, markDeclared, stemOf, withChanges, wordsOf, type CvChange, type CvOrigins } from "../tailored-cv/changes";
+import { cvChanges, flagOfferWording, markDeclared, stemOf, withChangesTraced, wordsOf, type CvChange, type CvOrigins } from "../tailored-cv/changes";
 
 export const MASTER_CV_EDIT_KINDS = ["rephrase", "cut", "reorder", "highlight", "add"] as const;
 export const MASTER_CV_EDIT_SECTIONS = ["headline", "summary", "experience", "education", "skills", "languages"] as const;
@@ -319,7 +319,15 @@ export function masterCvReview(master: MasterCvContent, edits: readonly MasterCv
  * `options`: as the review was made (`declared: true` once its Declared Facts were checked, when the card was made).
  */
 export function acceptedMasterCv(master: MasterCvContent, edits: readonly MasterCvEdit[], accepted: Iterable<string>, options: CvEditOptions = {}): MasterCvContent {
-  const proposed = proposedOf(master, edits, options);
-  if ("ok" in proposed) return master;
-  return withChanges(master, proposed.content, accepted, proposed.origins);
+  return acceptedCvEdits(master, edits, accepted, options)?.content ?? master;
+}
+
+/**
+ * As `acceptedMasterCv`, for any CV edited (a Tailored CV, ADR-0113), with where each item of its list sections comes from
+ * in it (-1: added); null when the edits no longer read.
+ */
+export function acceptedCvEdits(cv: MasterCvContent, edits: readonly MasterCvEdit[], accepted: Iterable<string>, options: CvEditOptions = {}): { content: MasterCvContent; origins: Required<CvOrigins> } | null {
+  const proposed = proposedOf(cv, edits, options);
+  if ("ok" in proposed) return null;
+  return withChangesTraced(cv, proposed.content, accepted, proposed.origins);
 }

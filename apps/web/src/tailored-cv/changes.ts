@@ -169,8 +169,11 @@ function listChanges<T>({ section, key, label, text }: ListSection<T>, master: T
   return changes;
 }
 
-/** A list section with only the `accepted` changes: a rejected one keeps the Master CV's item, place or absence. */
-function listWithChanges<T>({ section, key, label }: ListSection<T>, master: T[], tailored: T[], accepted: Set<string>, origins?: number[]): T[] {
+/**
+ * A list section with only the `accepted` changes: a rejected one keeps the Master CV's item, place or absence. Each item
+ * with its index in the Master CV (-1: added).
+ */
+function listWithChanges<T>({ section, key, label }: ListSection<T>, master: T[], tailored: T[], accepted: Set<string>, origins?: number[]): { origin: number; item: T }[] {
   const from = align(master, tailored, key, origins);
   const items: { origin: number; item: T }[] = [];
   tailored.forEach((item, index) => {
@@ -191,7 +194,7 @@ function listWithChanges<T>({ section, key, label }: ListSection<T>, master: T[]
     const first = items.findIndex((entry) => entry.origin >= 0);
     items.splice(before >= 0 ? before + 1 : Math.max(first, 0), 0, { origin, item });
   });
-  return items.map((entry) => entry.item);
+  return items;
 }
 
 /** Every change of `tailored` against `master`, in the order of the CV's sections. `origins`: see CvOrigins. */
@@ -212,16 +215,30 @@ export function cvChanges(master: CvContent, tailored: CvContent, origins?: CvOr
  * every other one keeps what the Master CV says (ADR-0006). An id that names no change changes nothing.
  */
 export function withChanges(master: CvContent, tailored: CvContent, accepted: Iterable<string>, origins?: CvOrigins): CvContent {
+  return withChangesTraced(master, tailored, accepted, origins).content;
+}
+
+/** As `withChanges`, with where each item of its list sections comes from in `master` (-1: added). */
+export function withChangesTraced(master: CvContent, tailored: CvContent, accepted: Iterable<string>, origins?: CvOrigins): { content: CvContent; origins: Required<CvOrigins> } {
   const ok = new Set(accepted);
   const rephrased = (section: "headline" | "summary") => (ok.has(changeId.rephrased(section)) ? tailored[section] : master[section]);
+  const experience = listWithChanges(LIST_SECTIONS.experience, master.experience, tailored.experience, ok, origins?.experience);
+  const education = listWithChanges(LIST_SECTIONS.education, master.education, tailored.education, ok, origins?.education);
+  const skills = listWithChanges(LIST_SECTIONS.skills, master.skills, tailored.skills, ok, origins?.skills);
+  const languages = listWithChanges(LIST_SECTIONS.languages, master.languages, tailored.languages, ok, origins?.languages);
+  const items = <T>(entries: { item: T }[]) => entries.map((entry) => entry.item);
+  const from = (entries: { origin: number }[]) => entries.map((entry) => entry.origin);
   return {
-    ...tailored,
-    headline: rephrased("headline"),
-    summary: rephrased("summary"),
-    experience: listWithChanges(LIST_SECTIONS.experience, master.experience, tailored.experience, ok, origins?.experience),
-    education: listWithChanges(LIST_SECTIONS.education, master.education, tailored.education, ok, origins?.education),
-    skills: listWithChanges(LIST_SECTIONS.skills, master.skills, tailored.skills, ok, origins?.skills),
-    languages: listWithChanges(LIST_SECTIONS.languages, master.languages, tailored.languages, ok, origins?.languages),
+    content: {
+      ...tailored,
+      headline: rephrased("headline"),
+      summary: rephrased("summary"),
+      experience: items(experience),
+      education: items(education),
+      skills: items(skills),
+      languages: items(languages),
+    },
+    origins: { experience: from(experience), education: from(education), skills: from(skills), languages: from(languages) },
   };
 }
 

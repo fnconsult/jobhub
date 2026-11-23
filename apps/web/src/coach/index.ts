@@ -233,7 +233,17 @@ const SOURCES_MAX_TOKENS = 800;
 
 const inputSchema = z.object({
   messages: z
-    .array(z.object({ from: z.enum(["candidate", "coach"]), text: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH) }))
+    .array(
+      z.object({
+        from: z.enum(["candidate", "coach"]),
+        text: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH),
+        /**
+         * A Human Coach's Session Report (ADR-0098), sent on the Candidate's side as a document to read: never the
+         * Candidate's own words, so never where a Declared Fact is found (ADR-0113).
+         */
+        sessionReport: z.literal(true).optional(),
+      }),
+    )
     // Any length: Coach Conversations send their window of the conversation, which the reply trims to the Plan's own.
     .min(1)
     .refine((messages) => messages.at(-1)?.from === "candidate"),
@@ -391,10 +401,13 @@ export function createCoach(deps: CoachDeps): Coach {
       const stopped = () => ({ ok: false as const, error: "stopped" as const, messagePassed });
       if (signal?.aborted) return stopped();
       const { focus } = parsed.data;
-      const messages = recentConversation(parsed.data.messages, limits.coachContextMessages).map((message) => ({
+      const recent = recentConversation(parsed.data.messages, limits.coachContextMessages);
+      const messages = recent.map((message) => ({
         role: message.from === "candidate" ? ("user" as const) : ("assistant" as const),
         content: message.text,
       }));
+      // Where a Declared Fact is checked (ADR-0113): what the Candidate wrote, never a Human Coach's Session Report.
+      const said = recent.filter((message) => message.from === "candidate" && message.sessionReport !== true).map((message) => message.text);
       // The reply's steps, each AI call through it: what is kept with the reply as its Provenance.
       const recorder = createProvenanceRecorder(deps.ai, { ...(signal ? { signal } : {}), ...(onEvent ? { onEvent } : {}) });
       try {
@@ -483,8 +496,7 @@ export function createCoach(deps: CoachDeps): Coach {
                 language: options.language ?? "fr",
                 ...(focus ? { focus } : {}),
                 ...(guard ? { guard } : {}),
-                // Where a Declared Fact is checked (ADR-0113): the Candidate's own messages, as the conversation keeps them.
-                said: messages.filter((message) => message.role === "user").map((message) => message.content),
+                said,
               })
             : null;
           prepared ??= await prepare(offered?.readRoom ?? 0);

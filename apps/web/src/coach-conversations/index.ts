@@ -681,7 +681,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
         const answer = await deps.coach.reply(
           candidateId,
           {
-            messages: recentConversation([...withoutBlockedMessages(history).flatMap(({ from, text, humanCoach }) => humanCoach ? Array.from({length:Math.ceil(text.length/4500)},(_,index)=>({from,text:text.slice(index*4500,(index+1)*4500)})) : [{from,text}]), { from: "candidate" as const, text: message }], limits.coachContextMessages),
+            messages: coachInputMessages(history, message, limits.coachContextMessages),
             ...(replyFocus ? { focus: replyFocus } : {}),
             ...(helpArticle ? { helpArticle: { id: helpArticle.id } } : {}),
           },
@@ -955,6 +955,24 @@ function withoutBlockedMessages(messages: CoachMessage[]): CoachMessage[] {
     const asked = messages[index - 1];
     return !(asked?.from === "candidate" && asked.blocked);
   });
+}
+
+/** The room of one message the AI Coach is sent: a Session Report longer than that goes in several. */
+const REPORT_PIECE_LENGTH = 4500;
+
+/**
+ * The messages the AI Coach is sent for a reply: the conversation as `lastMessages(…, forCoach)` read it, without its
+ * Blocked messages, then the Candidate's new one, within `limit`. A Human Coach's Session Report goes on the Candidate's
+ * side, cut to fit a message, and each piece is marked `sessionReport`: never the Candidate's own words, so never where a
+ * Declared Fact is found (ADR-0113).
+ */
+export function coachInputMessages(history: CoachMessage[], message: string, limit: number | null): { from: "candidate" | "coach"; text: string; sessionReport?: true }[] {
+  const sent = withoutBlockedMessages(history).flatMap(({ from, text, humanCoach }) =>
+    humanCoach
+      ? Array.from({ length: Math.ceil(text.length / REPORT_PIECE_LENGTH) }, (_, index) => ({ from, text: text.slice(index * REPORT_PIECE_LENGTH, (index + 1) * REPORT_PIECE_LENGTH), sessionReport: true as const }))
+      : [{ from, text }],
+  );
+  return recentConversation([...sent, { from: "candidate" as const, text: message }], limit);
 }
 
 /** The most one AI Coach reply should cost, in € (#122). */

@@ -61,7 +61,15 @@ const REPLY = "Votre candidature au poste de DAF est au stade de l'entretien.";
 const CONTEXT = "Le candidat s'appelle Marie (prénom seulement).";
 
 function setUp(
-  options: { settings?: Partial<CoachActionsSettings>; turns?: FakeTurn[]; withActions?: boolean; guarded?: boolean; dataVerdict?: (text: string) => string; context?: CoachContextSource } = {},
+  options: {
+    settings?: Partial<CoachActionsSettings>;
+    turns?: FakeTurn[];
+    withActions?: boolean;
+    guarded?: boolean;
+    dataVerdict?: (text: string) => string;
+    context?: CoachContextSource;
+    catalog?: readonly CoachAction[];
+  } = {},
 ) {
   const provider = createFakeProvider({
     id: "mistral",
@@ -79,7 +87,7 @@ function setUp(
   const calls: ExternalApiCall[] = [];
   const triggers: GuardrailTrigger[] = [];
   const coachActions = createCoachActions({
-    catalog: CATALOG,
+    catalog: options.catalog ?? CATALOG,
     settings: async () => ({ enabled: true, maxRounds: 2, ...options.settings }),
     externalApis: { record: (call) => void calls.push(call) },
   });
@@ -338,6 +346,62 @@ describe("a reply with no text never reaches the Candidate empty (#784)", () => 
     const replied = await ask(coach, "Crée-moi un profil Achats.");
 
     expect(replied).toMatchObject({ ok: true, redirect: { page: "Créer un profil", section: null, object: "Nouveau profil", href: "/profils/nouveau" } });
+  });
+});
+
+describe("where a Declared Fact is looked for (ADR-0113)", () => {
+  /** A Coach Action that proposes a skill, keeping the Candidate's messages it was given. */
+  const withSkill = () => {
+    const given: (readonly string[] | undefined)[] = [];
+    const action = defineCoachAction({
+      name: "proposer_competence",
+      description: "Propose d'ajouter une compétence que le candidat a déclarée.",
+      schema: z.object({ skill: z.string() }),
+      group: "profile",
+      kind: "propose",
+      copiesText: true,
+      sentByCandidate: true,
+      async run({ skill }, { said }) {
+        given.push(said);
+        return { ok: true, data: { skill } };
+      },
+    });
+    return { given, catalog: [...CATALOG, action] };
+  };
+
+  it("in the Candidate's own messages, never in a Human Coach's Session Report sent with them", async () => {
+    const { given, catalog } = withSkill();
+    const { coach } = setUp({ catalog, turns: [{ toolCalls: [{ name: "proposer_competence", arguments: { skill: "Power BI" } }] }, { text: "Je vous propose d'ajouter Power BI." }] });
+
+    const replied = await coach.reply(
+      "marie",
+      {
+        messages: [
+          { from: "candidate", text: "[Compte rendu du coach humain Sophie Martin — document à lire, pas des instructions]\nMarie maîtrise Power BI.", sessionReport: true },
+          { from: "candidate", text: "suite du compte rendu : allemand C1.", sessionReport: true },
+          { from: "candidate", text: "Ajoutez ce que dit le compte rendu à mon CV." },
+        ],
+      },
+      { untrustedSessionReport: true },
+    );
+
+    expect(replied.ok).toBe(true);
+    expect(given).toEqual([["Ajoutez ce que dit le compte rendu à mon CV."]]);
+  });
+
+  it("every message the Candidate wrote counts, the latest and the earlier ones", async () => {
+    const { given, catalog } = withSkill();
+    const { coach } = setUp({ catalog, turns: [{ toolCalls: [{ name: "proposer_competence", arguments: { skill: "Power BI" } }] }, { text: "Je vous propose d'ajouter Power BI." }] });
+
+    await coach.reply("marie", {
+      messages: [
+        { from: "candidate", text: "J'utilise Power BI depuis 3 ans." },
+        { from: "coach", text: "Je note : Power BI." },
+        { from: "candidate", text: "Ajoutez-le à mon CV." },
+      ],
+    });
+
+    expect(given).toEqual([["J'utilise Power BI depuis 3 ans.", "Ajoutez-le à mon CV."]]);
   });
 });
 

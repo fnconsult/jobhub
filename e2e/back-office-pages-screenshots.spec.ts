@@ -98,6 +98,27 @@ async function recordExtensionEvents() {
 /** What a page needs written just before it is shown. */
 const PREPARE: Partial<Record<string, () => Promise<void>>> = { "activite-extension": recordExtensionEvents };
 
+/**
+ * Sets the month, year and day of each element's text to one fixed date, so the line takes the same room whatever day the
+ * spec runs (docs/agents/screenshot-baselines.md): « novembre 2026, au 23 » and « 23 nov. » both become 15 January 2026's.
+ */
+async function fixDates(page: Page, selectors: readonly string[]) {
+  for (const selector of selectors) {
+    await page.locator(selector).evaluateAll((elements) =>
+      elements.forEach((element) => {
+        // Its text alone, so the element keeps its markup.
+        const texts = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        for (let text = texts.nextNode(); text; text = texts.nextNode()) {
+          text.textContent = (text.textContent ?? "")
+            .replace(/\p{L}+ \d{4}/gu, "janvier 2026")
+            .replace(/\b\d{1,2} \p{L}+\./gu, "15 janv.")
+            .replace(/\bau \d{1,2}\b/gu, "au 15");
+        }
+      }),
+    );
+  }
+}
+
 const PAGES = [
   {
     name: "parametres",
@@ -120,6 +141,8 @@ const PAGES = [
     ready: (page: Page) => page.getByRole("region", { name: new RegExp(`^${admin.dashboard.jobDiscovery.title}`) }),
     // The month and day, and the axes and notes that follow the days of the month.
     mask: () => [".dashboard-period", ".chart-note", ".chart-plot", ".chart-x"],
+    // A mask hides the text, not the room it takes: « 0,00 € au 23 nov. · … » wraps on a phone where « 10 nov. » did not.
+    fixedDates: [".dashboard-period", ".chart-note"],
   },
   {
     name: "activite-extension",
@@ -196,6 +219,7 @@ test.describe("the Back Office's pilot pages in the Design System (#465)", () =>
             // A side panel is shot as the window shows it; a page whole, its column drawn at once with nothing to scroll into view.
             const target: Locator = sheet ? page.locator("[data-sheet]") : page.locator("#main");
             await leaveOutRelease(page);
+            if ("fixedDates" in shot) await fixDates(page, shot.fixedDates);
             if (!sheet) await page.setViewportSize({ width, height: await page.evaluate(() => document.documentElement.scrollHeight) });
             await settled(page);
             await expect(target).toHaveScreenshot(`${themedName(`${shot.name}-${name}`, theme)}.png`, { mask: shot.mask().map((selector) => page.locator(selector)) });

@@ -33,6 +33,12 @@ const masterCv: MasterCvContent = {
   languages: [],
 };
 
+/**
+ * The only source that may name the table: the « Périmètre du coach » Guardrail's reader (ADR-0114, check 4), which reads
+ * the notes' texts so a reply that repeats one is refused. They are never sent to any model, never kept.
+ */
+const GUARDRAIL_READERS = ["private-texts.ts"];
+
 const PRIVATE_NOTE = "Note privée : Marie hésite à quitter Lyon, ne pas lui en parler.";
 
 describe("the AI Coach's code never reaches Private Coach Notes (ADR-0114)", () => {
@@ -47,8 +53,21 @@ describe("the AI Coach's code never reaches Private Coach Notes (ADR-0114)", () 
     expect(sources.length).toBeGreaterThan(10);
     for (const { file, text } of sources) {
       expect([file, /coach-space\/workspace/.test(text)]).toEqual([file, false]);
-      expect([file, /private_coach_note/.test(text)]).toEqual([file, false]);
+      expect([file, /private_coach_note/.test(text)]).toEqual([file, GUARDRAIL_READERS.includes(file)]);
     }
+  });
+
+  it("the one file that reads them is the « Périmètre du coach » Guardrail's, wired only by the server as `privateTexts`, never by a Coach Action nor the context", () => {
+    const directories = [join(__dirname), join(__dirname, "../coach")];
+    const importers = directories.flatMap((directory) =>
+      readdirSync(directory)
+        .filter((file) => file.endsWith(".ts") && !file.endsWith(".test.ts"))
+        .filter((file) => /from "(\.\.\/coach\/|\.\/)private-texts"/.test(readFileSync(join(directory, file), "utf8")))
+        .map((file) => join(directory, file).slice(join(__dirname, "..").length + 1)),
+    );
+
+    expect(importers).toEqual(["coach/server.ts"]);
+    expect(readFileSync(join(__dirname, "../coach/server.ts"), "utf8")).toMatch(/privateTexts: privateTextsOf\(/);
   });
 });
 

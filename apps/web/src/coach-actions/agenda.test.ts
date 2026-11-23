@@ -16,7 +16,7 @@ import { createJobOffers, migrateJobOffers } from "../job-offers";
 import { migrateJobSearches } from "../job-searches";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import { AGENDA_ACTIONS, agendaCoachActions } from "./agenda";
-import { createCoachActions, type CoachAction, type CoachActionResult, type CoachProposal } from "./index";
+import { createCoachActions, REDIRECT_ACTION, type CoachAction, type CoachActionResult, type CoachProposal } from "./index";
 
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -68,7 +68,7 @@ describe("the Agenda's Coach Actions, as declared (#718)", () => {
 
     const reply = await actions.forReply("marie", { recorder: { step: async () => undefined, site: () => {} } as never, untrustedInView: true });
 
-    expect(reply!.tools.map((tool) => tool.name)).toEqual([AGENDA_ACTIONS.add, AGENDA_ACTIONS.change, AGENDA_ACTIONS.cancel]);
+    expect(reply!.tools.map((tool) => tool.name)).toEqual([AGENDA_ACTIONS.add, AGENDA_ACTIONS.change, AGENDA_ACTIONS.cancel, REDIRECT_ACTION]);
   });
 });
 

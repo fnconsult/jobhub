@@ -10,7 +10,7 @@ import type { QuotaRefusal } from "../billing/upgrade-prompt";
 import type { CompanyDossierResult, CompanyDossierState } from "../company-dossiers";
 import type { EnrichedContactsResult, EnrichedContactsState } from "../enriched-contacts";
 import { EMPLOYER_ACTIONS, employerCoachActions, type EmployerActionSources } from "./employer";
-import { createCoachActions, type CoachAction, type CoachActionCall, type ProposalCall, type ProposedChange } from "./index";
+import { createCoachActions, REDIRECT_ACTION, type CoachAction, type CoachActionCall, type ProposalCall, type ProposedChange } from "./index";
 
 const application = (id: string, profileId: string): Application =>
   ({ id, status: "applied", jobOffer: { id: `o-${id}`, title: "Contrôleuse de gestion", employer: "Airbus" }, profile: { id: profileId, name: "DAF" }, interviews: [] }) as unknown as Application;
@@ -147,7 +147,7 @@ describe("the employer's Coach Actions (ADR-0114)", () => {
 
     const offered = await actions.forReply("marie", { recorder: { step: async () => undefined as never, site: () => {} }, untrustedInView: true });
 
-    expect(offered?.tools.map((tool) => tool.name)).toEqual(Object.values(EMPLOYER_ACTIONS));
+    expect(offered?.tools.map((tool) => tool.name)).toEqual([...Object.values(EMPLOYER_ACTIONS), REDIRECT_ACTION]);
   });
 
   describe("propose_company_dossier_rebuild: a card « Mettre à jour »", () => {

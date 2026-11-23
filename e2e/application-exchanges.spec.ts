@@ -84,8 +84,13 @@ function workerChecks(ids: string[]) {
       NODE_ENV: "development",
       DATABASE_URL: server.databaseUrl,
       JOBHUB_TARGET: "e2e",
-      AI_EMAIL_GUARDRAIL_PROVIDER: "mistral",
-      AI_GUARDRAIL_PROVIDER: "mistral",
+      // Every AI task on the fake Mistral, as e2e/email-intake-reading.spec.ts has the worker.
+      AI_SCORING_PROVIDER: "mistral",
+      AI_WRITING_PROVIDER: "mistral",
+      AI_COACHING_PROVIDER: "mistral",
+      AI_CV_PARSING_PROVIDER: "mistral",
+      AI_OFFER_ANALYSIS_PROVIDER: "mistral",
+      AI_OFFER_EMAIL_READING_PROVIDER: "mistral",
       MISTRAL_API_KEY: "e2e-mistral-key",
       NODE_OPTIONS: `--import=${path.resolve("e2e/support/fake-mistral.mjs")}`,
     },
@@ -100,7 +105,9 @@ const conversation = (page: Page) => page.getByRole("region", { name: fr.convers
 
 /** Asks the AI Coach from the Application's conversation, having it call each of `tools` in turn. */
 async function ask(page: Page, message: string, tools: { name: string; args: object }[]) {
-  const markers = tools.map(({ name, args }) => `E2E_COACH_TOOL=${name}:${JSON.stringify(args)}`).join("\n");
+  // Its reply once the tools ran: a sentence of its own, as a model writes (the fake otherwise echoes their results, the
+  // recruiter's address included, which the personal data leak Guardrail rightly blocks).
+  const markers = [...tools.map(({ name, args }) => `E2E_COACH_TOOL=${name}:${JSON.stringify(args)}`), "E2E_COACH_SAY_AFTER=Je vous propose une réponse, à envoyer vous-même, sous ce message."].join("\n");
   await conversation(page).getByLabel(fr.coachPanel.messageLabel).fill(`${message}\n${markers}`);
   await conversation(page).getByRole("button", { name: fr.coachPanel.send, exact: true }).click();
 }

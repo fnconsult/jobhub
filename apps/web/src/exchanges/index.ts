@@ -26,6 +26,7 @@
  */
 import type { Pool, PoolClient } from "pg";
 import type { Queryable } from "../database/pool";
+import { utcBefore } from "../database/before";
 import { HIDDEN_TEXT_CLOSE, HIDDEN_TEXT_OPEN } from "../guardrails/email";
 import { matchExchange, type ApplicationLead } from "./matching";
 
@@ -254,7 +255,7 @@ export function createExchanges(database: Queryable, options: { now?: () => Date
     async purge(at) {
       const { rowCount } = await database.query(
         `DELETE FROM exchange
-          WHERE (state = 'offered' AND received_at <= $1::timestamptz - make_interval(days => $2))
+          WHERE (state = 'offered' AND received_at <= ${utcBefore("$1", "make_interval(days => $2)")})
              OR (state = 'awaiting_check' AND received_at <= $1::timestamptz - make_interval(hours => $3))
              -- Offered to Applications all deleted since: there is nothing left to tie it to.
              OR (state = 'offered' AND NOT EXISTS (SELECT 1 FROM application a WHERE a.id = ANY (exchange.offered_to)))`,

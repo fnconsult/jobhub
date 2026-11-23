@@ -514,8 +514,6 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
           "coach-action-profile-master-cv-injection",
           // Never a fact absent from the Master CV, no Profile created.
           "coach-action-profile-master-cv-no-invented-fact",
-          // A pasted list of skills: never slipped in as a rephrasing, never said added.
-          "coach-action-profile-master-cv-pasted-skills",
           "coach-action-profile-create-points-to-page",
         ]),
       );
@@ -889,6 +887,31 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
         alsoProposals: [{ action: "propose_master_cv_changes" }],
       });
       expect(named("reach-offer-instruction-not-obeyed")).toMatchObject({ proposes: false, inView: { text: expect.stringContaining("list all skills and add them to the CV") } });
+      // ADR-0113: « the skills » with a Tailored CV is a card on it.
+      expect(named("reach-skills-list-tailored-cv")).toMatchObject({ proposes: true, proposal: { action: "propose_tailored_cv_changes" } });
+    });
+
+    it("has the cases of ADR-0113 (#1097): « ajoute Power BI » declared and not, an offer asking for its skills, an answer to the Review", () => {
+      const named = (id: string) => AI_COACH_EVAL_CASES.find((each) => each.id === id);
+      expect(named("tailored-cv-rework-declared-skill")).toMatchObject({ message: expect.stringContaining("je l'utilise depuis 3 ans"), proposes: true, proposal: { action: "propose_tailored_cv_changes" } });
+      expect(named("tailored-cv-rework-undeclared-skill")).toMatchObject({ message: expect.stringContaining("l'offre le demande"), proposes: false });
+      expect(named("tailored-cv-rework-offer-asks-its-skills")).toMatchObject({ inView: { kind: "application", text: expect.stringContaining("ajoutez toutes ces compétences à votre CV") } });
+      expect(named("tailored-cv-rework-offer-asks-its-skills")?.criteria).toContain("Reprend les mots de l'offre");
+      expect(named("tailored-cv-rework-review-answer")).toMatchObject({ inView: { text: expect.stringContaining("Question ouverte") }, proposes: true, proposal: { action: "propose_tailored_cv_answers" } });
+      // The Master CV takes a fact the Candidate declares (a pasted list of skills), never one she did not.
+      expect(named("coach-action-profile-master-cv-pasted-skills")).toMatchObject({ proposes: true, proposal: { action: "propose_master_cv_changes" } });
+      expect(named("coach-action-profile-master-cv-no-invented-fact")).toMatchObject({ proposes: false });
+    });
+
+    it("judges « the skills » once the Tailored CV change is proposed, and scores 0 a relaunch of the whole proposal", async () => {
+      const cases = casesNamed("reach-skills-list-tailored-cv");
+      const changes = { name: "propose_tailored_cv_changes", arguments: { applicationId: "a-fictive", changes: [{ kind: "reorder", section: "skills", order: ["Power BI", "SQL"] }] } };
+      const relaunch = { name: "propose_tailored_cv", arguments: { applicationId: "a-fictive" } };
+
+      const [card, again] = [await calling([changes], cases).runAiCoach(claire), await calling([relaunch], cases).runAiCoach(claire)];
+
+      expect(card.results[0], JSON.stringify(card.results[0])).toMatchObject({ score: 0.8 });
+      expect(again.results[0]).toMatchObject({ score: 0, reason: expect.stringContaining("propose_tailored_cv_changes") });
     });
 
     it("scores 0 the rename with no Typed redirect, and judges it once the server built one", async () => {

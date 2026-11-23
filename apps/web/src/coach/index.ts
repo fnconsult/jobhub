@@ -20,6 +20,9 @@
  * within `agentTimeoutMs` is left out, and logged without its content. The knowledge wins over the
  * model's general knowledge and is the only place a figure may come from.
  *
+ * « Périmètre du coach » (ADR-0114): each reply written tells the Guardrails what it comes with (its cards, its Typed
+ * redirect) and what it must never repeat (`privateTexts`: the Master CVs' identity, the Private Coach Notes).
+ *
  * Guardrails (ADR-0022, #228): what the Candidate did not write reaches the AI Coach and the Playbook Agents
  * framed as data (see ./context), and so does each Playbook Agent's advice. With `guardrails`, the
  * Candidate's message is checked before anything else: a blocked one reaches neither the AI Coach nor a
@@ -55,7 +58,7 @@ import { article, type HelpSettings } from "@jobhub/help";
 import { createI18n } from "@jobhub/shared/i18n";
 import { DEFAULT_COACH_CONTEXT_LIMITS, failureOf, type CoachContextLimits, type FailureReason, type JobOffer, type Provenance, type ProvenanceEvent } from "@jobhub/shared";
 import { findJobOfferLink, type JobOfferLinkResult, type JobOfferLinks } from "../job-offer-links";
-import type { GuardedReply, GuardrailLanguage, Guardrails } from "../guardrails";
+import type { GuardedReply, GuardrailLanguage, Guardrails, ReplyScope } from "../guardrails";
 import { inViewReason, REDIRECT_ACTION, untrustedInView, type CoachActions, type CoachProposal, type TypedRedirect } from "../coach-actions";
 import { redirectTableText } from "../coach-actions/redirects";
 import { CORE_DIGEST, type CoachingPlaybooks, type ServedKnowledge } from "../coaching-playbooks";
@@ -213,6 +216,11 @@ export interface CoachOptions {
   jobOfferLinks?: Pick<JobOfferLinks, "read">;
   /** The Coach Actions (ADR-0077, #713) a reply may call, while switched on. Without them, the AI Coach has no tool. */
   coachActions?: Pick<CoachActions, "forReply">;
+  /**
+   * What an AI Coach reply must never repeat, for « Périmètre du coach » (ADR-0114, check 4): the values of the Candidate's
+   * Master CVs' identity blocks and their Private Coach Notes' texts. Never sent to any model. Without it, none.
+   */
+  privateTexts?: (candidateId: string) => Promise<{ identity: string[]; notes: string[] }>;
   /**
    * The Help Articles' settings at the time of the reply (#867): « Espace coach v2 » on or off, which decides the Help
    * Article whose title the AI Coach is told. Without it, off: the articles main served.
@@ -455,6 +463,13 @@ export function createCoach(deps: CoachDeps): Coach {
         let declined: string[] = [];
         // The Typed redirect the latest reply written gives (ADR-0114), shown under it.
         let redirect: TypedRedirect | null = null;
+        // What the reply must never repeat (ADR-0114), read once for the reply and its rewrite.
+        let privateTexts: Promise<{ identity: string[]; notes: string[] }> | undefined;
+        const scopeOf = async (offered: boolean): Promise<ReplyScope> => {
+          privateTexts ??= deps.privateTexts?.(candidateId).catch(() => ({ identity: [], notes: [] })) ?? Promise.resolve({ identity: [], notes: [] });
+          const { identity, notes } = await privateTexts;
+          return { cards: proposals?.length ?? 0, redirect: redirect !== null, identity, notes, coachActions: offered };
+        };
         const write = async (feedback: string | null) => {
           // Offered afresh to each reply written: a reply written again proposes again, the first one's proposals dropped.
           const because = options.untrustedSessionReport === true ? SESSION_REPORT_REASON : untrustedInView(focus?.kind) ? inViewReason(focus?.kind) : null;
@@ -490,12 +505,13 @@ export function createCoach(deps: CoachDeps): Coach {
           written.push(result);
           const { text, ...read } = readReplyMarks(result.text);
           marks = read;
-          if (text.trim()) return { text, secrets: prepared.secrets };
+          const scope = await scopeOf(offered !== null);
+          if (text.trim()) return { text, secrets: prepared.secrets, scope };
           // No text at all (#784): the model ended on its tool calls, or wrote only the hidden lines. Never an empty reply,
           // and never « Poser la question à l'équipe » for it (ADR-0109): only the model's own mark offers that.
           const empty = emptyReplyText(options.language ?? "fr", proposals ?? [], declined);
           marks = { ...read, couldNotAnswer: read.couldNotAnswer && empty.couldNotAnswer };
-          return { text: empty.text, secrets: prepared.secrets };
+          return { text: empty.text, secrets: prepared.secrets, scope };
         };
         const latest = messages.at(-1)!.content;
         const language = options.language ?? "fr";

@@ -340,3 +340,48 @@ describe("emptyReplyText (#784)", () => {
     expect(emptyReplyText("en", [], [PROFILE_ACTIONS.masterCv]).text).toContain("« Master CV » section");
   });
 });
+
+describe("what the reply tells « Périmètre du coach » (ADR-0114)", () => {
+  /** A Guardrails that only writes the reply, keeping what it was told the reply comes with. */
+  function scoped(turns: FakeTurn[], privateTexts?: () => Promise<{ identity: string[]; notes: string[] }>, withActions = true) {
+    const provider = createFakeProvider({ id: "mistral", reply: (input: TextInput) => (input.system?.startsWith("Tu choisis") ? "[]" : REPLY), turns });
+    const ai = createAiLayer({ providers: [provider], routes: { coaching: "mistral" }, usage: createMemoryUsageLog() });
+    const coachActions = createCoachActions({ catalog: CATALOG, settings: async () => ({ enabled: true, maxRounds: 2 }), externalApis: { record: () => {} } });
+    const told: unknown[] = [];
+    const coach = createCoach({
+      ai,
+      playbooks: { served: async () => ({ coreDigest: null, sources: null, playbooks: [] }) },
+      context: async () => CONTEXT,
+      ...(withActions ? { coachActions } : {}),
+      guardrails: {
+        guard: async (_agent, request) => {
+          const written = await request.reply(null);
+          told.push(written.scope);
+          return { text: written.text, outcome: "replied", checks: [] };
+        },
+      },
+      ...(privateTexts ? { privateTexts } : {}),
+      warn: () => {},
+    });
+    return { coach, told };
+  }
+
+  it("its cards, its Typed redirect, and what it must never repeat: the Master CVs' identity, the Private Coach Notes", async () => {
+    const { coach, told } = scoped(
+      [{ toolCalls: [{ name: "proposer_statut", arguments: { id: "a1", status: "offer" } }, { name: "redirect", arguments: { target: "profile_create" } }] }, { text: REPLY }],
+      async () => ({ identity: ["Marie Dupont"], notes: ["Une note privée."] }),
+    );
+
+    await ask(coach);
+
+    expect(told).toEqual([{ cards: 1, redirect: true, identity: ["Marie Dupont"], notes: ["Une note privée."], coachActions: true }]);
+  });
+
+  it("with no Coach Action offered, says so: only the private texts are checked", async () => {
+    const { coach, told } = scoped([{ text: REPLY }], undefined, false);
+
+    await ask(coach);
+
+    expect(told).toEqual([{ cards: 0, redirect: false, identity: [], notes: [], coachActions: false }]);
+  });
+});

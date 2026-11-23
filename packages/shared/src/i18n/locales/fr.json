@@ -3670,7 +3670,8 @@
         "harmful_advice": "Conseil hors rôle ou dangereux",
         "distress": "Détresse",
         "email_injection": "Contenu piégé dans un email",
-        "ungrounded_answer": "Réponse non fondée sur le profil"
+        "ungrounded_answer": "Réponse non fondée sur le profil",
+        "coach_scope": "Périmètre du coach"
       },
       "descriptions": {
         "prompt_injection": "Un message, ou un texte collé, qui tente de modifier ou de faire révéler les instructions de l'IA, directement ou indirectement.",
@@ -3679,7 +3680,8 @@
         "harmful_advice": "Une réponse qui donne un conseil juridique, médical ou financier, ou un conseil discriminatoire, y compris sur l'âge.",
         "distress": "Un candidat qui exprime une détresse grave : il reçoit le message du 3114. Personne n'est alerté.",
         "email_injection": "Un email reçu par la réception par email qui tente de donner des instructions à l'IA qui le lit, ou de soutirer les coordonnées du candidat : expéditeur non authentifié, email trop long, texte caché porteur d'instructions, formules d'injection connues, puis un contrôle par un modèle (anonymisé). Bloqué, il n'est pas lu, ne donne aucune offre et est écarté par un garde-fou. Quel que soit ce réglage, une lecture qui donne un email, un téléphone ou le nom d'une personne tirés de l'email, un lien absent de l'email ou plus de 30 offres est toujours écartée.",
-        "ungrounded_answer": "Une réponse du coach IA qui classe des offres ou dit si une offre, une candidature ou un conseil convient au candidat sans citer ses compétences, ses expériences ou ses critères, ou qui prétend ne pas disposer des raisons d'un score ou de son CV. Bloquée, elle est réécrite une fois ; si elle l'est encore, le message ci-dessous s'affiche."
+        "ungrounded_answer": "Une réponse du coach IA qui classe des offres ou dit si une offre, une candidature ou un conseil convient au candidat sans citer ses compétences, ses expériences ou ses critères, ou qui prétend ne pas disposer des raisons d'un score ou de son CV. Bloquée, elle est réécrite une fois ; si elle l'est encore, le message ci-dessous s'affiche.",
+        "coach_scope": "Une réponse du coach IA qui sort de ce qu'il peut faire : (1) une modification annoncée sans carte (« c'est fait ») ; (2) un CV, une lettre, un message, une note ou une réponse à un e-mail écrits dans la réponse au lieu d'une carte ; (3) un refus sans raison ou sans renvoi vers la page où le faire ; (4) l'identité du CV de référence ou une note privée d'un coach reprise dans la réponse. Les contrôles 3 et 4 reposent sur des règles fixes, les contrôles 1 et 2 sur un modèle d'IA (anonymisé). Le contrôle 4 bloque toujours ; les contrôles 1 à 3 suivent ce réglage, « signaler seulement » par défaut. Bloquée, la réponse est réécrite une fois avec la raison ; si elle l'est encore, le message ci-dessous s'affiche."
       },
       "languages": {
         "fr": "français",

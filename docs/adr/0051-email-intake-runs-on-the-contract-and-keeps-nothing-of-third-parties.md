@@ -18,3 +18,7 @@ The Candidate forwards offer emails to their Forwarding address (ADR-0050). Each
 
 - A later IMAP beta (ADR-0050) is different in kind: Jobbbox would hold a password opening the whole mailbox. It needs its own explicit, dated, withdrawable consent saying so, the password encrypted like Provider Secrets (ADR-0020) and deleted when the mailbox is unlinked, read-only access to recognised senders only, and a reminder to revoke the app password at the provider.
 - Connecting a mailbox through OAuth (Microsoft Graph, later Gmail) is decided with that beta's consent, not this one.
+
+## Amended by ADR-0115 (2026-11-23, pending the Legal Review)
+
+An email about one of the Candidate's own Applications, tied to it by rules and confirmed by the Candidate when in doubt, is kept on that Application as an Exchange (sender, date, subject, text; never attachments), on the contract, while the Application exists. Every other email still keeps nothing of third parties.

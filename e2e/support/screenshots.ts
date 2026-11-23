@@ -37,18 +37,3 @@ export function comparesEmailScreenshots(env: Env = process.env, platform: NodeJ
 export async function leaveOutRelease(page: { addStyleTag: (options: { path: string }) => Promise<unknown> }): Promise<void> {
   await page.addStyleTag({ path: "e2e/support/screenshots.css" });
 }
-
-/** The month and day of the day the Dashboard's baselines were drawn (e2e/back-office-pages-screenshots.spec.ts). */
-const BASELINE_MONTH = "novembre 2026";
-const BASELINE_DAY = "12";
-
-/**
- * `text` with today's month and day, as the Dashboard writes them (« novembre 2026, au 23 », « au 23 nov. »), set to
- * the baselines'. A mask hides pixels, not the room its text takes (docs/agents/screenshot-baselines.md): « au 23 nov. »
- * is wider than « au 19 nov. », and wrapped the cumulative chart's note onto a second line at the phone width.
- */
-export function onTheBaselineDay(text: string): string {
-  return text
-    .replace(/[^\s\d·,]+ \d{4}, au \d{1,2}(?!\d)/gu, `${BASELINE_MONTH}, au ${BASELINE_DAY}`)
-    .replace(/(?<![^\s])au \d{1,2} [^\s\d·]+/gu, `au ${BASELINE_DAY} ${BASELINE_MONTH.slice(0, 3)}.`);
-}

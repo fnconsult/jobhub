@@ -7,6 +7,7 @@ import { APPLICATION_EXPORTS } from "@/application-exports/kinds";
 import type { CvChange } from "@/tailored-cv/changes";
 import { ApplicationExportForm } from "./ApplicationExportForm";
 import { HelpText } from "./HelpTerm";
+import { OriginDisclosure } from "./OriginDisclosure";
 import { LiveActionStatus, useLiveAction } from "./LiveAction";
 import { ProvenanceLine } from "./ProvenanceLine";
 import { SkillTags } from "@/components/SkillTags";
@@ -30,7 +31,15 @@ export interface TailoredCv {
     provenance?: Provenance | null;
     proposedAt?: string | Date;
   } | null;
-  saved: { language: DocumentLanguage; content: CvContent; matchScore: { master: number; tailored: number }; savedAt: string | Date; provenance?: Provenance | null } | null;
+  saved: {
+    language: DocumentLanguage;
+    content: CvContent;
+    matchScore: { master: number; tailored: number };
+    savedAt: string | Date;
+    provenance?: Provenance | null;
+    /** The Coach proposal's card it was saved from (ADR-0113), behind « Origine »; none when the Candidate saved it. */
+    origin?: { appliedAt: string | Date } | null;
+  } | null;
 }
 
 /** What a failed request means for the Candidate. */
@@ -144,6 +153,7 @@ export function TailoredCvReview({
             {t(`tailoredCv.writtenIn.${saved.language}`)}
           </p>
           <ProvenanceLine provenance={saved.provenance ?? null} at={new Date(saved.savedAt).toISOString()} />
+          <OriginDisclosure appliedAt={saved.origin ? new Date(saved.origin.appliedAt).toISOString() : null} />
           <ScoreComparison score={saved.matchScore} />
           <CvSummary cv={saved.content} />
           <ApplicationExportForm applicationId={applicationId} document={APPLICATION_EXPORTS[0]} />
@@ -251,7 +261,7 @@ export function ChangeItem({
   change: CvChange;
   accepted: boolean | null;
   onDecide: (accepted: boolean) => void;
-  labels?: { master: string; tailored: string; fromOffer: (words: string) => string };
+  labels?: { master: string; tailored: string; fromOffer: (words: string) => string; declared?: string };
 }) {
   const { t } = useTranslation();
   const id = useId();
@@ -272,6 +282,12 @@ export function ChangeItem({
             <dd className="cv-text">{change.tailored || t("tailoredCv.empty")}</dd>
           </div>
         </dl>
+      ) : null}
+      {change.declared ? (
+        // A Declared Fact (ADR-0113): the Candidate stated it in the Coach Conversation, for them to check.
+        <p className="notice" role="note">
+          {labels?.declared ?? t("tailoredCv.declared")}
+        </p>
       ) : null}
       {change.fromOffer?.length ? (
         // Kept as written, for the Candidate to check (ADR-0006, #68): the Master CV does not say it.

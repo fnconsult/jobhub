@@ -460,6 +460,64 @@ describe("a Master CV change's card, reviewed change by change (#719, ADR-0006)"
   });
 });
 
+/** A Tailored CV change (ADR-0113): a Layout-only Change on the saved Tailored CV, then one adding a Declared Fact. */
+const TAILORED_CV: Card = {
+  id: "66666666-6666-4666-8666-666666666666",
+  status: "pending",
+  change: {
+    target: { kind: "application", id: "a1", name: "Lead Finance · Benchling", href: "/candidatures/a1/documents?resultat=cv-adapte" },
+    what: "CV adapté",
+    before: "Version 3 enregistrée",
+    after: "1 changement à relire",
+    value: { base: "saved" },
+    fields: [],
+    layoutOnly: true,
+    review: { changes: [{ id: "skills.rephrased.2", section: "skills", kind: "rephrased", item: "SQL, utilisé pour le reporting", master: "SQL, utilisé pour le reporting", tailored: "SQL" }], edits: [] },
+  },
+  undoable: false,
+};
+
+describe("a Tailored CV change's card, reviewed change by change in the Work Pane (ADR-0113, #1097)", () => {
+  const tailoredCard = () => screen.getByRole("article", { name: /CV adapté/ });
+
+  it("says a Layout-only Change adds no word, and opens its review in the Work Pane, about the Tailored CV", async () => {
+    renderInFrench(<Thread card={TAILORED_CV} />);
+    expect(within(tailoredCard()).getByRole("heading", { level: 4 }).textContent).toBe("CV adapté · Lead Finance · Benchling");
+    expect(tailoredCard().textContent).toContain("Mise en forme seule, aucun mot ajouté");
+
+    await userEvent.click(within(tailoredCard()).getByRole("button", { name: "Relire les changements" }));
+    const pane = screen.getByRole("complementary");
+    expect(pane.textContent).toContain("pour le CV adapté de « Lead Finance · Benchling »");
+    expect(within(pane).getAllByRole("button", { name: "Accepter" }).map((each) => each.getAttribute("aria-pressed"))).toEqual(["false"]);
+  });
+
+  it("marks a Declared Fact « Fait déclaré par vous » and a change with the offer's words « Reprend les mots de l'offre », none pre-accepted", async () => {
+    const declared: Card = {
+      ...TAILORED_CV,
+      change: {
+        ...TAILORED_CV.change,
+        layoutOnly: undefined as never,
+        review: {
+          changes: [
+            { id: "skills.added.Power BI", section: "skills", kind: "added", item: "Power BI", declared: true },
+            { id: "summary.rephrased", section: "summary", kind: "rephrased", master: "Pilotage financier.", tailored: "Pilotage FP&A sous Anaplan.", fromOffer: ["Anaplan"] },
+          ],
+          edits: [],
+        },
+      },
+    };
+    delete (declared.change as { layoutOnly?: true }).layoutOnly;
+    renderInFrench(<Thread card={declared} />);
+    expect(tailoredCard().textContent).not.toContain("Mise en forme seule");
+
+    await userEvent.click(within(tailoredCard()).getByRole("button", { name: "Relire les changements" }));
+    const pane = screen.getByRole("complementary");
+    expect(pane.textContent).toContain("Fait déclaré par vous");
+    expect(pane.textContent).toContain("Reprend les mots de l'offre : Anaplan");
+    expect(within(pane).getAllByRole("button", { name: "Accepter" }).map((each) => each.getAttribute("aria-pressed"))).toEqual(["false", "false"]);
+  });
+});
+
 describe("a card about the Coach Memory (#719)", () => {
   it("names it without a link: it has no page", () => {
     const memory: Card = {

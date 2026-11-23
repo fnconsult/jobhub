@@ -173,7 +173,7 @@ globalThis.fetch = async (input, init) => {
     return completion(body, JSON.stringify({ score: low ? 2 : 8, raison: low ? "E2E : la réponse ne remplit pas les critères." : "E2E : la réponse remplit les critères." }));
   }
   const shown = /E2E_SHOW_CONTEXT(#[\w-]+)?/.exec(prompt);
-  const said = /E2E_COACH_SAY=(.*)/.exec(prompt)?.[1].trim();
+  const said = /E2E_COACH_SAY(?:_AFTER)?=(.*)/.exec(prompt)?.[1].trim();
   if (shown) console.log(`[fake-mistral] system prompt ${shown[1] ?? "#"}: ${JSON.stringify(system)}`);
   if (system.startsWith("Tu choisis quels Playbook Agents")) {
     content = JSON.stringify(/E2E_CONSULT=([\w,-]+)/.exec(prompt)?.[1].split(",") ?? []);
@@ -425,8 +425,9 @@ function coachToolCall(body, signal) {
   if (results.length > 0 && (!next || body.tool_choice === "none")) {
     // E2E_COACH_SLOW: the answer written after the calls takes that long too (#788), so its step is seen live.
     const slow = Number(/E2E_COACH_SLOW=(\d+)/.exec(String(messages[lastAsked]?.content ?? ""))?.[1] ?? 0);
-    // E2E_COACH_SAY on a line of its own: the text written once the calls were made (#1096), in place of the result echoed.
-    const said = /^E2E_COACH_SAY=(.*)$/m.exec(String(messages[lastAsked]?.content ?? ""))?.[1].trim();
+    // E2E_COACH_SAY_AFTER on a line of its own: the text written once the calls were made (#1096), in place of the result echoed;
+    // E2E_COACH_SAY alone keeps its meaning (the reply when no tool was offered, the result echoed after a call).
+    const said = /^E2E_COACH_SAY_AFTER=(.*)$/m.exec(String(messages[lastAsked]?.content ?? ""))?.[1].trim();
     const answer = () => completion(body, silent ? "[jobbbox:non]" : said ? saidText(said, String(messages.find((message) => message.role === "system")?.content ?? ""), String(messages[lastAsked]?.content ?? "")) : `Résultat de l'outil « ${asked[called - 1].name} » : ${results.join("\n")}`);
     return slow > 0 ? answerAfter(slow, signal).then(answer) : answer();
   }

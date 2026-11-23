@@ -8,7 +8,7 @@ import type { HarnessResult, Scenario } from "./support/coach-actions-harness";
 // public entry point, `createCoach` on the AI layer `createAiLayerFromEnv()` builds from the environment, in a fresh process
 // (support/coach-actions-harness.ts), on the Coach Actions shipped, in front of the Guardrails when the test says so. The
 // provider is the suite's fake Mistral (support/fake-mistral.mjs): a message holding `E2E_COACH_TOOL=<name>:<json>` has the AI
-// Coach call that Coach Action, `E2E_COACH_SAY=<text>` has it reply that text, and a reply holding `E2E_SCOPE_CHANGE` or
+// Coach call that Coach Action, `E2E_COACH_SAY_AFTER=<text>` has it reply that text, and a reply holding `E2E_SCOPE_CHANGE` or
 // `E2E_SCOPE_CONTENT` is what the Guardrail's AI check finds a modification announced with no card, or a content written in
 // the reply. What the harness reports is what leaves the process: the system prompt, the tool results the model is given,
 // and what the Candidate gets back (the reply, its cards, its Typed redirect, the Guardrail Triggers).
@@ -29,7 +29,7 @@ function run(scenario: Scenario): HarnessResult {
 
 const ON = { enabled: true, maxRounds: 3 };
 const marker = (name: string, args: unknown) => `E2E_COACH_TOOL=${name}:${JSON.stringify(args)}`;
-const say = (text: string) => `\nE2E_COACH_SAY=${text}`;
+const say = (text: string) => `\nE2E_COACH_SAY_AFTER=${text}`;
 type Focus = NonNullable<Scenario["replies"][number]["focus"]>;
 const APPLICATION: Focus = { kind: "application", id: "a-airbus" };
 const PROFILE: Focus = { kind: "profile", id: "p-consultant" };

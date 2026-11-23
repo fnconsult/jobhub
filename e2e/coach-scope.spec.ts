@@ -11,7 +11,7 @@ import { showSystemPrompt } from "./support/system-prompt";
 // the page that does it, and « Périmètre du coach » checks its reply. Driven through the endpoint the Coach Panel uses
 // (POST /api/coach), the conversation page and the Garde-fous page, on a server of this spec's own with COACH_ACTIONS_ENABLED
 // on; the AI Coach is faked inside it (fake-mistral.mjs): a message holding `E2E_COACH_TOOL=<name>:<json>` has it call that
-// Coach Action, `E2E_COACH_SAY=<text>` (on a line of its own) has it write that text, and a reply holding `E2E_SCOPE_CHANGE`
+// Coach Action, `E2E_COACH_SAY_AFTER=<text>` (on a line of its own) has it write that text, and a reply holding `E2E_SCOPE_CHANGE`
 // or `E2E_SCOPE_CONTENT` is what the Guardrail's AI check finds a change announced with no card, or a content written in it.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const texts = fr.coachProposals;
@@ -86,7 +86,7 @@ interface Asked {
 
 /** What the Candidate sends the AI Coach, with its Coach Actions `tools` (name, arguments) called in order and `say` written at the end. */
 async function ask(page: Page, message: string, options: { focus?: { kind: string; id: string }; tools?: [string, object][]; say?: string; show?: string } = {}): Promise<Asked> {
-  const lines = [message, ...(options.tools ?? []).map(([name, args]) => `E2E_COACH_TOOL=${name}:${JSON.stringify(args)}`), ...(options.say ? [`E2E_COACH_SAY=${options.say}`] : []), ...(options.show ? [options.show] : [])];
+  const lines = [message, ...(options.tools ?? []).map(([name, args]) => `E2E_COACH_TOOL=${name}:${JSON.stringify(args)}`), ...(options.say ? [`E2E_COACH_SAY_AFTER=${options.say}`] : []), ...(options.show ? [options.show] : [])];
   const response = await page.request.post("/api/coach", { headers: headers(), data: { message: lines.join("\n"), ...(options.focus ? { focus: options.focus } : {}) } });
   expect(response.status(), await response.text()).toBe(200);
   return (await response.json()) as Asked;
@@ -162,7 +162,7 @@ test.describe("the AI Coach: which object, what it does not do and where to go, 
     await page.goto(`/profils/${profile.id}`);
     const conversation = page.getByRole("region", { name: fr.conversationFirst.label });
     const box = conversation.getByLabel(fr.coachPanel.messageLabel);
-    await box.fill(`Renomme mon profil en « Data senior ».\nE2E_COACH_TOOL=redirect:${JSON.stringify({ target: "profile_rename" })}\nE2E_COACH_SAY=Aucun outil ne renomme un profil : vous le faites vous-même, depuis la page du profil.`);
+    await box.fill(`Renomme mon profil en « Data senior ».\nE2E_COACH_TOOL=redirect:${JSON.stringify({ target: "profile_rename" })}\nE2E_COACH_SAY_AFTER=Aucun outil ne renomme un profil : vous le faites vous-même, depuis la page du profil.`);
     await box.press("Enter");
 
     const reply = conversation.locator(".chat-candidate + .chat-coach");
@@ -178,7 +178,7 @@ test.describe("the AI Coach: which object, what it does not do and where to go, 
     await page.goto(`/profils/${profile.id}`);
     const conversation = page.getByRole("region", { name: fr.conversationFirst.label });
     const box = conversation.getByLabel(fr.coachPanel.messageLabel);
-    await box.fill(`Ajoute l'anglais courant à mes langues.\nE2E_COACH_TOOL=redirect:${JSON.stringify({ target: "master_cv_section", section: "languages" })}\nE2E_COACH_SAY=Une langue que votre CV ne dit pas encore, vous l'ajoutez vous-même dans sa rubrique.`);
+    await box.fill(`Ajoute l'anglais courant à mes langues.\nE2E_COACH_TOOL=redirect:${JSON.stringify({ target: "master_cv_section", section: "languages" })}\nE2E_COACH_SAY_AFTER=Une langue que votre CV ne dit pas encore, vous l'ajoutez vous-même dans sa rubrique.`);
     await box.press("Enter");
 
     const reply = conversation.locator(".chat-candidate + .chat-coach");

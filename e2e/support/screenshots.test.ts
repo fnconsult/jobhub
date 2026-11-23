@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { comparesEmailScreenshots, comparesScreenshots } from "./screenshots";
+import { comparesEmailScreenshots, comparesScreenshots, onTheBaselineDay } from "./screenshots";
 
 describe("comparesScreenshots (#463)", () => {
   it("compares in CI, so a missing or different baseline fails there", () => {
@@ -60,5 +60,24 @@ describe("the screenshot specs", () => {
   it("each compare only when e2e/support/screenshots.ts says so, never on the platform alone", () => {
     const ungated = specs.filter(({ source }) => !/\bcompares(Email)?Screenshots\(/.test(source) || /process\.platform\s*===\s*"linux"/.test(source));
     expect(ungated.map(({ file }) => file)).toEqual([]);
+  });
+});
+
+describe("onTheBaselineDay: a masked day takes the same room every day", () => {
+  it("sets the Dashboard's month and day to the baselines', which a mask cannot do: « au 23 nov. » wrapped the chart's note at 390 px", () => {
+    expect(onTheBaselineDay("0,00 € au 23 nov. · fin de mois estimée 0,00 €")).toBe("0,00 € au 12 nov. · fin de mois estimée 0,00 €");
+    expect(onTheBaselineDay("· novembre 2026, au 23")).toBe("· novembre 2026, au 12");
+  });
+
+  it("whatever the month, short or long, with or without its dot", () => {
+    expect(onTheBaselineDay("· septembre 2027, au 1")).toBe("· novembre 2026, au 12");
+    expect(onTheBaselineDay("4,10 € au 31 déc. · fin de mois estimée 4,10 €")).toBe("4,10 € au 12 nov. · fin de mois estimée 4,10 €");
+    expect(onTheBaselineDay("0,00 € au 5 mai · fin de mois estimée 0,00 €")).toBe("0,00 € au 12 nov. · fin de mois estimée 0,00 €");
+  });
+
+  it("leaves a text without a day as it is", () => {
+    expect(onTheBaselineDay("· 30 derniers jours")).toBe("· 30 derniers jours");
+    expect(onTheBaselineDay("Sur 3 runs dont le coût par poste est connu.")).toBe("Sur 3 runs dont le coût par poste est connu.");
+    expect(onTheBaselineDay("0 run ce mois")).toBe("0 run ce mois");
   });
 });

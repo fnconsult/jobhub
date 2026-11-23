@@ -3,7 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import pg from "pg";
 import { signInWithMagicLink } from "./support/candidate";
-import { comparesScreenshots, leaveOutRelease, SCREENSHOT_WIDTHS } from "./support/screenshots";
+import { comparesScreenshots, leaveOutRelease, onTheBaselineDay, SCREENSHOT_WIDTHS } from "./support/screenshots";
 import { expectTextContrast, showInTheme, themedName, THEMES } from "./support/theme";
 
 // Issue #465 (ADR-0053): the pilot of the Back Office in the Compact Density, Paramètres, the Dashboard and Activité,
@@ -120,6 +120,9 @@ const PAGES = [
     ready: (page: Page) => page.getByRole("region", { name: new RegExp(`^${admin.dashboard.jobDiscovery.title}`) }),
     // The month and day, and the axes and notes that follow the days of the month.
     mask: () => [".dashboard-period", ".chart-note", ".chart-plot", ".chart-x"],
+    // A mask hides pixels, not the room its text takes: « au 23 nov. » is wider than « au 19 nov. », and wrapped the
+    // cumulative chart's note onto a second line at the phone width, 21 px taller than the baseline. Their day is fixed.
+    fixedDays: [".dashboard-period", ".chart-note"],
   },
   {
     name: "activite-extension",
@@ -136,6 +139,29 @@ const PAGES = [
     mask: () => [] as string[],
   },
 ] as const;
+
+/** Sets the day in the text of every element `selectors` find to the baselines' (onTheBaselineDay), its markup kept. */
+async function fixTheDay(page: Page, selectors: readonly string[]) {
+  for (const selector of selectors) {
+    const texts = page.locator(selector);
+    const read = await texts.evaluateAll((elements) =>
+      elements.map((element) => {
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        const found: string[] = [];
+        for (let text = walker.nextNode(); text; text = walker.nextNode()) found.push(text.textContent ?? "");
+        return found;
+      }),
+    );
+    const fixed = read.map((element) => element.map(onTheBaselineDay));
+    await texts.evaluateAll((elements, fixed) => {
+      elements.forEach((element, index) => {
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        let at = 0;
+        for (let text = walker.nextNode(); text; text = walker.nextNode()) text.textContent = fixed[index]?.[at++] ?? text.textContent;
+      });
+    }, fixed);
+  }
+}
 
 /** The page drawn and still: Inter loaded, every finite animation over. */
 async function settled(page: Page) {
@@ -196,6 +222,7 @@ test.describe("the Back Office's pilot pages in the Design System (#465)", () =>
             // A side panel is shot as the window shows it; a page whole, its column drawn at once with nothing to scroll into view.
             const target: Locator = sheet ? page.locator("[data-sheet]") : page.locator("#main");
             await leaveOutRelease(page);
+            if ("fixedDays" in shot) await fixTheDay(page, shot.fixedDays);
             if (!sheet) await page.setViewportSize({ width, height: await page.evaluate(() => document.documentElement.scrollHeight) });
             await settled(page);
             await expect(target).toHaveScreenshot(`${themedName(`${shot.name}-${name}`, theme)}.png`, { mask: shot.mask().map((selector) => page.locator(selector)) });

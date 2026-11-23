@@ -3,6 +3,7 @@ import { getExternalApiLog } from "@/ai-usage/external-api-log";
 import { getApplications } from "@/applications/server";
 import { getBilling } from "@/billing/server";
 import { getCoachMemory } from "@/coach-memory/server";
+import { exchangesOn, getExchanges } from "@/exchanges/server";
 import { getFollowUps } from "@/follow-ups/server";
 import { getJobDigests } from "@/job-digests/server";
 import { getJobOffers } from "@/job-offers/server";
@@ -82,6 +83,8 @@ function shipped(): readonly CoachAction[] {
       tailoredCvs: getTailoredCvs(),
       tailoredDocuments: getTailoredDocuments(),
       tailoredDocumentVersions: getTailoredDocumentVersions(),
+      // An Application's Exchanges (#1099): offered only while APPLICATION_EXCHANGES_ENABLED is on, read at each reply.
+      exchanges: { on: exchangesOn, exchanges: getExchanges() },
     },
   );
 }

@@ -1743,6 +1743,7 @@
         "job_digest": "Job Digest",
         "tailored_documents": "Tailored documents",
         "agenda_item": "Appointment",
+        "exchange": "Exchange",
         "coach_memory": "Coach memory",
         "all": "Your data"
       }
@@ -7118,7 +7119,8 @@
         "tailored_cv": "Tailored CV: bring back version {{version}}",
         "cover_letter": "Cover letter: bring back version {{version}}",
         "outreach_message": "Outreach message: bring back version {{version}}"
-      }
+      },
+      "exchangeReply": "Reply to “{{subject}}”"
     },
     "interview": {
       "none": "None",
@@ -7217,7 +7219,16 @@
       "outreach_message": "Your outreach message is in Documents › Outreach message."
     },
     "runStopped": "If you stopped it, nothing was kept.",
-    "openResult": "Open beside the conversation"
+    "openResult": "Open beside the conversation",
+    "handOver": {
+      "copy": "Copy",
+      "open": "Open in my email",
+      "copied": "Reply copied: paste it into your email to send it.",
+      "copyFailed": "Copying did not work: select the text to copy it.",
+      "handedOver": "Taken by you at {{time}}: send it from your email.",
+      "nothingSent": "Jobbbox sends nothing: you send this reply yourself.",
+      "to": "To: {{to}} · Subject: {{subject}}"
+    }
   },
   "coachRedirects": {
     "pages": {

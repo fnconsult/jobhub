@@ -3,7 +3,7 @@
  * its page's route calls, with its Eval Cases: the reads of every group (#714), the Agenda's proposals (#718), the
  * Candidatures proposals (#716), the Profil group's proposals (#719), the Recherches d'offres and Job Digests proposals
  * (#720), the Documents proposals (#721), the drafts reworked from the conversation (ADR-0109) and the versions of the
- * documents, read and restored (#1079).
+ * documents, read and restored (#1079), and an Application's Exchanges, read and answered (#1099, behind its feature flag).
  *
  *   shippedCoachActions(candidateObjects(sources), domain)   // the app's, over the Candidate's objects
  *   shippedCoachActions(NO_OBJECTS)                          // on no one's data: every read finds nothing, nothing to propose on
@@ -14,6 +14,7 @@ import { applicationCoachActions, type ApplicationActionSources } from "./applic
 import { documentCoachActions, type DocumentActionSources } from "./documents";
 import { draftCoachActions, type DraftActionSources } from "./drafts";
 import { documentVersionCoachActions, type DocumentVersionActionSources } from "./versions";
+import { exchangeCoachActions, type ExchangeActionSources } from "./exchanges";
 import { coachActionCatalog, type CoachAction } from "./index";
 import { profileCoachActions, type ProfileActionSources } from "./profile";
 import { searchCoachActions, type SearchActionSources } from "./job-searches";
@@ -32,6 +33,8 @@ export type CoachActionDomain = Omit<ApplicationActionSources, "applications" | 
     followUps: ApplicationActionSources["followUps"] & DraftActionSources["followUps"];
     /** The versions of an Application's documents, read and restored (#1079). */
     tailoredDocumentVersions: DocumentVersionActionSources["tailoredDocumentVersions"];
+    /** An Application's Exchanges (#1099), behind APPLICATION_EXCHANGES_ENABLED: none, off. */
+    exchanges?: Pick<ExchangeActionSources, "exchanges" | "on">;
   };
 
 export function shippedCoachActions(objects: CoachObjectReader, domain: CoachActionDomain = NO_DOMAIN): readonly CoachAction[] {
@@ -46,6 +49,7 @@ export function shippedCoachActions(objects: CoachObjectReader, domain: CoachAct
     ...documentCoachActions(domain),
     ...draftCoachActions(domain),
     ...documentVersionCoachActions(domain),
+    ...exchangeCoachActions({ on: () => false, exchanges: NO_EXCHANGES, ...domain.exchanges, applications: domain.applications, profiles: domain.profiles }),
   ]);
 }
 
@@ -53,6 +57,9 @@ export function shippedCoachActions(objects: CoachObjectReader, domain: CoachAct
 export const NO_OBJECTS: CoachObjectReader = { index: async () => [], read: async () => null };
 
 const NOT_FOUND: ApplicationChangeResult = { ok: false, error: "not_found" };
+
+/** No one's Exchanges (#1099). */
+const NO_EXCHANGES: ExchangeActionSources["exchanges"] = { onApplication: async () => null, get: async () => null };
 
 /** No one's domain: every proposal finds nothing to propose on (an Eval Run never runs one, the guard tests). */
 export const NO_DOMAIN: CoachActionDomain = {

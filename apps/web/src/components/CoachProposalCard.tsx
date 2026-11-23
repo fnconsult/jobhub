@@ -61,6 +61,9 @@ function hourOf(at: string, language: string): string {
  * it first (« Remplacer et rédiger » or « Garder mon brouillon »), the focus on the confirmation. So does « Préparer » when
  * a Tailored CV proposal still waits for its review, answers included (#774): « Remplacer et préparer » or « Garder ma
  * proposition ».
+ * A reply to an Exchange (#1099, ADR-0115, `handOver`) is the Candidate's to send: its card shows to whom, the subject and
+ * the whole text, and offers « Copier » and « Ouvrir dans ma messagerie » (a `mailto:` link) in place of « Appliquer »,
+ * each saying it was taken (« Prise par vous à 18:20 »); Jobbbox sends nothing, and the Application Status does not move.
  */
 export function CoachProposalCard({ card, onChange, openOnArrival = false }: { card: Card; onChange: (card: Card) => void; openOnArrival?: boolean }) {
   const { t, i18n } = useTranslation();
@@ -97,6 +100,9 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
     confirmed.current = confirming;
   }, [confirming]);
   const formHref = `${pathname}#proposition-${card.id}`;
+  // A reply the Candidate sends from their own mailbox (#1099): copied or opened there, never sent by Jobbbox.
+  const handOver = card.change.handOver;
+  const [copied, setCopied] = useState<"copied" | "copyFailed" | null>(null);
   const formShown = pane ? pane.item?.kind === FORM && pane.item.href === formHref : inlineForm;
 
   async function decide(decision: "accept" | "dismiss" | "undo", edited?: Record<string, unknown>): Promise<boolean> {
@@ -118,6 +124,23 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
     }
     setProblem(error === "conflict" ? (decision === "undo" ? "undoConflict" : "conflict") : error === "invalid" ? "invalid" : "failed");
     return false;
+  }
+
+  /** « Copier »: the reply's text on the clipboard, then the card marked as taken (once). */
+  async function copyReply() {
+    try {
+      await navigator.clipboard.writeText(card.change.after);
+      setCopied("copied");
+    } catch {
+      setCopied("copyFailed");
+      return;
+    }
+    if (card.status === "pending") await decide("accept");
+  }
+
+  /** « Ouvrir dans ma messagerie »: the link opens the Candidate's mailbox; the card is marked as taken (once). */
+  function openedReply() {
+    if (card.status === "pending") void decide("accept");
   }
 
   /** « Préparer » or « Rédiger »: the card applied, then the AI action run; done, its Result opens in the Work Pane. */
@@ -208,7 +231,13 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
           {change.target.href ? <Link href={change.target.href}>{objectName}</Link> : objectName}
         </h4>
       </div>
-      {textField ? (
+      {handOver ? (
+        <div className="coach-proposal-card__texts">
+          <p className="hint">{t("coachProposals.handOver.to", { to: handOver.to, subject: handOver.subject })}</p>
+          <p className="coach-proposal-card__text">{change.after}</p>
+          <p className="hint">{t("coachProposals.handOver.nothingSent")}</p>
+        </div>
+      ) : textField ? (
         <div className="coach-proposal-card__texts">
           <p className="coach-proposal-card__text">{shownText}</p>
           <details className="coach-proposal-card__current">
@@ -234,7 +263,10 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
       {card.status !== "pending" && card.accepted ? <p className="hint">{t("coachProposals.review.saved", { count: card.accepted.length })}</p> : null}
       {/* Its decision, said politely as it is made (ADR-0009). */}
       <p className="coach-proposal-card__decision" role="status">
-        {card.status === "accepted" && card.decidedAt ? t(change.launches ? "coachProposals.launched" : "coachProposals.applied", { time: hourOf(card.decidedAt, i18n.language) }) : null}
+        {card.status === "accepted" && card.decidedAt
+          ? t(handOver ? "coachProposals.handOver.handedOver" : change.launches ? "coachProposals.launched" : "coachProposals.applied", { time: hourOf(card.decidedAt, i18n.language) })
+          : null}
+        {copied ? ` ${t(`coachProposals.handOver.${copied}`)}` : null}
         {card.status === "dismissed" ? t("coachProposals.dismissed") : null}
         {card.status === "undone" && card.undoneAt ? t("coachProposals.undone", { time: hourOf(card.undoneAt, i18n.language) }) : null}
         {card.status === "undone" && card.undoNote ? ` ${t(`coachProposals.undoNotes.${card.undoNote}`)}` : null}
@@ -273,7 +305,22 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
           </button>
         </div>
       ) : null}
-      {pending && !run && !change.quota?.prompt ? (
+      {handOver && (pending || card.status === "accepted") ? (
+        <div className="actions">
+          <button className={buttonClass({ variant: "primary", size: "sm" })} type="button" disabled={busy} onClick={() => void copyReply()}>
+            {t("coachProposals.handOver.copy")}
+          </button>
+          <a className={buttonClass({ size: "sm" })} href={mailtoOf(handOver, change.after)} onClick={openedReply}>
+            {t("coachProposals.handOver.open")}
+          </a>
+          {pending ? (
+            <button className={buttonClass({ variant: "quiet", size: "sm" })} type="button" disabled={busy} onClick={() => void decide("dismiss")}>
+              {t("coachProposals.dismiss")}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+      {pending && !run && !handOver && !change.quota?.prompt ? (
         <div className="actions">
           {change.review ? (
             <button ref={editButton} className={buttonClass({ variant: "primary", size: "sm" })} type="button" disabled={busy} aria-expanded={pane ? undefined : inlineForm} onClick={openForm}>
@@ -309,6 +356,11 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
       {pending && !pane && inlineForm ? form : null}
     </article>
   );
+}
+
+/** The `mailto:` link of a reply to an Exchange (#1099): to its sender, with its subject and text, for the Candidate's own mailbox. */
+export function mailtoOf(handOver: { to: string; subject: string }, text: string): string {
+  return `mailto:${encodeURIComponent(handOver.to)}?subject=${encodeURIComponent(handOver.subject)}&body=${encodeURIComponent(text)}`;
 }
 
 /** The Result a launched run produces: a Tailored CV, or the Tailored Document its body names. */

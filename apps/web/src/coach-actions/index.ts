@@ -139,6 +139,11 @@ export interface ProposedChange {
   launches?: true;
   runs?: LaunchedRun;
   replaces?: string;
+  /**
+   * A reply the Candidate sends from their own mailbox (#1099, ADR-0115): its card offers « Copier » and « Ouvrir dans ma
+   * messagerie » (`mailto:` to `to`, with `subject` and the text) in place of « Appliquer ». Jobbbox sends nothing.
+   */
+  handOver?: { to: string; subject: string };
 }
 
 /** The kinds of AI action a proposal's card runs in the Candidate's own request (#721): what AI Activity calls them. */
@@ -203,6 +208,7 @@ export const proposedChangeSchema: z.ZodType<ProposedChange> = z.object({
   launches: z.literal(true).optional(),
   runs: z.object({ kind: z.enum(LAUNCHED_RUN_KINDS), url: z.string().startsWith("/api/"), body: z.record(z.string(), z.string()), opens: z.string().startsWith("/") }).optional(),
   replaces: z.string().optional(),
+  handOver: z.object({ to: z.string(), subject: z.string() }).optional(),
 }) as unknown as z.ZodType<ProposedChange>;
 
 /**
@@ -270,6 +276,8 @@ export interface CoachAction<Schema extends z.ZodObject = z.ZodObject> {
    * Message), read in full on its card and applied by them: offered even once untrusted text is In view or read.
    */
   sentByCandidate?: true;
+  /** Whether it is offered now: behind a feature flag of its own (#1099: APPLICATION_EXCHANGES_ENABLED). Default: always. */
+  on?: () => boolean;
   /** Calls the domain module, for `call.candidateId` only. */
   run(args: z.output<Schema>, call: CoachActionCall): Promise<CoachActionResult>;
   /**
@@ -416,6 +424,8 @@ function readReason(action: CoachAction, result: Extract<CoachActionResult, { ok
       return `les offres du Job Digest${name}`;
     case "tailored_documents":
       return `un document adapté de la candidature${name} (un brouillon ou un CV adapté)`;
+    case "exchange":
+      return `l'échange${name}, un e-mail du recruteur`;
     case "all":
       return "l'index de ses objets, qui nomme des offres";
     default:
@@ -487,7 +497,7 @@ export function createCoachActions(deps: CoachActionsDeps): CoachActions {
       };
       // What is left of the room for this reply's reads.
       let readRoom = COACH_ACTION_READS_MAX_TOKENS;
-      const offered = catalog.filter((action) => !(narrowed && narrows(action)));
+      const offered = catalog.filter((action) => (action.on?.() ?? true) && !(narrowed && narrows(action)));
       if (offered.length === 0) return null;
       const proposals: CoachProposal[] = [];
       const declined: string[] = [];
@@ -625,13 +635,16 @@ const EVAL_RUN_ROUNDS = 2;
  * The Coach Actions as an Eval Run plays them (ADR-0023, #713): offered as shipped, on no one's data. A read finds
  * nothing (`not_found`), unless `readsPlayed`: the catalogue's reads are then over an Eval Case's fictional objects
  * (#714) and run as given. A proposal with valid arguments is counted, its arguments as what it prepared, never run.
+ * Those behind a feature flag of their own (`on`) are offered whatever it is.
  * Nothing is recorded: an Eval Run is no Candidate's.
  */
 export function forEvalRun(catalog: readonly CoachAction[], { readsPlayed = false }: { readsPlayed?: boolean } = {}): CoachActions {
-  const played = catalog.map(
-    (action): CoachAction =>
-      action.kind === "read" && readsPlayed ? action : { ...action, run: async (args) => (action.kind === "read" ? { ok: false, error: "not_found" } : { ok: true, data: args }) },
-  );
+  // Every Coach Action shipped is played, those behind a feature flag of their own too (#1099): an Eval Run is no one's.
+  const played = catalog.map((shipped): CoachAction => {
+    const action: CoachAction = { ...shipped };
+    delete action.on;
+    return action.kind === "read" && readsPlayed ? action : { ...action, run: async (args) => (action.kind === "read" ? { ok: false, error: "not_found" } : { ok: true, data: args }) };
+  });
   return createCoachActions({ catalog: played, settings: async () => ({ enabled: true, maxRounds: EVAL_RUN_ROUNDS }), externalApis: { record: () => {} } });
 }
 

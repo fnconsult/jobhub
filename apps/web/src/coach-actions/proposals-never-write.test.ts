@@ -17,6 +17,9 @@ import { migrateCoachConversations } from "../coach-conversations";
 import { createFollowUps, migrateFollowUps } from "../follow-ups";
 import { migrateJobDigests } from "../job-digests";
 import { createJobOffers, migrateJobOffers } from "../job-offers";
+import { migrateCompanyDossiers } from "../company-dossiers";
+import { migrateEnrichedContacts } from "../enriched-contacts";
+import { createExchanges, migrateExchanges } from "../exchanges";
 import { migrateJobSearches } from "../job-searches";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
 import { shippedCoachActions, type CoachActionDomain } from "./catalog";
@@ -76,6 +79,7 @@ const CALLS: Record<string, (world: World) => Record<string, unknown>> = {
   propose_cover_letter: (w) => ({ applicationId: w.applicationId }),
   propose_outreach_message: (w) => ({ applicationId: w.applicationId }),
   propose_document_restore: (w) => ({ applicationId: w.applicationId, document: "cover_letter", version: 1 }),
+  propose_exchange_reply: (w) => ({ applicationId: w.applicationId, text: "Bonjour, mardi à 14 h me convient. Marie" }),
 };
 
 const RECORDER = { step: <T>(_step: unknown, run: () => Promise<T>) => run(), site: () => {} };
@@ -121,7 +125,7 @@ describe.skipIf(!connectionString)("a Coach Action never writes: only the Candid
   beforeEach(async () => {
     testAuth = await startTestAuth();
     database = testAuth.auth.options.database as Pool;
-    for (const migrate of [migrateProfiles, migrateJobOffers, migrateApplications, migrateJobSearches, migrateJobDigests, migrateActionCards, migrateFollowUps, migrateCoachMemory, migrateCoachConversations, migrateActionCardsInThread]) {
+    for (const migrate of [migrateProfiles, migrateJobOffers, migrateApplications, migrateJobSearches, migrateJobDigests, migrateActionCards, migrateFollowUps, migrateCoachMemory, migrateCoachConversations, migrateActionCardsInThread, migrateCompanyDossiers, migrateEnrichedContacts, migrateExchanges]) {
       await migrate(database);
     }
     profiles = createProfiles(database);
@@ -219,7 +223,13 @@ describe.skipIf(!connectionString)("a Coach Action never writes: only the Candid
         }),
         restore: write() as never,
       },
+      // An Exchange kept on the Application, to answer (#1099): the feature flag on.
+      exchanges: { on: () => true, exchanges: createExchanges(database) },
     };
+    await database.query(
+      `INSERT INTO exchange (candidate_id, application_id, state, message_id, sender, subject, text, received_at) VALUES ($1, $2, 'kept', '<x@acme.fr>', 'rh@acme.fr', 'Entretien', 'Mardi à 14 h ?', now())`,
+      [marie, world.applicationId],
+    );
     writes = [
       domain.jobSearches.start,
       domain.jobSearches.stop,

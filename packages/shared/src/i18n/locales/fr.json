@@ -1743,6 +1743,7 @@
         "job_digest": "Job Digest",
         "tailored_documents": "Documents adaptés",
         "agenda_item": "Rendez-vous",
+        "exchange": "Échange",
         "coach_memory": "Mémoire du coach",
         "all": "Vos données"
       }
@@ -7118,7 +7119,8 @@
         "tailored_cv": "CV adapté : remettre la version {{version}}",
         "cover_letter": "Lettre de motivation : remettre la version {{version}}",
         "outreach_message": "Message d'approche : remettre la version {{version}}"
-      }
+      },
+      "exchangeReply": "Réponse à « {{subject}} »"
     },
     "interview": {
       "none": "Aucun",
@@ -7217,7 +7219,16 @@
       "outreach_message": "Votre message d'approche est dans Documents › Message d'approche."
     },
     "runStopped": "Si vous l'avez arrêtée, rien n'a été gardé.",
-    "openResult": "Ouvrir à côté de la conversation"
+    "openResult": "Ouvrir à côté de la conversation",
+    "handOver": {
+      "copy": "Copier",
+      "open": "Ouvrir dans ma messagerie",
+      "copied": "Réponse copiée : collez-la dans votre messagerie pour l'envoyer.",
+      "copyFailed": "La copie n'a pas abouti : sélectionnez le texte pour le copier.",
+      "handedOver": "Prise par vous à {{time}} : envoyez-la depuis votre messagerie.",
+      "nothingSent": "Jobbbox n'envoie rien : vous envoyez cette réponse vous-même.",
+      "to": "À : {{to}} · Objet : {{subject}}"
+    }
   },
   "coachRedirects": {
     "pages": {

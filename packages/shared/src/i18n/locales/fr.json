@@ -7260,36 +7260,6 @@
     },
     "label": "Où le faire vous-même"
   },
-  "coachRedirects": {
-    "pages": {
-      "profile": "Profil {{name}}",
-      "profiles": "Mes profils",
-      "newProfile": "Créer un profil",
-      "application": "Candidature {{name}}",
-      "applications": "Mes candidatures",
-      "account": "Mon compte",
-      "coach": "Coach"
-    },
-    "sections": {
-      "searchCriteria": "Critères de recherche",
-      "data": "Mes données"
-    },
-    "objects": {
-      "profile_rename": "Nom du profil",
-      "profile_duplicate": "Dupliquer le profil",
-      "profile_create": "Nouveau profil",
-      "profile_delete": "Archiver le profil",
-      "master_cv_version_restore": "Versions du CV de référence",
-      "master_cv_section": "Rubriques du CV",
-      "search_criteria": "Vos critères",
-      "job_offer_unpublished": "Signaler que l'offre n'est plus publiée",
-      "interview_delete": "Supprimer l'entretien",
-      "coach_memory": "Mémoire du coach",
-      "coach_conversation_delete": "Supprimer la conversation",
-      "account_delete": "Supprimer mon compte"
-    },
-    "label": "Où le faire vous-même"
-  },
   "coachProposalsDisplay": {
     "label": "Propositions du coach",
     "card": "Carte",

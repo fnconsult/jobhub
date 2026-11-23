@@ -29,6 +29,7 @@ const fr = JSON.parse(
 );
 /** Inside the suite's own range of derived ports (e2e/support/ports.ts), apart from the other specs' servers. */
 const PORT_OFFSET = 1099;
+const OFF_PORT_OFFSET = 1100;
 const SECRET = "e2e-application-exchanges-inbound-secret-0123456789";
 const MTA_IP = "203.0.113.7";
 const MASTER_KEYS = "1:ZTJlLW9ubHktbWFzdGVyLWtleS1lMmUtb25seS0wMDA=";
@@ -582,7 +583,7 @@ test.describe("Exchanges are off by default (#1099, until the Legal Review of AD
   test.beforeAll(async () => {
     test.setTimeout(180_000);
     off = await startOwnServer(
-      PORT_OFFSET + 1,
+      OFF_PORT_OFFSET,
       "application_exchanges_off",
       serverEnv(false),
     );

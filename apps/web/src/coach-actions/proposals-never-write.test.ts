@@ -81,6 +81,158 @@ const CALLS: Record<string, (world: World) => Record<string, unknown>> = {
   propose_cover_letter: (w) => ({ applicationId: w.applicationId }),
   propose_outreach_message: (w) => ({ applicationId: w.applicationId }),
   propose_document_restore: (w) => ({ applicationId: w.applicationId, document: "cover_letter", version: 1 }),
+  propose_exchange_reply: (w) => ({ applicationId: w.applicationId, text: "Bonjour, mardi à 14 h me convient. Marie" }),
+  propose_company_dossier_rebuild: (w) => ({ applicationId: w.applicationId }),
+  propose_dossier_employer: (w) => ({ applicationId: w.applicationId, employer: "Acme Industrie SAS" }),
+  propose_contact_search: (w) => ({ applicationId: w.applicationId }),
+  propose_contact_reveal: (w) => ({ applicationId: w.applicationId, contactId: "c-found" }),
+};
+
+const RECORDER = { step: <T>(_step: unknown, run: () => Promise<T>) => run(), site: () => {} };
+
+describe.skipIf(!connectionString)("a Coach Action never writes: only the Candidate's « Appliquer » does (ADR-0077, needs Postgres: DATABASE_URL)", () => {
+  let testAuth: TestAuth;
+  let database: Pool;
+  let profiles: Profiles;
+  let applications: Applications;
+  let catalog: readonly CoachAction[];
+  let marie: string;
+  let world: World;
+  /** The in-memory modules' writes, by name: none may be called while proposing. */
+  let writes: ReturnType<typeof vi.fn>[];
+
+  async function signIn(email: string) {
+    const cookie = await signInWithMagicLink(testAuth, email);
+    return (await (await testAuth.request("/api/auth/get-session", { cookie })).json()).user.id as string;
+  }
+
+  /** Every table of the database, row by row, as one fingerprint per table. */
+  async function snapshot(): Promise<Record<string, string>> {
+    const { rows: tables } = await database.query<{ table_name: string }>(
+      `SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() AND table_type = 'BASE TABLE' ORDER BY table_name`,
+    );
+    const fingerprints: Record<string, string> = {};
+    for (const { table_name: table } of tables) {
+      const { rows } = await database.query<{ fingerprint: string | null }>(`SELECT md5(string_agg(t::text, '|' ORDER BY t::text)) AS fingerprint FROM "${table}" t`);
+      fingerprints[table] = rows[0]!.fingerprint ?? "empty";
+    }
+    return fingerprints;
+  }
+
+  const offered = async (): Promise<CoachActionsForReply> => {
+    const forReply = await createCoachActions({ catalog, settings: async () => ({ enabled: true, maxRounds: 2 }), externalApis: { record: () => {} } }).forReply(marie, {
+      recorder: RECORDER,
+      untrustedInView: false,
+    });
+    if (!forReply) throw new Error("no Coach Action offered");
+    return forReply;
+  };
+
+  beforeEach(async () => {
+    testAuth = await startTestAuth();
+    database = testAuth.auth.options.database as Pool;
+    for (const migrate of [migrateProfiles, migrateJobOffers, migrateApplications, migrateJobSearches, migrateJobDigests, migrateActionCards, migrateFollowUps, migrateCoachMemory, migrateCoachConversations, migrateActionCardsInThread, migrateCompanyDossiers, migrateEnrichedContacts, migrateExchanges]) {
+      await migrate(database);
+    }
+    profiles = createProfiles(database);
+    const jobOffers = createJobOffers(database);
+    applications = createApplications(database, { jobOffers, profiles });
+    const followUps = createFollowUps(database, { actionCards: createActionCards(database), applications, mailer: { send: async () => {} }, appUrl: "https://app.jobbbox.test" });
+    const coachMemory = createCoachMemory(database, { ai: {} as never, conversations: { open: async () => null } });
+    marie = await signIn("marie.dupont@example.fr");
+
+    const profile = async (name: string) => {
+      const created = await profiles.create(marie, { masterCv, searchCriteria: { targetRole: name, locations: ["Lyon"], contractTypes: ["cdi"] } });
+      if (!created.ok) throw new Error("fixture Profile refused");
+      await database.query(`UPDATE profile SET name = $2 WHERE id = $1`, [created.profile.id, name]);
+      return created.profile.id;
+    };
+    const offer = async (n: number, title: string) => {
+      const captured = await jobOffers.capture({ source: { url: `https://www.apec.fr/offre/${n}` }, title, content: `${title} pour un groupe industriel.`, employer: "Acme Industrie" });
+      if (!captured.ok) throw new Error("fixture Job Offer refused");
+      return captured.jobOffer.id;
+    };
+    const daf = await profile("DAF");
+    const consultant = await profile("Consultante finance");
+    const archived = await profile("Ancien profil");
+    await profiles.archive(marie, archived);
+    const saved = await applications.save(marie, { jobOfferId: await offer(1, "DAF H/F"), profileId: daf });
+    if (!saved.ok) throw new Error("fixture Application refused");
+    await applications.change(marie, saved.application.id, { status: "interview" });
+    const added = await applications.addInterview(marie, saved.application.id, { scheduledAt: "2026-12-01T10:00", durationMinutes: 60, format: "on_site", place: "Siège, Lyon" });
+    if (!added.ok) throw new Error(`fixture Interview refused: ${JSON.stringify(added)}`);
+    const applied = await applications.save(marie, { jobOfferId: await offer(3, "Contrôleuse de gestion"), profileId: daf });
+    if (!applied.ok) throw new Error("fixture Application refused");
+    await applications.change(marie, applied.application.id, { status: "applied" });
+    world = {
+      daf,
+      consultant,
+      archived,
+      applicationId: saved.application.id,
+      appliedId: applied.application.id,
+      interviewId: added.interviewId,
+      newOfferId: await offer(2, "Directrice financière de transition"),
+    };
+
+    // The modules without a table here, in memory: their writes are spies, which proposing must never call.
+    const write = () => vi.fn(async () => ({ ok: false as const, error: "not_found" as const }));
+    const searching = { id: "s1", profile: { id: consultant, name: "Consultante finance", searchCriteria: {} }, status: "searching", failure: null, startedAt: new Date(), results: [], metrics: null, provenance: null };
+    // The keyring the Exchanges are sealed under (SECRETS_MASTER_KEYS).
+    const cipher = createAesGcmCipher(new Map([[1, createSecretKey(randomBytes(32))]]));
+    const domain: CoachActionDomain = {
+      applications,
+      profiles,
+      jobOffers,
+      followUps,
+      profile: { profiles, coachMemory, places: { suggest: async () => [] }, offersOf: async () => [], profileUpgradePrompt: async () => null },
+      jobSearches: {
+        get: async (_candidateId, id) => (id === searching.id ? (searching as never) : null),
+        latest: async () => null,
+        searching: async (_candidateId, profileId) => (profileId === consultant ? (searching as never) : null),
+        start: write(),
+        stop: write(),
+      },
+      jobDigests: {
+        settings: async () => ({ subscribed: false, chosenFrequency: null, frequency: "none", planFrequency: "weekly", upgradeTo: null, digests: [] }),
+        allows: async () => ({ ok: true }),
+        subscribe: write(),
+        unsubscribe: write() as never,
+        get: async () => null,
+      },
+      jobSearchQuota: async () => ({ used: 0, limit: 5, refusal: null }),
+      tailoredCvs: { get: async () => ({ documentLanguage: "fr", proposal: null, saved: null }) },
+      tailoredDocuments: {
+        // A Cover Letter drafted, for its text to be reworked (ADR-0109).
+        get: async () => ({
+          documentLanguage: "fr",
+          coverLetter: { language: "fr", text: "Madame, Monsieur, une lettre longue.", draftedAt: new Date("2026-11-02T09:00:00Z"), updatedAt: new Date("2026-11-02T09:00:00Z"), provenance: null },
+          outreachMessage: null,
+        }),
+        rework: write() as never,
+        unrework: write() as never,
+      },
+      // Two versions of the Cover Letter, the first to restore (#1079).
+      tailoredDocumentVersions: {
+        list: async () => ({
+          tailored_cv: [],
+          cover_letter: [2, 1].map((version) => ({
+            version,
+            savedAt: new Date("2026-11-02T09:00:00Z"),
+            source: version === 1 ? ("drafted" as const) : ("candidate" as const),
+            restoredFrom: null,
+            current: version === 2,
+            language: "fr" as const,
+            subject: null,
+            text: `Madame, Monsieur, version ${version}.`,
+            cv: null,
+            provenance: null,
+          })),
+          outreach_message: [],
+        }),
+        restore: write() as never,
+      },
+      // An Exchange kept on the Application, to answer (#1099): the feature flag on.
+      exchanges: { on: () => true, exchanges: createExchanges(database, { cipher: () => cipher }) },
       // A Company Dossier built, and one person found at its employer (ADR-0114).
       companyDossiers: {
         get: async () => ({
@@ -113,3 +265,78 @@ const CALLS: Record<string, (world: World) => Record<string, unknown>> = {
         contact: async () => null,
       },
       enrichedContactQuota: async () => ({ used: 0, limit: 5, refusal: null }),
+    };
+    // Its sender, subject and text sealed, as the inbound route keeps them.
+    const exchangeId = randomUUID();
+    const sealed = sealExchangeContent(cipher, exchangeId, { from: "rh@acme.fr", subject: "Entretien", text: "Mardi à 14 h ?" });
+    await database.query(
+      `INSERT INTO exchange (id, candidate_id, application_id, state, message_id, content_ciphertext, content_iv, content_tag, content_key_version, received_at)
+       VALUES ($1, $2, $3, 'kept', '<x@acme.fr>', $4, $5, $6, $7, now())`,
+      [exchangeId, marie, world.applicationId, sealed.ciphertext, sealed.iv, sealed.tag, sealed.keyVersion],
+    );
+    writes = [
+      domain.jobSearches.start,
+      domain.jobSearches.stop,
+      domain.jobDigests.subscribe,
+      domain.jobDigests.unsubscribe,
+      domain.tailoredDocuments.rework,
+      domain.tailoredDocuments.unrework,
+      domain.tailoredDocumentVersions.restore,
+      domain.companyDossiers.confirmEmployer,
+      domain.enrichedContacts.find,
+      domain.enrichedContacts.reveal,
+    ] as unknown as ReturnType<typeof vi.fn>[];
+    // A Job Offer is within reach when one of the Candidate's objects shows it: the new one, which her Job Search found.
+    const objects: CoachObjectReader = { index: async () => [], read: async (_candidateId, type, id) => (type === "job_offer" && id === world.newOfferId ? ({ text: "" } as never) : null) };
+    catalog = shippedCoachActions(objects, domain);
+  });
+  afterEach(async () => {
+    await testAuth.stop();
+  });
+
+  it("lists every proposing Coach Action of the catalogue, each applied only through its card", () => {
+    const proposing = catalog.filter((action) => action.kind === "propose");
+    expect(proposing.map((action) => action.name).sort()).toEqual(Object.keys(CALLS).sort());
+    // A proposal no card can apply would be lost, or applied some other way.
+    expect(proposing.filter((action) => typeof action.apply !== "function").map((action) => action.name)).toEqual([]);
+  });
+
+  for (const name of Object.keys(CALLS)) {
+    it(`${name}: proposed in a reply, nothing written anywhere`, async () => {
+      const before = await snapshot();
+      const reply = await offered();
+      const outcome = await reply.runTool({ id: "call-1", name, arguments: CALLS[name]!(world), round: 1 } as never, {});
+
+      expect(outcome.error, outcome.content).toBeFalsy();
+      expect(reply.proposals().map((proposal) => proposal.action)).toEqual([name]);
+      expect(await snapshot()).toEqual(before);
+      for (const each of writes) expect(each).not.toHaveBeenCalled();
+    });
+  }
+
+  it("a proposal placed under a reply adds its pending card and nothing else; only « Appliquer » changes the Profile", async () => {
+    const actionCards = createActionCards(database, coachProposalHandlers(catalog, () => new Date("2026-11-05T10:00:00Z")));
+    const proposals = createCoachProposals({ catalog, actionCards });
+    const { rows } = await database.query<{ id: string }>(`INSERT INTO coach_conversation (candidate_id, title) VALUES ($1, 'DAF') RETURNING id`, [marie]);
+    const { rows: replies } = await database.query<{ seq: string }>(`INSERT INTO coach_message (conversation_id, author, text) VALUES ($1, 'coach', 'Je vous le propose.') RETURNING seq`, [rows[0]!.id]);
+
+    const reply = await offered();
+    await reply.runTool({ id: "call-1", name: "propose_search_criteria", arguments: CALLS.propose_search_criteria!(world), round: 1 } as never, {});
+    const before = await snapshot();
+    const [card] = await proposals.place(marie, { reply: replies[0]!.seq, earlier: [] }, reply.proposals());
+    const after = await snapshot();
+    expect(Object.keys(after).filter((table) => after[table] !== before[table])).toEqual(["action_card"]);
+    expect((await profiles.get(marie, world.daf))!.searchCriteria.locations).toEqual(["Lyon"]);
+
+    const decided = await actionCards.decide(marie, card!.id, "accept");
+    expect(decided.ok).toBe(true);
+    expect((await profiles.get(marie, world.daf))!.searchCriteria.locations).toEqual(["Lyon", "Paris"]);
+  });
+
+  it("a saved Master CV Version is never changed in place, by anyone: the database refuses it", async () => {
+    await expect(database.query(`UPDATE master_cv_version SET content = content || '{"summary": "écrit en place"}'::jsonb WHERE profile_id = $1`, [world.daf])).rejects.toThrow(
+      /never changed/,
+    );
+    expect((await profiles.get(marie, world.daf))!.masterCv).toEqual({ version: 1, content: masterCv });
+  });
+});

@@ -4801,6 +4801,7 @@
       "propositions": "Suggestions",
       "documents": "Documents",
       "correspondance": "Match",
+      "echanges": "Exchanges",
       "entretiens": "Interviews",
       "avis": "Coach reviews",
       "dossier": "Company dossier",
@@ -7994,5 +7995,23 @@
     "rebuild": "Replace unfiled preparation",
     "rebuildExplanation": "Recalculates data and retains the previous preparation as a superseded archive. If an initial file has already been filed, use the corrective procedure with its references; do not create another initial packet.",
     "confirmUnfiled": "I confirm that no initial file for this year has been filed and this preparation may be replaced."
+  },
+  "exchanges": {
+    "title": "Exchanges",
+    "intro": "The recruiter's emails about this application, received by your linked mailbox: sender, date, subject and text, never attachments. They are kept as long as the application exists.",
+    "offeredLabel": "Emails to link",
+    "from": "From {{from}}, {{date}}",
+    "noSubject": "(no subject)",
+    "tieQuestion": "Link to {{employer}}?",
+    "tie": "Link to {{employer}}",
+    "dismiss": "Ignore",
+    "none": "No exchange yet",
+    "noneHint": "The recruiter's replies received by your linked mailbox will show here.",
+    "delete": "Delete the exchange “{{subject}}”",
+    "deleteConfirm": "Delete this exchange? It cannot be recovered.",
+    "deleteYes": "Delete",
+    "deleteNo": "Keep",
+    "failed": "That did not work. Please try again.",
+    "coachHint": "Your AI coach can propose a reply: you copy it or open it in your email, and send it yourself. An exchange never changes the application's status."
   }
 }

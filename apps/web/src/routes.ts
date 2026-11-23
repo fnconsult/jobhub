@@ -6,7 +6,7 @@ export const PROFILE_SECTIONS = ["propositions", "cv-de-reference", "ats-score",
 export type ProfileSection = (typeof PROFILE_SECTIONS)[number];
 
 /** The Sections of an Application's page, in order (ADR-0024). */
-export const APPLICATION_SECTIONS = ["propositions", "documents", "correspondance", "entretiens", "avis", "dossier", "contacts", "offre"] as const;
+export const APPLICATION_SECTIONS = ["propositions", "documents", "correspondance", "echanges", "entretiens", "avis", "dossier", "contacts", "offre"] as const;
 export type ApplicationSection = (typeof APPLICATION_SECTIONS)[number];
 
 /**

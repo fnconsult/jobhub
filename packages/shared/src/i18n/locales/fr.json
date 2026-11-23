@@ -4801,6 +4801,7 @@
       "propositions": "Propositions",
       "documents": "Documents",
       "correspondance": "Correspondance",
+      "echanges": "Échanges",
       "entretiens": "Entretiens",
       "avis": "Avis des coachs",
       "dossier": "Dossier entreprise",
@@ -7994,5 +7995,23 @@
     "rebuild": "Remplacer la préparation non déposée",
     "rebuildExplanation": "Recalcule les données et conserve l’ancienne préparation comme archive remplacée. Si un fichier initial a déjà été déposé, utilisez la procédure corrective avec ses références ; ne créez pas un nouvel initial.",
     "confirmUnfiled": "Je confirme qu’aucun fichier initial de cette année n’a été déposé et que cette préparation peut être remplacée."
+  },
+  "exchanges": {
+    "title": "Échanges",
+    "intro": "Les e-mails du recruteur sur cette candidature, reçus par votre boîte reliée : l'expéditeur, la date, l'objet et le texte, jamais les pièces jointes. Ils sont gardés tant que la candidature existe.",
+    "offeredLabel": "E-mails à rattacher",
+    "from": "De {{from}}, le {{date}}",
+    "noSubject": "(sans objet)",
+    "tieQuestion": "Rattacher à {{employer}} ?",
+    "tie": "Rattacher à {{employer}}",
+    "dismiss": "Ignorer",
+    "none": "Aucun échange pour l'instant",
+    "noneHint": "Les réponses du recruteur reçues par votre boîte reliée s'afficheront ici.",
+    "delete": "Supprimer l'échange « {{subject}} »",
+    "deleteConfirm": "Supprimer cet échange ? Il ne pourra pas être retrouvé.",
+    "deleteYes": "Supprimer",
+    "deleteNo": "Garder",
+    "failed": "L'action n'a pas abouti. Réessayez.",
+    "coachHint": "Votre coach IA peut vous proposer une réponse : vous la copiez ou l'ouvrez dans votre messagerie, et l'envoyez vous-même. Un échange ne change jamais le statut de la candidature."
   }
 }

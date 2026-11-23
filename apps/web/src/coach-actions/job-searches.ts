@@ -19,23 +19,20 @@ import { JOB_DIGEST_FREQUENCIES, type JobDigestFrequency } from "@jobhub/shared"
 import { createI18n } from "@jobhub/shared/i18n";
 import * as z from "zod";
 import type { Billing } from "../billing";
-import { upgradePrompt, type QuotaRefusal, type UpgradePrompt } from "../billing/upgrade-prompt";
+import { upgradePrompt, type UpgradePrompt } from "../billing/upgrade-prompt";
 import { searchCriteriaInWords } from "../components/job-search-words";
 import type { JobDigests, SubscribeResult } from "../job-digests";
 import type { Applications } from "../applications";
 import type { JobSearches } from "../job-searches";
 import type { Profile, Profiles } from "../profiles";
 import { routes } from "../routes";
+import { weeklyQuotaOf, type WeeklyQuotaUse } from "./quota";
 import { defineCoachAction, type ApplyProposalResult, type CoachAction, type CoachActionCall, type CoachActionResult, type ProposedChange, type UndoProposalResult } from "./index";
 
 type Translate = ReturnType<typeof createI18n>["t"];
 
 /** The Candidate's weekly Plan Quota of Job Searches now: what is used, the limit (null: unlimited), and the refusal once used up. */
-export interface JobSearchQuota {
-  used: number;
-  limit: number | null;
-  refusal: QuotaRefusal | null;
-}
+export type JobSearchQuota = WeeklyQuotaUse;
 
 /** The domain modules these Coach Actions go through, each scoped to the Candidate. */
 export interface SearchActionSources {
@@ -51,14 +48,7 @@ export const SEARCH_ACTIONS = { start: "propose_job_search", stop: "propose_job_
 
 /** The Job Search Plan Quota as the billing module keeps it: this week's uses, the Plan's limit, its refusal once used up. */
 export function jobSearchQuotaOf(billing: Pick<Billing, "entitlements" | "allows">): SearchActionSources["jobSearchQuota"] {
-  return async (candidateId) => {
-    const { quotas, usedThisWeek } = await billing.entitlements(candidateId);
-    const limit = quotas.jobSearches;
-    const used = usedThisWeek.jobSearches;
-    if (limit === null || used < limit) return { used, limit, refusal: null };
-    const decision = await billing.allows(candidateId, "jobSearches");
-    return { used, limit, refusal: decision.allowed ? null : decision };
-  };
+  return weeklyQuotaOf(billing, "jobSearches");
 }
 
 const id = z.string().min(1).max(200);

@@ -24,6 +24,7 @@ import { e2eCoachActions } from "./e2e-catalog";
 import { createCoachActions, type CoachAction, type CoachActions } from "./index";
 import { jobSearchQuotaOf } from "./job-searches";
 import { createRedirects } from "./redirects";
+import { weeklyQuotaOf } from "./quota";
 import { coachActionsSettings } from "./settings";
 
 let instance: CoachActions | undefined;
@@ -90,30 +91,15 @@ function shipped(): readonly CoachAction[] {
       tailoredCvs: getTailoredCvs(),
       tailoredDocuments: getTailoredDocuments(),
       tailoredDocumentVersions: getTailoredDocumentVersions(),
-      // An Application's Exchanges (#1099): offered only while APPLICATION_EXCHANGES_ENABLED is on, read at each reply.
-      exchanges: { on: exchangesOn, exchanges: getExchanges() },
-    },
-  );
-}
-
-/**
- * The Coach Actions this app offers and applies (#713, #715): the catalogue shipped, and on an e2e spec's own server only
- * (JOBHUB_TARGET=e2e and E2E_FAKE_COACH_ACTIONS=1) the suite's fake one, which proposes an Application Status.
- */
-export function coachActionsInUse(env: NodeJS.ProcessEnv = process.env): readonly CoachAction[] {
-  const fake = env.JOBHUB_TARGET?.trim() === "e2e" && env.E2E_FAKE_COACH_ACTIONS?.trim() === "1";
-  catalog ??= fake ? [...shipped(), ...e2eCoachActions(getApplications())] : shipped();
-  return catalog;
-}
-
-/** The app's Coach Actions (#713): the catalogue in use, switched on and bounded by Paramètres, each call in external_api_usage. */
-export function getCoachActions(): CoachActions {
-  instance ??= createCoachActions({
-    catalog: coachActionsInUse(),
-    settings: async () => coachActionsSettings(getPlatformSettingsResolver().current()),
-    externalApis: getExternalApiLog(),
-    // Typed redirects (ADR-0114), named after the Candidate's own Profiles and Applications.
-    redirects: createRedirects({ profiles: getProfiles(), applications: getApplications() }),
-  });
-  return instance;
-}
+      // Reached when called, as the reads are (ADR-0114).
+      companyDossiers: {
+        get: (candidateId, applicationId) => getCompanyDossiers().get(candidateId, applicationId),
+        confirmEmployer: (candidateId, applicationId, input) => getCompanyDossiers().confirmEmployer(candidateId, applicationId, input),
+      },
+      enrichedContacts: {
+        get: (candidateId, applicationId) => getEnrichedContacts().get(candidateId, applicationId),
+        find: (candidateId, applicationId) => getEnrichedContacts().find(candidateId, applicationId),
+        reveal: (candidateId, applicationId, contactId) => getEnrichedContacts().reveal(candidateId, applicationId, contactId),
+        contact: (candidateId, applicationId, contactId) => getEnrichedContacts().contact(candidateId, applicationId, contactId),
+      },
+      enrichedContactQuota: weeklyQuotaOf(getBilling(), "enrichedContacts"),

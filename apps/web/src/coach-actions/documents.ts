@@ -9,7 +9,8 @@
  *    the proposal seen (its revision; proposed again, answered or saved since: a conflict).
  *  - `propose_cover_letter`, `propose_outreach_message`: « Rédiger » runs the drafting. A draft that exists is replaced,
  *    edits included: the card says so (`replaces`) and the Candidate confirms it first; applied from the draft seen (written
- *    or edited since: a conflict).
+ *    or edited since: a conflict). An Outreach Message takes a `contactId` (ADR-0114): one of the Application's revealed
+ *    Enriched Contacts, to whom it is addressed; the card names them (name and role, never their details).
  * None copies text (`copiesText: false`): the AI action reads the Job Offer by its own rules, so they stay offered with an
  * Application In view. Each is scoped to the session's Candidate: another's id, an Archived Application (its Profile
  * archived) or an unknown id is `not_found`.
@@ -20,6 +21,7 @@ import { DOCUMENT_LANGUAGES, type DocumentLanguage } from "@jobhub/shared";
 import { createI18n } from "@jobhub/shared/i18n";
 import * as z from "zod";
 import type { Application, Applications } from "../applications";
+import type { EnrichedContacts } from "../enriched-contacts";
 import type { Profiles } from "../profiles";
 import { routes, type ApplicationResult } from "../routes";
 import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
@@ -33,6 +35,8 @@ export interface DocumentActionSources {
   profiles: Pick<Profiles, "list">;
   tailoredCvs: Pick<TailoredCvs, "get">;
   tailoredDocuments: Pick<TailoredDocuments, "get">;
+  /** The revealed Enriched Contact an Outreach Message is addressed to (ADR-0114). */
+  enrichedContacts: Pick<EnrichedContacts, "contact">;
 }
 
 export const DOCUMENT_ACTIONS = { tailoredCv: "propose_tailored_cv", coverLetter: "propose_cover_letter", outreachMessage: "propose_outreach_message" } as const;
@@ -52,12 +56,22 @@ const WHICH_APPLICATION: CoachActionResult = {
   data: { message: "Aucune candidature n'est consultée : demande au candidat de quelle candidature il s'agit, ou précise-la (applicationId, lu dans l'index de ses objets)." },
 };
 
+/** An Outreach Message asked for a person who is not a revealed Enriched Contact of the Application (ADR-0114). */
+const NOT_A_REVEALED_CONTACT: CoachActionResult = {
+  ok: true,
+  proposes: false,
+  data: {
+    message:
+      "Ce contact n'est pas un contact enrichi révélé de cette candidature : lis ses contacts avec read_enriched_contacts ; un contact trouvé mais pas encore révélé se révèle d'abord avec propose_contact_reveal.",
+  },
+};
+
 /** Never in the reply: what each description ends with. */
 const NOT_IN_THE_REPLY =
   "Tu ne rédiges jamais ce document toi-même dans ta réponse, pas même un extrait ni un modèle : propose-le avec cet outil, dis ce que tu proposes, et le candidat le lance sous ta réponse.";
 
 const letterSchema = z.object({ applicationId: id.optional(), language: z.enum(DOCUMENT_LANGUAGES).optional() });
-const outreachSchema = letterSchema.extend({ channel: z.enum(OUTREACH_CHANNELS).optional() });
+const outreachSchema = letterSchema.extend({ channel: z.enum(OUTREACH_CHANNELS).optional(), contactId: id.optional() });
 
 const languageArgument = "language : fr ou en ; omis, la langue des documents de la candidature.";
 
@@ -141,22 +155,32 @@ export function documentCoachActions(sources: DocumentActionSources): CoachActio
       group: "documents",
       kind: "propose",
       copiesText: false,
-      async run({ applicationId, language, channel }, call) {
+      async run({ applicationId, language, channel, contactId }, call) {
         const wanted = applicationIdOf(applicationId, call);
         if (!wanted) return WHICH_APPLICATION;
         const application = await reachable(call.candidateId, wanted);
         const drafts = application ? await sources.tailoredDocuments.get(call.candidateId, application.id) : null;
         if (!application || !drafts) return NOT_FOUND;
+        // Addressed to a revealed Enriched Contact (ADR-0114): only their name and role go on the card, never their details.
+        const contact = document === "outreach_message" && contactId ? await sources.enrichedContacts.contact(call.candidateId, application.id, contactId) : null;
+        if (document === "outreach_message" && contactId && !contact) return NOT_A_REVEALED_CONTACT;
         const { t } = createI18n(call.language);
         const written: DocumentLanguage = language ?? drafts.documentLanguage;
         const existing = document === "cover_letter" ? drafts.coverLetter : drafts.outreachMessage;
         const edited = existing && existing.updatedAt.getTime() > existing.draftedAt.getTime();
         const result: ApplicationResult = document;
         const change: ProposedChange = {
-          ...launched(application, result, { kind: "tailored_documents", url: applicationUrl(application.id, "tailored-documents"), body: { document, language: written, ...(channel ? { channel } : {}) } }),
+          ...launched(application, result, {
+            kind: "tailored_documents",
+            url: applicationUrl(application.id, "tailored-documents"),
+            body: { document, language: written, ...(channel ? { channel } : {}), ...(contact ? { contactId: contact.id } : {}) },
+          }),
           what: what(t),
           before: existing ? t(edited ? "coachProposals.values.draftEdited" : "coachProposals.values.draftOf", { date: longDate(call.language, existing.draftedAt) }) : t("coachProposals.values.noDraft"),
-          after: t("coachProposals.values.newDraft", { language: t(`tailoredDocuments.languages.${written}`) }),
+          after: [
+            t("coachProposals.values.newDraft", { language: t(`tailoredDocuments.languages.${written}`) }),
+            ...(contact ? [t("coachProposals.values.draftFor", { contact: contact.jobTitle ? `${contact.name} (${contact.jobTitle})` : contact.name })] : []),
+          ].join(" · "),
           version: versionOf(drafts, document),
           ...(existing ? { replaces: t("coachProposals.values.replacesDraft") } : {}),
         };
@@ -183,7 +207,7 @@ export function documentCoachActions(sources: DocumentActionSources): CoachActio
     "outreach_message",
     DOCUMENT_ACTIONS.outreachMessage,
     (t) => t("tailoredDocuments.outreachMessage.title"),
-    `Propose de rédiger le message d'approche d'une candidature du candidat (à un recruteur ou à la personne qui recrute), quand il le demande : un brouillon tiré de son CV de référence et de l'offre, qu'il modifie ensuite. Un brouillon existant est remplacé, et reste dans ses « Versions » : la carte le lui fait confirmer. applicationId : omis, la candidature consultée. channel : email (par défaut) ou inmail (LinkedIn). ${languageArgument} ${NOT_IN_THE_REPLY}`,
+    `Propose de rédiger le message d'approche d'une candidature du candidat (à un recruteur ou à la personne qui recrute), quand il le demande : un brouillon tiré de son CV de référence et de l'offre, qu'il modifie ensuite. Un brouillon existant est remplacé, et reste dans ses « Versions » : la carte le lui fait confirmer. applicationId : omis, la candidature consultée. channel : email (par défaut) ou inmail (LinkedIn). contactId : l'id d'un contact enrichi révélé de la candidature (lu avec read_enriched_contacts), quand le message s'adresse à cette personne. ${languageArgument} ${NOT_IN_THE_REPLY}`,
     outreachSchema,
   );
 

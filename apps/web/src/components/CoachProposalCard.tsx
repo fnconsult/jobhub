@@ -27,7 +27,7 @@ const FORM: AddressedKind = "form";
  */
 const decisionOf = (change: { id: string }, decisions: Record<string, boolean>): boolean | null => decisions[change.id] ?? null;
 
-type Problem = "conflict" | "undoConflict" | "invalid" | "failed" | "noneAccepted" | "runFailed";
+type Problem = "conflict" | "undoConflict" | "invalid" | "failed" | "noneAccepted" | "runFailed" | "dossierFailed";
 
 /** The hour of a decision, « 18:20 », in the Candidate's language. */
 function hourOf(at: string, language: string): string {
@@ -151,7 +151,7 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
     if (!(await decide("accept"))) return;
     const outcome = await live.run(run.url, run.body);
     if (outcome.ok) router.push(run.opens, { scroll: false });
-    else if (!("stopped" in outcome)) setProblem("runFailed");
+    else if (!("stopped" in outcome)) setProblem(run.kind === "company_dossier" ? "dossierFailed" : "runFailed");
   }
 
   function openForm() {
@@ -294,7 +294,7 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
       {card.status === "accepted" && run && !live.live ? (
         // Where the Result is (ADR-0109): its Section and name, and a link opening it in the Work Pane beside the conversation.
         <p className="hint">
-          {t(`coachProposals.runResult.${resultOf(run)}`)} <Link href={run.opens} scroll={false}>{t("coachProposals.openResult")}</Link> {t("coachProposals.runStopped")}
+          {t(`coachProposals.runResult.${resultOf(run)}`)} <Link href={run.opens} scroll={false}>{t("coachProposals.openResult")}</Link> {t(run.kind === "company_dossier" ? "coachProposals.runStoppedDossier" : "coachProposals.runStopped")}
         </p>
       ) : null}
       {pending && change.replaces ? <p className="notice">{change.replaces}</p> : null}
@@ -316,7 +316,7 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
       {pending && !confirming && run && !change.quota?.prompt ? (
         <div className="actions">
           <button ref={launchButton} className={buttonClass({ variant: "primary", size: "sm" })} type="button" disabled={busy} onClick={() => (change.replaces ? setConfirming(true) : void launch())}>
-            {t(run.kind === "tailored_cv" ? "coachProposals.prepare" : "coachProposals.draft")}
+            {t(LAUNCH_LABEL[run.kind])}
           </button>
           <button className={buttonClass({ variant: "quiet", size: "sm" })} type="button" disabled={busy} onClick={() => void decide("dismiss")}>
             {t("coachProposals.dismiss")}
@@ -382,10 +382,13 @@ export function mailtoOf(handOver: { to: string; subject: string }, text: string
 }
 
 /** The Result a launched run produces: a Tailored CV, or the Tailored Document its body names. */
-function resultOf(run: NonNullable<Card["change"]["runs"]>): "tailored_cv" | "cover_letter" | "outreach_message" {
-  if (run.kind === "tailored_cv") return "tailored_cv";
+function resultOf(run: NonNullable<Card["change"]["runs"]>): "tailored_cv" | "cover_letter" | "outreach_message" | "company_dossier" {
+  if (run.kind === "tailored_cv" || run.kind === "company_dossier") return run.kind;
   return run.body.document === "outreach_message" ? "outreach_message" : "cover_letter";
 }
+
+/** What launches each kind of run from its card: « Préparer » a Tailored CV, « Rédiger » a document, « Mettre à jour » a Company Dossier (ADR-0114). */
+const LAUNCH_LABEL = { tailored_cv: "coachProposals.prepare", tailored_documents: "coachProposals.draft", company_dossier: "coachProposals.update" } as const;
 
 /** One change, before → after, read out as « Avant : … , après : … ». */
 function BeforeAfter({ before, after }: { before: string; after: string }) {

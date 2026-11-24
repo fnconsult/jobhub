@@ -20,6 +20,8 @@ GitHub, rangé sous « Livraison », sert la page Livraison : son jeton en lectu
 
 Outils se lit seulement : une clé, un réglage ou un fournisseur se change dans Paramètres. « Tous les outils » ramène à la liste.
 
+Quand le fournisseur d'un outil le refuse pour son quota, le bandeau « Quota atteint » s'affiche en tête de chaque page du Back Office ; son lien « Facturation de … » ouvre, dans un nouvel onglet, la page du fournisseur où se paie ou se renouvelle le quota.
+
 La réservation Cal.com d’équipe utilise un événement à un seul hôte, vérifié et rattaché depuis « Coachs humains ». Les paramètres de l’équipe et la confirmation des rappels désactivés restent dans Paramètres ; les clés API et de webhook restent des Provider Secrets. Les anciens liens cal.eu sont signalés pour revue. Une création dont le résultat est inconnu n’est jamais répétée automatiquement : retrouvez l’événement dans Cal.com puis rattachez son identifiant. La réservation intégrée attend les textes requis et leur préavis.
 
 La fiche Stripe répertorie la clé API, la signature du webhook de facturation et la signature distincte des événements de comptes connectés (`STRIPE_CONNECT_WEBHOOK_SECRET`). Ces signatures se règlent dans Provider Secrets pour leurs points de livraison respectifs ; leur présence ne remplace pas les conditions légales d’activation du coaching.

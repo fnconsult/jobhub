@@ -28,14 +28,14 @@ const ofTopic = (locale: HelpLocale) =>
   articles(locale).filter((article) => article.topic === TOPIC);
 
 /**
- * #557: the Back Office's « Fournisseurs et Tools » articles (ADR-0065): 4 pages, 9 tutorials and 4 frequent questions,
+ * #557: the Back Office's « Fournisseurs et Tools » articles (ADR-0065): 4 pages, 9 tutorials, 4 frequent questions and, since #1115, one glossary article (« Quota atteint »),
  * for Administrators only, quoting the interface word for word. Each quote is a string of the interface's catalogue
  * (its placeholder written « … » or filled with a name), or its beginning up to a sentence break, a Tool's name, or
  * the title of another Help Article in the same language.
  */
 describe("the « Fournisseurs et Tools » Help Articles (#557)", () => {
   it.each(HELP_LOCALES)(
-    "are 4 pages, 9 tutorials and 4 frequent questions for Administrators, never public, in %s",
+    "are 4 pages, 9 tutorials, 4 frequent questions and 1 glossary article for Administrators, never public, in %s",
     (locale) => {
       const found = ofTopic(locale);
       const count = (kind: string) =>
@@ -45,7 +45,7 @@ describe("the « Fournisseurs et Tools » Help Articles (#557)", () => {
         count("tutorial"),
         count("faq"),
         count("glossary"),
-      ]).toEqual([4, 9, 4, 0]);
+      ]).toEqual([4, 9, 4, 1]);
       expect(
         found.every(
           (article) =>

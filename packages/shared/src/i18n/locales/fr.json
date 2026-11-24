@@ -2098,9 +2098,32 @@
     "dashboard": {
       "title": "Dashboard",
       "subtitle": "Ce que la plateforme consomme, et comment se porte la recherche d'offres.",
-      "intro": "Ce que la plateforme consomme et comment se porte la recherche d'offres. Chaque bloc n'apparaît qu'aux rôles qui lisent sa rubrique.",
-      "noBlocks": "Aucun indicateur pour vos rôles : la barre latérale mène à vos rubriques.",
+      "intro": "Ce que la plateforme consomme et comment se porte la recherche d'offres. Le bloc « API » apparaît à tous les rôles ; chacun des autres blocs n'apparaît qu'aux rôles qui lisent sa rubrique.",
       "tableView": "Vue tableau",
+      "api": {
+        "title": "API",
+        "period": "état du quota de chaque Tool",
+        "states": {
+          "ok": "OK",
+          "rate_limited": "Limite atteinte",
+          "quota_exhausted": "Quota épuisé"
+        },
+        "okSub": "Le fournisseur accepte ses appels",
+        "since": "Depuis le {{date}}",
+        "renewsAt": "Renouvellement le {{date}}",
+        "config": "Configuration",
+        "configLabel": "Configuration de {{tool}}",
+        "billing": "Facturation",
+        "billingLabel": "Facturation de {{tool}} chez le fournisseur (nouvel onglet)",
+        "noTools": "Aucun Tool à API n'est configuré : il n'y a pas de quota à suivre.",
+        "tableTitle": "État du quota de chaque Tool",
+        "tool": "Tool",
+        "state": "État",
+        "sinceColumn": "Depuis",
+        "renewsAtColumn": "Renouvellement",
+        "links": "Liens",
+        "none": "—"
+      },
       "jobDiscovery": {
         "title": "Recherche d'offres : consommation et budget",
         "period": "{{month}}, au {{day}}",

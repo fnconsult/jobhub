@@ -2098,9 +2098,32 @@
     "dashboard": {
       "title": "Dashboard",
       "subtitle": "What the platform consumes, and how Job discovery is doing.",
-      "intro": "What the platform consumes and how Job discovery is doing. Each block shows only to the roles that read its section.",
-      "noBlocks": "No figures for your roles: the sidebar leads to your sections.",
+      "intro": "What the platform consumes and how Job discovery is doing. The « API » block shows to every role; each other block shows only to the roles that read its section.",
       "tableView": "Table view",
+      "api": {
+        "title": "API",
+        "period": "each Tool's quota state",
+        "states": {
+          "ok": "OK",
+          "rate_limited": "Rate limit reached",
+          "quota_exhausted": "Quota exhausted"
+        },
+        "okSub": "Its provider accepts its calls",
+        "since": "Since {{date}}",
+        "renewsAt": "Renews on {{date}}",
+        "config": "Settings",
+        "configLabel": "{{tool}} settings",
+        "billing": "Billing",
+        "billingLabel": "{{tool}} billing at its provider (new tab)",
+        "noTools": "No API Tool is configured: there is no quota to watch.",
+        "tableTitle": "Each Tool's quota state",
+        "tool": "Tool",
+        "state": "State",
+        "sinceColumn": "Since",
+        "renewsAtColumn": "Renewal",
+        "links": "Links",
+        "none": "—"
+      },
       "jobDiscovery": {
         "title": "Job discovery: consumption and budget",
         "period": "{{month}}, through the {{day}}",

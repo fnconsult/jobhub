@@ -42,3 +42,10 @@
   stop-color: var(--color-chart-series-1);
   stop-opacity: 0;
 }
+
+/* The « API » block's two links on each Tool (#1116): its configuration, its provider's billing page. */
+.dashboard .dashboard-api-links {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}

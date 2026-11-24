@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { hasQuota } from "./quota-refusals";
 import { externalApiProvidersOf, HOSTS, isRecipientOutsideEu, LOCAL_ROUTE_GROUPS, localRouteTool, RECIPIENT_DATA, RECIPIENT_DATA_TEXT, type RecipientFacts, recipientList, type Tool, TOOL_CATEGORIES, toolById, toolOfUsage, TOOLS, toolsByCategory, TRANSFER_SAFEGUARD_TEXT, TRANSFER_SAFEGUARDS } from "./tools";
 
 describe("the Tools", () => {
@@ -296,5 +297,25 @@ describe("the Tool a recorded call was made to", () => {
     expect(externalApiProvidersOf(toolById("stripe")!)).toEqual(["stripe"]);
     expect(externalApiProvidersOf(toolById("mistral")!)).toEqual(["mistral"]);
     expect(externalApiProvidersOf(toolById("openai")!)).toEqual([]);
+  });
+});
+
+describe("the Tools with a quota (#1115)", () => {
+  it("are the API Tools whose provider can refuse a call for its quota: AI models, web search, contact enrichment and Fantastic.jobs", () => {
+    expect(TOOLS.filter((tool) => hasQuota(tool)).map((tool) => tool.id)).toEqual(["anthropic", "anthropic-bedrock", "anthropic-vertex", "mistral", "openai", "perplexity", "brave", "tavily", "fantastic-jobs", "lusha", "kaspr", "apollo"]);
+  });
+
+  it("each give the provider's billing page, where its quota is paid for or renewed, on HTTPS", () => {
+    for (const tool of TOOLS.filter((tool) => hasQuota(tool))) {
+      const billingUrl = (tool as Tool).billingUrl;
+      expect(billingUrl, `${tool.id} has a quota: it needs its billingUrl`).toBeDefined();
+      expect(new URL(billingUrl!).protocol, tool.id).toBe("https:");
+    }
+  });
+
+  it("are the only Tools with a billing page: the public APIs and our own Tools have no quota", () => {
+    expect(TOOLS.filter((tool) => (tool as Tool).billingUrl !== undefined)).toEqual(TOOLS.filter((tool) => hasQuota(tool)));
+    expect(hasQuota(toolById("greenhouse")!)).toBe(false);
+    expect(hasQuota(localRouteTool("applications"))).toBe(false);
   });
 });

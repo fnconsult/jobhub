@@ -90,6 +90,11 @@ export interface Tool {
   signIn?: "google" | "apple" | "microsoft" | "oidc";
   /** Null while its calls are not recorded. */
   usage: ToolUsage | null;
+  /**
+   * For a Tool with a quota (`hasQuota`, #1114, #1115): its provider's page where the quota is paid for or renewed, which the
+   * Back Office's « Quota atteint » banner opens in a new tab. None for any other Tool.
+   */
+  billingUrl?: `https://${string}`;
   residency: ToolResidency;
   /**
    * It receives personal data, or queries drawn from it (web search): a recipient, as the Recipient list names it
@@ -385,6 +390,7 @@ export const TOOLS = [
     keys: ["ANTHROPIC_API_KEY"],
     settings: [{ name: "ANTHROPIC_ENDPOINT" }],
     usage: { table: "ai_usage", provider: "anthropic", endpoint: "api.anthropic.com", external: "anthropic" },
+    billingUrl: "https://console.anthropic.com/settings/billing",
     residency: "outside_eu",
     receivesPersonalData: true,
     recipient: {
@@ -415,6 +421,7 @@ export const TOOLS = [
     keys: ["AWS_BEARER_TOKEN_BEDROCK"],
     settings: [{ name: "ANTHROPIC_ENDPOINT" }, { name: "BEDROCK_REGION" }],
     usage: { table: "ai_usage", provider: "anthropic", endpoint: "bedrock ", external: "anthropic_bedrock" },
+    billingUrl: "https://console.aws.amazon.com/billing/home",
     residency: "eu",
     receivesPersonalData: true,
     recipient: {
@@ -443,6 +450,7 @@ export const TOOLS = [
     keys: [],
     settings: [{ name: "ANTHROPIC_ENDPOINT", enabledWhen: ["vertex"] }, { name: "VERTEX_REGION" }, { name: "VERTEX_PROJECT_ID", required: true }],
     usage: { table: "ai_usage", provider: "anthropic", endpoint: "vertex " },
+    billingUrl: "https://console.cloud.google.com/billing",
     residency: "eu",
     receivesPersonalData: true,
     recipient: {
@@ -471,6 +479,7 @@ export const TOOLS = [
     keys: ["MISTRAL_API_KEY"],
     settings: [{ name: "AI_IDENTITY_MODEL" }],
     usage: { table: "ai_usage", provider: "mistral", external: "mistral" },
+    billingUrl: "https://console.mistral.ai/billing",
     residency: "eu",
     receivesPersonalData: true,
     recipient: {
@@ -502,6 +511,7 @@ export const TOOLS = [
     keys: ["OPENAI_API_KEY"],
     settings: [{ name: "OPENAI_DATA_RESIDENCY" }],
     usage: { table: "ai_usage", provider: "openai" },
+    billingUrl: "https://platform.openai.com/settings/organization/billing/overview",
     residency: "outside_eu",
     receivesPersonalData: true,
     recipient: {
@@ -530,6 +540,7 @@ export const TOOLS = [
     keys: ["PERPLEXITY_API_KEY"],
     settings: WEB_SEARCH_SETTINGS("PERPLEXITY_SEARCH_TYPE", "PERPLEXITY_QUERIES_PER_CALL", "AI_WEB_SEARCH_MODEL", "PERPLEXITY_FAST_SEARCH_PRICE_USD", "PERPLEXITY_SEARCH_PRICE_USD"),
     usage: { table: "ai_usage", provider: "perplexity", external: "perplexity" },
+    billingUrl: "https://www.perplexity.ai/account/api/billing",
     residency: "outside_eu",
     receivesPersonalData: true,
     recipient: {
@@ -554,6 +565,7 @@ export const TOOLS = [
     keys: ["BRAVE_SEARCH_API_KEY"],
     settings: WEB_SEARCH_SETTINGS("BRAVE_MAX_PAGES", "BRAVE_SEARCH_PRICE_USD"),
     usage: { table: "ai_usage", provider: "brave", external: "brave" },
+    billingUrl: "https://api-dashboard.search.brave.com/app/subscriptions",
     residency: "outside_eu",
     receivesPersonalData: true,
     recipient: {
@@ -575,6 +587,7 @@ export const TOOLS = [
     keys: ["TAVILY_API_KEY"],
     settings: WEB_SEARCH_SETTINGS("TAVILY_SEARCH_DEPTH", "AI_WEB_SEARCH_MODEL", "TAVILY_CREDIT_PRICE_USD"),
     usage: { table: "ai_usage", provider: "tavily", external: "tavily" },
+    billingUrl: "https://app.tavily.com/billing",
     residency: "outside_eu",
     receivesPersonalData: true,
     recipient: {
@@ -635,6 +648,7 @@ export const TOOLS = [
     runsIn: "worker",
     keys: ["FANTASTIC_JOBS_API_KEY"],
     usage: { table: "external_api_usage", provider: "fantastic_jobs" },
+    billingUrl: "https://fantastic.jobs/api",
     // A Dutch company, but where it processes the queries was not found (#522): not established.
     residency: "unknown",
     // Queries drawn from the Search Criteria, as web search's (ADR-0064): a recipient.
@@ -747,6 +761,7 @@ export const TOOLS = [
     keys: ["LUSHA_API_KEY"],
     settings: ENRICHMENT_SETTINGS("lusha"),
     usage: { table: "external_api_usage", provider: "lusha" },
+    billingUrl: "https://dashboard.lusha.com/account/billing",
     residency: "outside_eu",
     receivesPersonalData: true,
     recipient: {
@@ -768,6 +783,7 @@ export const TOOLS = [
     keys: ["KASPR_API_KEY"],
     settings: ENRICHMENT_SETTINGS("kaspr"),
     usage: { table: "external_api_usage", provider: "kaspr" },
+    billingUrl: "https://app.kaspr.io/plan",
     residency: "unknown",
     receivesPersonalData: true,
     recipient: {
@@ -792,6 +808,7 @@ export const TOOLS = [
     keys: ["APOLLO_API_KEY"],
     settings: ENRICHMENT_SETTINGS("apollo"),
     usage: { table: "external_api_usage", provider: "apollo" },
+    billingUrl: "https://app.apollo.io/#/settings/plans",
     residency: "outside_eu",
     receivesPersonalData: true,
     recipient: {

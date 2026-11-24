@@ -2083,6 +2083,18 @@
     "yourRoles": "Your roles: {{roles}}.",
     "readOnly": "Read only: your roles do not allow changes to this section.",
     "rowActions": "Actions",
+    "quotaBanner": {
+      "title": "Quota reached",
+      "line": "{{tool}}: {{state}} since {{since}}.",
+      "lineNoSince": "{{tool}}: {{state}}.",
+      "states": {
+        "rate_limited": "rate limit reached",
+        "quota_exhausted": "quota used up"
+      },
+      "configure": "Configure {{tool}}",
+      "billing": "{{tool}} billing",
+      "newTab": "(new tab)"
+    },
     "dashboard": {
       "title": "Dashboard",
       "subtitle": "What the platform consumes, and how Job discovery is doing.",

@@ -10,9 +10,9 @@ A tool has its **quota reached** when its provider refuses to serve it because o
 - **« rate limit reached »**: the provider limits the rate (too many calls in a short time, HTTP 429);
 - **« quota used up »**: the credit or the plan paid for at the provider is used up.
 
-Each state starts at the provider's first refusal and lasts as long as it refuses: it ends at that tool's first accepted call.
+Each state starts at the provider's first refusal and lasts as long as it refuses: it ends at that tool's first accepted call, or at the renewal date the provider gave. A connection test that passes is not enough: it checks the key, not the quota.
 
-While at least one tool has its quota reached, the « Quota reached » banner shows at the head of every Back Office page, for every Administrator, whatever their role. It goes away by itself as soon as the state is back to normal. Each line names the tool, its state and since when.
+While at least one tool has its quota reached, the « Quota reached » banner shows at the head of every Back Office page, for every Administrator, whatever their role. It goes away by itself within half a minute once the state is back to normal. Each line names the tool, its state and since when.
 
 To fix it, each line gives two links:
 

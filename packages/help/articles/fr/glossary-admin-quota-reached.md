@@ -10,9 +10,9 @@ Un outil a son **quota atteint** quand son fournisseur refuse de l'appeler pour 
 - **« limite atteinte »** : le fournisseur limite le débit (trop d'appels en peu de temps, HTTP 429) ;
 - **« quota épuisé »** : le crédit ou le plan payé chez le fournisseur est épuisé.
 
-Chaque état commence au premier refus du fournisseur et dure tant qu'il refuse : il prend fin au premier appel accepté de cet outil.
+Chaque état commence au premier refus du fournisseur et dure tant qu'il refuse : il prend fin au premier appel accepté de cet outil, ou à la date de renouvellement donnée par le fournisseur. Un test de connexion réussi ne suffit pas : il vérifie la clé, pas le quota.
 
-Tant qu'au moins un outil a son quota atteint, le bandeau « Quota atteint » s'affiche en tête de chaque page du Back Office, pour tout Administrator, quel que soit son rôle. Il disparaît de lui-même dès que l'état revient à la normale. Chaque ligne nomme l'outil, son état et depuis quand.
+Tant qu'au moins un outil a son quota atteint, le bandeau « Quota atteint » s'affiche en tête de chaque page du Back Office, pour tout Administrator, quel que soit son rôle. Il disparaît de lui-même dans la demi-minute qui suit le retour à la normale. Chaque ligne nomme l'outil, son état et depuis quand.
 
 Pour y remédier, chaque ligne donne deux liens :
 

@@ -49,6 +49,13 @@ async function signedIn(browser: Browser, email: string): Promise<Page> {
 
 const banner = (page: Page) => page.locator('[data-alert="quota"]');
 
+/** Opens the Back Office page at `path`, checking it was drawn: its own title, not the error page's. */
+async function open(page: Page, path: string) {
+  await page.goto(path);
+  await expect(page.getByRole("heading", { level: 1 }), path).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: fr.errorPage.error.title }), `${path} drawn`).toHaveCount(0);
+}
+
 test.beforeAll(async () => {
   own = await startOwnServer(PORT_OFFSET, "quota_banner", {
     JOBHUB_TARGET: "e2e",
@@ -60,6 +67,12 @@ test.beforeAll(async () => {
     AI_WRITING_PROVIDER: "mistral",
     AI_COACHING_PROVIDER: "mistral",
     MISTRAL_API_KEY: "e2e-mistral-key",
+    // The Journal reads the Plans, kept in Stripe: the suite's fake Stripe.
+    STRIPE_SECRET_KEY: "sk_test_fake",
+    STRIPE_WEBHOOK_SECRET: "whsec_test_fake",
+    STRIPE_PRICE_STANDARD: "price_standard_monthly",
+    STRIPE_PRICE_PREMIUM: "price_premium_monthly",
+    STRIPE_API_URL: process.env.E2E_STRIPE_URL!,
     NODE_OPTIONS: ["fake-mistral.mjs", "fake-reference-data.mjs"].map((file) => `--import=${path.resolve("e2e/support", file)}`).join(" "),
   });
   database = new Pool({ connectionString: own.databaseUrl });
@@ -77,14 +90,13 @@ test("no banner while no Tool has reached its quota; once Mistral's is used up, 
   const page = await signedIn(browser, SUPER_ADMIN);
 
   for (const path of PAGES) {
-    await page.goto(path);
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await open(page, path);
     await expect(banner(page), `no banner on ${path}`).toHaveCount(0);
   }
 
   await recordMistralCall("quota_exhausted");
   for (const path of PAGES) {
-    await page.goto(path);
+    await open(page, path);
     const quota = banner(page);
     await expect(quota, `the banner on ${path}`).toBeVisible();
     await expect(quota).toHaveAttribute("role", "status");
@@ -122,8 +134,7 @@ test("no banner while no Tool has reached its quota; once Mistral's is used up, 
   // A call accepted: the state is ok again, and the banner is gone at the next page.
   await recordMistralCall(null);
   for (const path of PAGES) {
-    await page.goto(path);
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await open(page, path);
     await expect(banner(page), `no banner on ${path} once ok`).toHaveCount(0);
   }
 });
@@ -149,7 +160,8 @@ test("every Back Office Role sees the banner, in its reader's language, linking 
   }
 
   // In English for a reader who reads the app in English.
-  await database.query("UPDATE candidate SET interface_language = 'en' WHERE id = $1", [id]);
+  const switched = await page.request.post("/api/auth/update-user", { data: { interfaceLanguage: "en" }, headers: { origin: own.origin } });
+  expect(switched.ok()).toBe(true);
   await page.goto("/admin");
   const quota = banner(page);
   await expect(quota.getByText(en.admin.quotaBanner.title, { exact: true })).toBeVisible();

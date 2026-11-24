@@ -86,7 +86,7 @@ export default defineConfig({
   // (e2e/support/screenshots.ts, e2e/shell-screenshots.spec.ts), kept in the repo beside the specs. A difference beyond a few pixels in a thousand fails; animations stop and the caret hides first.
   // How to update one on purpose: docs/agents/screenshot-baselines.md.
   snapshotPathTemplate: "{testDir}/__screenshots__/{testFilePath}/{arg}{ext}",
-  // e2e/support/screenshots.css leaves out what changes with each Version and commit (#559).
+  // e2e/support/screenshots.css leaves out what changes with each Version and commit (#559), and the « Quota atteint » banner (#1115).
   expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.002, animations: "disabled", caret: "hide", timeout: 20_000, stylePath: "e2e/support/screenshots.css" } },
   projects: [
     // « Espace coach v2 » (ADR-0107): the Human Coach epic's specs, with the setting on. It is global to the suite's

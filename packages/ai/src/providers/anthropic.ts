@@ -1,6 +1,7 @@
 import { AnthropicBedrockMantle } from "@anthropic-ai/bedrock-sdk";
 import Anthropic from "@anthropic-ai/sdk";
 import { AnthropicVertex } from "@anthropic-ai/vertex-sdk";
+import { quotaRefusalOf } from "@jobhub/shared";
 import { effortHandling, type Effort } from "../effort";
 import { AiProviderError } from "../errors";
 import type { AiProvider, ContentBlock, Residency, TextInput, TextOutput, TokenUsage, ToolCallBlock, TurnMessage } from "../types";
@@ -203,9 +204,13 @@ export function createAnthropicProvider(options: AnthropicProviderOptions): AiPr
         const apiError = error instanceof Anthropic.APIError;
         // An API error's message carries the answer, scrubbed here; the error itself (headers, body) is not kept as the cause.
         const secrets = endpoint.kind === "vertex" ? [] : [endpoint.apiKey];
-        throw new AiProviderError("anthropic", error instanceof Error ? error.message : "request failed", apiError ? error.status : undefined, {
+        const message = error instanceof Error ? error.message : "request failed";
+        // A refusal for its quota keeps when Claude said it is renewed (#1114).
+        const renewsAt = apiError ? quotaRefusalOf("anthropic", { status: error.status, message, headers: error.headers })?.renewsAt : undefined;
+        throw new AiProviderError("anthropic", message, apiError ? error.status : undefined, {
           secrets,
           ...(!apiError && { cause: error }),
+          ...(renewsAt && { renewsAt }),
         });
       }
       if (message.stop_reason === "refusal") throw new AiProviderError("anthropic", "Claude declined the request (refusal)", undefined, { reason: "provider_rejected" });

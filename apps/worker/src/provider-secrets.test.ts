@@ -46,6 +46,7 @@ function fakeProviders() {
       const key = request.headers.get("authorization")!.replace("Bearer ", "");
       keysSent.push(key);
       if (key.includes("revoked")) return new Response(JSON.stringify({ message: "Invalid API key" }), { status: 401 });
+      if (key.includes("spent")) return new Response(JSON.stringify({ message: "Quota exceeded" }), { status: 402, headers: { "x-api-next-billing-date": "2099-01-01T00:00:00Z" } });
       return new Response("[]", { headers: { "content-type": "application/json", "x-api-jobs-this-request": "2" } });
     }
     throw new Error(`unexpected ${request.url}`);
@@ -203,6 +204,22 @@ describe("the worker's clients, on Provider Secrets (#208)", () => {
         { provider: "fantastic_jobs", operation: "GET /v1/active-ats", ok: true, httpStatus: 200, costEur: 0.016 },
       ]);
       expect(JSON.stringify(calls)).not.toMatch(/fj-key|DAF|Lyon/);
+    });
+
+    it("records its plan spent as quota_exhausted, then each search its quota guard holds back, with the renewal date it gave (#1114)", async () => {
+      const { resolver } = database({ FANTASTIC_JOBS_API_KEY: { value: "fj-key-spent-0123456", row: "r1" } });
+      await resolver.refresh();
+      const calls: ExternalApiCall[] = [];
+      const worker = workerClients({ resolver, production: false, jobOffers: {} as never, fetch: fakeProviders().fetch, externalApis: { record: (call) => void calls.push(call) } });
+
+      await search(worker);
+      await search(worker);
+
+      const renewsAt = new Date("2099-01-01T00:00:00Z");
+      expect(calls.map(({ provider, operation, ok, httpStatus, reason, renewsAt }) => ({ provider, operation, ok, httpStatus, reason, renewsAt }))).toEqual([
+        { provider: "fantastic_jobs", operation: "GET /v1/active-ats", ok: false, httpStatus: 402, reason: "quota_exhausted", renewsAt },
+        { provider: "fantastic_jobs", operation: "GET /v1/active-ats", ok: false, httpStatus: null, reason: "quota_exhausted", renewsAt },
+      ]);
     });
   });
 

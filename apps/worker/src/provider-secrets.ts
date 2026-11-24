@@ -121,7 +121,8 @@ export function workerClients(options: WorkerClientsOptions): WorkerClients {
       const fetch = options.externalApis
         ? recordingFetch(options.fetch ?? globalThis.fetch, options.externalApis, { provider: "fantastic_jobs", costEur: (_, __, response) => (response ? chargedCostEur(response.headers, eurPerJob) : null) })
         : options.fetch;
-      return fantasticJobsFromEnv(env, { fetch }) ?? FANTASTIC_JOBS_OFF;
+      // A search its quota guard holds back is recorded too, with its reason (#1114).
+      return fantasticJobsFromEnv(env, { fetch, ...(options.externalApis && { externalApis: options.externalApis }) }) ?? FANTASTIC_JOBS_OFF;
     },
     { refused: refusedSearch },
   );

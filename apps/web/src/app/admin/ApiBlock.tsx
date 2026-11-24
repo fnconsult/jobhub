@@ -44,7 +44,7 @@ export async function ApiBlock({ rows, locale }: { rows: readonly ApiBlockRow[];
   );
 
   return (
-    <section className="dashboard-block stack" aria-labelledby="dashboard-api">
+    <section className="dashboard-block dashboard-api stack" aria-labelledby="dashboard-api">
       <h2 id="dashboard-api">
         {t("admin.dashboard.api.title")} <span className="dashboard-period">· {t("admin.dashboard.api.period")}</span>
       </h2>

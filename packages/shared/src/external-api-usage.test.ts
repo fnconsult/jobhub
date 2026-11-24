@@ -80,6 +80,39 @@ describe("an external API's calls, as recorded", () => {
     ]);
   });
 
+  it("records a Tool's refusal for its quota with its Failure Reason and the renewal date it gave (#1114)", async () => {
+    const calls: ExternalApiCall[] = [];
+    const log = { record: (call: ExternalApiCall) => void calls.push(call) };
+    const now = () => new Date("2026-11-24T10:00:00Z");
+    const refusing =
+      (status: number, headers: Record<string, string> = {}): Fetch =>
+      async () =>
+        new Response(JSON.stringify({ error: "out_of_credits" }), { status, headers });
+    const call = (fetch: Fetch) => fetch("https://api.example/v2/person", { method: "POST", headers: {} });
+
+    await call(recordingFetch(refusing(402), log, { provider: "lusha", now }));
+    await call(recordingFetch(refusing(429, { "retry-after": "60" }), log, { provider: "kaspr", now }));
+    await call(recordingFetch(refusing(402, { "x-api-next-billing-date": "2026-12-01T00:00:00Z" }), log, { provider: "fantastic_jobs", now }));
+    // Not a quota refusal: no reason, no renewal date.
+    await call(recordingFetch(refusing(401, { "retry-after": "60" }), log, { provider: "apollo", now }));
+    await call(recordingFetch(refusing(200), log, { provider: "apollo", now }));
+    // A Tool without a quota keeps none: Stripe's 402 is a card declined, a public API's 429 its own business.
+    await call(recordingFetch(refusing(402), log, { provider: "stripe", now }));
+    await call(recordingFetch(refusing(429, { "retry-after": "60" }), log, { provider: "greenhouse", now }));
+
+    expect(calls.map(({ provider, reason, renewsAt }) => ({ provider, reason, renewsAt }))).toEqual([
+      { provider: "lusha", reason: "quota_exhausted", renewsAt: undefined },
+      { provider: "kaspr", reason: "rate_limited", renewsAt: new Date("2026-11-24T10:01:00Z") },
+      { provider: "fantastic_jobs", reason: "quota_exhausted", renewsAt: new Date("2026-12-01T00:00:00Z") },
+      { provider: "apollo", reason: undefined, renewsAt: undefined },
+      { provider: "apollo", reason: undefined, renewsAt: undefined },
+      { provider: "stripe", reason: undefined, renewsAt: undefined },
+      { provider: "greenhouse", reason: undefined, renewsAt: undefined },
+    ]);
+    expect(calls[0]).not.toHaveProperty("renewsAt");
+    expect(calls[3]).not.toHaveProperty("reason");
+  });
+
   it("never records a payload, a query string or a secret", async () => {
     const calls: ExternalApiCall[] = [];
     const fetch = recordingFetch(answering(200), { record: (call) => void calls.push(call) }, { provider: "kaspr" });

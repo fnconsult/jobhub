@@ -459,6 +459,22 @@ describe("the Failure Reason of every failed AI call (#259, ADR-0030)", () => {
     expect(usage.entries).toEqual([expect.objectContaining({ task: "web_search", outcome: "failed", reason: "rate_limited", sent: true })]);
   });
 
+  it("records a refusal for the provider's quota with its Failure Reason and the renewal date it gave, none when it gave none (#1114)", async () => {
+    const usage = createMemoryUsageLog();
+    const renewsAt = new Date("2026-12-01T00:00:00Z");
+    const spent = new AiProviderError("openai", "HTTP 429 insufficient_quota", 429, { renewsAt });
+    const ai = createAiLayer({ providers: [createFakeProvider({ id: "openai", fail: spent })], routes: { scoring: "openai" }, usage });
+    await expect(ai.generate({ task: "scoring", candidateId: null, prompt: "Score this" })).rejects.toThrow(AiProviderError);
+
+    const limited = new AiProviderError("mistral", "HTTP 429", 429);
+    const other = createAiLayer({ providers: [createFakeProvider({ id: "mistral", fail: limited })], routes: { scoring: "mistral" }, usage });
+    await expect(other.generate({ task: "scoring", candidateId: null, prompt: "Score this" })).rejects.toThrow(AiProviderError);
+
+    expect(usage.entries[0]).toMatchObject({ provider: "openai", outcome: "failed", reason: "quota_exhausted", renewsAt });
+    expect(usage.entries[1]).toMatchObject({ provider: "mistral", outcome: "failed", reason: "rate_limited" });
+    expect(usage.entries[1]).not.toHaveProperty("renewsAt");
+  });
+
   it("records a call whose provider's key is missing as failed and not sent, key_missing, at no cost; the caller still gets the AiConfigError", async () => {
     const usage = createMemoryUsageLog();
     const ai = createAiLayer({ providers: [createFakeProvider({ id: "mistral" })], routes: { coaching: "mistral" }, usage, warn: () => {} });

@@ -1,3 +1,4 @@
+import { quotaRefusalOf } from "@jobhub/shared";
 import { AiProviderError } from "../errors";
 import type { ProviderId } from "../types";
 
@@ -39,7 +40,9 @@ async function requestJson<T>(client: Pick<JsonClient, "provider" | "fetch">, se
   }
   if (!response.ok) {
     const detail = (await response.text().catch(() => "")).slice(0, 300);
-    throw stoppedOr(new AiProviderError(client.provider, `HTTP ${response.status} ${detail}`.trim(), response.status, { secrets }));
+    // A refusal for its quota keeps when the provider said it is renewed (#1114).
+    const renewsAt = quotaRefusalOf(client.provider, { status: response.status, message: detail, headers: response.headers })?.renewsAt;
+    throw stoppedOr(new AiProviderError(client.provider, `HTTP ${response.status} ${detail}`.trim(), response.status, { secrets, ...(renewsAt && { renewsAt }) }));
   }
   try {
     return (await response.json()) as T;

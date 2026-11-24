@@ -3,12 +3,14 @@
  * LLM (France Travail, contact enrichment...), as the Back Office's AI consumption report counts it.
  * A call is recorded with its provider, operation, time, duration, outcome and estimated cost,
  * never its payload, query string, Candidate or credentials: its operation holds no secret, email
- * address or UUID (a Candidate's id is one), whoever named it.
+ * address or UUID (a Candidate's id is one), whoever named it. A Tool's refusal for its quota is recorded with its
+ * Failure Reason and the renewal date its provider gave (`quotaRefusalOf`, #1114).
  *
  *   const fetch = recordingFetch(globalThis.fetch, externalApis, { provider: "france_travail", costEur: () => 0 });
  *   const stripe = recordingClient(new Stripe(key), externalApis, { provider: "stripe" });
  */
 import type { FailureReason } from "./failure-reasons";
+import { quotaRefusalOf } from "./quota-refusals";
 import { scrubSecrets } from "./scrub-secrets";
 import type { ExternalApiProvider } from "./tools";
 
@@ -26,8 +28,13 @@ export interface ExternalApiCall {
   httpStatus: number | null;
   /** Estimated € at list price; null when not known. */
   costEur: number | null;
-  /** Why a call to a Tool of our own was refused, never run (`TOOL_CALL_FAILURE_REASONS`, a Coach Action's, #713); absent otherwise. */
+  /**
+   * Why it failed, when that is known: a call to a Tool of our own refused, never run (`TOOL_CALL_FAILURE_REASONS`, a
+   * Coach Action's, #713), or a Tool's refusal for its quota (`rate_limited`, `quota_exhausted`, #1114); absent otherwise.
+   */
   reason?: FailureReason;
+  /** For a refusal for its quota, when the provider said the quota is renewed (#1114); absent when it did not. */
+  renewsAt?: Date;
 }
 
 /** Where external API calls are recorded. The caller does not wait for it: it never fails nor delays a call. */
@@ -107,14 +114,18 @@ function startCall(log: ExternalApiLog, options: RecordingOptions, operationOfCa
     return (httpStatus, ok, response) => {
       try {
         const operation = recordable(operationOfCall());
+        const answered = ok ?? (httpStatus !== null && httpStatus >= 200 && httpStatus < 300);
+        // A Tool's refusal for its quota, with the renewal date it gave (#1114).
+        const refusal = answered ? undefined : quotaRefusalOf(options.provider, { status: httpStatus, ...(response && { headers: response.headers }) }, at);
         const call: ExternalApiCall = {
           provider: options.provider,
           operation,
           at,
           durationMs: Math.round(clock() - started),
-          ok: ok ?? (httpStatus !== null && httpStatus >= 200 && httpStatus < 300),
+          ok: answered,
           httpStatus,
           costEur: options.costEur?.(httpStatus, operation, response ?? null) ?? null,
+          ...refusal,
         };
         void Promise.resolve(log.record(call)).catch(failed);
       } catch (error) {

@@ -40,13 +40,16 @@ export class AiProviderError extends Error {
   override name = "AiProviderError";
   /** Its Failure Reason when the status does not tell it (a refusal); else read from `status` (failureOf). */
   readonly reason?: FailureReason;
+  /** For a refusal for its quota (#1114), when the provider said its quota is renewed (its `retry-after`); absent when it did not. */
+  readonly renewsAt?: Date;
   constructor(
     readonly provider: ProviderId,
     message: string,
     readonly status?: number,
-    options?: { cause?: unknown; secrets?: readonly (string | undefined)[]; reason?: FailureReason },
+    options?: { cause?: unknown; secrets?: readonly (string | undefined)[]; reason?: FailureReason; renewsAt?: Date },
   ) {
     super(`${provider}: ${scrubSecrets(message, options?.secrets)}`, options?.cause === undefined ? undefined : { cause: options.cause });
     if (options?.reason) this.reason = options.reason;
+    if (options?.renewsAt) this.renewsAt = options.renewsAt;
   }
 }

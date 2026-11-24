@@ -487,8 +487,8 @@ export interface WebSearchRun {
 /** A new run of web searches, served by the active Search provider until it fails. */
 export const createWebSearchRun = (): WebSearchRun => ({ fallback: null });
 
-/** Statuses after which a Search provider is not asked again in a run: refused key, rate limit, Tavily's spent plan (432, 433), timeouts. */
-const FALLBACK_STATUSES = new Set([401, 403, 408, 429, 432, 433]);
+/** Statuses after which a Search provider is not asked again in a run: refused key, rate limit, a plan spent (402; Tavily's 432, 433, #1114), timeouts. */
+const FALLBACK_STATUSES = new Set([401, 402, 403, 408, 429, 432, 433]);
 
 /**
  * The Failure Reason of `error` when it is a reason to switch to the fallback Search provider (ADR-0043): its key
@@ -696,6 +696,8 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       const reason = stopped ? "stopped" : failure.reason;
       const tools = search && sent ? [{ name: "web_search", count: 1, ok: false, durationMs, costEur: 0 }] : [];
       const warnings = recordable(notes.warnings(), notes.fallback ? { reason: notes.fallback } : undefined);
+      // A refusal for the provider's quota keeps when it said the quota is renewed (#1114).
+      const renewsAt = !stopped && error instanceof AiProviderError ? error.renewsAt : undefined;
       log({
         ...base,
         model: route.model ?? provider.defaultModel ?? provider.id,
@@ -703,6 +705,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
         outputTokens: 0,
         outcome: "failed",
         reason,
+        ...(renewsAt && { renewsAt }),
         technicalReason: technical,
         ...(warnings.length > 0 ? { warnings } : {}),
         sent,

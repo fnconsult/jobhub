@@ -225,6 +225,28 @@ describe.skipIf(!connectionString)("AI Usage (needs Postgres: DATABASE_URL)", ()
     expect(JSON.stringify(report)).not.toMatch(/AiProviderError|upstream down|jeanne|Score/);
   });
 
+  it("counts quota_exhausted as any other Failure Reason, apart from rate_limited, and keeps the renewal date given (#1114)", async () => {
+    const usage = createPostgresUsageLog(database);
+    const at = new Date("2026-10-17T08:00:00Z");
+    const renewsAt = new Date("2026-11-01T00:00:00Z");
+    await usage.record({ ...entry(), at, provider: "openai", model: "gpt-5.5", outcome: "failed", reason: "quota_exhausted", renewsAt });
+    await usage.record({ ...entry(), at, provider: "openai", model: "gpt-5.5", outcome: "failed", reason: "quota_exhausted" });
+    await usage.record({ ...entry(), at, provider: "openai", model: "gpt-5.5", outcome: "failed", reason: "rate_limited" });
+
+    const report = await aiUsageReport(database, aiUsagePeriod("7d", now));
+
+    expect(report.failureReasons.total).toEqual([
+      { outcome: "failed", reason: "quota_exhausted", calls: 2 },
+      { outcome: "failed", reason: "rate_limited", calls: 1 },
+    ]);
+    expect(report.failureReasons.byModel).toEqual([
+      { provider: "openai", model: "gpt-5.5", outcome: "failed", reason: "quota_exhausted", calls: 2 },
+      { provider: "openai", model: "gpt-5.5", outcome: "failed", reason: "rate_limited", calls: 1 },
+    ]);
+    const { rows } = await database.query<{ renews_at: Date | null }>(`SELECT renews_at FROM ai_usage ORDER BY renews_at NULLS LAST`);
+    expect(rows.map((row) => row.renews_at)).toEqual([renewsAt, null, null]);
+  });
+
   it("lists the tools the models used and the external APIs called, with failures and cost when known", async () => {
     await seed();
 

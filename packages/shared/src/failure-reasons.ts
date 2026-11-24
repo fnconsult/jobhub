@@ -13,6 +13,7 @@
  * `failureOf` reads an error by its shape (its `name`, `provider`, `status` and `reason`), so it serves the
  * AI layer's errors without importing them: an error may carry its own code as `reason`.
  */
+import { quotaRefusalOf } from "./quota-refusals";
 import { scrubSecrets } from "./scrub-secrets";
 
 /** How an AI call ended: it succeeded, worked while its feature ran degraded, or failed (or was never sent). */
@@ -25,8 +26,10 @@ export const FAILURE_REASONS = [
   "provider_unavailable",
   /** The provider refused the call: a 4xx other than 429, a refusal. */
   "provider_rejected",
-  /** The provider's rate limit (429). */
+  /** The provider's rate limit (429): « limite atteinte » (#1114). */
   "rate_limited",
+  /** The provider's credit or plan spent (`quotaRefusalOf`, #1114): « quota épuisé ». */
+  "quota_exhausted",
   /** The provider's key is not entered: the call was never sent. */
   "key_missing",
   /** No provider serves the task, or the one named cannot: the call was never sent. */
@@ -147,6 +150,7 @@ export const AI_CALL_FAILURE_REASONS: readonly FailureReason[] = [
   "provider_unavailable",
   "provider_rejected",
   "rate_limited",
+  "quota_exhausted",
   "key_missing",
   "route_missing",
   "data_residency",
@@ -228,7 +232,7 @@ export function cleanTechnicalMessage(message: string, options: FailureOptions =
   return clean.length <= TECHNICAL_REASON_MAX_LENGTH ? clean : `${clean.slice(0, TECHNICAL_REASON_MAX_LENGTH - 1)}…`;
 }
 
-function reasonOf(name: string, status: number | undefined, carried: unknown): FailureReason {
+function reasonOf(name: string, provider: string | undefined, status: number | undefined, message: string, carried: unknown): FailureReason {
   if (isFailureReason(carried)) return carried;
   switch (name) {
     case "AiConfigError":
@@ -240,6 +244,11 @@ function reasonOf(name: string, status: number | undefined, carried: unknown): F
       return "stopped";
     case "AiProviderError":
       if (status === undefined || status === 408 || status >= 500) return "provider_unavailable";
+      // Its quota: its credit or plan spent, else its rate limit (#1114).
+      if (provider !== undefined) {
+        const refusal = quotaRefusalOf(provider, { status, message });
+        if (refusal) return refusal.reason;
+      }
       if (status === 429) return "rate_limited";
       if (status >= 400) return "provider_rejected";
       return "invalid_reply";
@@ -256,7 +265,7 @@ export function failureOf(error: unknown, options: FailureOptions = {}): Failure
   const provider = typeof shaped?.provider === "string" ? shaped.provider : undefined;
   const message = error instanceof Error ? error.message : typeof shaped?.message === "string" ? shaped.message : String(error);
   return {
-    reason: reasonOf(name, status, shaped?.reason),
+    reason: reasonOf(name, provider, status, message, shaped?.reason),
     technical: {
       class: name,
       ...(provider === undefined ? {} : { provider }),

@@ -5684,6 +5684,7 @@
     "provider_unavailable": "Fournisseur indisponible",
     "provider_rejected": "Appel refusé par le fournisseur",
     "rate_limited": "Limite d'appels du fournisseur atteinte",
+    "quota_exhausted": "Quota épuisé chez le fournisseur",
     "key_missing": "Clé d'API absente",
     "route_missing": "Aucun fournisseur configuré pour cette tâche",
     "data_residency": "Règle de résidence des données",

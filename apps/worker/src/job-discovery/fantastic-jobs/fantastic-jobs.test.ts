@@ -1,4 +1,4 @@
-import type { SearchCriteria } from "@jobhub/shared";
+import type { ExternalApiCall, SearchCriteria } from "@jobhub/shared";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { createFantasticJobs, fantasticJobsFromEnv } from "./index";
@@ -36,8 +36,9 @@ function fakeFantasticJobs(answer: Answer | (() => Answer) = {}) {
 
 function setup(answer?: Answer | (() => Answer), options: { eurPerJob?: number; maxPerSearch?: number } = {}) {
   const api = fakeFantasticJobs(answer);
-  const fantasticJobs = createFantasticJobs({ apiKey: "fj-key", fetch: api.fetch, ...options });
-  return { api, fantasticJobs };
+  const recorded: ExternalApiCall[] = [];
+  const fantasticJobs = createFantasticJobs({ apiKey: "fj-key", fetch: api.fetch, externalApis: { record: (call) => void recorded.push(call) }, ...options });
+  return { api, fantasticJobs, recorded };
 }
 
 describe("Fantastic.jobs search", () => {
@@ -211,6 +212,33 @@ describe("Fantastic.jobs search", () => {
       await fantasticJobs.search(criteria, { max: 30, now: LATER });
 
       expect(api.requests.map((request) => request.url.searchParams.get("limit"))).toEqual(["10", "3"]);
+    });
+
+    it.each([
+      ["a 402: its plan spent, until the next billing date it stated", { status: 402, headers: { "x-api-next-billing-date": "2026-11-01T00:00:00Z" } }, "quota_exhausted", new Date("2026-11-01T00:00:00Z")],
+      ["its Jobs credits spent, with no renewal date stated", { headers: { "x-api-jobs-remaining": "0" } }, "quota_exhausted", undefined],
+      ["a 429: its rate limit, until the wait it asked for", { status: 429, headers: { "retry-after": "7200" } }, "rate_limited", new Date("2026-10-20T14:00:00Z")],
+    ] as const)("records each search it holds back in external_api_usage, with its reason, after %s (#1114)", async (_, first, reason, renewsAt) => {
+      let n = 0;
+      const { recorded, fantasticJobs } = setup(() => (n++ === 0 ? first : {}));
+
+      await fantasticJobs.search(criteria, { max: 30, now: NOW });
+      expect(recorded).toEqual([]);
+      await fantasticJobs.search(criteria, { max: 30, now: LATER });
+
+      expect(recorded).toEqual([
+        {
+          provider: "fantastic_jobs",
+          operation: "GET /v1/active-ats",
+          at: LATER,
+          durationMs: 0,
+          ok: false,
+          httpStatus: null,
+          costEur: 0,
+          reason,
+          ...(renewsAt && { renewsAt }),
+        },
+      ]);
     });
 
     it("keeps calling while both quotas have some left", async () => {

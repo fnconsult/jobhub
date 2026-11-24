@@ -21,9 +21,10 @@
  * or 429, a search makes no call and is refused (`calls: 0`) until the quota is
  * renewed: the next billing date stated (`x-api-next-billing-date`), the wait a 429
  * asked for (`retry-after`), else QUOTA_HOLD_MS. A key replaced builds a new client,
- * whose quotas are read again. Each search held back is recorded in `external_api_usage` (#1114), failed with no
- * call made, its reason (`rate_limited` after a 429, else `quota_exhausted`) and the renewal date Fantastic.jobs gave. The API requests are a hard limit: calling on with
- * none left would only be turned away.
+ * whose quotas are read again. The API requests are a hard limit: calling on with
+ * none left would only be turned away. Each search held back is recorded in
+ * `external_api_usage` (#1114): failed, no call made, with its reason (`rate_limited`
+ * after a 429, else `quota_exhausted`) and the renewal date Fantastic.jobs gave.
  *
  * A search never throws: a refusal (the key rejected, the quota or the rate limit
  * reached: 401, 402, 403, 429, or the quota guard) or any other failure is an outcome
@@ -103,10 +104,10 @@ export function createFantasticJobs(options: FantasticJobsOptions): FantasticJob
     else if (renewal !== undefined && renewal > at) held = { until: renewal, reason, stated: true };
     else held = { until: at + QUOTA_HOLD_MS, reason, stated: false };
   };
-  const operation = `GET ${new URL(`${apiUrl}/active-ats`).pathname}`;
-  /** A search held back, recorded as a failed call never made (#1114). Never fails nor delays the search. */
+  /** A search held back, recorded as a failed call never made, under its call's operation (#1114). Never fails nor delays the search. */
   const recordHeld = (at: Date, { until, reason, stated }: NonNullable<typeof held>) => {
     try {
+      const operation = `GET ${new URL(`${apiUrl}/active-ats`).pathname}`;
       const call: ExternalApiCall = { provider: "fantastic_jobs", operation, at, durationMs: 0, ok: false, httpStatus: null, costEur: 0, reason, ...(stated && { renewsAt: new Date(until) }) };
       void Promise.resolve(options.externalApis?.record(call)).catch(() => {});
     } catch {

@@ -1,4 +1,4 @@
-import { QUOTA_TOOL_IDS, type ToolId } from "@jobhub/shared";
+import { hasQuota, TOOLS, type Tool, type ToolId } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { backOfficeAccess, BACK_OFFICE_ROLES, type BackOfficeRole } from "../admin/access";
 import type { ToolQuotaState } from "../tool-quotas/index";
@@ -8,9 +8,9 @@ const SINCE = new Date("2026-11-24T09:00:00Z");
 
 /** Every Tool with a quota ok, but those of `refused`. */
 const statesWith = (refused: Partial<Record<ToolId, ToolQuotaState["state"]>>): ToolQuotaState[] =>
-  QUOTA_TOOL_IDS.map((toolId) => {
-    const state = refused[toolId];
-    return state ? { toolId, state, since: SINCE, renewsAt: null } : { toolId, state: "ok", since: null, renewsAt: null };
+  (TOOLS as readonly Tool[]).filter(hasQuota).map((tool) => {
+    const state = refused[tool.id as ToolId];
+    return state ? { tool, state, since: SINCE, renewsAt: null } : { tool, state: "ok", since: null, renewsAt: null };
   });
 
 const superAdmin = backOfficeAccess(["super-admin"]);

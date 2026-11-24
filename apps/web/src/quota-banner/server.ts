@@ -1,19 +1,26 @@
-import { cache } from "react";
 import type { BackOfficeAccess } from "@/admin/access";
 import { sharedPool } from "@/database/pool";
-import { createToolQuotas, type ToolQuotaState } from "@/tool-quotas";
+import { cachedToolQuotaStates, toolQuotaStates, type ToolQuotaState } from "@/tool-quotas";
 import { quotaBannerLines, type QuotaBannerLine } from "./index";
 
-/** Each Tool's quota state, read in one query, once per request however many times the page asks. */
-const toolQuotaStates = cache((): Promise<ToolQuotaState[]> => createToolQuotas(sharedPool()).states());
+let states: (() => Promise<ToolQuotaState[]>) | null = null;
 
 /**
- * The « Quota atteint » banner's lines for `access` (#1115), read afresh on every Back Office page: the banner is gone at
- * the next page once every Tool is ok. A state that cannot be read shows no banner rather than no page.
+ * Each Tool's quota state, read in one bounded query at most every 30 s for every page of every Administrator
+ * (`cachedToolQuotaStates`). The e2e suite writes the calls itself and reads the very next page: it reads every time.
+ */
+function quotaStates(): Promise<ToolQuotaState[]> {
+  states ??= cachedToolQuotaStates((now) => toolQuotaStates(sharedPool(), now), process.env.JOBHUB_TARGET?.trim() === "e2e" ? { ttlMs: 0 } : {});
+  return states();
+}
+
+/**
+ * The « Quota atteint » banner's lines for `access` (#1115), on every Back Office page: gone within the cache's 30 s
+ * once every Tool is ok. A state that cannot be read shows no banner rather than no page.
  */
 export async function quotaBannerOf(access: Pick<BackOfficeAccess, "can">): Promise<QuotaBannerLine[]> {
   try {
-    return quotaBannerLines(await toolQuotaStates(), access);
+    return quotaBannerLines(await quotaStates(), access);
   } catch (error) {
     console.error("[quota-banner] could not read the Tools' quota states", error);
     return [];

@@ -51,6 +51,9 @@ function hourOf(at: string, language: string): string {
  * A Master CV change (#719, ADR-0006) has no « Appliquer » in one click: « Relire les changements » opens its changes in
  * the Work Pane, each accepted or rejected on its own (a Flagged Change waits for an explicit accept), and « Enregistrer
  * les changements acceptés » sends the accepted ones, which make one Master CV Version; its « Annuler » is a Restore.
+ * A Tailored CV change (ADR-0113) takes the same path, its review about the Tailored CV; a Layout-only Change says « Mise
+ * en forme seule, aucun mot ajouté ». In either review a Declared Fact is marked « Fait déclaré par vous », and a change with
+ * words of the Job Offer « Reprend les mots de l'offre ».
  * The Coach Memory has no page: its card names it without a link.
  * A proposal that launches an action (a Job Search, #720) offers « Lancer » in place of « Appliquer », says « Lancé par
  * vous à 18:20 » and sends to AI Activity, where it is followed and stopped: it has no « Annuler ».
@@ -177,7 +180,7 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
 
   const review = change.review ? (
     <div className="coach-proposal-form stack">
-      <p className="hint">{t("coachProposals.review.intro", { name: change.target.name })}</p>
+      <p className="hint">{t(change.target.kind === "application" ? "coachProposals.review.introTailoredCv" : "coachProposals.review.intro", { name: change.target.name })}</p>
       <ul className="stack tailored-cv-changes">
         {change.review.changes.map((each) => (
           <ChangeItem
@@ -185,7 +188,12 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
             change={each}
             accepted={decisionOf(each, decisions)}
             onDecide={(accepted) => setDecisions((kept) => ({ ...kept, [each.id]: accepted }))}
-            labels={{ master: t("coachProposals.review.before"), tailored: t("coachProposals.review.after"), fromOffer: (words) => t("coachProposals.review.fromOffer", { words }) }}
+            labels={{
+              master: t("coachProposals.review.before"),
+              tailored: t("coachProposals.review.after"),
+              fromOffer: (words) => t("coachProposals.review.fromOffer", { words }),
+              declared: t("coachProposals.review.declared"),
+            }}
           />
         ))}
       </ul>
@@ -277,6 +285,8 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
           ) : null}
         </div>
       ) : null}
+      {/* A Layout-only Change (ADR-0113): still reviewed change by change, but no word is added. */}
+      {change.layoutOnly ? <p className="hint">{t("coachProposals.layoutOnly")}</p> : null}
       {change.quota && !change.quota.prompt ? <p className="hint">{change.quota.label}</p> : null}
       {card.status !== "pending" && card.accepted ? <p className="hint">{t("coachProposals.review.saved", { count: card.accepted.length })}</p> : null}
       {/* Its decision, said politely as it is made (ADR-0009). */}

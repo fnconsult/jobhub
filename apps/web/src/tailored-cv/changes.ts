@@ -15,6 +15,7 @@ export type CvSection = (typeof CV_SECTIONS)[number];
  * Each is accepted or rejected by the Candidate; only the accepted ones are saved (`withChanges`).
  * `fromOffer`: the words a rephrasing takes from the Job Offer that the Master CV does not say, for the
  * Candidate to check (ADR-0006, #68); absent when there are none.
+ * `declared`: it brings a Declared Fact, one the Candidate stated in the Coach Conversation (ADR-0113): « Fait déclaré par vous ».
  */
 export interface CvChange {
   /** Names the change in its proposal, for the Candidate to accept it (see `withChanges`). */
@@ -25,6 +26,7 @@ export interface CvChange {
   master?: string;
   tailored?: string;
   fromOffer?: string[];
+  declared?: true;
 }
 
 /**
@@ -167,8 +169,11 @@ function listChanges<T>({ section, key, label, text }: ListSection<T>, master: T
   return changes;
 }
 
-/** A list section with only the `accepted` changes: a rejected one keeps the Master CV's item, place or absence. */
-function listWithChanges<T>({ section, key, label }: ListSection<T>, master: T[], tailored: T[], accepted: Set<string>, origins?: number[]): T[] {
+/**
+ * A list section with only the `accepted` changes: a rejected one keeps the Master CV's item, place or absence. Each item
+ * with its index in the Master CV (-1: added).
+ */
+function listWithChanges<T>({ section, key, label }: ListSection<T>, master: T[], tailored: T[], accepted: Set<string>, origins?: number[]): { origin: number; item: T }[] {
   const from = align(master, tailored, key, origins);
   const items: { origin: number; item: T }[] = [];
   tailored.forEach((item, index) => {
@@ -189,7 +194,7 @@ function listWithChanges<T>({ section, key, label }: ListSection<T>, master: T[]
     const first = items.findIndex((entry) => entry.origin >= 0);
     items.splice(before >= 0 ? before + 1 : Math.max(first, 0), 0, { origin, item });
   });
-  return items.map((entry) => entry.item);
+  return items;
 }
 
 /** Every change of `tailored` against `master`, in the order of the CV's sections. `origins`: see CvOrigins. */
@@ -210,15 +215,58 @@ export function cvChanges(master: CvContent, tailored: CvContent, origins?: CvOr
  * every other one keeps what the Master CV says (ADR-0006). An id that names no change changes nothing.
  */
 export function withChanges(master: CvContent, tailored: CvContent, accepted: Iterable<string>, origins?: CvOrigins): CvContent {
+  return withChangesTraced(master, tailored, accepted, origins).content;
+}
+
+/** As `withChanges`, with where each item of its list sections comes from in `master` (-1: added). */
+export function withChangesTraced(master: CvContent, tailored: CvContent, accepted: Iterable<string>, origins?: CvOrigins): { content: CvContent; origins: Required<CvOrigins> } {
   const ok = new Set(accepted);
   const rephrased = (section: "headline" | "summary") => (ok.has(changeId.rephrased(section)) ? tailored[section] : master[section]);
+  const experience = listWithChanges(LIST_SECTIONS.experience, master.experience, tailored.experience, ok, origins?.experience);
+  const education = listWithChanges(LIST_SECTIONS.education, master.education, tailored.education, ok, origins?.education);
+  const skills = listWithChanges(LIST_SECTIONS.skills, master.skills, tailored.skills, ok, origins?.skills);
+  const languages = listWithChanges(LIST_SECTIONS.languages, master.languages, tailored.languages, ok, origins?.languages);
+  const items = <T>(entries: { item: T }[]) => entries.map((entry) => entry.item);
+  const from = (entries: { origin: number }[]) => entries.map((entry) => entry.origin);
   return {
-    ...tailored,
-    headline: rephrased("headline"),
-    summary: rephrased("summary"),
-    experience: listWithChanges(LIST_SECTIONS.experience, master.experience, tailored.experience, ok, origins?.experience),
-    education: listWithChanges(LIST_SECTIONS.education, master.education, tailored.education, ok, origins?.education),
-    skills: listWithChanges(LIST_SECTIONS.skills, master.skills, tailored.skills, ok, origins?.skills),
-    languages: listWithChanges(LIST_SECTIONS.languages, master.languages, tailored.languages, ok, origins?.languages),
+    content: {
+      ...tailored,
+      headline: rephrased("headline"),
+      summary: rephrased("summary"),
+      experience: items(experience),
+      education: items(education),
+      skills: items(skills),
+      languages: items(languages),
+    },
+    origins: { experience: from(experience), education: from(education), skills: from(skills), languages: from(languages) },
   };
+}
+
+/** The words of a text, normalised (lower case, no accents nor punctuation), each once: what a Layout-only Change keeps. */
+const allWordsOf = (text: string) => new Set(normalise(text).split(" ").filter(Boolean));
+
+/**
+ * Whether `changes` only lay the CV out (ADR-0113): reorder, cut, or rephrase with no word the CV did not have (a case
+ * changed, an explanation cut, a text made a list). A Layout-only Change says « Mise en forme seule, aucun mot ajouté »;
+ * it is still reviewed change by change, a cut and a rephrasing being hard to tell apart.
+ */
+export function layoutOnly(changes: readonly CvChange[]): boolean {
+  if (changes.length === 0) return false;
+  return changes.every((change) => {
+    if (change.declared) return false;
+    if (change.kind === "cut" || change.kind === "reordered") return true;
+    if (change.kind !== "rephrased") return false;
+    const before = allWordsOf(change.master ?? "");
+    return [...allWordsOf(change.tailored ?? "")].every((word) => before.has(word));
+  });
+}
+
+/** Each change that brings one of `facts`, Declared Facts (ADR-0113), marked « Fait déclaré par vous ». */
+export function markDeclared(changes: CvChange[], facts: readonly string[]): CvChange[] {
+  if (facts.length === 0) return changes;
+  const told = facts.map(normalise);
+  return changes.map((change) => {
+    const text = change.kind === "added" ? change.item : change.kind === "rephrased" ? change.tailored : undefined;
+    return text && told.some((fact) => normalise(text).includes(fact)) ? { ...change, declared: true } : change;
+  });
 }

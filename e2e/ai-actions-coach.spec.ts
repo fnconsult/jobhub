@@ -157,7 +157,8 @@ test.describe("the AI Coach with Coach Actions, end to end on the fake provider 
     // Offered: the index and the nine reads (the Company Dossier, Enriched Contacts and Coach Reviews among them, #1098), the Agenda's
     // proposals (#718), the Candidatures proposals (#716), then the Profil group's proposals (#719), the Recherches d'offres and Job
     // Digests proposals (#720), the Documents proposals (#721), the employer's side of an Application (#1098, ADR-0114), its drafts'
-    // (ADR-0109) and its documents' versions (#1079), a Profile In view being the Candidate's own;
+    // (ADR-0109) and its documents' versions (#1079), the Tailored CV reworked from the conversation (#1097, ADR-0113), a Profile In
+    // view being the Candidate's own;
     // with nothing that copies text but the proposals that may.
     expect(r.offered[0]).toEqual([
       "list_objects",
@@ -196,6 +197,9 @@ test.describe("the AI Coach with Coach Actions, end to end on the fake provider 
       "propose_draft_text",
       "read_document_versions",
       "propose_document_restore",
+      "read_tailored_cv",
+      "propose_tailored_cv_changes",
+      "propose_tailored_cv_answers",
       // The Typed redirect (#1096, ADR-0114), built in, offered with every catalogue.
       "redirect",
     ]);

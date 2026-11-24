@@ -84,9 +84,12 @@ interface Asked {
   redirect?: { page: string; section?: string | null; object?: string | null; href: string };
 }
 
-/** What the Candidate sends the AI Coach, with its Coach Actions `tools` (name, arguments) called in order and `say` written at the end. */
-async function ask(page: Page, message: string, options: { focus?: { kind: string; id: string }; tools?: [string, object][]; say?: string; show?: string } = {}): Promise<Asked> {
-  const lines = [message, ...(options.tools ?? []).map(([name, args]) => `E2E_COACH_TOOL=${name}:${JSON.stringify(args)}`), ...(options.say ? [`E2E_COACH_SAY_AFTER=${options.say}`] : []), ...(options.show ? [options.show] : [])];
+/**
+ * What the Candidate sends the AI Coach, with its Coach Actions `tools` (name, arguments, or their JSON as is) called in order
+ * and `say` written at the end.
+ */
+async function ask(page: Page, message: string, options: { focus?: { kind: string; id: string }; tools?: [string, object | string][]; say?: string; show?: string } = {}): Promise<Asked> {
+  const lines = [message, ...(options.tools ?? []).map(([name, args]) => `E2E_COACH_TOOL=${name}:${typeof args === "string" ? args : JSON.stringify(args)}`), ...(options.say ? [`E2E_COACH_SAY_AFTER=${options.say}`] : []), ...(options.show ? [options.show] : [])];
   const response = await page.request.post("/api/coach", { headers: headers(), data: { message: lines.join("\n"), ...(options.focus ? { focus: options.focus } : {}) } });
   expect(response.status(), await response.text()).toBe(200);
   return (await response.json()) as Asked;
@@ -100,6 +103,11 @@ async function systemPromptShown(show: string): Promise<string> {
   return JSON.parse(lines().at(-1)!.slice(prefix.length)) as string;
 }
 
+/**
+ * `value` as a JSON string whose every character is a \u escape: the scripted tool call is in the Candidate's message, where a
+ * Declared Fact is looked for (ADR-0113), so a value the Candidate did not say must not be written there in words.
+ */
+const unsaid = (value: string) => `"${[...value].map((char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`).join("")}"`;
 const versionsOf = (profileId: string) => query<{ version: number }>("SELECT version FROM master_cv_version WHERE profile_id = $1 ORDER BY version", [profileId]);
 const cardOf = (page: Page, what: string) => page.getByRole("region", { name: fr.conversationFirst.label }).getByRole("article", { name: new RegExp(what) });
 
@@ -224,22 +232,37 @@ test.describe("the AI Coach: which object, what it does not do and where to go, 
     await expect(cardOf(page, texts.fields.applicationStatus).getByRole("heading")).toContainText("Benchling");
   });
 
-  test("a read of text the Candidate did not write narrows the rest of the reply, with the real reason; a status proposal does not", async ({ browser }) => {
+  test("a read of text the Candidate did not write narrows the rest of the reply, with the real reason; the Master CV stays a card; a status proposal does not narrow", async ({ browser }) => {
     const { page, profile, applicationId } = await candidate(browser);
+    const criteria = () => query<{ locations: unknown }>("SELECT locations FROM profile WHERE id = $1", [profile.id]);
+    const before = await criteria();
     // Read first: the Job Offer's text is now in what the model has, so a card that would copy text is refused, and the reason is what was read.
-    const read = await ask(page, "Lis ma candidature puis reformule mon résumé.", {
+    const read = await ask(page, "Lis ma candidature puis ajoute Lyon à mes lieux.", {
       focus: { kind: "profile", id: profile.id },
       tools: [
         ["read_application", { id: applicationId }],
-        ["propose_master_cv_changes", SUMMARY_CHANGE(profile.id)],
+        ["propose_search_criteria", { profileId: profile.id, addLocations: ["Lyon"] }],
       ],
     });
     expect(read.cards ?? []).toEqual([]);
     expect(read.reply).toContain("n'est plus proposée dans cette réponse : tu as lu la candidature « ");
     expect(read.reply).toContain("et son offre, un texte que le candidat n'a pas écrit");
     expect(read.reply).not.toMatch(/dossier d'entreprise|e-mail reçu|email reçu/i);
-    // The reply gives the redirect to the Master CV's page, for the Candidate to do it themselves.
-    expect(read.redirect).toMatchObject({ section: fr.profilePage.sections["cv-de-reference"] });
+    // The reply gives the redirect to the Profile's Search Criteria, for the Candidate to do it themselves.
+    expect(read.redirect).toMatchObject({ section: redirects.sections.searchCriteria });
+    expect(await criteria()).toEqual(before);
+
+    // The Master CV is not narrowed by the same read (#1097, ADR-0113): a card the Candidate reviews change by change, nothing written before.
+    const reviewed = await ask(page, "Lis ma candidature puis reformule mon résumé.", {
+      focus: { kind: "profile", id: profile.id },
+      tools: [
+        ["read_application", { id: applicationId }],
+        ["propose_master_cv_changes", SUMMARY_CHANGE(profile.id)],
+      ],
+      say: "Je vous propose de reformuler votre résumé.",
+    });
+    expect(reviewed.cards).toEqual([expect.objectContaining({ status: "pending" })]);
+    expect(reviewed.reply).not.toContain("n'est plus proposée dans cette réponse");
     expect(await versionsOf(profile.id)).toEqual([{ version: 1 }]);
 
     // A status proposal copies no text and returns none the Candidate did not write: the proposal after it is prepared.
@@ -294,11 +317,17 @@ test.describe("the AI Coach: which object, what it does not do and where to go, 
     // What narrows the reply is named for what it is, the Application shown and its Job Offer.
     expect(system).toContain("Tu as sous les yeux la candidature affichée et son offre : un texte que le candidat n'a pas écrit.");
     expect(system).not.toMatch(/dossier d'entreprise|e-mail reçu|email reçu/i);
-    // Even a Master CV change the model calls from it is refused (a Job Offer In view): nothing is written.
-    const forced = await ask(page, "reformulate the skills as a list", { focus: { kind: "application", id: applicationId }, tools: [["propose_master_cv_changes", SUMMARY_CHANGE(profile.id)]] });
+    // A Master CV change the model calls from it is offered (#1097, ADR-0113), but cannot add what the Job Offer asks for:
+    // a skill the Candidate never said is not a Declared Fact, refused not_declared, with the Master CV's section to add it. Nothing is written.
+    const forced = await ask(page, "reformulate the skills as a list", {
+      focus: { kind: "application", id: applicationId },
+      tools: [["propose_master_cv_changes", `{"profileId":"${profile.id}","changes":[{"kind":"add","section":"skills","text":${unsaid("Python")}}]}`]],
+    });
     expect(forced.cards ?? []).toEqual([]);
-    expect(forced.reply).toContain("n'est pas une action qui t'est proposée dans cette réponse");
+    expect(forced.reply).toContain("« Python » n'est pas dans");
+    expect(forced.reply).toContain("(not_declared)");
     expect(forced.reply).not.toMatch(/dossier d'entreprise|e-mail reçu/i);
+    expect(forced.redirect).toMatchObject({ section: fr.profilePage.sections["cv-de-reference"] });
     expect(await versionsOf(profile.id)).toEqual([{ version: 1 }]);
   });
 

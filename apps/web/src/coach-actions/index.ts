@@ -50,7 +50,7 @@ import type { CvChange } from "../tailored-cv/changes";
 import { MASTER_CV_EDIT_KINDS, MASTER_CV_EDIT_SECTIONS, type MasterCvEdit } from "../profiles/master-cv-proposal";
 import type { FieldError } from "../validation";
 import { fitted } from "./reads";
-import { createRedirects, REDIRECT_OF_ACTION, REDIRECT_TARGETS, redirectLine, type RedirectCall, type Redirects, type TypedRedirect } from "./redirects";
+import { createRedirects, REDIRECT_OF_ACTION, REDIRECT_TARGETS, redirectLine, type RedirectCall, type Redirects, type RedirectTarget, type TypedRedirect } from "./redirects";
 
 export { REDIRECT_TARGETS, redirectLine, typedRedirectSchema, type TypedRedirect } from "./redirects";
 
@@ -96,6 +96,11 @@ export interface CoachActionCall {
   maxTokens?: number;
   /** What the Candidate has In view (#716): a proposal about it needs no id. Only the session's Candidate's counts. */
   inView?: CoachFocus;
+  /**
+   * The Candidate's own messages in this Coach Conversation, as the server keeps them (ADR-0113): where a Declared Fact is
+   * looked for. Never the AI Coach's nor a Job Offer's. None: no fact is declared.
+   */
+  said?: readonly string[];
 }
 
 /** A field of the page's form, as « Modifier avant d'appliquer » shows it pre-filled in the Work Pane (#715). */
@@ -142,6 +147,8 @@ export interface ProposedChange {
   launches?: true;
   runs?: LaunchedRun;
   replaces?: string;
+  /** Its review only lays the CV out (ADR-0113): « Mise en forme seule, aucun mot ajouté » on its card. */
+  layoutOnly?: true;
   /**
    * A reply the Candidate sends from their own mailbox (#1099, ADR-0115): its card offers « Copier » and « Ouvrir dans ma
    * messagerie » (`mailto:` to `to`, with `subject` and the text) in place of « Appliquer ». Jobbbox sends nothing.
@@ -172,6 +179,7 @@ const cvChangeSchema = z.object({
   master: z.string().optional(),
   tailored: z.string().optional(),
   fromOffer: z.array(z.string()).optional(),
+  declared: z.literal(true).optional(),
 });
 
 /** A Master CV edit as the AI Coach writes it (#719): the arguments of `propose_master_cv_changes`, kept with its card. */
@@ -183,6 +191,9 @@ export const masterCvEditSchema = z.object({
   title: z.string().max(200).optional(),
   description: z.string().max(4_000).optional(),
   order: z.array(z.string().trim().min(1).max(300)).max(50).optional(),
+  level: z.string().trim().max(100).optional(),
+  institution: z.string().trim().max(200).optional(),
+  year: z.string().trim().max(20).optional(),
 });
 
 export const proposedChangeSchema: z.ZodType<ProposedChange> = z.object({
@@ -212,6 +223,7 @@ export const proposedChangeSchema: z.ZodType<ProposedChange> = z.object({
   launches: z.literal(true).optional(),
   runs: z.object({ kind: z.enum(LAUNCHED_RUN_KINDS), url: z.string().startsWith("/api/"), body: z.record(z.string(), z.string()), opens: z.string().startsWith("/") }).optional(),
   replaces: z.string().optional(),
+  layoutOnly: z.literal(true).optional(),
   handOver: z.object({ to: z.string(), subject: z.string() }).optional(),
 }) as unknown as z.ZodType<ProposedChange>;
 
@@ -262,7 +274,8 @@ export type CoachActionResult =
       seen?: readonly SeenName[];
     }
   | { ok: false; error: "not_found" }
-  | { ok: false; error: "refused"; reason: string };
+  /** `redirect`: the row of the redirect table it sends the Candidate to (ADR-0114), shown under the reply. */
+  | { ok: false; error: "refused"; reason: string; redirect?: { target: RedirectTarget; section?: (typeof MASTER_CV_EDIT_SECTIONS)[number] } };
 
 export interface CoachAction<Schema extends z.ZodObject = z.ZodObject> {
   /** 1 to 64 letters, digits, `_` or `-`, as every provider takes it. */
@@ -335,6 +348,8 @@ export interface CoachActionsReplyOptions {
   language?: "fr" | "en";
   /** What the Candidate has In view, given to each call (#716). */
   focus?: CoachFocus;
+  /** The Candidate's own messages in the conversation, given to each call (ADR-0113): where a Declared Fact is checked. */
+  said?: readonly string[];
 }
 
 /** The Coach Actions of one reply, for the AI layer's tool calling. */
@@ -565,6 +580,7 @@ export function createCoachActions(deps: CoachActionsDeps): CoachActions {
               language: options.language ?? "fr",
               maxTokens,
               ...(options.focus ? { inView: options.focus } : {}),
+              ...(options.said ? { said: options.said } : {}),
               ...(context.signal ? { signal: context.signal } : {}),
             }),
             seenOf,
@@ -576,7 +592,10 @@ export function createCoachActions(deps: CoachActionsDeps): CoachActions {
         if (!result.ok && action.kind === "propose") declined.push(action.name);
         if (!result.ok && result.error === "refused") {
           record(action, started, 422);
-          return { content: result.reason, error: true };
+          // Its Typed redirect (ADR-0114): where the Candidate makes that change themselves, under the reply.
+          const given = result.redirect ? await redirects.to(result.redirect.target, redirectCall(result.redirect.section ? { section: result.redirect.section } : {})).catch(() => null) : null;
+          if (given) redirect = given;
+          return { content: `${result.reason}${redirectTold(given)}`, error: true };
         }
         if (!result.ok) {
           record(action, started, 404);

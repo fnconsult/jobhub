@@ -1,6 +1,6 @@
 import type { CvContent } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { cvChanges, flagOfferWording, stemOf, withChanges, wordsOf, type CvChange } from "./changes";
+import { cvChanges, flagOfferWording, layoutOnly, stemOf, withChanges, wordsOf, type CvChange } from "./changes";
 
 const master: CvContent = {
   fullName: "Marie Dupont",
@@ -88,5 +88,25 @@ describe("the Job Offer's words a rephrasing brings in, flagged for the Candidat
     const [flagged] = flagOfferWording([change], offerStems);
 
     expect(flagged!.fromOffer).toEqual(["comité", "direction", "international", "omnicanal"]);
+  });
+});
+
+describe("a Layout-only Change (ADR-0113, #1097)", () => {
+  it("is one that reorders, cuts or changes case or punctuation: no word added", () => {
+    expect(
+      layoutOnly([
+        { id: "skills.reordered", section: "skills", kind: "reordered", master: "SAP\nIFRS", tailored: "IFRS\nSAP" },
+        { id: "skills.cut.2", section: "skills", kind: "cut", item: "Excel" },
+        { id: "skills.rephrased.0", section: "skills", kind: "rephrased", item: "SQL, utilisé pour le reporting", master: "SQL, utilisé pour le reporting", tailored: "SQL" },
+        { id: "headline.rephrased", section: "headline", kind: "rephrased", master: "directrice FINANCIÈRE", tailored: "Directrice financière" },
+        { id: "summary.rephrased", section: "summary", kind: "rephrased", master: "IFRS, SAP et reporting.", tailored: "IFRS • SAP • reporting" },
+      ]),
+    ).toBe(true);
+  });
+
+  it("is not one that adds a word, an item or a Declared Fact", () => {
+    expect(layoutOnly([{ id: "headline.rephrased", section: "headline", kind: "rephrased", master: "DAF", tailored: "DAF industrie" }])).toBe(false);
+    expect(layoutOnly([{ id: "skills.added.SAP", section: "skills", kind: "added", item: "SAP" }])).toBe(false);
+    expect(layoutOnly([])).toBe(false);
   });
 });

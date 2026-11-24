@@ -5348,7 +5348,7 @@
     "changesTitle": "Changements par rapport au CV de référence",
     "changesIntro": "Acceptez ou refusez chaque changement. Seuls les changements acceptés sont enregistrés : un changement refusé garde ce que dit votre CV de référence.",
     "noChanges": "Aucun changement : le CV adapté reprend votre CV de référence tel quel.",
-    "fromOffer": "Repris de l'offre, absent de votre CV de référence : {{words}}. Gardez-le seulement si c'est exact.",
+    "fromOffer": "Reprend les mots de l'offre : {{words}}, absents de votre CV de référence. Gardez-le seulement si c'est exact.",
     "accept": "Accepter",
     "reject": "Refuser",
     "awaitingAccept": "En attente de votre accord : ce changement n'est enregistré que si vous l'acceptez.",
@@ -5380,7 +5380,8 @@
     "unavailable": "Le coach n'a pas pu proposer de CV adapté pour l'instant. Réessayez dans quelques minutes.",
     "masterCvChanged": "Votre CV de référence a changé depuis cette proposition : demandez une nouvelle proposition avant d'enregistrer.",
     "proposalChanged": "Cette proposition a changé depuis que vous l'avez vérifiée (dans un autre onglet ?) : vérifiez-la à nouveau avant d'enregistrer.",
-    "error": "L'opération a échoué. Vérifiez votre connexion et réessayez."
+    "error": "L'opération a échoué. Vérifiez votre connexion et réessayez.",
+    "declared": "Fait déclaré par vous"
   },
   "followUps": {
     "cardLabel": "Relance suggérée",
@@ -7234,10 +7235,13 @@
       "pending": "Chaque changement attend votre « Accepter » ou votre « Refuser » : aucun n'est accepté d'avance.",
       "before": "Avant",
       "after": "Proposé",
-      "fromOffer": "Repris d'une de vos offres, absent de votre CV de référence : {{words}}. Gardez-le seulement si c'est exact.",
+      "fromOffer": "Reprend les mots de l'offre : {{words}}, absents de votre CV. Gardez-le seulement si c'est exact.",
       "save": "Enregistrer les changements acceptés",
       "saved_one": "{{count}} changement enregistré",
-      "saved_other": "{{count}} changements enregistrés"
+      "saved_other": "{{count}} changements enregistrés",
+      "declared": "Fait déclaré par vous",
+      "declaredHint": "Vous l'avez dit dans cette conversation : vérifiez-le avant de l'accepter.",
+      "introTailoredCv": "Acceptez ou refusez chaque changement que votre coach propose pour le CV adapté de « {{name}} ». Seuls les changements acceptés sont enregistrés ; un changement refusé garde ce que dit le CV adapté."
     },
     "currentText": "Texte actuel",
     "runResult": {
@@ -7248,6 +7252,14 @@
     },
     "runStopped": "Si vous l'avez arrêtée, rien n'a été gardé.",
     "openResult": "Ouvrir à côté de la conversation",
+    "layoutOnly": "Mise en forme seule, aucun mot ajouté",
+    "tailoredCvChanges": {
+      "saved": "Version {{version}} enregistrée",
+      "proposal": "Proposition en relecture"
+    },
+    "tailoredCvAnswers": {
+      "what": "Réponses aux questions"
+    },
     "handOver": {
       "copy": "Copier",
       "open": "Ouvrir dans ma messagerie",

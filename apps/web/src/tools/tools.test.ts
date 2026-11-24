@@ -174,6 +174,32 @@ describe.skipIf(!connectionString)("the Tools' calls (needs Postgres: DATABASE_U
     expect(row("mistral").figures).toEqual({ calls: 0, failures: 0, costEur: null, reasons: [] });
   });
 
+  it("counts a Tool's refusals for its quota by Failure Reason, quota_exhausted as any other, AI and external calls alike (#1114)", async () => {
+    const ai = createPostgresUsageLog(database);
+    await ai.record(aiCall({ provider: "openai", endpoint: "eu.api.openai.com", model: "gpt-5.5", outcome: "failed", reason: "quota_exhausted", costEur: 0 }));
+    await ai.record(aiCall({ provider: "openai", endpoint: "eu.api.openai.com", model: "gpt-5.5", outcome: "failed", reason: "rate_limited", costEur: 0 }));
+    const external = createPostgresExternalApiLog(database);
+    await external.record(externalCall({ provider: "lusha", operation: "POST /v2/person", ok: false, httpStatus: 402, reason: "quota_exhausted", costEur: null }));
+    await external.record(externalCall({ provider: "lusha", operation: "POST /v2/person", ok: false, httpStatus: 429, reason: "rate_limited", renewsAt: new Date("2026-10-19T07:01:00Z"), costEur: null }));
+
+    const overview = await toolsOverview(database, stateOf(), now);
+    const row = (id: string) => overview.flatMap((group) => group.rows).find((candidate) => candidate.tool.id === id)!;
+
+    expect(row("openai").figures!.reasons).toEqual([
+      { outcome: "failed", reason: "quota_exhausted", calls: 1 },
+      { outcome: "failed", reason: "rate_limited", calls: 1 },
+    ]);
+    expect(row("lusha").figures!.reasons).toEqual([
+      { outcome: "failed", reason: "quota_exhausted", calls: 1 },
+      { outcome: "failed", reason: "rate_limited", calls: 1 },
+    ]);
+    // Newest first: the latest recorded comes first.
+    expect((await toolCalls(database, tool("lusha"))).map((call) => [call.httpStatus, call.reason])).toEqual([
+      [429, "rate_limited"],
+      [402, "quota_exhausted"],
+    ]);
+  });
+
   it("shows each Tool's state with its Platform Settings: a setting missing, off, and the « env » badge", async () => {
     const overview = await toolsOverview(database, stateOf({ ANTHROPIC_ENDPOINT: "vertex", LUSHA_API_KEY: "key", CONTACT_ENRICHMENT_PROVIDER: "lusha" }), now);
     const row = (id: string) => overview.flatMap((group) => group.rows).find((candidate) => candidate.tool.id === id)!;

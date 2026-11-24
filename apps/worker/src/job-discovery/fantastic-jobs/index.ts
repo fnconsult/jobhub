@@ -22,13 +22,15 @@
  * renewed: the next billing date stated (`x-api-next-billing-date`), the wait a 429
  * asked for (`retry-after`), else QUOTA_HOLD_MS. A key replaced builds a new client,
  * whose quotas are read again. The API requests are a hard limit: calling on with
- * none left would only be turned away.
+ * none left would only be turned away. Each search held back is recorded in
+ * `external_api_usage` (#1114): failed, no call made, with its reason (`rate_limited`
+ * after a 429, else `quota_exhausted`) and the renewal date Fantastic.jobs gave.
  *
  * A search never throws: a refusal (the key rejected, the quota or the rate limit
  * reached: 401, 402, 403, 429, or the quota guard) or any other failure is an outcome
  * Job discovery counts and goes on without. What the API looks like is kept in ./api.ts.
  */
-import type { JobOfferDetails, SearchCriteria } from "@jobhub/shared";
+import type { ExternalApiCall, ExternalApiLog, JobOfferDetails, QuotaRefusalReason, SearchCriteria } from "@jobhub/shared";
 import { DEFAULT_API_URL, readJobs, readUsage, searchParams, type Usage } from "./api";
 
 export interface FantasticJobsOffer {
@@ -72,12 +74,15 @@ export interface FantasticJobsOptions {
   fetch?: typeof globalThis.fetch;
   /** Default: 15 s; a search can take several seconds. */
   timeoutMs?: number;
+  /**
+   * Where a search the quota guard holds back is recorded (#1114): no call made, failed, with the reason it is held for
+   * and the renewal date Fantastic.jobs gave. Its calls are recorded by the fetch it is given (`recordingFetch`).
+   */
+  externalApis?: ExternalApiLog;
 }
 
 /** Statuses by which Fantastic.jobs refuses us rather than fails: the key rejected, the quota or the rate limit reached. */
 const REFUSED = new Set([401, 402, 403, 429]);
-/** Of those, the ones by which a quota is spent: no call until it is renewed. */
-const QUOTA_SPENT = new Set([402, 429]);
 
 class Refused extends Error {}
 
@@ -87,21 +92,39 @@ export function createFantasticJobs(options: FantasticJobsOptions): FantasticJob
   const eurPerJob = options.eurPerJob ?? DEFAULT_EUR_PER_JOB;
   const apiUrl = (options.apiUrl ?? DEFAULT_API_URL).replace(/\/+$/, "");
   const maxPerSearch = options.maxPerSearch ?? DEFAULT_MAX_PER_SEARCH;
-  /** The quotas the last answers stated, and until when a spent one holds the calls back (ms). */
+  /**
+   * The quotas the last answers stated; until when a spent one holds the calls back (ms), why (its rate limit after a
+   * 429, else its quota spent), and whether Fantastic.jobs gave that date (not QUOTA_HOLD_MS, a guess of ours).
+   */
   let usage: Usage = {};
-  let heldUntil: number | null = null;
-  const hold = (at: number, retryAfterMs?: number) => {
+  let held: { until: number; reason: QuotaRefusalReason; stated: boolean } | null = null;
+  const hold = (at: number, reason: QuotaRefusalReason, retryAfterMs?: number) => {
     const renewal = usage.nextBillingDate?.getTime();
-    heldUntil = retryAfterMs !== undefined ? at + retryAfterMs : renewal !== undefined && renewal > at ? renewal : at + QUOTA_HOLD_MS;
+    if (retryAfterMs !== undefined) held = { until: at + retryAfterMs, reason, stated: true };
+    else if (renewal !== undefined && renewal > at) held = { until: renewal, reason, stated: true };
+    else held = { until: at + QUOTA_HOLD_MS, reason, stated: false };
+  };
+  /** A search held back, recorded as a failed call never made, under its call's operation (#1114). Never fails nor delays the search. */
+  const recordHeld = (at: Date, { until, reason, stated }: NonNullable<typeof held>) => {
+    try {
+      const operation = `GET ${new URL(`${apiUrl}/active-ats`).pathname}`;
+      const call: ExternalApiCall = { provider: "fantastic_jobs", operation, at, durationMs: 0, ok: false, httpStatus: null, costEur: 0, reason, ...(stated && { renewsAt: new Date(until) }) };
+      void Promise.resolve(options.externalApis?.record(call)).catch(() => {});
+    } catch {
+      // Recording never stops a search.
+    }
   };
 
   return {
     async search(criteria, { max, now, location }) {
       const at = now.getTime();
-      if (heldUntil !== null) {
-        if (at < heldUntil) return { ok: false, reason: "refused", detail: `quota spent: no call until ${new Date(heldUntil).toISOString()}`, calls: 0 };
+      if (held !== null) {
+        if (at < held.until) {
+          recordHeld(now, held);
+          return { ok: false, reason: "refused", detail: `quota spent: no call until ${new Date(held.until).toISOString()}`, calls: 0 };
+        }
         // Renewed: what was read of the spent quota no longer holds.
-        heldUntil = null;
+        held = null;
         usage = {};
       }
       const limit = Math.min(max, maxPerSearch, usage.jobsRemaining ?? Infinity);
@@ -114,8 +137,8 @@ export function createFantasticJobs(options: FantasticJobsOptions): FantasticJob
         });
         const read = readUsage(answer.headers, now);
         usage = { ...usage, ...read };
-        if (QUOTA_SPENT.has(answer.status)) hold(at, answer.status === 429 ? read.retryAfterMs : undefined);
-        else if ((usage.jobsRemaining ?? 1) <= 0 || (usage.requestsRemaining ?? 1) <= 0) hold(at);
+        if (answer.status === 429) hold(at, "rate_limited", read.retryAfterMs);
+        else if (answer.status === 402 || (usage.jobsRemaining ?? 1) <= 0 || (usage.requestsRemaining ?? 1) <= 0) hold(at, "quota_exhausted");
         if (REFUSED.has(answer.status)) throw new Refused(`active-ats refused (${answer.status})`);
         if (!answer.ok) throw new Error(`active-ats answered ${answer.status}`);
         const jobs: unknown = await answer.json();

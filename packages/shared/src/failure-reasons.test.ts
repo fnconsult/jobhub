@@ -42,6 +42,17 @@ describe("Failure Reason of an error", () => {
     expect(failureOf(new AiProviderError("mistral", "response has no choices", 200)).reason).toBe("invalid_reply");
   });
 
+  it("a provider's credit or plan spent is quota_exhausted, kept apart from its rate limit (#1114)", () => {
+    const quota = JSON.stringify({ error: { message: "You exceeded your current quota", type: "insufficient_quota", code: "insufficient_quota" } });
+    expect(failureOf(new AiProviderError("openai", `HTTP 429 ${quota}`, 429)).reason).toBe("quota_exhausted");
+    expect(failureOf(new AiProviderError("openai", "HTTP 429 rate_limit_exceeded", 429)).reason).toBe("rate_limited");
+    expect(failureOf(new AiProviderError("anthropic", "400 Your credit balance is too low to access the Anthropic API.", 400)).reason).toBe("quota_exhausted");
+    expect(failureOf(new AiProviderError("mistral", "HTTP 402 Payment required", 402)).reason).toBe("quota_exhausted");
+    expect(failureOf(new AiProviderError("tavily", "HTTP 432 usage limit", 432)).reason).toBe("quota_exhausted");
+    // A refusal of the request itself stays provider_rejected.
+    expect(failureOf(new AiProviderError("anthropic", "400 max_tokens: field required", 400)).reason).toBe("provider_rejected");
+  });
+
   it("a configuration error is the code it carries, route_missing when it carries none; a residency error is data_residency", () => {
     expect(failureOf(new AiConfigError("Missing environment variable MISTRAL_API_KEY", "key_missing"))).toEqual({
       reason: "key_missing",
@@ -97,6 +108,7 @@ describe("Failure Reason catalog", () => {
       "provider_unavailable",
       "provider_rejected",
       "rate_limited",
+      "quota_exhausted",
       "key_missing",
       "route_missing",
       "data_residency",
@@ -156,6 +168,8 @@ describe("Failure Reason catalog", () => {
     expect(failureReasonWording("reply_required")).toBe("Une Question se traite avec une réponse");
     expect(failureReasonWording("already_handled")).toBe("Signalement déjà traité");
     expect(failureReasonWording("key_missing", "en")).toBe("API key missing");
+    expect(failureReasonWording("quota_exhausted")).toBe("Quota épuisé chez le fournisseur");
+    expect(failureReasonWording("quota_exhausted", "en")).toBe("Quota exhausted at the provider");
     for (const code of FAILURE_REASONS) {
       expect(failureReasonWording(code, "fr")).not.toMatch(/failureReasons\./);
       expect(failureReasonWording(code, "en")).not.toMatch(/failureReasons\./);
@@ -167,6 +181,7 @@ describe("Failure Reason catalog", () => {
       "provider_unavailable",
       "provider_rejected",
       "rate_limited",
+      "quota_exhausted",
       "key_missing",
       "route_missing",
       "data_residency",

@@ -5685,6 +5685,7 @@
     "provider_unavailable": "Provider unavailable",
     "provider_rejected": "Call rejected by the provider",
     "rate_limited": "Provider rate limit reached",
+    "quota_exhausted": "Quota exhausted at the provider",
     "key_missing": "API key missing",
     "route_missing": "No provider configured for this task",
     "data_residency": "Data residency rule",

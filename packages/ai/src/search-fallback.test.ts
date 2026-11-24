@@ -62,6 +62,8 @@ describe("the Search provider's fallback", () => {
     [503, "provider_unavailable"],
     [undefined, "provider_unavailable"],
     [432, "provider_rejected"],
+    // A plan spent (#1114).
+    [402, "quota_exhausted"],
   ])("switches on a %s from the active one", async (status, reason) => {
     const run = createWebSearchRun();
     await layer(failing(status), brave()).ai.searchWeb({ candidateId: "c", criteria, run });

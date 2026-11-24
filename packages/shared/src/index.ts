@@ -12,6 +12,7 @@ export { scrubSecrets, scrubStoredText } from "./scrub-secrets";
 export * from "./external-api-usage";
 export * from "./tools";
 export * from "./failure-reasons";
+export * from "./quota-refusals";
 export * from "./sectors";
 export * from "./provenance";
 export * from "./run-progress";

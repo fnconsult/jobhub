@@ -6,6 +6,7 @@
  *  - `createPostgresUsageLog(database)`, the AI layer's UsageLog in the web app and the worker:
  *    one `ai_usage` row per call (task, provider, endpoint, model, tokens, estimated €, Outcome and
  *    Failure Reason code, its warnings' codes, duration; `ok` is kept as "not failed") and one `ai_tool_usage` row per tool its model used: no Candidate id, no text.
+ *    A call its provider refused for its quota keeps the renewal date it gave (`renews_at`, #1114).
  *    Each call keeps the Surface it was asked from (#919: `web`, `extension`, `app`, `worker`; none, « inconnue », when
  *    it could not be told, and for the calls recorded before), as `surface` reads it where the call is made.
  *  - `createPostgresExternalApiLog(database)`, where `recordingFetch` records the calls to
@@ -122,8 +123,8 @@ export function createPostgresUsageLog(database: Pick<Pool, "query">, options: P
         await database.query(
           `WITH usage AS (
              -- Under the id the AI layer named the call by, when it did (#731): what it served links to it.
-             INSERT INTO ai_usage (id, at, task, provider, endpoint, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, ok, duration_ms, outcome, reason, warnings, surface)
-             VALUES (coalesce($22::uuid, gen_random_uuid()), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10 <> 'failed', $11, $10, $17, $20::text[], $23) RETURNING id
+             INSERT INTO ai_usage (id, at, task, provider, endpoint, model, input_tokens, output_tokens, cached_input_tokens, cost_eur, ok, duration_ms, outcome, reason, warnings, surface, renews_at)
+             VALUES (coalesce($22::uuid, gen_random_uuid()), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10 <> 'failed', $11, $10, $17, $20::text[], $23, $25) RETURNING id
            ), tools AS (
              INSERT INTO ai_tool_usage (usage_id, name, count, ok, duration_ms, cost_eur)
              SELECT usage.id, tool.name, tool.count, tool.ok, tool."durationMs", tool."costEur"
@@ -160,6 +161,7 @@ export function createPostgresUsageLog(database: Pick<Pool, "query">, options: P
             entry.id ?? null,
             await asked,
             entry.test === true,
+            entry.renewsAt ?? null,
           ],
         );
       } catch (error) {
@@ -176,8 +178,8 @@ export function createPostgresExternalApiLog(database: Pick<Pool, "query">, opti
     async record(call: ExternalApiCall) {
       try {
         await database.query(
-          `INSERT INTO external_api_usage (at, provider, operation, ok, http_status, duration_ms, cost_eur, reason) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [call.at, call.provider, call.operation, call.ok, call.httpStatus, call.durationMs, call.costEur, call.reason ?? null],
+          `INSERT INTO external_api_usage (at, provider, operation, ok, http_status, duration_ms, cost_eur, reason, renews_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [call.at, call.provider, call.operation, call.ok, call.httpStatus, call.durationMs, call.costEur, call.reason ?? null, call.renewsAt ?? null],
         );
       } catch (error) {
         warn("External API call not recorded", error);
@@ -470,8 +472,13 @@ export async function migrateAiUsage(database: Pick<Pool, "query">): Promise<voi
     );
     CREATE INDEX IF NOT EXISTS external_api_usage_at_idx ON external_api_usage (at);
     CREATE INDEX IF NOT EXISTS external_api_usage_provider_at_idx ON external_api_usage (provider, at DESC);
-    -- Why a call to a Tool of our own was refused, never run (a Coach Action's, #713): a Failure Reason code; none for an external API's.
+    -- Why a call to a Tool of our own was refused, never run (a Coach Action's, #713), or a Tool refused it for its quota
+    -- (#1114): a Failure Reason code; none for any other external API call.
     ALTER TABLE external_api_usage ADD COLUMN IF NOT EXISTS reason text;
+    -- When the provider said its quota is renewed, for a call it refused for its quota (#1114): what a Tool quota state
+    -- ends at. On both tables: an AI call's is its retry-after, Fantastic.jobs' its next billing date.
+    ALTER TABLE external_api_usage ADD COLUMN IF NOT EXISTS renews_at timestamptz;
+    ALTER TABLE ai_usage ADD COLUMN IF NOT EXISTS renews_at timestamptz;
     -- The AI Message Log: what each call said, secrets scrubbed. Personal data: kept 30 days,
     -- in the Candidate's data export, deleted with their account.
     CREATE TABLE IF NOT EXISTS ai_message_log (

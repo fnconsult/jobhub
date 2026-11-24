@@ -340,6 +340,11 @@ export interface UsageEntry extends TokenUsage {
   /** Why it failed or warned (its Failure Reason's code); absent when ok. */
   reason?: FailureReason;
   /**
+   * For a call its provider refused for its quota (`rate_limited`, `quota_exhausted`, #1114), when the provider said
+   * the quota is renewed (its `retry-after`); absent when it did not. What a Tool quota state ends at.
+   */
+  renewsAt?: Date;
+  /**
    * What the error said: its class, provider, HTTP status and message, scrubbed, redacted and cut. Personal data:
    * only the AI Message Log keeps it, as it keeps the transcript.
    */

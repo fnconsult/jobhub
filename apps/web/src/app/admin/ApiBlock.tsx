@@ -2,6 +2,7 @@ import type { Locale } from "@jobhub/shared/i18n";
 import Link from "next/link";
 import type { ApiBlockRow } from "@/back-office-dashboard/api-block";
 import { ExplainableLabel, type ExplainedContext } from "@/components/ExplainableLabel";
+import { ExternalLink } from "@/components/ExternalLink";
 import { Stat, Stats } from "@/design/Card";
 import { Status, type StatusTone } from "@/design/Pill";
 import { getServerT } from "@/i18n/server";
@@ -15,7 +16,7 @@ const TONE: Record<ApiBlockRow["state"], StatusTone> = { ok: "success", rate_lim
 /**
  * The Dashboard's « API » block (#1116): each configured Tool with a quota, its state (« OK », « limite atteinte »,
  * « quota épuisé »), since when and its renewal date when its provider gave one, with the « Quota atteint » banner's
- * links: where it is configured, its provider's billing page in a new tab. Every Administrator sees it, « OK » included.
+ * links: where it is configured, its provider's billing page in a new tab (through the Exit Page). Every Administrator sees it, « OK » included.
  * Each Tool's name is an Explainable label (#407); its table view holds every row.
  */
 export async function ApiBlock({ rows, locale }: { rows: readonly ApiBlockRow[]; locale: Locale }) {
@@ -37,9 +38,9 @@ export async function ApiBlock({ rows, locale }: { rows: readonly ApiBlockRow[];
           {t("admin.dashboard.api.config")}
         </Link>
       ) : null}
-      <a href={row.billingUrl} target="_blank" rel="noopener noreferrer" aria-label={t("admin.dashboard.api.billingLabel", { tool: row.toolName })}>
+      <ExternalLink href={row.billingUrl} aria-label={t("admin.dashboard.api.billingLabel", { tool: row.toolName })}>
         {t("admin.dashboard.api.billing")}
-      </a>
+      </ExternalLink>
     </span>
   );
 

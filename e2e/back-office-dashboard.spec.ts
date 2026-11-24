@@ -150,7 +150,8 @@ test.describe("Back Office Dashboard", () => {
         await expect(mistral).toContainText(api.since.replace(" {{date}}", ""));
         await expect(mistral.getByRole("link", { name: api.configLabel.replace("{{tool}}", "Mistral AI") })).toHaveAttribute("href", "/admin/parametres?tab=ia&fournisseur=mistral");
         const billing = mistral.getByRole("link", { name: api.billingLabel.replace("{{tool}}", "Mistral AI") });
-        await expect(billing).toHaveAttribute("href", "https://console.mistral.ai/billing");
+        // Through the Back Office's Exit Page, like every link out of Jobbbox.
+        await expect(billing).toHaveAttribute("href", `/admin/sortie?url=${encodeURIComponent("https://console.mistral.ai/billing")}`);
         await expect(billing).toHaveAttribute("target", "_blank");
 
         // Its table view says the same.

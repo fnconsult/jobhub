@@ -218,6 +218,8 @@ describe("Fantastic.jobs search", () => {
       ["a 402: its plan spent, until the next billing date it stated", { status: 402, headers: { "x-api-next-billing-date": "2026-11-01T00:00:00Z" } }, "quota_exhausted", new Date("2026-11-01T00:00:00Z")],
       ["its Jobs credits spent, with no renewal date stated", { headers: { "x-api-jobs-remaining": "0" } }, "quota_exhausted", undefined],
       ["a 429: its rate limit, until the wait it asked for", { status: 429, headers: { "retry-after": "7200" } }, "rate_limited", new Date("2026-10-20T14:00:00Z")],
+      // Held until the plan's renewal (ADR-0031), but that date is not when its rate limit ends: none recorded (#1115).
+      ["a 429 with no wait asked for, only its plan's next billing date", { status: 429, headers: { "x-api-next-billing-date": "2026-11-01T00:00:00Z" } }, "rate_limited", undefined],
     ] as const)("records each search it holds back in external_api_usage, with its reason, after %s (#1114)", async (_, first, reason, renewsAt) => {
       let n = 0;
       const { recorded, fantasticJobs } = setup(() => (n++ === 0 ? first : {}));

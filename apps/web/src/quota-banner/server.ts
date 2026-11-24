@@ -1,7 +1,7 @@
 import type { BackOfficeAccess } from "@/admin/access";
 import { sharedPool } from "@/database/pool";
 import { cachedToolQuotaStates, toolQuotaStates, type ToolQuotaState } from "@/tool-quotas";
-import { quotaBannerLines, type QuotaBannerLine } from "./index";
+import { quotaBannerLines, quotaBannerShown, type QuotaBannerLine } from "./index";
 
 let states: (() => Promise<ToolQuotaState[]>) | null = null;
 
@@ -19,6 +19,7 @@ function quotaStates(): Promise<ToolQuotaState[]> {
  * once every Tool is ok. A state that cannot be read shows no banner rather than no page.
  */
 export async function quotaBannerOf(access: Pick<BackOfficeAccess, "can">): Promise<QuotaBannerLine[]> {
+  if (!quotaBannerShown(process.env)) return [];
   try {
     return quotaBannerLines(await quotaStates(), access);
   } catch (error) {

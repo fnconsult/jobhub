@@ -2,7 +2,7 @@ import { hasQuota, TOOLS, type Tool, type ToolId } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { backOfficeAccess, BACK_OFFICE_ROLES, type BackOfficeRole } from "../admin/access";
 import type { ToolQuotaState } from "../tool-quotas/index";
-import { quotaBannerLines } from "./index";
+import { quotaBannerLines, quotaBannerShown } from "./index";
 
 const SINCE = new Date("2026-11-24T09:00:00Z");
 
@@ -68,5 +68,16 @@ describe("the « Quota atteint » banner's lines (#1115)", () => {
       "help-editor": null,
     });
     for (const role of BACK_OFFICE_ROLES) expect(quotaBannerLines(refused, backOfficeAccess([role])), role).toHaveLength(1);
+  });
+});
+
+describe("where the « Quota atteint » banner is shown (#1115)", () => {
+  it("everywhere, but on the e2e suite's shared server when it asks for none: there, other specs' refused calls would put it beside their pages' own status", () => {
+    expect(quotaBannerShown({})).toBe(true);
+    expect(quotaBannerShown({ JOBHUB_TARGET: "production" })).toBe(true);
+    expect(quotaBannerShown({ JOBHUB_TARGET: "e2e" })).toBe(true);
+    expect(quotaBannerShown({ JOBHUB_TARGET: "e2e", E2E_QUOTA_BANNER_OFF: "1" })).toBe(false);
+    // Never anywhere but the e2e suite.
+    expect(quotaBannerShown({ JOBHUB_TARGET: "production", E2E_QUOTA_BANNER_OFF: "1" })).toBe(true);
   });
 });

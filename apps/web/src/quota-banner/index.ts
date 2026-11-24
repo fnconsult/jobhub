@@ -43,3 +43,13 @@ export function quotaBannerLines(states: readonly ToolQuotaState[], reader: Pick
     return [{ toolId: tool.id, toolName: tool.name, state, since, configHref: configHrefOf(tool, reader), billingUrl: tool.billingUrl }];
   });
 }
+
+/**
+ * Whether the banner is shown at all: everywhere, but on the e2e suite's shared server (JOBHUB_TARGET=e2e with
+ * E2E_QUOTA_BANNER_OFF=1, playwright.config.ts). There, specs running side by side make calls refused for a quota
+ * (a Guardrail's 429, #262; Consommation IA's counts, #1114), and the banner would join their pages' own status;
+ * e2e/quota-banner.spec.ts checks it on a server of its own.
+ */
+export function quotaBannerShown(env: Record<string, string | undefined>): boolean {
+  return !(env.JOBHUB_TARGET?.trim() === "e2e" && env.E2E_QUOTA_BANNER_OFF?.trim() === "1");
+}

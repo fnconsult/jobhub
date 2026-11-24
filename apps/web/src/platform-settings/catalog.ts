@@ -377,6 +377,8 @@ export const ENV_ONLY_SETTINGS = {
   JOBHUB_IGNORE_ROOT_ENV: { kind: "test", shown: false },
   // The e2e suite's fake Coach Action (#715, coach-actions/e2e-catalog.ts), on a spec's own server: "1", with JOBHUB_TARGET=e2e.
   E2E_FAKE_COACH_ACTIONS: { kind: "test", shown: false },
+  // The « Quota atteint » banner kept off the e2e suite's shared server (#1115, quota-banner/index.ts): "1", with JOBHUB_TARGET=e2e.
+  E2E_QUOTA_BANNER_OFF: { kind: "test", shown: false },
 } as const satisfies Record<string, { kind: EnvOnlyKind; shown: EnvOnlyShown }>;
 
 export type EnvOnlySettingName = keyof typeof ENV_ONLY_SETTINGS;

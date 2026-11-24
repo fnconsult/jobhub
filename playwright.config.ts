@@ -181,6 +181,9 @@ export default defineConfig({
       // alone, as in CI, which has none. A copy of .env.example would set BEDROCK_REGION and MAIL_FROM, which the
       // Outils and Paramètres specs expect at their code default.
       JOBHUB_IGNORE_ROOT_ENV: "1",
+      // No « Quota atteint » banner on this shared server (#1115): specs side by side make calls refused for a quota, and
+      // it would join their pages' own status. e2e/quota-banner.spec.ts checks it on a server of its own.
+      E2E_QUOTA_BANNER_OFF: "1",
       // Candidate accounts in a local production build: sign-in links go to the server log.
       APP_URL: webOrigin,
       AUTH_SECRET: process.env.AUTH_SECRET ?? "e2e-only-secret-e2e-only-secret-e2e-only",

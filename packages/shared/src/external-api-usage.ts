@@ -14,6 +14,13 @@ import { quotaRefusalOf } from "./quota-refusals";
 import { scrubSecrets } from "./scrub-secrets";
 import type { ExternalApiProvider } from "./tools";
 
+/**
+ * The operation a key's connection test is recorded under (a Provider Secret's Test button, #234). It checks the key,
+ * not the quota: a test the provider passes never ends a Tool quota state (#1115), since listing Claude's models
+ * (GET /v1/models) answers with no credit left.
+ */
+export const CONNECTION_TEST_OPERATION = "connection_test";
+
 /** One call to an external API, as recorded. */
 export interface ExternalApiCall {
   /** e.g. "france_travail", "lusha". */

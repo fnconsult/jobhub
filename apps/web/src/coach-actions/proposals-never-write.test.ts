@@ -84,6 +84,10 @@ const CALLS: Record<string, (world: World) => Record<string, unknown>> = {
   propose_tailored_cv_changes: (w) => ({ applicationId: w.applicationId, changes: [{ kind: "highlight", section: "skills", item: "Consolidation" }] }),
   propose_tailored_cv_answers: (w) => ({ applicationId: w.applicationId, answers: [{ requirement: "Power BI", confirmed: true }] }),
   propose_exchange_reply: (w) => ({ applicationId: w.applicationId, text: "Bonjour, mardi à 14 h me convient. Marie" }),
+  propose_company_dossier_rebuild: (w) => ({ applicationId: w.applicationId }),
+  propose_dossier_employer: (w) => ({ applicationId: w.applicationId, employer: "Acme Industrie SAS" }),
+  propose_contact_search: (w) => ({ applicationId: w.applicationId }),
+  propose_contact_reveal: (w) => ({ applicationId: w.applicationId, contactId: "c-found" }),
 };
 
 const RECORDER = { step: <T>(_step: unknown, run: () => Promise<T>) => run(), site: () => {} };
@@ -243,6 +247,38 @@ describe.skipIf(!connectionString)("a Coach Action never writes: only the Candid
       },
       // An Exchange kept on the Application, to answer (#1099): the feature flag on.
       exchanges: { on: () => true, exchanges: createExchanges(database, { cipher: () => cipher }) },
+      // A Company Dossier built, and one person found at its employer (ADR-0114).
+      companyDossiers: {
+        get: async () => ({
+          status: "built",
+          dossier: {
+            source: "french_register",
+            reliability: "official",
+            employer: "Acme Industrie",
+            builtAt: new Date("2026-11-02T09:00:00Z"),
+            siren: "123456789",
+            name: "ACME INDUSTRIE",
+            financials: [],
+            executiveRoles: [],
+            suggestedContactRoles: ["hr_director"],
+            news: [],
+            newsSearched: true,
+          },
+        }),
+        confirmEmployer: write() as never,
+      },
+      enrichedContacts: {
+        get: async () => ({
+          enabled: true,
+          searchable: true,
+          found: [{ id: "c-found", name: "Paul Martin", jobTitle: "DRH", source: { provider: "lusha", providerPersonId: "p1", foundAt: new Date("2026-11-02T09:00:00Z") } }],
+          contacts: [],
+        }),
+        find: write() as never,
+        reveal: write() as never,
+        contact: async () => null,
+      },
+      enrichedContactQuota: async () => ({ used: 0, limit: 5, refusal: null }),
     };
     // Its sender, subject and text sealed, as the inbound route keeps them.
     const exchangeId = randomUUID();
@@ -263,6 +299,9 @@ describe.skipIf(!connectionString)("a Coach Action never writes: only the Candid
       domain.tailoredCvs.reviseSaved,
       domain.tailoredCvs.reviseProposal,
       domain.tailoredCvs.answerAll,
+      domain.companyDossiers.confirmEmployer,
+      domain.enrichedContacts.find,
+      domain.enrichedContacts.reveal,
     ] as unknown as ReturnType<typeof vi.fn>[];
     // A Job Offer is within reach when one of the Candidate's objects shows it: the new one, which her Job Search found.
     const objects: CoachObjectReader = { index: async () => [], read: async (_candidateId, type, id) => (type === "job_offer" && id === world.newOfferId ? ({ text: "" } as never) : null) };

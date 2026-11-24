@@ -9,9 +9,14 @@ import type { JobSearch } from "../job-searches";
 import type { Profile } from "../profiles";
 import type { ApplicationDrafts } from "../tailored-documents";
 import type { ApplicationTailoredCv } from "../tailored-cv";
+import type { CompanyDossierState } from "../company-dossiers";
+import type { EnrichedContactsState } from "../enriched-contacts";
+import type { CoachReview } from "../human-coaches";
 import { estimateTokens } from "../coach/context";
 import { COACH_ACTION_READS_MAX_TOKENS, COACH_ACTION_RESULT_MAX_TOKENS, createCoachActions } from "./index";
 import { candidateObjects, type CandidateObjectSources } from "./candidate-objects";
+import * as z from "zod";
+import { NO_OBJECTS, shippedCoachActions } from "./catalog";
 import { readCoachActions } from "./reads";
 
 // The read Coach Actions (#714, ADR-0077), through the seam the AI Coach calls them by: `forReply(...).runTool`, on the
@@ -111,12 +116,64 @@ const tailoredCv: ApplicationTailoredCv = {
   saved: { language: "fr", masterCvVersion: 3, content: consultant.masterCv.content, matchScore: { master: 61, tailored: 78 }, savedAt: new Date("2026-10-29T11:00:00Z"), provenance: null },
 };
 
+/** Airbus's Company Dossier, from the French register. */
+const airbusDossier: CompanyDossierState = {
+  status: "built",
+  dossier: {
+    source: "french_register",
+    reliability: "official",
+    employer: "Airbus",
+    builtAt: new Date("2026-10-30T10:00:00Z"),
+    siren: "383474814",
+    name: "AIRBUS",
+    legalForm: "SAS",
+    activity: "Construction aéronautique et spatiale",
+    address: "2 rond-point Émile Dewoitine, 31700 Blagnac",
+    headcount: { min: 10_000 },
+    financials: [{ year: 2025, revenue: 52_000_000_000, netIncome: 3_800_000_000 }],
+    executiveRoles: ["Président"],
+    suggestedContactRoles: ["hr_director", "talent_acquisition"],
+    news: [{ title: "Airbus accélère sa stratégie de décarbonation", outlet: "Les Échos", publishedAt: "2026-09-12", url: "https://www.lesechos.fr/airbus-strategie" }],
+    newsSearched: true,
+  },
+};
+
+/** Two people at Airbus: one revealed, with details the AI model never gets; one only found. */
+const airbusContacts: EnrichedContactsState = {
+  enabled: true,
+  searchable: true,
+  found: [{ id: "c-found", name: "Paul Martin", jobTitle: "Talent Acquisition", source: { provider: "lusha", providerPersonId: "p2", foundAt: new Date("2026-10-31T10:00:00Z") } }],
+  contacts: [
+    {
+      id: "c-revealed",
+      name: "Sophie Bernard",
+      jobTitle: "DRH",
+      emails: ["sophie.bernard@airbus.example"],
+      phones: ["+33 6 98 76 54 32"],
+      source: { provider: "lusha", providerPersonId: "p1", foundAt: new Date("2026-10-31T10:00:00Z"), retrievedAt: new Date("2026-10-31T10:05:00Z") },
+    },
+  ],
+};
+
+/** A Human Coach's review of the Cover Letter. */
+const marieReview: CoachReview = {
+  id: "r1",
+  coach: { id: "h1", name: "Marie Lefèvre" },
+  document: "cover_letter",
+  text: "Mettez votre clôture en J+5 dès le premier paragraphe.",
+  createdAt: new Date("2026-11-02T15:00:00Z"),
+};
+
 interface Workspace {
   profiles: Profile[];
   applications: Application[];
   jobSearches: JobSearch[];
   jobDigests: JobDigest[];
   agenda: AgendaItem[];
+  /** By Application id. */
+  dossiers: Record<string, CompanyDossierState>;
+  contacts: Record<string, EnrichedContactsState>;
+  reviews: Record<string, CoachReview[]>;
 }
 
 const workspace = (more: Partial<Workspace> = {}): Workspace => ({
@@ -125,6 +182,9 @@ const workspace = (more: Partial<Workspace> = {}): Workspace => ({
   jobSearches: [jobSearch, archivedSearch],
   jobDigests: [jobDigest],
   agenda: [interviewItem],
+  dossiers: { [airbus.id]: airbusDossier, [archivedApplication.id]: airbusDossier },
+  contacts: { [airbus.id]: airbusContacts, [archivedApplication.id]: airbusContacts },
+  reviews: { [airbus.id]: [marieReview], [archivedApplication.id]: [marieReview] },
   ...more,
 });
 
@@ -165,6 +225,9 @@ function sourcesOf(data: Workspace): CandidateObjectSources {
     agenda: { upcoming: async (candidateId) => mine(candidateId, data.agenda) },
     tailoredDocuments: { get: async (candidateId, applicationId) => (candidateId === "marie" && applicationId === airbus.id ? drafts : null) },
     tailoredCvs: { get: async (candidateId, applicationId) => (candidateId === "marie" && applicationId === airbus.id ? tailoredCv : null) },
+    companyDossiers: { get: async (candidateId, applicationId) => (candidateId === "marie" ? (data.dossiers[applicationId] ?? null) : null) },
+    enrichedContacts: { get: async (candidateId, applicationId) => (candidateId === "marie" ? (data.contacts[applicationId] ?? null) : null) },
+    coachReviews: { reviews: async (candidateId, applicationId) => (candidateId === "marie" ? (data.reviews[applicationId] ?? []) : []) },
     now: () => new Date("2026-11-04T10:00:00Z"),
   };
 }
@@ -248,6 +311,21 @@ describe("read_application (#714)", () => {
     // Text the Candidate did not write came back: the Coach Actions that copy text are no longer offered.
     expect(reply.narrowed).toBe(true);
     expect(recorder.provenance().sites).toEqual([{ kind: "candidate", links: ["/candidatures/a-airbus"] }]);
+  });
+
+  it("gives each Interview in full, past ones included: its id, date and time in French time, duration, format, place or link, note and cancellation (ADR-0114)", async () => {
+    const interviews: Application["interviews"] = [
+      // Past: a week before the day of the reply.
+      { id: "i-past", scheduledAt: new Date("2026-10-28T09:30:00Z"), note: "Questions sur la consolidation", durationMinutes: 45, format: "on_site", place: "Siège, Toulouse", cancelledAt: null, reschedules: [] },
+      { id: "i-next", scheduledAt: new Date("2026-11-10T13:00:00Z"), note: "", durationMinutes: null, format: "video", place: "https://meet.example.com/abc", cancelledAt: new Date("2026-11-03T08:00:00Z"), reschedules: [] },
+    ];
+    const { read } = await setUp(workspace({ applications: [{ ...airbus, status: "interview", interviews }] }));
+
+    const { content } = await read("read_application", { id: airbus.id });
+
+    expect(content).toContain("Entretiens (heure de Paris), passés compris :");
+    expect(content).toContain("- entretien (id i-past) le mercredi 28 octobre 2026 à 10:30, 45 min, sur place, lieu : Siège, Toulouse ; note : Questions sur la consolidation");
+    expect(content).toContain("- entretien (id i-next) le mardi 10 novembre 2026 à 14:00, visio, lien : https://meet.example.com/abc [annulé le 2026-11-03]");
   });
 
   it("is not_found for an Application of an Archived Profile, another Candidate's or an unknown id", async () => {
@@ -371,6 +449,143 @@ describe("read_tailored_documents (#714)", () => {
     expect(await read("read_tailored_documents", { id: archivedApplication.id })).toEqual(NOT_FOUND);
     expect(await read("read_tailored_documents", { id: "a-unknown" })).toEqual(NOT_FOUND);
     expect(await (await setUp(workspace(), "paul")).read("read_tailored_documents", { id: airbus.id })).toEqual(NOT_FOUND);
+  });
+});
+
+describe("read_company_dossier (ADR-0114)", () => {
+  it("reads the Company Dossier in full, with its source, marked untrusted: identity, address, headcount, financials, roles to contact, Company News", async () => {
+    const { read, reply, recorder } = await setUp();
+
+    const { content, error } = await read("read_company_dossier", { id: airbus.id });
+
+    expect(error).toBeUndefined();
+    expect(content).toMatch(/^<donnees>[\s\S]*<\/donnees>$/);
+    expect(content).toContain("Dossier entreprise de la candidature (id a-airbus), constitué le 2026-10-30 pour « Airbus ».");
+    expect(content).toContain("Source : registre français des entreprises (données officielles)");
+    expect(content).toContain("Raison sociale : AIRBUS (SIREN 383474814), SAS");
+    expect(content).toContain("Activité : Construction aéronautique et spatiale");
+    expect(content).toContain("Adresse : 2 rond-point Émile Dewoitine, 31700 Blagnac");
+    expect(content).toContain("Effectif : 10000 salariés ou plus");
+    expect(content).toContain("- 2025 : chiffre d'affaires 52000000000 €, résultat net 3800000000 €");
+    expect(content).toContain("Fonctions des dirigeants : Président");
+    expect(content).toContain("Fonctions à contacter : Directeur ou directrice des ressources humaines (DRH) ; Responsable du recrutement (Talent Acquisition)");
+    expect(content).toContain("- 2026-09-12, Les Échos : « Airbus accélère sa stratégie de décarbonation » (https://www.lesechos.fr/airbus-strategie)");
+    expect(reply.narrowed).toBe(true);
+    expect(recorder.provenance().sites).toEqual([{ kind: "candidate", links: ["/candidatures/a-airbus/dossier"] }]);
+  });
+
+  it("says a web dossier is less reliable, and gives its sources", async () => {
+    const web: CompanyDossierState = {
+      status: "built",
+      dossier: {
+        source: "web",
+        reliability: "less_reliable",
+        employer: "Benchling",
+        builtAt: new Date("2026-10-30T10:00:00Z"),
+        country: "États-Unis",
+        industry: "Logiciels pour la biologie",
+        headcount: "800",
+        revenue: "100 M$",
+        website: "https://www.benchling.com",
+        sources: ["https://www.benchling.com/about"],
+        suggestedContactRoles: [],
+        news: [],
+        newsSearched: true,
+      },
+    };
+    const { read } = await setUp(workspace({ dossiers: { [airbus.id]: web } }));
+
+    const { content } = await read("read_company_dossier", { id: airbus.id });
+
+    expect(content).toContain("Source : pages web, moins fiables : à vérifier");
+    expect(content).toContain("Pays : États-Unis");
+    expect(content).toContain("Site : https://www.benchling.com");
+    expect(content).toContain("Pages lues : https://www.benchling.com/about");
+  });
+
+  it("says what is missing when the dossier is not built, or its employer must be named or confirmed, and what to propose", async () => {
+    const notBuilt = await setUp(workspace({ dossiers: { [airbus.id]: { status: "not_built" } } }));
+    expect((await notBuilt.read("read_company_dossier", { id: airbus.id })).content).toContain("propose_company_dossier_rebuild");
+    expect(notBuilt.reply.narrowed).toBe(false);
+
+    const presumed = await setUp(workspace({ dossiers: { [airbus.id]: { status: "awaiting_confirmation", presumedEmployer: "Airbus Helicopters", agency: "Cabinet Exemple" } } }));
+    const { content } = await presumed.read("read_company_dossier", { id: airbus.id });
+    expect(content).toContain("Employeur présumé : Airbus Helicopters");
+    expect(content).toContain("propose_dossier_employer");
+  });
+
+  it("is not_found for an Application of an Archived Profile, another Candidate's or an unknown id", async () => {
+    const { read } = await setUp();
+
+    expect(await read("read_company_dossier", { id: archivedApplication.id })).toEqual(NOT_FOUND);
+    expect(await read("read_company_dossier", { id: "a-unknown" })).toEqual(NOT_FOUND);
+    expect(await (await setUp(workspace(), "paul")).read("read_company_dossier", { id: airbus.id })).toEqual(NOT_FOUND);
+  });
+});
+
+describe("read_enriched_contacts (ADR-0114)", () => {
+  it("gives each person's id, name, role and whether they are revealed; never their email nor their phone", async () => {
+    const { read, reply, recorder } = await setUp();
+
+    const { content, error } = await read("read_enriched_contacts", { id: airbus.id });
+
+    expect(error).toBeUndefined();
+    expect(content).toContain("- contact (id c-revealed) Sophie Bernard, DRH : révélé");
+    expect(content).toContain("- contact (id c-found) Paul Martin, Talent Acquisition : trouvé, pas encore révélé");
+    for (const detail of ["sophie.bernard@airbus.example", "+33 6 98 76 54 32", "98 76", "@"]) expect(content).not.toContain(detail);
+    expect(reply.narrowed).toBe(true);
+    expect(recorder.provenance().sites).toEqual([{ kind: "candidate", links: ["/candidatures/a-airbus/contacts"] }]);
+  });
+
+  it("says when there is nobody yet, or when Enriched Contacts are off", async () => {
+    const none = await setUp(workspace({ contacts: { [airbus.id]: { ...airbusContacts, found: [], contacts: [] } } }));
+    expect((await none.read("read_enriched_contacts", { id: airbus.id })).content).toContain("propose_contact_search");
+
+    const off = await setUp(workspace({ contacts: { [airbus.id]: { enabled: false, searchable: false, found: [], contacts: [] } } }));
+    expect((await off.read("read_enriched_contacts", { id: airbus.id })).content).toContain("ne sont pas disponibles");
+  });
+
+  it("is not_found for an Application of an Archived Profile, another Candidate's or an unknown id", async () => {
+    const { read } = await setUp();
+
+    expect(await read("read_enriched_contacts", { id: archivedApplication.id })).toEqual(NOT_FOUND);
+    expect(await read("read_enriched_contacts", { id: "a-unknown" })).toEqual(NOT_FOUND);
+    expect(await (await setUp(workspace(), "paul")).read("read_enriched_contacts", { id: airbus.id })).toEqual(NOT_FOUND);
+  });
+});
+
+describe("read_coach_reviews (ADR-0114)", () => {
+  it("gives each Coach Review's author as « Prénom N. », its date, the Tailored Document it is about and its text, marked untrusted", async () => {
+    const { read, reply, recorder } = await setUp();
+
+    const { content, error } = await read("read_coach_reviews", { id: airbus.id });
+
+    expect(error).toBeUndefined();
+    expect(content).toContain("- avis de Marie L., le 2026-11-02, sur la lettre de motivation : Mettez votre clôture en J+5 dès le premier paragraphe.");
+    expect(content).not.toContain("Lefèvre");
+    expect(reply.narrowed).toBe(true);
+    expect(recorder.provenance().sites).toEqual([{ kind: "candidate", links: ["/candidatures/a-airbus/avis"] }]);
+  });
+
+  it("is the only Coach Action about Coach Reviews in the catalogue shipped: none proposes to change or delete one", () => {
+    const aboutReviews = shippedCoachActions(NO_OBJECTS).filter((action) => /review|avis/i.test(`${action.name} ${JSON.stringify(z.toJSONSchema(action.schema))}`));
+
+    expect(aboutReviews.map((action) => [action.name, action.kind])).toEqual([["read_coach_reviews", "read"]]);
+  });
+
+  it("says when the Application has none", async () => {
+    const { read, reply } = await setUp(workspace({ reviews: {} }));
+
+    expect((await read("read_coach_reviews", { id: airbus.id })).content).toContain("Aucun avis");
+    expect(reply.narrowed).toBe(false);
+  });
+
+  it("is not_found for an Application of an Archived Profile, another Candidate's or an unknown id", async () => {
+    const { read } = await setUp();
+
+    expect(await read("read_coach_reviews", { id: archivedApplication.id })).toEqual(NOT_FOUND);
+    expect(await read("read_coach_reviews", { id: "a-unknown" })).toEqual(NOT_FOUND);
+    expect(await (await setUp(workspace(), "paul")).read("read_coach_reviews", { id: airbus.id })).toEqual(NOT_FOUND);
   });
 });
 

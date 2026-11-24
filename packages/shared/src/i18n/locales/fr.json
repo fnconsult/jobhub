@@ -7100,6 +7100,7 @@
     "fields": {
       "applicationStatus": "Statut de la candidature",
       "newInterview": "Nouvel entretien",
+      "interviewNote": "Note de l'entretien",
       "interview": "Entretien",
       "application": "Candidature",
       "applicationProfile": "Profil de la candidature",
@@ -7121,7 +7122,12 @@
         "cover_letter": "Lettre de motivation : remettre la version {{version}}",
         "outreach_message": "Message d'approche : remettre la version {{version}}"
       },
-      "exchangeReply": "Réponse à « {{subject}} »"
+      "exchangeReply": "Réponse à « {{subject}} »",
+      "companyDossier": "Dossier entreprise",
+      "dossierEmployer": "Employeur du dossier entreprise",
+      "employerName": "Nom de l'entreprise ou SIREN",
+      "contactSearch": "Recherche de contacts",
+      "enrichedContact": "Contact enrichi"
     },
     "interview": {
       "none": "Aucun",
@@ -7148,14 +7154,33 @@
       "draftOf": "Brouillon du {{date}}",
       "draftEdited": "Brouillon du {{date}}, modifié depuis",
       "newDraft": "Un nouveau brouillon que votre coach IA rédigera quand vous lancerez la rédaction · {{language}}",
+      "draftFor": "pour {{contact}}",
       "replacesDraft": "Votre brouillon actuel sera remplacé : il restera dans « Versions », modifications comprises.",
-      "replacesTailoredCvProposal": "Votre proposition de CV adapté en cours de relecture sera remplacée, vos réponses comprises."
+      "replacesTailoredCvProposal": "Votre proposition de CV adapté en cours de relecture sera remplacée, vos réponses comprises.",
+      "dossierOf": "Dossier du {{date}}",
+      "noDossier": "Aucun dossier",
+      "dossierRebuilt": "Mis à jour quand vous lancerez « Mettre à jour » : registre des entreprises ou pages web, et actualités",
+      "presumedEmployer": "{{employer}} (présumé)",
+      "employerUnknown": "Employeur non nommé",
+      "peopleFound_one": "{{count}} personne trouvée",
+      "peopleFound_other": "{{count}} personnes trouvées",
+      "noPeople": "Aucune personne trouvée",
+      "peopleAt": "Les personnes qui occupent les fonctions à contacter chez {{employer}}, sans leurs coordonnées",
+      "personFound": "{{person}} : trouvé, sans coordonnées",
+      "personRevealed": "Ses coordonnées, à lire dans Contacts"
     },
     "quota": {
       "jobSearch": "1 recherche sur {{limit}} cette semaine : il vous en restera {{left}}",
       "jobSearchNone": "Vos {{limit}} recherches de la semaine sont utilisées",
       "jobSearchUnlimited": "Recherches illimitées avec votre offre",
-      "profile": "Utilise un profil actif de votre forfait"
+      "profile": "Utilise un profil actif de votre forfait",
+      "companyDossier": "Ne compte dans aucun quota de votre offre",
+      "contactSearch": "La recherche ne compte pas ; chaque contact révélé compte 1 contact enrichi sur {{limit}} cette semaine (il vous en reste {{left}})",
+      "contactSearchUnlimited": "La recherche ne compte pas ; contacts enrichis illimités avec votre offre",
+      "contactReveal": "1 contact enrichi sur {{limit}} cette semaine : il vous en restera {{left}}",
+      "contactRevealUnlimited": "Contacts enrichis illimités avec votre offre",
+      "contactsNotIncluded": "Les contacts enrichis ne sont pas inclus dans votre offre",
+      "contactsNone": "Vos {{limit}} contacts enrichis de la semaine sont utilisés"
     },
     "by": "Proposé par votre coach IA",
     "profileName": "Profil {{name}}",
@@ -7191,7 +7216,8 @@
       "invalid": "Ce que vous avez saisi ne convient pas : vérifiez le formulaire.",
       "failed": "La proposition n'a pas pu être traitée. Réessayez ou rechargez la page.",
       "noneAccepted": "Acceptez au moins un changement pour enregistrer, ou ignorez la proposition.",
-      "runFailed": "Le document n'a pas pu être préparé. Réessayez depuis les documents de la candidature."
+      "runFailed": "Le document n'a pas pu être préparé. Réessayez depuis les documents de la candidature.",
+      "dossierFailed": "Le dossier entreprise n'a pas pu être mis à jour. Réessayez depuis la section Dossier de la candidature."
     },
     "masterCv": {
       "version": "Version {{version}}",
@@ -7220,7 +7246,8 @@
     "runResult": {
       "tailored_cv": "La proposition de CV adapté est dans Documents › CV adapté, à relire changement par changement.",
       "cover_letter": "Votre lettre de motivation est dans Documents › Lettre de motivation.",
-      "outreach_message": "Votre message d'approche est dans Documents › Message d'approche."
+      "outreach_message": "Votre message d'approche est dans Documents › Message d'approche.",
+      "company_dossier": "Le dossier entreprise est dans la section Dossier de la candidature."
     },
     "runStopped": "Si vous l'avez arrêtée, rien n'a été gardé.",
     "openResult": "Ouvrir à côté de la conversation",
@@ -7240,7 +7267,9 @@
       "handedOver": "Prise par vous à {{time}} : envoyez-la depuis votre messagerie.",
       "nothingSent": "Jobbbox n'envoie rien : vous envoyez cette réponse vous-même.",
       "to": "À : {{to}} · Objet : {{subject}}"
-    }
+    },
+    "update": "Mettre à jour",
+    "runStoppedDossier": "Si vous l'avez arrêtée, ce qui était déjà trouvé est gardé."
   },
   "coachRedirects": {
     "pages": {

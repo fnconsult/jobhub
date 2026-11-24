@@ -152,6 +152,57 @@ describe("a draft's new text proposed (ADR-0109)", () => {
   });
 });
 
+describe("an Interview's note proposed (ADR-0114)", () => {
+  const INTERVIEW = "lundi 2 novembre 2026 à 10:00 · 60 min · Sur place · Siège, Toulouse";
+  const NOTE = "Questions posées :\n- la clôture en J+5\n- la consolidation IFRS";
+  const NOTE_CARD: Card = {
+    ...PENDING,
+    change: {
+      target: { kind: "application", id: "a1", name: "Contrôleuse de gestion · Airbus", href: "/candidatures/a1/entretiens" },
+      what: "Entretien",
+      before: INTERVIEW,
+      after: INTERVIEW,
+      text: { name: "note", what: "Note de l'entretien", before: "Avec la DAF", after: NOTE },
+      value: { interviewId: "i1", scheduledAt: "2026-11-02T10:00", durationMinutes: "60", format: "on_site", place: "Siège, Toulouse", note: NOTE },
+      fields: [
+        { name: "scheduledAt", label: "Date et heure de l'entretien (heure de Paris)", type: "datetime" },
+        { name: "note", label: "Note (facultatif)", type: "textarea" },
+      ],
+    },
+  };
+  const noteCard = () => screen.getByRole("article", { name: /Entretien/ });
+
+  it("names the Interview, shows the new note in full, its lines kept, and the current one folded under « Texte actuel »", () => {
+    renderInFrench(<Thread card={NOTE_CARD} />);
+
+    expect(noteCard().textContent).toContain(INTERVIEW);
+    expect(noteCard().textContent).not.toContain("→");
+    expect(noteCard().textContent).toContain("Note de l'entretien");
+    expect(noteCard().querySelector(".coach-proposal-card__text")?.textContent).toBe(NOTE);
+    const current = within(noteCard()).getByText("Texte actuel");
+    expect(current.closest("details")?.open).toBe(false);
+    expect(current.closest("details")?.textContent).toContain("Avec la DAF");
+    expect(within(noteCard()).getAllByRole("button").map((each) => each.textContent)).toEqual(["Appliquer", "Modifier avant d'appliquer", "Ignorer"]);
+  });
+
+  it("beside a date change: the change before → after, then the note; nothing folded when the Interview had no note", () => {
+    const moved: Card = { ...NOTE_CARD, change: { ...NOTE_CARD.change, after: "mardi 3 novembre 2026 à 10:00 · 60 min · Sur place · Siège, Toulouse", text: { ...NOTE_CARD.change.text!, before: "" } } };
+    renderInFrench(<Thread card={moved} />);
+
+    expect(noteCard().textContent).toContain(`Avant : ${INTERVIEW} → , après : mardi 3 novembre 2026`);
+    expect(noteCard().querySelector(".coach-proposal-card__text")?.textContent).toBe(NOTE);
+    expect(within(noteCard()).queryByText("Texte actuel")).toBeNull();
+  });
+
+  it("applied after an edit, shows the note the Candidate applied, not the note glued to the Interview", () => {
+    renderInFrench(<Thread card={applied({ change: NOTE_CARD.change, edited: { ...NOTE_CARD.change.value, note: "Ma note à moi." } })} />);
+
+    expect(noteCard().querySelector(".coach-proposal-card__text")?.textContent).toBe("Ma note à moi.");
+    expect(noteCard().textContent).toContain(INTERVIEW);
+    expect(noteCard().textContent).not.toContain("Ma note à moi., ");
+  });
+});
+
 describe("a Coach proposal's card in the thread (#715, ADR-0077)", () => {
   it("says what changes on which object, before → after, that the AI Coach proposed it, with its three buttons", () => {
     renderInFrench(<Thread />);

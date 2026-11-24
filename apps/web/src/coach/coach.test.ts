@@ -619,7 +619,7 @@ describe("the item In view, in full", () => {
 
     const context = contextOf(provider);
     expect(context).toContain("Entretien");
-    expect(context).toContain("2026-10-20");
+    expect(context).toContain("mardi 20 octobre 2026 à 16:00");
     expect(context).toContain("avec la DRH");
     expect(context).toContain(`${matchScore.score}/100`);
     expect(context).toContain("Power BI");
@@ -632,7 +632,7 @@ describe("the item In view, in full", () => {
 
     await ask(coach, { kind: "application", id: application.id });
 
-    expect(contextOf(provider)).toContain("- le 2026-10-20 [annulé le 2026-10-19] : avec la DRH");
+    expect(contextOf(provider)).toContain("- entretien (id i1) le mardi 20 octobre 2026 à 16:00 [annulé le 2026-10-19] ; note : avec la DRH");
   });
 
   it("a Job Offer: the whole posting", async () => {

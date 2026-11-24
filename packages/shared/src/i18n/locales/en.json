@@ -7100,6 +7100,7 @@
     "fields": {
       "applicationStatus": "Application status",
       "newInterview": "New interview",
+      "interviewNote": "Interview note",
       "interview": "Interview",
       "application": "Application",
       "applicationProfile": "Application's profile",
@@ -7121,7 +7122,12 @@
         "cover_letter": "Cover letter: bring back version {{version}}",
         "outreach_message": "Outreach message: bring back version {{version}}"
       },
-      "exchangeReply": "Reply to “{{subject}}”"
+      "exchangeReply": "Reply to “{{subject}}”",
+      "companyDossier": "Company dossier",
+      "dossierEmployer": "Company dossier's employer",
+      "employerName": "Company name or SIREN",
+      "contactSearch": "Contact search",
+      "enrichedContact": "Enriched contact"
     },
     "interview": {
       "none": "None",
@@ -7148,14 +7154,33 @@
       "draftOf": "Draft of {{date}}",
       "draftEdited": "Draft of {{date}}, edited since",
       "newDraft": "A new draft your AI coach will write once you start the drafting · {{language}}",
+      "draftFor": "to {{contact}}",
       "replacesDraft": "Your current draft will be replaced: it will stay in “Versions”, edits included.",
-      "replacesTailoredCvProposal": "Your Tailored CV proposal under review will be replaced, your answers included."
+      "replacesTailoredCvProposal": "Your Tailored CV proposal under review will be replaced, your answers included.",
+      "dossierOf": "Dossier of {{date}}",
+      "noDossier": "No dossier",
+      "dossierRebuilt": "Updated when you start « Update »: company register or web pages, and news",
+      "presumedEmployer": "{{employer}} (presumed)",
+      "employerUnknown": "Employer not named",
+      "peopleFound_one": "{{count}} person found",
+      "peopleFound_other": "{{count}} people found",
+      "noPeople": "Nobody found",
+      "peopleAt": "The people holding the roles to contact at {{employer}}, without their details",
+      "personFound": "{{person}}: found, no details",
+      "personRevealed": "Their details, to read in Contacts"
     },
     "quota": {
       "jobSearch": "1 search of {{limit}} this week: {{left}} left after it",
       "jobSearchNone": "Your {{limit}} searches this week are used",
       "jobSearchUnlimited": "Unlimited searches with your plan",
-      "profile": "Uses one active profile of your plan"
+      "profile": "Uses one active profile of your plan",
+      "companyDossier": "Counts against no quota of your plan",
+      "contactSearch": "The search does not count; each contact revealed counts 1 enriched contact of {{limit}} this week ({{left}} left)",
+      "contactSearchUnlimited": "The search does not count; unlimited enriched contacts with your plan",
+      "contactReveal": "1 enriched contact of {{limit}} this week: {{left}} will be left",
+      "contactRevealUnlimited": "Unlimited enriched contacts with your plan",
+      "contactsNotIncluded": "Enriched contacts are not included in your plan",
+      "contactsNone": "Your {{limit}} enriched contacts of the week are used"
     },
     "by": "Proposed by your AI coach",
     "profileName": "Profile {{name}}",
@@ -7191,7 +7216,8 @@
       "invalid": "What you entered does not fit: check the form.",
       "failed": "The proposal could not be processed. Try again or reload the page.",
       "noneAccepted": "Accept at least one change to save, or ignore the proposal.",
-      "runFailed": "The document could not be prepared. Try again from the application's documents."
+      "runFailed": "The document could not be prepared. Try again from the application's documents.",
+      "dossierFailed": "The company dossier could not be updated. Try again from the application's Dossier section."
     },
     "masterCv": {
       "version": "Version {{version}}",
@@ -7220,7 +7246,8 @@
     "runResult": {
       "tailored_cv": "The tailored CV proposal is in Documents › Tailored CV, to review change by change.",
       "cover_letter": "Your cover letter is in Documents › Cover letter.",
-      "outreach_message": "Your outreach message is in Documents › Outreach message."
+      "outreach_message": "Your outreach message is in Documents › Outreach message.",
+      "company_dossier": "The company dossier is in the application's Dossier section."
     },
     "runStopped": "If you stopped it, nothing was kept.",
     "openResult": "Open beside the conversation",
@@ -7240,7 +7267,9 @@
       "handedOver": "Taken by you at {{time}}: send it from your email.",
       "nothingSent": "Jobbbox sends nothing: you send this reply yourself.",
       "to": "To: {{to}} · Subject: {{subject}}"
-    }
+    },
+    "update": "Update",
+    "runStoppedDossier": "If you stopped it, what was already found is kept."
   },
   "coachRedirects": {
     "pages": {

@@ -3,6 +3,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderInFrench } from "@/design/testing";
+import { I18nProvider } from "@/i18n/I18nProvider";
 import { ApplicationTitle } from "./ApplicationTitle";
 import { SidebarLayout } from "./SidebarLayout";
 
@@ -70,6 +71,20 @@ describe("« Renommer » an Application's conversation (#1130): its title in the
     await user.click(within(await screen.findByRole("menu")).getByRole("menuitem", { name: "Renommer" }));
 
     await waitFor(() => expect(document.activeElement).toBe(field()));
+  });
+
+  it("shows a title changed elsewhere, a Coach proposal applied, once the page refreshes", () => {
+    screenWidth(100);
+    const { rerender } = renderInFrench(<ApplicationTitle applicationId="a1" title={SLOGAN} />);
+    expect(screen.getByRole("textbox", { name: "Intitulé de la candidature" })).toHaveProperty("value", SLOGAN);
+
+    rerender(
+      <I18nProvider locale="fr">
+        <ApplicationTitle applicationId="a1" title={TITLE} />
+      </I18nProvider>,
+    );
+
+    expect(screen.getByRole("textbox", { name: "Intitulé de la candidature" })).toHaveProperty("value", TITLE);
   });
 
   it("says why a title is refused", async () => {

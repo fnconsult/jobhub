@@ -294,7 +294,14 @@ const saveSchema = z.object({ jobOfferId: id, profileId: id });
 const statusChange = z.object({ status: z.enum(APPLICATION_STATUSES) });
 const profileChange = z.object({ profileId: id });
 const reportChange = z.object({ reportedUnavailable: z.boolean() });
-const titleChange = z.object({ title: z.string().trim().min(1).max(MAX_APPLICATION_TITLE_LENGTH).nullable() });
+/** One line: a newline or a run of spaces pasted in becomes one space. */
+const titleChange = z.object({
+  title: z
+    .string()
+    .transform((title) => title.replace(/\s+/g, " ").trim())
+    .pipe(z.string().min(1).max(MAX_APPLICATION_TITLE_LENGTH))
+    .nullable(),
+});
 /** Told apart by `profileId`, `reportedUnavailable` or `title`, so field errors name the field the caller meant. */
 const parseChange = (input: unknown) => {
   const has = (key: string) => typeof input === "object" && input !== null && key in input;

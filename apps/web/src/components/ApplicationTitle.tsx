@@ -31,6 +31,11 @@ async function patchTitle(applicationId: string, title: string): Promise<"requir
  * « Renommer » under « … » puts the focus in it. The Job Offer's own title, given back, clears the Candidate's.
  */
 export function ApplicationTitle({ applicationId, title }: { applicationId: string; title: string }) {
+  // A title changed elsewhere (a Coach proposal applied or undone, then the page's refresh) starts the field afresh.
+  return <TitleField key={title} applicationId={applicationId} title={title} />;
+}
+
+function TitleField({ applicationId, title }: { applicationId: string; title: string }) {
   const { t } = useTranslation();
   const router = useRouter();
   const id = useId();

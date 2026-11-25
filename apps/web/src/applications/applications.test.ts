@@ -941,7 +941,7 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
       const otherProfile = await createProfile(otherCandidateId, "DAF");
       const theirs = await save({ jobOfferId, profileId: otherProfile }, otherCandidateId);
 
-      const renamed = await applications.change(candidateId, id, { title: `  ${TITLE}  ` });
+      const renamed = await applications.change(candidateId, id, { title: `  Senior Program Director\n –   Delivery Management  ` });
 
       expect(renamed).toMatchObject({ ok: true, application: { jobOffer: { id: jobOfferId, title: TITLE }, offerTitle: "DAF H/F" } });
       expect(renamed.ok && renamed.application).not.toHaveProperty("titleOrigin");

@@ -8,7 +8,8 @@ import { newAddress } from "./support/mailbox";
 // Issue #408: the Back Office's home is the Dashboard, the sidebar's first entry. Its Job discovery block (web search
 // spend against the alert threshold, the runs' cost against their budget, stop reasons, cost by item) shows only to
 // the roles that read Consommation IA: super-admins, Technique and Support; a Plans manager sees none of it. Its « API »
-// block (#1116), each configured Tool's quota state, shows to every role.
+// block (#1116), each configured Tool's quota state, shows to every role. What it says of each state is checked in
+// e2e/back-office-dashboard-api.spec.ts, on a server of its own: here, specs side by side record refused calls.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const admin = fr.admin;
 const texts = admin.dashboard.jobDiscovery;
@@ -48,32 +49,6 @@ async function recordWebSearch() {
 }
 
 const api = admin.dashboard.api;
-
-/**
- * Mistral refused for its quota (« quota épuisé »), then, once `between` is done, accepted again; both calls are removed
- * afterwards. They are dated an hour ahead: the other specs' Mistral calls, made meanwhile, neither end nor hide the state.
- */
-async function mistralQuotaExhausted(between: () => Promise<void>, after: () => Promise<void>) {
-  const database = new pg.Pool({ connectionString: process.env.E2E_DATABASE_URL });
-  const insert = async (at: string, ok: boolean) => {
-    const { rows } = await database.query<{ id: string }>(
-      `INSERT INTO ai_usage (at, task, provider, endpoint, model, input_tokens, output_tokens, cost_eur, ok, duration_ms, outcome, reason)
-       VALUES (now() + $1::interval, 'scoring', 'mistral', 'e2e', 'mistral-small-latest', 0, 0, 0, $2, 10, $3, $4) RETURNING id`,
-      [at, ok, ok ? "ok" : "failed", ok ? null : "quota_exhausted"],
-    );
-    return rows[0]!.id;
-  };
-  const ids: string[] = [];
-  try {
-    ids.push(await insert("1 hour", false));
-    await between();
-    ids.push(await insert("1 hour 1 minute", true));
-    await after();
-  } finally {
-    await database.query(`DELETE FROM ai_usage WHERE id = ANY($1::uuid[])`, [ids]);
-    await database.end();
-  }
-}
 
 const apiBlock = (page: Page) => page.getByRole("region", { name: new RegExp(`^${api.title} ·`) });
 /** A Tool's card in the « API » block. */
@@ -131,46 +106,7 @@ test.describe("Back Office Dashboard", () => {
     expect(results.violations.map(({ id, nodes }) => ({ id, nodes: nodes.map((node) => node.target.join(" ")) }))).toEqual([]);
   });
 
-  test("the « API » block says each configured Tool's quota state: « OK », then « quota épuisé » with its links, then « OK » after an accepted call (#1116)", async ({ page }) => {
-    await signInWithMagicLink(page, SUPER_ADMIN);
-    await page.goto("/admin");
-
-    // Mistral, the suite's AI provider, is configured: « OK » while its provider accepts its calls.
-    const mistral = toolCard(page, "Mistral AI");
-    await expect(apiBlock(page)).toBeVisible();
-    await expect(mistral).toContainText(api.states.ok);
-    await expect(mistral).toContainText(api.okSub);
-    // Tavily has no key here: it is not listed.
-    await expect(toolCard(page, "Tavily")).toHaveCount(0);
-
-    await mistralQuotaExhausted(
-      async () => {
-        await page.reload();
-        await expect(mistral).toContainText(api.states.quota_exhausted);
-        await expect(mistral).toContainText(api.since.replace(" {{date}}", ""));
-        await expect(mistral.getByRole("link", { name: api.configLabel.replace("{{tool}}", "Mistral AI") })).toHaveAttribute("href", "/admin/parametres?tab=ia&fournisseur=mistral");
-        const billing = mistral.getByRole("link", { name: api.billingLabel.replace("{{tool}}", "Mistral AI") });
-        // Through the Back Office's Exit Page, like every link out of Jobbbox.
-        await expect(billing).toHaveAttribute("href", `/admin/sortie?url=${encodeURIComponent("https://console.mistral.ai/billing")}`);
-        await expect(billing).toHaveAttribute("target", "_blank");
-
-        // Its table view says the same.
-        await apiBlock(page).getByText(admin.dashboard.tableView).click();
-        const row = apiBlock(page).getByRole("table", { name: api.tableTitle }).getByRole("row").filter({ hasText: "Mistral AI" });
-        await expect(row).toContainText(api.states.quota_exhausted);
-
-        const results = await new AxeBuilder({ page }).include("main").withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
-        expect(results.violations.map(({ id, nodes }) => ({ id, nodes: nodes.map((node) => node.target.join(" ")) }))).toEqual([]);
-      },
-      async () => {
-        await page.reload();
-        await expect(mistral).toContainText(api.states.ok);
-        await expect(mistral).not.toContainText(api.states.quota_exhausted);
-      },
-    );
-  });
-
-  test("a Plans manager sees the « API » block alone, everything « OK » included; Support sees every block", async ({ page, browser }) => {
+  test("a Plans manager sees the « API » block alone; Support sees every block", async ({ page, browser }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
     const plansManager = newAddress("dashboard-plans");
     const support = newAddress("dashboard-support");
@@ -183,7 +119,8 @@ test.describe("Back Office Dashboard", () => {
     await expect(plansPage.getByRole("heading", { level: 1 })).toHaveText(admin.dashboard.title);
     await expect(nav(plansPage).getByRole("link").first()).toHaveText(admin.nav.dashboard);
     await expect(apiBlock(plansPage)).toBeVisible();
-    await expect(toolCard(plansPage, "Mistral AI")).toContainText(api.states.ok);
+    // Mistral, the suite's AI provider, is configured: listed, whatever its state while other specs run.
+    await expect(toolCard(plansPage, "Mistral AI")).toBeVisible();
     // Neither Paramètres nor Outils for a Plans manager: the billing link alone.
     await expect(toolCard(plansPage, "Mistral AI").getByRole("link")).toHaveCount(1);
     await expect(block(plansPage)).toHaveCount(0);

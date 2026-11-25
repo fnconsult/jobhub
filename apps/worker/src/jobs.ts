@@ -226,6 +226,12 @@ export const REFERENCE_DATA_REFRESH = "reference-data.refresh";
  */
 export const WEB_SEARCH_ALERT = "web-search.monthly-alert";
 
+/**
+ * Queue name: read each Tool's quota state and, once one is « limite atteinte » or « quota épuisé », email every
+ * Administrator, at most once a day, Paris time (#1117). Runs every 10 minutes; no email when a quota is available again.
+ */
+export const TOOL_QUOTA_ALERT = "tool-quotas.daily-alert";
+
 /** An Apple client secret that could not be signed again; `firstFailure`: the streak starts, the super-admins are not told yet. */
 type AppleFailure = { id: string; reason: "missing_secret" | "invalid_apple_key" | "no_master_key"; firstFailure: boolean };
 
@@ -301,6 +307,8 @@ export interface JobsDeps {
   referenceData?: Pick<ReferenceData, "refresh">;
   /** The monthly web search alert (#403). Without it, nothing is checked. */
   webSearchAlert?: { check(): Promise<{ month: string; spendEur: number; thresholdEur: number; outcome: "off" | "below" | "sent" | "already_sent" }> };
+  /** The daily « Quota atteint » email (#1117). Without it, nothing is checked. */
+  toolQuotaAlert?: { check(): Promise<{ day: string; tools: string[]; outcome: "none" | "sent" | "already_sent" }> };
   /** Emails the super-admins that an Apple client secret could not be signed again. */
   alertAppleFailure?: (failed: AppleFailure[]) => Promise<void>;
   /** Email intake's reading of a Received offer email (#445). Without it, nothing is read: the emails wait. */
@@ -898,6 +906,17 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
           log(
             `[web-search-alert] ${checked.month}: web search spend ${eur(checked.spendEur)} reached its alert threshold of ${eur(checked.thresholdEur)}, super-admins emailed; nothing is cut`,
           );
+        }),
+    },
+
+    // Every 10 minutes: one email a day to every Administrator once a Tool's quota is reached at its provider.
+    [TOOL_QUOTA_ALERT]: {
+      cron: "*/10 * * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const checked = await deps.toolQuotaAlert?.check();
+          if (checked?.outcome !== "sent") return;
+          log(`[tool-quota-alert] ${checked.day}: quota reached for ${checked.tools.join(", ")}; every Administrator emailed, no other email today`);
         }),
     },
 

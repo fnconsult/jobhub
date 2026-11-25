@@ -29,7 +29,7 @@ import { createEmailIntakeActivity } from "../../web/src/email-intake/activity";
 import { alertEmail, inboundRequest } from "../../web/src/email-intake/fixtures/inbound-emails";
 import { createEmailIntakeInbound, receivedTextOf } from "@jobhub/web/email-intake";
 import { createAesGcmCipher } from "../../web/src/provider-secrets/cipher";
-import { ACCEPTANCES_PURGE, AI_USAGE_PURGE, APPOINTMENT_REMINDERS, CONSUMPTION_PURGE, EXTENSION_EVENTS_PURGE, DELIVERY_STATUS_EMAIL, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, DISCOVERY_RUNS_PURGE, OFFER_BOX_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, EXCHANGE_CHECK, EXCHANGES_PURGE, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, PUSH_NOTIFICATIONS_SEND, PUSH_FAILURES_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import { ACCEPTANCES_PURGE, AI_USAGE_PURGE, APPOINTMENT_REMINDERS, CONSUMPTION_PURGE, EXTENSION_EVENTS_PURGE, DELIVERY_STATUS_EMAIL, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, DISCOVERY_RUNS_PURGE, OFFER_BOX_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, EXCHANGE_CHECK, EXCHANGES_PURGE, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, PUSH_NOTIFICATIONS_SEND, PUSH_FAILURES_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, TOOL_QUOTA_ALERT, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -1103,6 +1103,37 @@ describe("the monthly web search alert job (#403)", () => {
     await expect(createJobs({ ...otherDeps, database: noDatabase })[WEB_SEARCH_ALERT]!.handler({})).resolves.toBeUndefined();
     const missingTable = Object.assign(new Error("relation does not exist"), { code: "42P01" });
     await expect(createJobs({ ...otherDeps, database: noDatabase, webSearchAlert: { check: async () => Promise.reject(missingTable) } })[WEB_SEARCH_ALERT]!.handler({})).resolves.toBeUndefined();
+  });
+});
+
+describe("the daily « Quota atteint » email job (#1117)", () => {
+  it("checks the Tools' quotas every 10 minutes, saying when the Administrators were emailed", async () => {
+    const logs: string[] = [];
+    const check = vi.fn(async () => ({ day: "2026-11-25", tools: ["openai", "tavily"], outcome: "sent" as const }));
+    const job = createJobs({ ...otherDeps, database: noDatabase, toolQuotaAlert: { check }, log: (line) => logs.push(line) })[TOOL_QUOTA_ALERT]!;
+
+    expect(job.cron).toBe("*/10 * * * *");
+    await job.handler({});
+
+    expect(check).toHaveBeenCalledTimes(1);
+    expect(logs).toEqual(["[tool-quota-alert] 2026-11-25: quota reached for openai, tavily; every Administrator emailed, no other email today"]);
+  });
+
+  it("says nothing with no quota reached or once emailed; does nothing without it, or before the web app has created its tables", async () => {
+    const logs: string[] = [];
+    for (const outcome of ["none", "already_sent"] as const) {
+      const check = vi.fn(async () => ({ day: "2026-11-25", tools: [], outcome }));
+      await createJobs({ ...otherDeps, database: noDatabase, toolQuotaAlert: { check }, log: (line) => logs.push(line) })[TOOL_QUOTA_ALERT]!.handler({});
+    }
+    expect(logs).toEqual([]);
+    await expect(createJobs({ ...otherDeps, database: noDatabase })[TOOL_QUOTA_ALERT]!.handler({})).resolves.toBeUndefined();
+    const missingTable = Object.assign(new Error("relation does not exist"), { code: "42P01" });
+    await expect(createJobs({ ...otherDeps, database: noDatabase, toolQuotaAlert: { check: async () => Promise.reject(missingTable) } })[TOOL_QUOTA_ALERT]!.handler({})).resolves.toBeUndefined();
+  });
+
+  it("fails the run when the emails could not be sent, so the next one tries again", async () => {
+    const check = vi.fn(async () => Promise.reject(new Error("SMTP down")));
+    await expect(createJobs({ ...otherDeps, database: noDatabase, toolQuotaAlert: { check } })[TOOL_QUOTA_ALERT]!.handler({})).rejects.toThrow("SMTP down");
   });
 });
 

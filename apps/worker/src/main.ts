@@ -55,7 +55,7 @@ import { createProfiles } from "@jobhub/web/profiles";
 import { offersToHandle } from "@jobhub/web/offer-box";
 import { coachSpaceV2InEnv, createPushNotifications } from "@jobhub/web/push-notifications";
 import { pushSendersFromEnv } from "@jobhub/web/push-notifications/worker";
-import { permanentSuperAdminsFromEnv, superAdminEmails } from "@jobhub/web/administrators";
+import { administratorRecipients, permanentSuperAdminsFromEnv, superAdminEmails } from "@jobhub/web/administrators";
 import { secretCipherFromEnv, watchProviderSecrets } from "@jobhub/web/provider-secrets";
 import { createReferenceData } from "@jobhub/web/reference-data";
 import { createSearchSites } from "@jobhub/web/search-sites";
@@ -63,6 +63,8 @@ import { appleFailureEmail, signInProvidersWorker } from "@jobhub/web/sign-in-pr
 import { createTargetCompanies } from "@jobhub/web/target-companies";
 import { taskPlaybooksReader } from "@jobhub/web/task-playbooks";
 import { createWebSearchAlert, postgresWebSearchAlertStore, webSearchAlertThresholdFromEnv } from "@jobhub/web/web-search-alert";
+import { createToolQuotaAlert, postgresToolQuotaAlertStore } from "@jobhub/web/tool-quota-alert";
+import { toolQuotaStates } from "@jobhub/web/tool-quotas";
 import { Pool } from "pg";
 import { jobDiscoveryBudgetFromEnv, targetCompanySettingsFromEnv, webSearchSettingsFromEnv } from "./job-discovery";
 import { startJobRunner, type JobRunner } from "./job-runner";
@@ -286,6 +288,14 @@ const jobs = createJobs({
     store: postgresWebSearchAlertStore(database),
     thresholdEur: () => webSearchAlertThresholdFromEnv(settingsEnv()),
     superAdmins: () => superAdminEmails(database, permanentSuperAdminsFromEnv(process.env)),
+    mailer,
+    appUrl: baseURL,
+  }),
+  // Every Administrator hears of it at most once a day: a Tool reached its quota at its provider (#1117).
+  toolQuotaAlert: createToolQuotaAlert({
+    store: postgresToolQuotaAlertStore(database),
+    states: (now) => toolQuotaStates(database, now),
+    administrators: () => administratorRecipients(database, permanentSuperAdminsFromEnv(process.env)),
     mailer,
     appUrl: baseURL,
   }),

@@ -79,6 +79,7 @@ export const NO_DOMAIN: CoachActionDomain = {
     list: async () => [],
     statusOf: async () => null,
     profileOf: async () => null,
+    titleOf: async () => null,
     interviewOf: async () => null,
     change: async () => NOT_FOUND,
     removeIntact: async () => ({ ok: false, error: "not_found" }),

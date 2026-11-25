@@ -89,7 +89,7 @@ export function createAppointmentReminders(database: Pool, deps: AppointmentRemi
     const window = [frenchDayStart(tomorrow), frenchDayStart(dayAfter(tomorrow)), reminderAt, at];
     const [interviews, sessions] = await Promise.all([
       database.query<{ id: string; candidate_id: string; emailed: boolean; scheduled_at: Date; duration_minutes: number | null; note: string; title: string; employer: string | null; format: InterviewFormat | null; place: string }>(
-        `SELECT i.id, a.candidate_id, ${REMINDERS_ON("a.candidate_id")} AS emailed, i.scheduled_at, i.duration_minutes, i.note, o.title, o.employer, i.format, i.place
+        `SELECT i.id, a.candidate_id, ${REMINDERS_ON("a.candidate_id")} AS emailed, i.scheduled_at, i.duration_minutes, i.note, COALESCE(a.job_title, o.title) AS title, o.employer, i.format, i.place
            FROM interview i
            JOIN application a ON a.id = i.application_id
            JOIN job_offer o ON o.id = a.job_offer_id

@@ -1,5 +1,6 @@
 import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { sharedPool } from "@/database/pool";
+import { getApplications } from "@/applications/server";
 import { getBilling } from "@/billing/server";
 import { getCoach } from "@/coach/server";
 import { getCoachProposals } from "@/coach-proposals/server";
@@ -15,7 +16,7 @@ let instance: CoachConversations | undefined;
  * Action Cards under it (#715).
  */
 export function getCoachConversations(): CoachConversations {
-  instance ??= createCoachConversations(sharedPool(), { coach: getCoach(), profiles: getProfiles(), billing: getBilling(), unansweredQuestions: getUnansweredQuestions(), proposals: getCoachProposals(), sessionReports: coachSpaceV2On });
+  instance ??= createCoachConversations(sharedPool(), { coach: getCoach(), profiles: getProfiles(), applications: getApplications(), billing: getBilling(), unansweredQuestions: getUnansweredQuestions(), proposals: getCoachProposals(), sessionReports: coachSpaceV2On });
   return instance;
 }
 

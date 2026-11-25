@@ -23,7 +23,7 @@
  */
 import type { Pool } from "pg";
 import type { Applications } from "../applications";
-import { visibleTo, type JobOffers } from "../job-offers";
+import { offerTitleFor, visibleTo, type JobOffers } from "../job-offers";
 import { nameKey, sirenIn } from "../company-dossiers/company-names";
 import type { CompanyRegister } from "../company-dossiers/french-register";
 
@@ -273,7 +273,7 @@ export function createTargetCompanies(database: Pick<Pool, "query" | "connect">,
   /** The Job Offers the Profile's Job Searches found, with their employer, newest first. */
   async function foundByJobSearches(candidateId: string, profileId: string) {
     const { rows } = await database.query<{ id: string; title: string; employer: string }>(
-      `SELECT o.id, o.title, o.employer FROM job_offer o
+      `SELECT o.id, ${offerTitleFor("o", "$2")} AS title, o.employer FROM job_offer o
         WHERE o.employer IS NOT NULL AND ${visibleTo("$2", "o")}
           AND o.id IN (SELECT unnest(job_offer_ids) FROM job_search WHERE profile_id = $1 AND candidate_id = $2)
         ORDER BY o.created_at DESC, o.id`,

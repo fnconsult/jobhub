@@ -430,7 +430,7 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
   });
 
   describe("the AI Coach's Eval Run with the Candidatures Coach Actions (#716)", () => {
-    const CANDIDATURES = ["propose_application", "propose_application_status", "propose_application_profile", "propose_follow_up_sent"];
+    const CANDIDATURES = ["propose_application", "propose_application_status", "propose_application_profile", "propose_follow_up_sent", "propose_application_title"];
     const ofAction = (name: string) => AI_COACH_EVAL_CASES.filter((each) => each.id.startsWith(`candidatures-${name.replace(/^propose_/, "").replace(/_/g, "-")}-`));
 
     /** The AI layer with a Mistral that, offered the Candidatures proposals, proposes what `choose` says for the case it is asked about. */

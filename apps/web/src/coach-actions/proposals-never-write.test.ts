@@ -59,6 +59,7 @@ const CALLS: Record<string, (world: World) => Record<string, unknown>> = {
   propose_application_status: (w) => ({ applicationId: w.applicationId, status: "rejected" }),
   propose_application_profile: (w) => ({ applicationId: w.applicationId, profileId: w.consultant }),
   propose_follow_up_sent: (w) => ({ applicationId: w.appliedId }),
+  propose_application_title: (w) => ({ applicationId: w.applicationId, title: "Directeur administratif et financier groupe" }),
   propose_interview: (w) => ({ applicationId: w.applicationId, scheduledAt: "2026-12-10T14:00" }),
   propose_interview_change: (w) => ({ applicationId: w.applicationId, interviewId: w.interviewId, place: "Visioconférence" }),
   propose_interview_cancel: (w) => ({ applicationId: w.applicationId, interviewId: w.interviewId }),

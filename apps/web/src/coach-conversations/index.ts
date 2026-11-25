@@ -69,8 +69,10 @@ import { contextBar, MAX_MESSAGE_LENGTH, recentConversation, type CoachMessage, 
 import type { GuardrailLanguage } from "../guardrails";
 import { readTypedRedirect, type TypedRedirect } from "../coach-actions/redirects";
 import type { CoachProposalCard, CoachProposals } from "../coach-proposals";
+import { offerTitleFor } from "../job-offers";
 import { migrateOfferBox, recordArrivals } from "../offer-box";
 import type { Profiles } from "../profiles";
+import type { Applications } from "../applications";
 import type { UnansweredQuestions } from "../unanswered-questions";
 import { countUse, migrateConsumption } from "../consumption";
 import { utcBefore } from "../database/before";
@@ -173,7 +175,11 @@ export interface CoachConversations {
   open(candidateId: string, conversationId: string): Promise<CoachConversation | null>;
   /** The conversation of `subject` (untrusted: `{ kind, id }`), with its messages, or null before its first message. */
   ofSubject(candidateId: string, subject: unknown): Promise<OfSubjectResult>;
-  /** `title` is untrusted: trimmed, 1 to MAX_TITLE_LENGTH characters. */
+  /**
+   * `title` is untrusted: trimmed, 1 to MAX_TITLE_LENGTH characters. An Application's conversation has no title of its own
+   * (#1130, ADR-0117): renaming it renames the Application, for this Candidate only, as `Applications.change` does with
+   * { title } (1 to MAX_APPLICATION_TITLE_LENGTH characters).
+   */
   rename(candidateId: string, conversationId: string, title: unknown): Promise<RenameResult>;
   /** Deletes the conversation and its messages; false when there is none of the Candidate's to delete. */
   delete(candidateId: string, conversationId: string): Promise<boolean>;
@@ -210,6 +216,8 @@ export interface ReplyAbout {
 export interface CoachConversationsDeps {
   coach: Pick<Coach, "reply">;
   profiles: Pick<Profiles, "get">;
+  /** Renaming an Application's conversation renames the Application (#1130). Without it, that rename is refused as invalid. */
+  applications?: Pick<Applications, "change">;
   /** The Candidate's Plan, for its Coach context limits (ADR-0078), read at each reply. Without it, a Plan's with none stored. */
   billing?: {
     entitlements(candidateId: string): Promise<{ plan?: string; coachContext: CoachContextLimits }>;
@@ -359,7 +367,7 @@ const SUBJECT_COLUMN = { application: "application_id", profile: "profile_id", j
 
 /** The columns `subjectFrom` reads, from `coach_conversation c` and `SUBJECT_JOINS`. */
 export const SUBJECT_COLUMNS = `c.coaching_session_id, sh.name AS subject_coach_name, c.subject_kind, c.subject_menu, c.application_id, c.job_search_id, c.job_digest_id, c.profile_id, sp.name AS profile_name,
-       so.title AS subject_offer_title, so.employer AS subject_offer_employer, ss.started_at AS subject_search_started_at, sd.sent_at AS subject_digest_sent_at`;
+       COALESCE(sa.job_title, so.title) AS subject_offer_title, so.employer AS subject_offer_employer, ss.started_at AS subject_search_started_at, sd.sent_at AS subject_digest_sent_at`;
 export const SUBJECT_JOINS = `LEFT JOIN profile sp ON sp.id = c.profile_id
        LEFT JOIN application sa ON sa.id = c.application_id LEFT JOIN job_offer so ON so.id = sa.job_offer_id
        LEFT JOIN job_search ss ON ss.id = c.job_search_id LEFT JOIN job_digest sd ON sd.id = c.job_digest_id
@@ -414,7 +422,8 @@ const SUMMARY = `SELECT c.id, c.title, c.last_message_at, c.ai_disclosure, ${SUB
 function summaryFrom(row: ConversationRow): CoachConversationSummary {
   return {
     id: row.id,
-    title: row.title,
+    // An Application's conversation is named after it, under the title the Candidate sees (#1130, ADR-0117).
+    title: row.subject_kind === "application" && row.subject_offer_title ? row.subject_offer_title : row.title,
     subject: subjectFrom(row),
     profile: attachedProfileFrom(row),
     lastMessageAt: row.last_message_at,
@@ -438,7 +447,7 @@ const NO_SUBJECT: SubjectRow = {
 /** The Candidate's own object a Subject names, with the Profile it belongs to, as `subjectFrom` reads it; null when it is not theirs. */
 const OWN_SUBJECT: Record<SubjectObjectKind, string> = {
   coaching_session: `SELECT 'coaching_session' AS subject_kind,s.id AS coaching_session_id,h.name AS subject_coach_name FROM coaching_session s JOIN human_coach h ON h.id=s.coach_id WHERE s.id=$1 AND s.candidate_id=$2`,
-  application: `SELECT 'application' AS subject_kind, a.id AS application_id, a.profile_id, p.name AS profile_name, o.title AS subject_offer_title, o.employer AS subject_offer_employer
+  application: `SELECT 'application' AS subject_kind, a.id AS application_id, a.profile_id, p.name AS profile_name, COALESCE(a.job_title, o.title) AS subject_offer_title, o.employer AS subject_offer_employer
                   FROM application a JOIN profile p ON p.id = a.profile_id JOIN job_offer o ON o.id = a.job_offer_id WHERE a.id = $1 AND a.candidate_id = $2`,
   profile: `SELECT 'profile' AS subject_kind, p.id AS profile_id, p.name AS profile_name FROM profile p WHERE p.id = $1 AND p.candidate_id = $2`,
   job_search: `SELECT 'job_search' AS subject_kind, s.id AS job_search_id, s.profile_id, p.name AS profile_name, s.started_at AS subject_search_started_at
@@ -522,7 +531,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
   async function lastMessages(candidateId: string, conversationId: string, limit: number | null, forCoach = false): Promise<CoachMessage[]> {
     let { rows } = await database.query<MessageRow>(
       `SELECT recent.seq, recent.human_coach AS "humanCoach", recent.author AS "from", recent.text, recent.blocked, recent.redirect,
-              CASE WHEN o.id IS NULL THEN NULL ELSE jsonb_strip_nulls(jsonb_build_object('id', o.id, 'title', o.title, 'employer', o.employer, 'followed', a.id IS NOT NULL)) END AS "jobOffer",
+              CASE WHEN o.id IS NULL THEN NULL ELSE jsonb_strip_nulls(jsonb_build_object('id', o.id, 'title', COALESCE(a.job_title, o.title), 'employer', o.employer, 'followed', a.id IS NOT NULL)) END AS "jobOffer",
               ${SAVED_REPLY_COLUMNS.replaceAll("m.", "recent.")}, ${replyCostOf("recent")} AS sent
          FROM (SELECT * FROM coach_message WHERE conversation_id = $1 ${forCoach ? "AND NOT unchecked" : ""} ORDER BY seq DESC LIMIT $2) recent
          LEFT JOIN job_offer o ON o.id = recent.job_offer_id
@@ -568,7 +577,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     const offers = [...new Set(pages.flatMap((href) => /^\/(?:recherches|job-digests)\/[^/]+\/offres\/([^/?#]+)/.exec(href)?.[1] ?? []).filter((id) => UUID.test(id)))];
     const [a, p, s, d, o] = await Promise.all([
       applications.length === 0 ? { rows: [] } : database.query<{ id: string; title: string; employer: string | null }>(
-            `SELECT a.id, o.title, o.employer FROM application a JOIN job_offer o ON o.id = a.job_offer_id WHERE a.candidate_id = $1 AND a.id = ANY($2::uuid[])`,
+            `SELECT a.id, COALESCE(a.job_title, o.title) AS title, o.employer FROM application a JOIN job_offer o ON o.id = a.job_offer_id WHERE a.candidate_id = $1 AND a.id = ANY($2::uuid[])`,
             [candidateId, applications],
           ),
       profiles.length === 0 ? { rows: [] } : database.query<{ id: string; name: string }>(`SELECT id, name FROM profile WHERE candidate_id = $1 AND id = ANY($2::uuid[])`, [candidateId, profiles]),
@@ -582,7 +591,7 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
           ),
       // A Job Offer only through one of the Candidate's Job Searches or Job Digests that holds it.
       offers.length === 0 ? { rows: [] } : database.query<{ id: string; title: string; employer: string | null }>(
-            `SELECT o.id, o.title, o.employer FROM job_offer o
+            `SELECT o.id, ${offerTitleFor("o", "$1")} AS title, o.employer FROM job_offer o
               WHERE o.id = ANY($2::uuid[])
                 AND (EXISTS (SELECT 1 FROM job_search s WHERE s.candidate_id = $1 AND o.id = ANY(s.job_offer_ids))
                   OR EXISTS (SELECT 1 FROM job_digest d WHERE d.candidate_id = $1 AND o.id = ANY(d.job_offer_ids)))`,
@@ -765,6 +774,15 @@ export function createCoachConversations(database: Pool, deps: CoachConversation
     },
 
     async rename(candidateId, conversationId, title) {
+      const row = await findRow(candidateId, conversationId);
+      if (row?.subject_kind === "application" && row.application_id) {
+        // Its title is the Application's (#1130, ADR-0117): the Candidate's own, for them only.
+        if (!deps.applications) return { ok: false, error: "invalid" };
+        const changed = await deps.applications.change(candidateId, row.application_id, { title: typeof title === "string" ? title : undefined });
+        if (!changed.ok) return { ok: false, error: "errors" in changed ? "invalid" : "not_found" };
+        const conversation = await find(candidateId, conversationId);
+        return conversation ? { ok: true, conversation } : { ok: false, error: "not_found" };
+      }
       const parsed = titleSchema.safeParse(title);
       if (!parsed.success) return { ok: false, error: "invalid" };
       if (!UUID.test(conversationId)) return { ok: false, error: "not_found" };

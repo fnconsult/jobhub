@@ -12,7 +12,7 @@ import { migrateJobDigests } from "../job-digests";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
 import { migrateJobSearches } from "../job-searches";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
-import { applicationCoachActions, PROPOSE_APPLICATION, PROPOSE_APPLICATION_PROFILE, PROPOSE_APPLICATION_STATUS, PROPOSE_FOLLOW_UP_SENT } from "./applications";
+import { applicationCoachActions, PROPOSE_APPLICATION, PROPOSE_APPLICATION_PROFILE, PROPOSE_APPLICATION_STATUS, PROPOSE_APPLICATION_TITLE, PROPOSE_FOLLOW_UP_SENT } from "./applications";
 import type { CoachAction, CoachActionResult } from "./index";
 
 // The Candidatures Coach Actions (#716, ADR-0077) over the real Applications and Follow-ups modules: what each proposes
@@ -135,12 +135,13 @@ describe.skipIf(!connectionString)("the Candidatures Coach Actions (#716, needs 
     await testAuth.stop();
   });
 
-  it("are four proposing Coach Actions of the Candidatures group, none copying text", () => {
-    expect(catalog.map((each) => [each.name, each.group, each.kind, each.copiesText, typeof each.apply, typeof each.undo])).toEqual([
-      [PROPOSE_APPLICATION, "applications", "propose", false, "function", "function"],
-      [PROPOSE_APPLICATION_STATUS, "applications", "propose", false, "function", "function"],
-      [PROPOSE_APPLICATION_PROFILE, "applications", "propose", false, "function", "function"],
-      [PROPOSE_FOLLOW_UP_SENT, "applications", "propose", false, "function", "function"],
+  it("are five proposing Coach Actions of the Candidatures group; only the title copies text, read in full and applied by the Candidate", () => {
+    expect(catalog.map((each) => [each.name, each.group, each.kind, each.copiesText, each.sentByCandidate ?? false, typeof each.apply, typeof each.undo])).toEqual([
+      [PROPOSE_APPLICATION, "applications", "propose", false, false, "function", "function"],
+      [PROPOSE_APPLICATION_STATUS, "applications", "propose", false, false, "function", "function"],
+      [PROPOSE_APPLICATION_PROFILE, "applications", "propose", false, false, "function", "function"],
+      [PROPOSE_FOLLOW_UP_SENT, "applications", "propose", false, false, "function", "function"],
+      [PROPOSE_APPLICATION_TITLE, "applications", "propose", true, true, "function", "function"],
     ]);
   });
 
@@ -261,6 +262,57 @@ describe.skipIf(!connectionString)("the Candidatures Coach Actions (#716, needs 
 
       expect(await actionCards.undo(marie, id)).toMatchObject({ ok: true });
       expect(await applications.statusOf(marie, applicationId)).toMatchObject({ status: "applied", origin: null });
+    });
+  });
+
+  describe("propose_application_title (#1131)", () => {
+    const TITLE = "Senior Program Director – Delivery Management";
+
+    it("proposes the Candidate's title for the Application In view or named; nothing for the title it has", async () => {
+      expect(await run(PROPOSE_APPLICATION_TITLE, { title: `  ${TITLE} ` }, { inView: { kind: "application", id: applicationId } })).toMatchObject({
+        ok: true,
+        pages: [`/candidatures/${applicationId}`],
+        untrusted: false,
+        data: {
+          target: { kind: "application", id: applicationId, name: "DAF H/F · Acme Industrie", href: `/candidatures/${applicationId}` },
+          what: "Intitulé de la candidature",
+          before: "DAF H/F",
+          after: TITLE,
+          value: { title: TITLE },
+          fields: [{ name: "title", type: "text" }],
+          version: "DAF H/F",
+        },
+      });
+      expect(await run(PROPOSE_APPLICATION_TITLE, { applicationId, title: "DAF H/F" })).toMatchObject({ ok: true, proposes: false });
+    });
+
+    it("reaches only the Candidate's own Applications, Archived Applications excluded", async () => {
+      expect(await run(PROPOSE_APPLICATION_TITLE, { applicationId, title: TITLE }, { owner: paul })).toEqual({ ok: false, error: "not_found" });
+      expect(await run(PROPOSE_APPLICATION_TITLE, { applicationId: archivedApplicationId, title: TITLE })).toEqual({ ok: false, error: "not_found" });
+      expect(await run(PROPOSE_APPLICATION_TITLE, { title: TITLE })).toEqual({ ok: false, error: "not_found" });
+    });
+
+    it("« Appliquer » renames it for the Candidate only, with its Origin; a conflict once renamed since; « Annuler » gives back the Job Offer's", async () => {
+      const id = await card(PROPOSE_APPLICATION_TITLE, { applicationId, title: TITLE });
+      const stale = await card(PROPOSE_APPLICATION_TITLE, { applicationId, title: "Directeur de programme" });
+
+      expect(await actionCards.decide(marie, id, "accept")).toMatchObject({ ok: true });
+      expect(await applications.titleOf(marie, applicationId)).toEqual({ title: TITLE, offerTitle: "DAF H/F", renamed: true, version: TITLE, origin: expect.objectContaining({ cardId: id }) });
+      const application = await applications.get(marie, applicationId);
+      expect(application).toMatchObject({ jobOffer: { title: TITLE }, offerTitle: "DAF H/F", titleOrigin: expect.objectContaining({ cardId: id }) });
+      // The Job Offer itself keeps its title, for everyone else.
+      expect((await jobOffers.get(application!.jobOffer.id))?.title).toBe("DAF H/F");
+      expect(await actionCards.decide(marie, stale, "accept")).toEqual({ ok: false, error: "conflict" });
+
+      expect(await actionCards.undo(marie, id)).toMatchObject({ ok: true });
+      expect(await applications.titleOf(marie, applicationId)).toEqual({ title: "DAF H/F", offerTitle: "DAF H/F", renamed: false, version: "DAF H/F", origin: null });
+    });
+
+    it("applies the title the Candidate edited on the card; refuses an empty one", async () => {
+      const id = await card(PROPOSE_APPLICATION_TITLE, { applicationId, title: TITLE });
+      expect(await actionCards.decide(marie, id, "accept", { edited: { title: "" } })).toMatchObject({ ok: false, error: "invalid" });
+      expect(await actionCards.decide(marie, id, "accept", { edited: { title: "Directeur de programme senior" } })).toMatchObject({ ok: true });
+      expect(await applications.titleOf(marie, applicationId)).toMatchObject({ title: "Directeur de programme senior", renamed: true });
     });
   });
 

@@ -1069,6 +1069,28 @@ describe.skipIf(!connectionString)("Coach Conversations (needs Postgres: DATABAS
       expect(await conversations.list(marie)).toHaveLength(1);
     });
 
+    it("renames an Application's conversation by renaming the Application, for this Candidate only, and follows its title (#1130)", async () => {
+      const applications = createApplications(database, { jobOffers: createJobOffers(database), profiles: createProfiles(database) });
+      conversations = createCoachConversations(database, { coach: { reply: async () => coachReply(1) }, profiles: createProfiles(database), applications, now: () => now });
+      const sent = await conversations.send(marie, { subject: { kind: "application", id: applicationId }, message: "change the title of this offer" });
+      if (!sent.ok) throw new Error("refused");
+      const id = sent.conversation.id;
+      expect(sent.conversation).toMatchObject({ title: "DAF H/F", subject: { name: "DAF H/F · Groupe Seb" } });
+
+      const renamed = await conversations.rename(marie, id, "  Directrice administrative et financière groupe  ");
+
+      expect(renamed).toMatchObject({ ok: true, conversation: { id, title: "Directrice administrative et financière groupe", subject: { name: "Directrice administrative et financière groupe · Groupe Seb" } } });
+      expect(await applications.titleOf(marie, applicationId)).toMatchObject({ title: "Directrice administrative et financière groupe", offerTitle: "DAF H/F", renamed: true });
+      expect(await conversations.list(marie)).toMatchObject([{ id, title: "Directrice administrative et financière groupe" }]);
+      // Renamed from its page, the conversation follows.
+      await applications.change(marie, applicationId, { title: "DAF groupe" });
+      expect(await conversations.list(marie)).toMatchObject([{ id, title: "DAF groupe", subject: { name: "DAF groupe · Groupe Seb" } }]);
+      // An Application's title is longer than a conversation's; empty or someone else's, refused.
+      expect(await conversations.rename(marie, id, "x".repeat(120))).toMatchObject({ ok: true });
+      expect(await conversations.rename(marie, id, "  ")).toEqual({ ok: false, error: "invalid" });
+      expect(await conversations.rename(jean, id, "À moi")).toEqual({ ok: false, error: "not_found" });
+    });
+
     it("names each Subject: a Profile, a Job Search, a Job Digest by their Profile, each Sidebar menu once per Candidate", async () => {
       const subjects = [
         [{ kind: "profile", id: profileId }, "Directrice financière"],

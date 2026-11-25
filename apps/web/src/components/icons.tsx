@@ -47,6 +47,7 @@ import {
   NotebookText,
   PackageCheck,
   Palette,
+  Pencil,
   PanelLeftClose,
   Plus,
   Puzzle,
@@ -173,6 +174,8 @@ const LUCIDE = {
   legal: Scale,
   // « Nouvelle conversation », a conversation's actions and « Effacer » (#601).
   newConversation: SquarePen,
+  /** « Renommer » (#1130). */
+  rename: Pencil,
   more: Ellipsis,
   clear: Eraser,
   // « Mémoire du coach » in the Sidebar and « Aide » in the Top Bar (#602).

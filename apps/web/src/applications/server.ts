@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { sharedPool } from "@/database/pool";
 import { getCurrentCandidate, signInRedirect } from "@/auth/server";
 import { sentByShareCapture } from "@/coach-conversations";
-import { getJobOffers } from "@/job-offers/server";
+import { getSharedJobOffers } from "@/job-offers/server";
 import { getProfiles } from "@/profiles/server";
 import { createApplications, type Application, type Applications } from "./index";
 
@@ -11,7 +11,8 @@ let instance: Applications | undefined;
 /** The app's Applications module, on the database named by DATABASE_URL. */
 export function getApplications(): Applications {
   instance ??= createApplications(sharedPool(), {
-    jobOffers: getJobOffers(),
+    // Its own title (#1130) is read with the Application, the Job Offer's kept beside it.
+    jobOffers: getSharedJobOffers(),
     profiles: getProfiles(),
     sentByShareCapture: (candidateId, jobOfferId) => sentByShareCapture(sharedPool(), candidateId, jobOfferId),
   });

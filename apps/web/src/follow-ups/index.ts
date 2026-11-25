@@ -379,7 +379,7 @@ export function createFollowUps(database: Pool, deps: FollowUpsDeps): FollowUps 
     async proposeDue(now) {
       const { rows } = await database.query<WaitingRow>(
         `SELECT a.id, a.candidate_id, a.status, a.status_changed_at, a.document_language,
-                o.title, o.employer, o.content, c.email, c."interfaceLanguage" AS interface_language, c.preferred_name,
+                COALESCE(a.job_title, o.title) AS title, o.employer, o.content, c.email, c."interfaceLanguage" AS interface_language, c.preferred_name,
                 d.after_applied, d.after_follow_up,
                 (SELECT count(*)::int FROM follow_up_sent s WHERE s.application_id = a.id) AS sent,
                 (SELECT max(sent_at) FROM follow_up_sent s WHERE s.application_id = a.id) AS last_sent_at

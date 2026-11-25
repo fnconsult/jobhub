@@ -4843,6 +4843,14 @@
     "backToApplications": "Retour à mes candidatures",
     "expiredNotice": "Votre candidature et son statut restent tels quels : c'est vous qui décidez de la suite.",
     "reportUnavailable": "Signaler que cette offre n'est plus publiée",
+    "title": {
+      "label": "Intitulé de la candidature",
+      "rename": "Renommer",
+      "hint": "Pour vous seulement : l'offre garde son intitulé pour les autres.",
+      "saved": "Intitulé enregistré",
+      "error": "L'intitulé n'a pas pu être enregistré. Réessayez.",
+      "offerTitle": "Intitulé de l'offre : {{title}}"
+    },
     "reportUnavailableHint": "Pour vous seulement : l'offre ne change pas pour les autres, et votre candidature garde son statut.",
     "undoReport": "Annuler le signalement",
     "reportedNotice": "Vous avez signalé le {{date}} que cette offre n'est plus publiée. Votre candidature et son statut restent tels quels : c'est vous qui décidez de la suite.",
@@ -7157,6 +7165,7 @@
   "coachProposals": {
     "fields": {
       "applicationStatus": "Statut de la candidature",
+      "applicationTitle": "Intitulé de la candidature",
       "newInterview": "Nouvel entretien",
       "interviewNote": "Note de l'entretien",
       "interview": "Entretien",

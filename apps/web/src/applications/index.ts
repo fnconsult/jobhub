@@ -58,6 +58,9 @@ import type { Profiles } from "../profiles";
 import { migrateRescheduleHistory, rescheduleHistories, revertAgendaItemDate, setAgendaItemDate, type Reschedule } from "../reschedules";
 import { readOrigin, type Origin } from "../origin";
 import { fieldErrors, type FieldError } from "../validation";
+import { MAX_APPLICATION_TITLE_LENGTH } from "./limits";
+
+export { MAX_APPLICATION_TITLE_LENGTH };
 
 export type { FieldError as ApplicationFieldError } from "../validation";
 
@@ -110,7 +113,27 @@ export interface Application {
   statusOrigin?: Origin;
   /** Set while its Profile is one a Coach proposal the Candidate applied gave it (#716). */
   profileOrigin?: Origin;
+  /**
+   * Set while the Candidate has renamed it (#1130, ADR-0117): the Job Offer's own title. `jobOffer.title` is then the
+   * Candidate's, for them only, wherever they see the offer; other Candidates still see this one.
+   */
+  offerTitle?: string;
+  /** Set while its title is one a Coach proposal the Candidate applied gave it (#1131). */
+  titleOrigin?: Origin;
 }
+
+/**
+ * The title an Application shows, as a title change applied from a Coach proposal sees it (#1131): the title itself is its
+ * version; `offerTitle`, the Job Offer's own, which the Application shows again once its own is cleared.
+ */
+export interface ApplicationTitleState {
+  title: string;
+  offerTitle: string;
+  renamed: boolean;
+  version: string;
+  origin: Origin | null;
+}
+
 
 /** The Profile an Application uses, as a Profile change applied from a Coach proposal sees it (#716): its id is its version. */
 export interface ApplicationProfileState {
@@ -197,13 +220,17 @@ export interface Applications {
   /**
    * Changes the Application Status or the Profile used, or reports its Job Offer
    * no longer published (true) and undoes it (false).
-   * `input`: { status }, { profileId } or { reportedUnavailable }.
+   * `input`: { status }, { profileId }, { reportedUnavailable } or { title }: the Application's own title, for this
+   * Candidate only (#1130, ADR-0117), trimmed, 1 to MAX_APPLICATION_TITLE_LENGTH characters; null, or the Job Offer's own
+   * title, gives it back the Job Offer's.
    */
   change(candidateId: string, applicationId: string, input: unknown, options?: ApplicationChangeOptions): Promise<ApplicationChangeResult>;
   /** The Application Status, its version and Origin (#715); null when the Application is not the Candidate's. */
   statusOf(candidateId: string, applicationId: string): Promise<ApplicationStatusState | null>;
   /** The Profile the Application uses and its Origin (#716); null when the Application is not the Candidate's. */
   profileOf(candidateId: string, applicationId: string): Promise<ApplicationProfileState | null>;
+  /** The title the Application shows, its version and Origin (#1130, #1131); null when the Application is not the Candidate's. */
+  titleOf(candidateId: string, applicationId: string): Promise<ApplicationTitleState | null>;
   /**
    * Removes an Application a Coach proposal created (« Annuler », #716), while it is intact: still at the status version
    * `version` and on the Profile `profileId`, with nothing that refers to it (an Interview, a Tailored Document, a Follow-up
@@ -267,9 +294,11 @@ const saveSchema = z.object({ jobOfferId: id, profileId: id });
 const statusChange = z.object({ status: z.enum(APPLICATION_STATUSES) });
 const profileChange = z.object({ profileId: id });
 const reportChange = z.object({ reportedUnavailable: z.boolean() });
-/** Told apart by `profileId` or `reportedUnavailable`, so field errors name the field the caller meant. */
+const titleChange = z.object({ title: z.string().trim().min(1).max(MAX_APPLICATION_TITLE_LENGTH).nullable() });
+/** Told apart by `profileId`, `reportedUnavailable` or `title`, so field errors name the field the caller meant. */
 const parseChange = (input: unknown) => {
   const has = (key: string) => typeof input === "object" && input !== null && key in input;
+  if (has("title")) return titleChange.safeParse(input, { reportInput: true });
   if (has("profileId")) return profileChange.safeParse(input, { reportInput: true });
   if (has("reportedUnavailable")) return reportChange.safeParse(input, { reportInput: true });
   return statusChange.safeParse(input, { reportInput: true });
@@ -439,9 +468,30 @@ interface ApplicationRow {
   reported_unavailable_at: Date | null;
   status_origin?: unknown;
   profile_origin?: unknown;
+  job_title?: string | null;
+  title_origin?: unknown;
 }
 
-const COLUMNS = "id, job_offer_id, profile_id, status, status_changed_at, created_at, reported_unavailable_at, status_origin, profile_origin";
+const COLUMNS = "id, job_offer_id, profile_id, status, status_changed_at, created_at, reported_unavailable_at, status_origin, profile_origin, job_title, title_origin";
+
+/**
+ * The Job Offers module as one Candidate reads it (#1130, ADR-0117): `get` gives, to a Candidate who renamed their
+ * Application on it, the Job Offer under their title, wherever they see it (an Application, a Job Search, a Job Digest, the
+ * Offer box…). Read without a Candidate (a Guest, Job discovery), it is the Job Offer's own.
+ */
+export function withApplicationTitles<T extends Pick<JobOffers, "get">>(jobOffers: T, database: Pick<Pool, "query">): T {
+  return Object.assign(Object.create(jobOffers) as T, {
+    async get(id: string, candidateId: string | null = null) {
+      const jobOffer = await jobOffers.get(id, candidateId);
+      if (!jobOffer || !candidateId) return jobOffer;
+      const { rows } = await database.query<{ job_title: string | null }>(
+        `SELECT job_title FROM application WHERE job_offer_id = $1 AND candidate_id = $2 AND job_title IS NOT NULL`,
+        [jobOffer.id, candidateId],
+      );
+      return rows[0]?.job_title ? { ...jobOffer, title: rows[0].job_title } : jobOffer;
+    },
+  });
+}
 /** The Application Status's version (#715): when it last changed, to the microsecond, as text. */
 const STATUS_VERSION = "(extract(epoch FROM status_changed_at) * 1000000)::bigint::text";
 
@@ -562,7 +612,8 @@ export function createApplications(
       status: row.status,
       statusChangedAt: row.status_changed_at,
       createdAt: row.created_at,
-      jobOffer,
+      // Renamed by the Candidate (#1130): their title, the Job Offer's kept beside it.
+      jobOffer: row.job_title && jobOffer.title !== row.job_title ? { ...jobOffer, title: row.job_title } : jobOffer,
       profile: { id: profile.id, name: profile.name },
       interviews: interviews.get(row.id)!,
       matchScore: scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer }),
@@ -572,6 +623,9 @@ export function createApplications(
     if (origin) application.statusOrigin = origin;
     const profileOrigin = readOrigin(row.profile_origin);
     if (profileOrigin) application.profileOrigin = profileOrigin;
+    if (row.job_title && row.job_title !== jobOffer.title) application.offerTitle = jobOffer.title;
+    const titleOrigin = readOrigin(row.title_origin);
+    if (titleOrigin) application.titleOrigin = titleOrigin;
     return application;
   }
 
@@ -635,7 +689,7 @@ export function createApplications(
         ApplicationRow & { title: string; employer: string | null; location: string | null; expired_at: Date | null; profile_name: string; profile_archived: boolean }
       >(
         `SELECT a.id, a.job_offer_id, a.profile_id, a.status, a.status_changed_at, a.created_at, a.reported_unavailable_at,
-                o.title, o.employer, o.location, o.expired_at, p.name AS profile_name, p.archived_at IS NOT NULL AS profile_archived
+                COALESCE(a.job_title, o.title) AS title, o.employer, o.location, o.expired_at, p.name AS profile_name, p.archived_at IS NOT NULL AS profile_archived
            FROM application a
            JOIN job_offer o ON o.id = a.job_offer_id
            JOIN profile p ON p.id = a.profile_id
@@ -705,6 +759,18 @@ export function createApplications(
       return row ? { profileId: row.profile_id, origin: readOrigin(row.profile_origin) } : null;
     },
 
+    async titleOf(candidateId, applicationId) {
+      if (!UUID.test(applicationId)) return null;
+      const { rows } = await database.query<{ job_title: string | null; offer_title: string; title_origin: unknown }>(
+        `SELECT a.job_title, o.title AS offer_title, a.title_origin FROM application a JOIN job_offer o ON o.id = a.job_offer_id WHERE a.id = $1 AND a.candidate_id = $2`,
+        [applicationId, candidateId],
+      );
+      const row = rows[0];
+      if (!row) return null;
+      const title = row.job_title ?? row.offer_title;
+      return { title, offerTitle: row.offer_title, renamed: row.job_title !== null, version: title, origin: readOrigin(row.title_origin) };
+    },
+
     async removeIntact(candidateId, applicationId, seen) {
       if (!UUID.test(applicationId)) return NOT_FOUND;
       return inTransaction(database, async (client): Promise<RemoveApplicationResult> => {
@@ -724,7 +790,22 @@ export function createApplications(
       if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
       if (!UUID.test(applicationId)) return NOT_FOUND;
       const change = parsed.data;
-      if ("profileId" in change) {
+      if ("title" in change) {
+        // The Candidate's own title for the Job Offer (#1130, ADR-0117): the Job Offer's own given back clears it. From a Coach
+        // proposal (#1131), only from the title it was proposed from (`options.version`), never merged with a change since.
+        const { rows } = await database.query<{ unchanged: boolean }>(
+          `WITH seen AS (
+             SELECT a.id, o.title AS offer_title, COALESCE(a.job_title, o.title) = $4 AS unchanged
+               FROM application a JOIN job_offer o ON o.id = a.job_offer_id WHERE a.id = $1 AND a.candidate_id = $2 FOR UPDATE OF a),
+           changed AS (
+             UPDATE application a SET job_title = NULLIF($3, seen.offer_title), title_origin = CASE WHEN NULLIF($3, seen.offer_title) IS NULL THEN NULL ELSE $5::jsonb END
+               FROM seen WHERE a.id = seen.id AND ($4::text IS NULL OR seen.unchanged) RETURNING a.id)
+           SELECT $4::text IS NULL OR seen.unchanged AS unchanged FROM seen`,
+          [applicationId, candidateId, change.title, options.version ?? null, originJson(options)],
+        );
+        if (!rows[0]) return NOT_FOUND;
+        if (!rows[0].unchanged) return CONFLICT;
+      } else if ("profileId" in change) {
         const profile = await profiles.get(candidateId, change.profileId);
         if (!profile) return NOT_FOUND;
         if (options.version !== undefined) {
@@ -922,6 +1003,10 @@ export async function migrateApplications(database: Pool): Promise<void> {
     ALTER TABLE interview ADD COLUMN IF NOT EXISTS origin jsonb;
     -- Where its Profile came from (#716), the same way: null once the Candidate changes it themselves.
     ALTER TABLE application ADD COLUMN IF NOT EXISTS profile_origin jsonb;
+    -- The Candidate's own title for the Job Offer (#1130, ADR-0117), for them only; null: the Job Offer's. Its Origin (#1131)
+    -- while a Coach proposal the Candidate applied gave it.
+    ALTER TABLE application ADD COLUMN IF NOT EXISTS job_title text CHECK (char_length(job_title) BETWEEN 1 AND ${MAX_APPLICATION_TITLE_LENGTH});
+    ALTER TABLE application ADD COLUMN IF NOT EXISTS title_origin jsonb;
   `);
   await migrateRescheduleHistory(database, "interview", { enteredAt: "created_at" });
   // Saving an Application writes to the Offer box (ADR-0090).

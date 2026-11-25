@@ -27,7 +27,7 @@ import {coachContracts,coachContractNoticeEmail} from "@jobhub/web/coach-contrac
 import {coachEnrolments,coachEnrolmentDecisionEmail} from "@jobhub/web/coach-enrolments";
 import { allUsageLogs, createConsoleUsageLog } from "@jobhub/ai";
 import { createPostgresExternalApiLog, knownSecrets } from "@jobhub/web/ai-usage";
-import { createApplications } from "@jobhub/web/applications";
+import { createApplications, withApplicationTitles } from "@jobhub/web/applications";
 import { createAppointmentReminders } from "@jobhub/web/appointment-reminders";
 import { createDeliveryStatusEmails } from "@jobhub/web/delivery-status";
 import { candidateIdentityOf } from "@jobhub/web/candidate-identity";
@@ -256,7 +256,8 @@ const jobs = createJobs({
   followUps: followUpsFromEnv(database, process.env, worker.ai, mailer, pushNotifications),
   jobDigests: createJobDigests(database, {
     profiles,
-    jobOffers,
+    // Each Job Offer under the title the Candidate gave their Application on it, if they did (ADR-0117).
+    jobOffers: withApplicationTitles(jobOffers, database),
     applications: digestApplications,
     billing,
     // The Job Offers Email intake gave each Profile join its Job Digest (#447).

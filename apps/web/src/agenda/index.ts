@@ -160,7 +160,7 @@ export function createAgenda(database: Pool): Agenda {
       employer: string | null;
       cancelled_at: Date | null;
     }>(
-      `SELECT i.id, i.scheduled_at, i.duration_minutes, i.format, i.place, i.note, i.cancelled_at, a.id AS application_id, o.title, o.employer
+      `SELECT i.id, i.scheduled_at, i.duration_minutes, i.format, i.place, i.note, i.cancelled_at, a.id AS application_id, COALESCE(a.job_title, o.title) AS title, o.employer
          FROM interview i
          JOIN application a ON a.id = i.application_id
          JOIN job_offer o ON o.id = a.job_offer_id

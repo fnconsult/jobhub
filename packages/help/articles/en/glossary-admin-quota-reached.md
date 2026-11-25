@@ -21,4 +21,8 @@ To fix it, each line gives two links:
 - « … billing » opens, in a new tab, the provider's page where the quota is paid for or renewed;
 - « Configure … » leads to where the tool is set up in the Back Office: its sheet in Settings when its key is entered there, otherwise its page in Tools. This link only shows to the roles that may open those pages (super-admin, Technique and Support).
 
+The page « … billing » opens is set in the tool's settings, on its sheet in Settings, « Billing » section: the catalog's by default, an https URL only, and « Restore » goes back to it. The banner, the Dashboard's « API » block and the email follow the value entered.
+
+A Perplexity HTTP 401 « insufficient_quota » refusal counts as « quota used up », for a search as for a connection test, and so does Claude's monthly spend cap.
+
 A « rate limit reached » often lifts by itself after a few moments. A « quota used up » calls for topping up the account or changing plan at the provider or, meanwhile, choosing another provider in Settings.

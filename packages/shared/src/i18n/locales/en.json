@@ -3000,7 +3000,7 @@
           "rate": "dollar"
         },
         "billingTitle": "Billing",
-        "billingIntro": "The provider's billing page, where its quota is paid for or renewed: the « Quota atteint » banner, the Dashboard's « API » block and the daily email link to it. By default, the catalog's; it differs by account and project. An https URL only; « Rétablir » goes back to the default.",
+        "billingIntro": "The provider's billing page, where its quota is paid for or renewed: the « Quota atteint » banner, the Dashboard's « API » block and the daily email link to it. By default, the catalog's; it differs by account and project. An https URL only; « Restore » goes back to the default.",
         "billingCaption": "Billing page of {{provider}}",
         "pricesCaption": "{{provider}}'s prices",
         "unpriced_one": "Unknown price: {{count}} use over the last 30 days (counted 0).",

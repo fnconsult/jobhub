@@ -68,7 +68,7 @@ function TitleField({ applicationId, title }: { applicationId: string; title: st
         <GrowingTextarea
           id={id}
           {...edit.field}
-          className="inline-edit title-edit"
+          className="inline-edit title-edit title-edit-line"
           rows={1}
           maxLength={MAX_APPLICATION_TITLE_LENGTH}
           title={t("application.title.hint")}

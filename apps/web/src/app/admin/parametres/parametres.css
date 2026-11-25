@@ -73,8 +73,10 @@
   color: inherit;
 }
 
-/* A value or a default too long for its cell (a billing page's URL, #1123) breaks wherever it must, inside the sheet's width. */
-.settings-table td code {
+/* A value or a default too long for its line (a billing page's URL, #1123) breaks wherever it must, inside the sheet's
+   width: in the settings' Table, and in a sheet's list of the settings its Tool depends on. */
+.settings-table td code,
+.sheet-settings-list code {
   overflow-wrap: anywhere;
 }
 

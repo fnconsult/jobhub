@@ -102,7 +102,7 @@ export function ProviderSheet({
         {row.settings.length === 0 ? (
           <p>{t("admin.platformSettings.sheet.noSettings")}</p>
         ) : linkedSettings.length === 0 ? null : (
-          <ul>
+          <ul className="sheet-settings-list">
             {linkedSettings.map((setting) => (
               <li key={setting.name}>
                 <Link prefetch={false} href={settingHref(setting.name)}>

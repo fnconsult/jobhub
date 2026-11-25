@@ -73,6 +73,11 @@
   color: inherit;
 }
 
+/* A value or a default too long for its cell (a billing page's URL, #1123) breaks wherever it must, inside the sheet's width. */
+.settings-table td code {
+  overflow-wrap: anywhere;
+}
+
 /* A setting's change: its field and Save on one line, what the field takes under them. */
 .setting-change {
   display: grid;

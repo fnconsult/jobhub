@@ -1,7 +1,7 @@
 import path from "node:path";
 import { readFileSync } from "node:fs";
 import AxeBuilder from "./support/axe";
-import { expect, test, type Browser, type Page } from "@playwright/test";
+import { expect, test, type Browser, type Locator, type Page } from "@playwright/test";
 import pg from "pg";
 import { newAddress } from "./support/mailbox";
 import { signInByEmail, startOwnServer, type OwnServer } from "./support/own-server";
@@ -54,6 +54,34 @@ async function freeConversationsOf(email: string): Promise<string[]> {
   } finally {
     await db.end();
   }
+}
+
+/**
+ * The start of each line of text inside `target` that runs past its sides or the window's, unless an element between
+ * them clips it (a name cut short with « … » runs past its own box, hidden). Empty when every line fits.
+ */
+function textRunningPast(target: Locator): Promise<string[]> {
+  return target.evaluate((root) => {
+    const box = root.getBoundingClientRect();
+    const left = Math.max(box.left, 0);
+    const right = Math.min(box.right, window.innerWidth);
+    const past: string[] = [];
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (!node.textContent?.trim()) continue;
+      let clipped = false;
+      for (let element = node.parentElement; element && element !== root.parentElement; element = element.parentElement) {
+        if (getComputedStyle(element).overflowX !== "visible") clipped = true;
+      }
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      for (const line of Array.from(range.getClientRects())) {
+        const outside = line.left < left - 1 || line.right > right + 1;
+        if (outside && !(clipped && box.left >= 0 && box.right <= window.innerWidth + 1)) past.push(node.textContent.trim().slice(0, 40));
+      }
+    }
+    return past;
+  });
 }
 
 test.describe.configure({ mode: "serial" });
@@ -221,6 +249,53 @@ test.describe("« Conversation au centre »: the home page is a conversation (#6
     await expect(sidebar(page).getByRole("link", { name: "Mon pitch" })).toHaveCount(0);
     await expect(messages(page)).toHaveCount(1);
     await expect.poll(() => freeConversationsOf(email)).toEqual(["Second sujet"]);
+  });
+
+  // A conversation named after a pasted Job Offer link (its first message, cut at 80 characters) is one long word: its
+  // name breaks inside the delete Dialog's title, and is cut short with « … » in the Sidebar and the Top Bar. Nothing runs
+  // past the Dialog's sides, nor the screen's, on a computer and on a phone.
+  test("a conversation named after a long link: nothing runs past the delete Dialog, the Sidebar or the Top Bar", async ({ browser }) => {
+    const link = "https://job-boards.greenhouse.io/housinganywhere/jobs/8209333003?gh_src=k0ivnpn1us&utm_source=linkedin";
+    const title = `${link.slice(0, 79)}…`;
+    const email = newAddress("conversation-long-title");
+    const page = await signedIn(browser, email);
+    await page.goto("/");
+    await send(page, "Une offre");
+    await expect(messages(page)).toHaveCount(3);
+    await sidebar(page).getByRole("button", { name: tr(texts.actions, { title: "Une offre" }) }).click();
+    await page.getByRole("menuitem", { name: fr.coachPanel.rename }).click();
+    const name = sidebar(page).getByRole("textbox", { name: texts.nameLabel });
+    await name.fill(title);
+    await name.press("Enter");
+    await expect.poll(() => freeConversationsOf(email)).toEqual([title]);
+    await sidebar(page).getByRole("link", { name: title }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(title);
+
+    const dialog = page.getByRole("alertdialog", { name: tr(texts.deleteTitle, { title }) });
+    for (const [width, height] of [
+      [1280, 800],
+      [390, 844],
+    ] as const) {
+      await page.setViewportSize({ width, height });
+      const phone = width < 640;
+      const menu = phone ? page.getByRole("dialog", { name: fr.sidebar.menu }) : sidebar(page);
+      if (phone) await topBar(page).getByRole("button", { name: fr.sidebar.menu }).click();
+      await expect(menu.getByRole("link", { name: title })).toBeVisible();
+      // Polled: the drawer and the Dialog slide in, their sides moving until they have.
+      await expect.poll(() => textRunningPast(menu.getByRole("link", { name: title })), `the Sidebar at ${width}px`).toEqual([]);
+      if (!phone) await expect.poll(() => textRunningPast(page.getByRole("heading", { level: 1 })), `the Top Bar at ${width}px`).toEqual([]);
+
+      await menu.getByRole("button", { name: tr(texts.actions, { title }) }).click();
+      await page.getByRole("menuitem", { name: fr.coachPanel.delete }).click();
+      await expect(dialog.getByRole("button", { name: fr.designSystem.cancel })).toBeFocused();
+      await expect.poll(() => textRunningPast(dialog), `the Dialog at ${width}px`).toEqual([]);
+      const box = (await dialog.boundingBox())!;
+      expect(box.x, `the Dialog's left at ${width}px`).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width, `the Dialog's right at ${width}px`).toBeLessThanOrEqual(width);
+      await dialog.getByRole("button", { name: fr.designSystem.cancel }).click();
+      await expect(dialog).toHaveCount(0);
+      if (phone) await page.keyboard.press("Escape");
+    }
   });
 
   // #602 (ADR-0070): the Work Pane beside the conversation, never over it, where the help and the Candidate's forms open.

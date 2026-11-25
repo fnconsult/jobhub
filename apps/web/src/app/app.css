@@ -2358,6 +2358,8 @@ p.reply-feedback {
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+  /* Its name and « Supprimer « … » ? » break a word longer than the card (a conversation named after a pasted link). */
+  overflow-wrap: anywhere;
 }
 
 .coach-conversation-title {

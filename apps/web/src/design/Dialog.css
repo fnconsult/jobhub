@@ -12,6 +12,9 @@
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-pop);
     transform: translateX(-50%);
+    /* A word longer than the Dialog's width (a conversation named after a pasted link) breaks rather than running past its
+       side, in its title, its text and its content alike. */
+    overflow-wrap: anywhere;
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -27,8 +30,11 @@
     }
   }
 
+  /* One column the Dialog's width: an `auto` one would grow to its widest child's narrowest width, every line of text then
+     running past the Dialog's side. */
   .ds-dialog__body {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-3);
     padding: var(--space-6);
   }

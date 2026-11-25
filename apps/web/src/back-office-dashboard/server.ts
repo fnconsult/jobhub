@@ -22,7 +22,13 @@ export function currentJobDiscoveryDashboard(): Promise<JobDiscoveryDashboard> {
  * The « API » block's rows now (#1116): each configured Tool's quota state, read with the « Quota atteint » banner's
  * (cached, bounded), as `reader` follows its links.
  */
-export async function currentApiBlock(reader: Pick<BackOfficeAccess, "can">): Promise<ApiBlockRow[]> {
-  const [states, tools] = await Promise.all([currentToolQuotaStates(), currentState()]);
-  return apiBlockRows(states, tools, reader);
+export async function currentApiBlock(reader: Pick<BackOfficeAccess, "can">): Promise<ApiBlockRow[] | null> {
+  try {
+    const [states, tools] = await Promise.all([currentToolQuotaStates(), currentState()]);
+    return apiBlockRows(states, tools, reader);
+  } catch (error) {
+    // Like the banner: a quota state that cannot be read drops the block, never the whole Dashboard.
+    console.error("[back-office-dashboard] could not read the Tools' quota states for the « API » block", error);
+    return null;
+  }
 }

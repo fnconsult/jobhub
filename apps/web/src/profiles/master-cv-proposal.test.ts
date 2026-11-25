@@ -1,6 +1,6 @@
 import type { MasterCvContent } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { acceptedCvEdits, acceptedMasterCv, masterCvReview } from "./master-cv-proposal";
+import { acceptedCvEdits, acceptedMasterCv, approvesTheRest, isDeclared, masterCvReview, names } from "./master-cv-proposal";
 
 const master: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -242,5 +242,73 @@ describe("a Tailored CV in English with a French reference CV, reworked from the
     const headlineRejected = acceptedCvEdits(tailored, edits, ["skills.reordered"], { reference })?.content;
     expect(headlineRejected?.headline).toBe("Chief Financial Officer");
     expect(headlineRejected?.skills.every((skill) => !reference.skills.includes(skill) || skill === "Communication")).toBe(true);
+  });
+});
+
+describe("a Declared Fact said in the Candidate's own words: a typo, a translation, « the rest » approved (#1133)", () => {
+  /** The product owner's exchange, word for word: the Candidate's messages, and the AI Coach's listing they answered. */
+  const said = [
+    "skills are not in english, please translate them as well",
+    "Team management: from acteos, S&A, ebcard and orbility / Recreuitement: acteos, s&A / Enterprise key accounts : acteos, klareo, s&a / for the rest it is all good",
+  ];
+  const listed =
+    "Je n'ai pas pu préparer la traduction : les six compétences de votre CV adapté (Ingénierie logicielle, Gestion d'équipe, Recrutement, Conseil technique, Clients grands comptes, Communication) sont exactement celles de l'offre, et votre CV de référence n'a pas de rubrique compétences. Lesquelles avez-vous réellement ?";
+  /** The Tailored CV: English, its skills the offer's, in French; its reference without skills. */
+  const reference: MasterCvContent = { ...master, skills: [] };
+  const tailored: MasterCvContent = {
+    ...master,
+    headline: "Head of Professional Services",
+    skills: ["Ingénierie logicielle", "Gestion d'équipe", "Recrutement", "Conseil technique", "Clients grands comptes", "Communication"],
+  };
+  const translation = [
+    { kind: "rephrase" as const, section: "skills" as const, item: "Ingénierie logicielle", text: "Software engineering" },
+    { kind: "rephrase" as const, section: "skills" as const, item: "Gestion d'équipe", text: "Team management" },
+    { kind: "rephrase" as const, section: "skills" as const, item: "Recrutement", text: "Recruitment" },
+    { kind: "rephrase" as const, section: "skills" as const, item: "Conseil technique", text: "Technical consulting" },
+    { kind: "rephrase" as const, section: "skills" as const, item: "Clients grands comptes", text: "Enterprise key accounts" },
+  ];
+
+  it("a value is named a typo apart, in its words' order; a short word or a figure exactly", () => {
+    expect(names(said[1]!, "Recruitment")).toBe(true);
+    expect(names(said[1]!, "Team management")).toBe(true);
+    expect(names("j'utilise SAP", "SQL")).toBe(false);
+    expect(names("10 ans de management", "12 ans de management")).toBe(false);
+    expect(names("management team", "Team management")).toBe(false);
+  });
+
+  it("« the rest » or « the others » said good approves the listing before; a bare « ok » does not", () => {
+    expect(approvesTheRest(said[1]!)).toBe(true);
+    expect(approvesTheRest("Pour le reste, c'est bon.")).toBe(true);
+    expect(approvesTheRest("the others are fine")).toBe(true);
+    expect(approvesTheRest("ok")).toBe(false);
+    expect(approvesTheRest(said[0]!)).toBe(false);
+  });
+
+  it("the skills declared or approved as a whole are translated, each marked « Fait déclaré par vous », reviewed one by one", () => {
+    const review = masterCvReview(tailored, translation, { declared: said, approved: [listed], reference });
+
+    if (!review.ok) throw new Error(`refused: ${JSON.stringify(review)}`);
+    expect(review.changes.map((change) => [change.id, change.tailored, change.declared])).toEqual([
+      ["skills.rephrased.0", "Software engineering", true],
+      ["skills.rephrased.1", "Team management", true],
+      ["skills.rephrased.2", "Recruitment", true],
+      ["skills.rephrased.3", "Technical consulting", true],
+      ["skills.rephrased.4", "Enterprise key accounts", true],
+    ]);
+    const saved = acceptedCvEdits(tailored, review.edits, review.changes.map((change) => change.id), { declared: true, reference });
+    expect(saved?.content.skills).toEqual(["Software engineering", "Team management", "Recruitment", "Technical consulting", "Enterprise key accounts", "Communication"]);
+  });
+
+  it("strict on where the fact comes from: never approved without the Candidate's « the rest », nor a skill the AI Coach did not list", () => {
+    // The AI Coach's listing alone, the Candidate never approving it: not declared.
+    expect(masterCvReview(tailored, [translation[0]!], { declared: [said[0]!], approved: [], reference })).toMatchObject({ ok: false, error: "added_item", text: "Software engineering" });
+    // Approved, but the listing never named that skill.
+    expect(masterCvReview(tailored, [translation[3]!], { declared: [said[0]!], approved: ["Votre CV adapté liste Ingénierie logicielle."], reference })).toMatchObject({
+      ok: false,
+      error: "added_item",
+    });
+    // Another skill, which the Candidate never stated: refused, whatever they approved.
+    expect(masterCvReview(tailored, [{ kind: "add", section: "skills", text: "Kubernetes" }], { declared: said, approved: [listed], reference })).toMatchObject({ ok: false, error: "not_declared" });
+    expect(isDeclared("Kubernetes", said)).toBe(false);
   });
 });

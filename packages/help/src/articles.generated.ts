@@ -2379,7 +2379,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "Un fait que vous dites vous-même à votre coach IA dans une conversation : une compétence (“ajoutez Power BI, je l'utilise depuis 3 ans”), une langue ou son niveau, un diplôme. Votre coach peut alors proposer de l'ajouter ou de le corriger dans votre CV adapté ou votre CV de référence, même si votre CV ne le disait pas encore.\n\nLe changement porte « Fait déclaré par vous » : vérifiez-le avant de l'accepter. Jobbbox vérifie que vous l'avez bien écrit dans un de vos messages de la conversation. Ce que dit une offre, ou ce que votre coach suppose, n'est jamais un fait déclaré : votre coach vous demande si vous l'avez avant de rien proposer."
+      "body": "Un fait que vous dites vous-même à votre coach IA dans une conversation : une compétence (“ajoutez Power BI, je l'utilise depuis 3 ans”), une langue ou son niveau, un diplôme. Votre coach peut alors proposer de l'ajouter ou de le corriger dans votre CV adapté ou votre CV de référence, même si votre CV ne le disait pas encore.\n\nLe changement porte « Fait déclaré par vous » : vérifiez-le avant de l'accepter. Jobbbox vérifie que vous l'avez bien écrit dans un de vos messages de la conversation, avec vos mots : une faute de frappe ou une autre langue ne vous empêchent pas de le déclarer. Quand votre coach vous liste vos compétences, répondre « pour le reste c'est bon » vaut pour celles qu'il vient de lister, et seulement pour elles. Ce que dit une offre, ou ce que votre coach suppose, n'est jamais un fait déclaré : votre coach vous demande si vous l'avez avant de rien proposer."
     },
     {
       "id": "glossary-fiche",
@@ -7999,7 +7999,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "A fact you tell your AI coach yourself in a conversation: a skill (“add Power BI, I have used it for 3 years”), a language or its level, a degree. Your coach can then propose to add or correct it in your tailored CV or your Master CV, even if your CV did not say it yet.\n\nThe change reads « Fact you declared »: check it before you accept it. Jobbbox checks that you did write it in one of your messages in the conversation. What a job offer says, or what your coach assumes, is never a declared fact: your coach asks whether you have it before proposing anything."
+      "body": "A fact you tell your AI coach yourself in a conversation: a skill (“add Power BI, I have used it for 3 years”), a language or its level, a degree. Your coach can then propose to add or correct it in your tailored CV or your Master CV, even if your CV did not say it yet.\n\nThe change reads « Fact you declared »: check it before you accept it. Jobbbox checks that you did write it in one of your messages in the conversation, in your own words: a typo or another language does not stop you from declaring it. When your coach lists your skills, answering “for the rest it is all good” counts for the ones it has just listed, and for those only. What a job offer says, or what your coach assumes, is never a declared fact: your coach asks whether you have it before proposing anything."
     },
     {
       "id": "glossary-document-version",

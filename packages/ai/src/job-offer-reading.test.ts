@@ -98,7 +98,7 @@ describe("the Job Offer Summary, read with the fields when its task Playbook is 
     expect(system).toMatch(/sans nom de personne/);
   });
 
-  it("sends version 1 word for word as before the task Playbook: the built-in field rules, then its rules", async () => {
+  it("sends version 1 word for word as before the task Playbook, the skills in the offer's language since #1133: the built-in field rules, then its rules", async () => {
     const { ai, claude } = setUp("{}");
 
     await readOfferFields(ai, { candidateId: "cand-1", jobOffer, reading });
@@ -113,6 +113,7 @@ Réponds uniquement par un objet JSON, sans texte autour :
 - "skills" : les compétences demandées, en quelques mots chacune (au plus 15).
 - "requiredExperienceYears" : le nombre minimal d'années d'expérience demandé.
 - Salaires en euros bruts annuels. N'invente rien : omets un champ que l'offre ne précise pas.
+- "skills" : écrites dans la langue de l'offre, avec ses mots (en anglais pour une offre en anglais), jamais traduites.
 - "summary" : deux ou trois phrases (400 caractères au plus) sur le poste, son périmètre et ce qui est attendu,
   écrites dans la langue de l'offre (en anglais pour une offre en anglais). Uniquement ce que l'offre dit, sans rien inventer
   ni juger, et sans nom de personne (recruteur, manager).
@@ -142,6 +143,8 @@ Réponds uniquement par un objet JSON, sans texte autour :
     const system = claude.calls[0]!.system ?? "";
     expect(system).not.toMatch(/summary|sector|subsector/);
     expect(system).toMatch(/Salaires en euros bruts annuels/);
+    // Read in the offer's language, its skills too: an English offer's are not written in French (#1133).
+    expect(system).toMatch(/"skills" : écrites dans la langue de l'offre/);
   });
 
   it("keeps a summary of the right shape, its spacing tidied, in the language it was written in", async () => {

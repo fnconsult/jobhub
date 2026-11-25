@@ -23,6 +23,6 @@ Pour y remédier, chaque ligne donne deux liens :
 
 La page qu'ouvre « Facturation de … » se règle dans les paramètres de l'outil, sur sa fiche dans Paramètres, section « Facturation » : celle du catalogue par défaut, une URL https seulement, et « Rétablir » y revient. Le bandeau, le bloc « API » du tableau de bord et l'e-mail suivent la valeur saisie.
 
-Un refus HTTP 401 « insufficient_quota » de Perplexity compte comme « quota épuisé », pour une recherche comme pour un test de connexion, de même que le plafond de dépense mensuel de Claude.
+Un refus HTTP 401 `insufficient_quota` de Perplexity compte comme « quota épuisé », pour une recherche comme pour un test de connexion, de même que le plafond de dépense mensuel de Claude.
 
 Une « limite atteinte » se lève souvent seule après quelques instants. Un « quota épuisé » demande de recréditer le compte ou de changer de plan chez le fournisseur, ou, en attendant, de choisir un autre fournisseur dans Paramètres.

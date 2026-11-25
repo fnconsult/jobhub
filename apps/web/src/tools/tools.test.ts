@@ -76,6 +76,8 @@ describe("a Tool's status", () => {
       { name: "ANTHROPIC_ENDPOINT", value: "vertex", source: "back_office", differsFromDefault: false },
       { name: "VERTEX_REGION", value: "europe-west9", source: "env", differsFromDefault: true },
       { name: "VERTEX_PROJECT_ID", value: "", source: "default", differsFromDefault: false },
+      // Its billing page (#1123), the catalog's by default.
+      { name: "ANTHROPIC_VERTEX_BILLING_URL", value: "https://console.cloud.google.com/billing", source: "default", differsFromDefault: false },
     ]);
     // A setting only env holds, as Paramètres shows it: from env, with no default to differ from.
     expect(toolStatus(tool("brevo-smtp"), stateOf({ MAIL_TRANSPORT: "console" })).settings).toEqual([

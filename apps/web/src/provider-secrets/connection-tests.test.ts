@@ -267,6 +267,8 @@ describe("a connection test, as recorded", () => {
     const { fetch } = fakeFetch(401);
 
     await createConnectionTester({ fetch, externalApis })(provider, env);
+    // A refusal from a provider with a quota is recorded once its body is read for its words (#1123).
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(calls).toEqual([expect.objectContaining({ provider: tool, operation: "connection_test", ok: false, httpStatus: 401 })]);
     expect(calls[0]!.durationMs).toBeGreaterThanOrEqual(0);
@@ -284,6 +286,18 @@ describe("a connection test, as recorded", () => {
       { provider: "brevo_smtp", operation: "connection_test", ok: false, httpStatus: null },
     ]);
     expect(JSON.stringify(calls)).not.toMatch(/secret|user/);
+  });
+
+  it("records Perplexity's 401 insufficient_quota as its credit spent (#1123)", async () => {
+    const { calls, externalApis } = recorder();
+    const body = '{"error":{"message":"You exceeded your current quota, add credits at https://console.perplexity.ai/project/billing.","type":"insufficient_quota","code":401}}';
+    const fetch = (async () => new Response(body, { status: 401, headers: { "content-type": "application/json" } })) as typeof globalThis.fetch;
+
+    const result = await createConnectionTester({ fetch, externalApis })("perplexity", { PERPLEXITY_API_KEY: "pk-abcdefgh" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(result.ok).toBe(false);
+    expect(calls).toEqual([expect.objectContaining({ provider: "perplexity", operation: "connection_test", ok: false, httpStatus: 401, reason: "quota_exhausted" })]);
   });
 
   it("records nothing when a key is missing: no call was made", async () => {

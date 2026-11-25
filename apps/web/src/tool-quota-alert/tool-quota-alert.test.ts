@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { AdministratorRecipient } from "../admin/administrators";
 import type { MailMessage } from "../auth/index";
 import { connectionString, startTestAuth, type TestAuth } from "../auth/test-support";
+import { snapshotOfSettings, type StoredPlatformSettings } from "../platform-settings/resolver";
 import type { ToolQuotaState } from "../tool-quotas/index";
 import { createToolQuotaAlert, migrateToolQuotaAlerts, postgresToolQuotaAlertStore, type ToolQuotaAlertStore } from "./index";
 
@@ -40,7 +41,7 @@ function setup(options: { refused?: Record<string, Pick<ToolQuotaState, "state" 
   const outbox: MailMessage[] = [];
   let failing = options.failSending ?? false;
   const clock = { now: new Date("2026-11-25T09:00:00Z") };
-  const world = { refused: options.refused ?? {} };
+  const world: { refused: Record<string, Pick<ToolQuotaState, "state" | "since">>; stored: StoredPlatformSettings } = { refused: options.refused ?? {}, stored: {} };
   const read: Date[] = [];
   const alert = createToolQuotaAlert({
     store,
@@ -48,6 +49,7 @@ function setup(options: { refused?: Record<string, Pick<ToolQuotaState, "state" 
       read.push(now);
       return statesOf(world.refused);
     },
+    settings: () => snapshotOfSettings({}, world.stored),
     administrators: async () => ADMINISTRATORS,
     mailer: {
       send: async (message) => {
@@ -124,6 +126,19 @@ describe("the daily « Quota atteint » email (#1117)", () => {
     clock.now = new Date("2026-11-26T09:00:00Z");
     expect(await alert.check()).toEqual({ day: "2026-11-26", tools: [], outcome: "none" });
     expect(outbox).toHaveLength(3);
+  });
+
+  it("links each Tool's billing page as Paramètres sets it when it is sent, the catalog's once cleared (#1123)", async () => {
+    const { alert, outbox, clock, world } = setup({ refused: { openai: { state: "quota_exhausted", since } } });
+    world.stored = { OPENAI_BILLING_URL: { value: "https://platform.openai.com/settings/organization/billing/projects", updatedBy: "ops@jobbbox.ai", updatedAt: since } };
+    await alert.check();
+
+    expect(outbox[0]!.text).toContain("Facturation de OpenAI :\nhttps://platform.openai.com/settings/organization/billing/projects");
+
+    world.stored = {};
+    clock.now = new Date("2026-11-26T09:00:00Z");
+    await alert.check();
+    expect(outbox[3]!.text).toContain("Facturation de OpenAI :\nhttps://platform.openai.com/settings/organization/billing/overview");
   });
 
   it("a send that fails gives the day back, and the next check tries again", async () => {

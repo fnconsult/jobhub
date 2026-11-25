@@ -20,7 +20,7 @@ GitHub, rangé sous « Livraison », sert la page Livraison : son jeton en lectu
 
 Outils se lit seulement : une clé, un réglage ou un fournisseur se change dans Paramètres. « Tous les outils » ramène à la liste.
 
-Quand le fournisseur d'un outil le refuse pour son quota, le bandeau « Quota atteint » s'affiche en tête de chaque page du Back Office ; son lien « Facturation de … » ouvre, dans un nouvel onglet, la page du fournisseur où se paie ou se renouvelle le quota.
+Quand le fournisseur d'un outil le refuse pour son quota, le bandeau « Quota atteint » s'affiche en tête de chaque page du Back Office ; son lien « Facturation de … » ouvre, dans un nouvel onglet, la page du fournisseur où se paie ou se renouvelle le quota. Cette page se règle dans les paramètres de l'outil, sur sa fiche dans Paramètres, section « Facturation ». Un refus HTTP 401 `insufficient_quota` de Perplexity y compte comme « quota épuisé », test de connexion compris.
 
 La réservation Cal.com d’équipe utilise un événement à un seul hôte, vérifié et rattaché depuis « Coachs humains ». Les paramètres de l’équipe et la confirmation des rappels désactivés restent dans Paramètres ; les clés API et de webhook restent des Provider Secrets. Les anciens liens cal.eu sont signalés pour revue. Une création dont le résultat est inconnu n’est jamais répétée automatiquement : retrouvez l’événement dans Cal.com puis rattachez son identifiant. La réservation intégrée attend les textes requis et leur préavis.
 

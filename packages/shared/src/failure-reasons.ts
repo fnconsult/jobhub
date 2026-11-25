@@ -13,7 +13,7 @@
  * `failureOf` reads an error by its shape (its `name`, `provider`, `status` and `reason`), so it serves the
  * AI layer's errors without importing them: an error may carry its own code as `reason`.
  */
-import { quotaRefusalOf } from "./quota-refusals";
+import { isCapacityRefusal, quotaRefusalOf } from "./quota-refusals";
 import { scrubSecrets } from "./scrub-secrets";
 
 /** How an AI call ended: it succeeded, worked while its feature ran degraded, or failed (or was never sent). */
@@ -248,6 +248,8 @@ function reasonOf(name: string, provider: string | undefined, status: number | u
       if (provider !== undefined) {
         const refusal = quotaRefusalOf(provider, { status, message });
         if (refusal) return refusal.reason;
+        // Its model out of capacity (Mistral's 429 codes 3505 and 3801, #1123): unavailable, no limit of the account.
+        if (isCapacityRefusal(provider, { status, message })) return "provider_unavailable";
       }
       if (status === 429) return "rate_limited";
       if (status >= 400) return "provider_rejected";

@@ -2,7 +2,7 @@ import { toolById, type Tool } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { PROVIDER_SECRET_NAMES } from "../provider-secrets/catalog";
 import type { ProviderSecretStatus } from "../provider-secrets/index";
-import { ADD_TYPES, addTypeFor, keyHref, legacyRedirect, PARAMETRES_TABS, parametresHref, parametresTab, possibleProviders, providerSheetHref, settingHref, sheetSettingsOf, type ProvidersState } from "./parametres";
+import { ADD_TYPES, addTypeFor, billingOfTool, keyHref, legacyRedirect, PARAMETRES_TABS, parametresHref, parametresTab, possibleProviders, providerSheetHref, settingHref, sheetSettingsOf, type ProvidersState } from "./parametres";
 import { snapshotOfSettings, type StoredPlatformSettings } from "./resolver";
 
 const tool = (id: string): Tool => toolById(id)!;
@@ -100,6 +100,17 @@ describe("Paramètres in tabs (#396, ADR-0042)", () => {
       expect(PARAMETRES_TABS.some((each) => each.settings.includes(name)), name).toBe(false);
     }
     expect(sheetSettingsOf(tool("brevo-smtp"))).toEqual([]);
+  });
+
+  it("puts each Tool with a quota's billing page on its sheet, and no tab's list (#1123)", () => {
+    expect(settingHref("PERPLEXITY_BILLING_URL")).toBe("/admin/parametres?tab=recherche-web&fournisseur=perplexity#setting-PERPLEXITY_BILLING_URL");
+    expect(settingHref("MISTRAL_BILLING_URL")).toBe("/admin/parametres?tab=ia&fournisseur=mistral#setting-MISTRAL_BILLING_URL");
+    expect(settingHref("FANTASTIC_JOBS_BILLING_URL")).toBe("/admin/parametres?tab=sources&fournisseur=fantastic-jobs#setting-FANTASTIC_JOBS_BILLING_URL");
+    expect(settingHref("LUSHA_BILLING_URL")).toBe("/admin/parametres?tab=enrichissement&fournisseur=lusha#setting-LUSHA_BILLING_URL");
+    expect(billingOfTool(tool("anthropic-vertex"))).toEqual(["ANTHROPIC_VERTEX_BILLING_URL"]);
+    expect(billingOfTool(tool("stripe"))).toEqual([]);
+    expect(billingOfTool(tool("greenhouse"))).toEqual([]);
+    expect(PARAMETRES_TABS.some((each) => each.settings.some((name) => name.endsWith("_BILLING_URL")))).toBe(false);
   });
 
   it("links a key to the sheet of the Tool it is for", () => {

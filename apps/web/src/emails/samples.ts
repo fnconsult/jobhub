@@ -63,6 +63,8 @@ export function sampleEmails(language: Locale): Record<EmailName, RenderedEmail>
           { tool: toolById("tavily") as Tool, state: "rate_limited", since: new Date("2026-11-25T13:05:00Z"), renewsAt: null },
         ],
         backOfficeAccess(["super-admin"]),
+        // The catalog's billing pages.
+        { setting: () => undefined },
       ),
       APP_URL,
       language,

@@ -3,9 +3,9 @@
  * a day (Paris time), every Administrator, whatever their roles, gets one email in their Interface Language, at most one
  * a day. It lists each Tool whose quota is still reached when it is sent, its state and since when, with the « Quota
  * atteint » banner's two links (its configuration, when the Administrator may open it, and its provider's billing
- * page). No email when a quota is available again, and nothing else is sent.
+ * page, as Paramètres sets it when it is sent, #1123). No email when a quota is available again, and nothing else is sent.
  *
- *   const alert = createToolQuotaAlert({ store: postgresToolQuotaAlertStore(database), states: (now) => toolQuotaStates(database, now), administrators, mailer, appUrl });
+ *   const alert = createToolQuotaAlert({ store: postgresToolQuotaAlertStore(database), states: (now) => toolQuotaStates(database, now), settings, administrators, mailer, appUrl });
  *   await alert.check(); // { day: "2026-11-25", tools: ["openai"], outcome: "none" | "sent" | "already_sent" }
  *
  * The day is claimed before its emails are sent, and given back when sending fails, so the next check tries again:
@@ -16,6 +16,7 @@ import { createI18n, type Locale } from "@jobhub/shared/i18n";
 import type { Pool } from "pg";
 import { backOfficeAccess } from "../admin/access";
 import type { AdministratorRecipient } from "../admin/administrators";
+import type { PlatformSettingsSnapshot } from "../platform-settings/resolver";
 import type { Mailer } from "../auth/index";
 import { renderEmail, type EmailBlock, type RenderedEmail } from "../emails";
 import { quotaBannerLines, type QuotaBannerLine } from "../quota-banner/index";
@@ -51,6 +52,8 @@ export interface ToolQuotaAlertOptions {
   store: ToolQuotaAlertStore;
   /** Each Tool's quota state at `now` (`toolQuotaStates`). */
   states: (now: Date) => Promise<readonly ToolQuotaState[]>;
+  /** The Platform Settings in use when it is sent: each Tool's billing page (#1123). */
+  settings: () => Pick<PlatformSettingsSnapshot, "setting">;
   /** Who is emailed: every Administrator (`administratorRecipients`). */
   administrators: () => Promise<readonly AdministratorRecipient[]>;
   mailer: Pick<Mailer, "send">;
@@ -73,12 +76,13 @@ export function createToolQuotaAlert(options: ToolQuotaAlertOptions): ToolQuotaA
       const at = (options.now ?? (() => new Date()))();
       const day = parisDay(at);
       const states = await options.states(at);
-      const tools = quotaBannerLines(states, EVERYTHING).map((line) => line.toolId);
+      const settings = options.settings();
+      const tools = quotaBannerLines(states, EVERYTHING, settings).map((line) => line.toolId);
       if (tools.length === 0) return { day, tools, outcome: "none" };
       if (!(await options.store.claim({ day, tools, at }))) return { day, tools, outcome: "already_sent" };
       try {
         for (const administrator of await options.administrators()) {
-          const lines = quotaBannerLines(states, backOfficeAccess(administrator.roles));
+          const lines = quotaBannerLines(states, backOfficeAccess(administrator.roles), settings);
           await options.mailer.send({ to: administrator.email, ...toolQuotaAlertEmail(lines, options.appUrl, administrator.language) });
         }
       } catch (error) {

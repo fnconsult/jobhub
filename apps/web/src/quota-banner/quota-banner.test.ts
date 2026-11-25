@@ -1,8 +1,9 @@
 import { hasQuota, TOOLS, type Tool, type ToolId } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { backOfficeAccess, BACK_OFFICE_ROLES, type BackOfficeRole } from "../admin/access";
+import { snapshotOfSettings } from "../platform-settings/resolver";
 import type { ToolQuotaState } from "../tool-quotas/index";
-import { quotaBannerLines, quotaBannerShown } from "./index";
+import { quotaBannerLines as linesIn, quotaBannerShown } from "./index";
 
 const SINCE = new Date("2026-11-24T09:00:00Z");
 
@@ -14,6 +15,11 @@ const statesWith = (refused: Partial<Record<ToolId, ToolQuotaState["state"]>>): 
   });
 
 const superAdmin = backOfficeAccess(["super-admin"]);
+
+/** Nothing set in env nor in the Back Office: the catalog's billing pages. */
+const DEFAULTS = snapshotOfSettings({}, {});
+const quotaBannerLines = (states: readonly ToolQuotaState[], reader: Parameters<typeof linesIn>[1]) => linesIn(states, reader, DEFAULTS);
+const setBy = { updatedBy: "ops@jobbbox.ai", updatedAt: new Date("2026-11-25T08:00:00Z") };
 
 describe("the « Quota atteint » banner's lines (#1115)", () => {
   it("are none while every Tool is ok", () => {
@@ -68,6 +74,27 @@ describe("the « Quota atteint » banner's lines (#1115)", () => {
       "help-editor": null,
     });
     for (const role of BACK_OFFICE_ROLES) expect(quotaBannerLines(refused, backOfficeAccess([role])), role).toHaveLength(1);
+  });
+});
+
+describe("the « Quota atteint » banner's billing links (#1123)", () => {
+  const refused = statesWith({ perplexity: "quota_exhausted", mistral: "quota_exhausted" });
+  const billingOf = (settings: Parameters<typeof linesIn>[2]) => Object.fromEntries(linesIn(refused, superAdmin, settings).map((line) => [line.toolId, line.billingUrl]));
+
+  it("follow the page a super-admin set on the Tool's sheet, over env's", () => {
+    const project = "https://console.perplexity.ai/project/abc123/billing";
+    const settings = snapshotOfSettings({ PERPLEXITY_BILLING_URL: "https://example.test/env" }, { PERPLEXITY_BILLING_URL: { value: project, ...setBy } });
+
+    expect(billingOf(settings)).toEqual({ mistral: "https://console.mistral.ai/billing", perplexity: project });
+    expect(billingOf(snapshotOfSettings({ MISTRAL_BILLING_URL: " https://admin.mistral.ai/organization/billing " }, {})).mistral).toBe("https://admin.mistral.ai/organization/billing");
+  });
+
+  it("go back to the catalog's page once cleared, and when env's is not an https URL", () => {
+    expect(billingOf(DEFAULTS)).toEqual({ mistral: "https://console.mistral.ai/billing", perplexity: "https://console.perplexity.ai/project/billing" });
+    expect(billingOf(snapshotOfSettings({ PERPLEXITY_BILLING_URL: "" }, {})).perplexity).toBe("https://console.perplexity.ai/project/billing");
+    for (const refusedValue of ["http://console.perplexity.ai/project/billing", "javascript:alert(1)", "console.perplexity.ai"]) {
+      expect(billingOf(snapshotOfSettings({ PERPLEXITY_BILLING_URL: refusedValue }, {})).perplexity, refusedValue).toBe("https://console.perplexity.ai/project/billing");
+    }
   });
 });
 

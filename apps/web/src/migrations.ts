@@ -25,7 +25,7 @@ import { migrateActionCards, migrateActionCardsInThread } from "./action-cards/i
 import { migrateAdministratorRoles } from "./admin/administrators";
 import { migrateBackOfficeAudit } from "./admin/back-office";
 import { migrateAgentRunLog } from "./agent-runs/index";
-import { migrateAiUsage } from "./ai-usage/index";
+import { backfillQuotaRefusals, migrateAiUsage } from "./ai-usage/index";
 import { migrateApplications } from "./applications/index";
 import { migrateAppointmentReminders } from "./appointment-reminders/index";
 import { migratePushNotifications } from "./push-notifications/index";
@@ -144,6 +144,8 @@ export async function migrateDatabase(
     ["Sign-in Providers are up to date", () => migrateSignInProviders(database, env)],
     ["Back Office Assistant conversations are up to date", () => migrateAssistantConversations(database)],
     ["AI Usage is up to date", () => migrateAiUsage(database)],
+    // After AI Usage: the calls refused for their quota before #1114 count in the Tool quota state (#1123); run again, it changes nothing.
+    ["Quota refusals recorded before #1114 are up to date", async () => void (await backfillQuotaRefusals(database))],
     ["Web search alerts are up to date", () => migrateWebSearchAlerts(database)],
     ["« Quota atteint » emails are up to date", () => migrateToolQuotaAlerts(database)],
     ["Coaching Playbooks, the Core Digest, the Sources list and the task Playbooks are up to date", () => migrateCoachingPlaybooks(database, () => importedPlaybooks(env)),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hasQuota } from "./quota-refusals";
-import { externalApiProvidersOf, HOSTS, isRecipientOutsideEu, LOCAL_ROUTE_GROUPS, localRouteTool, RECIPIENT_DATA, RECIPIENT_DATA_TEXT, type RecipientFacts, recipientList, type Tool, TOOL_CATEGORIES, toolById, toolOfUsage, TOOLS, toolsByCategory, TRANSFER_SAFEGUARD_TEXT, TRANSFER_SAFEGUARDS } from "./tools";
+import { BILLING_URL_SETTINGS, billingUrlSettingName, externalApiProvidersOf, HOSTS, isRecipientOutsideEu, LOCAL_ROUTE_GROUPS, localRouteTool, RECIPIENT_DATA, RECIPIENT_DATA_TEXT, type RecipientFacts, recipientList, type Tool, TOOL_CATEGORIES, toolById, toolOfUsage, TOOLS, toolsByCategory, TRANSFER_SAFEGUARD_TEXT, TRANSFER_SAFEGUARDS } from "./tools";
 
 describe("the Tools", () => {
   it("are every external tool the app calls, grouped by category in the Back Office's order", () => {
@@ -159,28 +159,30 @@ describe("the Tools", () => {
 
   it("name the Platform Settings they depend on, none for most", () => {
     const names = (id: string) => (toolById(id)?.settings ?? []).map((setting) => setting.name);
-    expect(names("anthropic")).toEqual(["ANTHROPIC_ENDPOINT"]);
-    expect(names("anthropic-bedrock")).toEqual(["ANTHROPIC_ENDPOINT", "BEDROCK_REGION"]);
-    expect(names("anthropic-vertex")).toEqual(["ANTHROPIC_ENDPOINT", "VERTEX_REGION", "VERTEX_PROJECT_ID"]);
-    expect(names("openai")).toEqual(["OPENAI_DATA_RESIDENCY"]);
-    expect(names("mistral")).toEqual(["AI_IDENTITY_MODEL"]);
+    // A Tool with a quota, its billing page too (#1123).
+    expect(names("anthropic")).toEqual(["ANTHROPIC_ENDPOINT", "ANTHROPIC_BILLING_URL"]);
+    expect(names("anthropic-bedrock")).toEqual(["ANTHROPIC_ENDPOINT", "BEDROCK_REGION", "ANTHROPIC_BEDROCK_BILLING_URL"]);
+    expect(names("anthropic-vertex")).toEqual(["ANTHROPIC_ENDPOINT", "VERTEX_REGION", "VERTEX_PROJECT_ID", "ANTHROPIC_VERTEX_BILLING_URL"]);
+    expect(names("openai")).toEqual(["OPENAI_DATA_RESIDENCY", "OPENAI_BILLING_URL"]);
+    expect(names("mistral")).toEqual(["AI_IDENTITY_MODEL", "MISTRAL_BILLING_URL"]);
     const search = ["AI_WEB_SEARCH_PROVIDER", "AI_WEB_SEARCH_FALLBACK_PROVIDER"];
     // And the filters Job discovery sends every Search provider (#402).
     const filters = ["JOB_DISCOVERY_COUNTRY", "JOB_DISCOVERY_MAX_POSTING_AGE_DAYS", "JOB_DISCOVERY_RESULTS_PER_QUERY"];
     // Each with the price of its billed unit (#403).
-    expect(names("perplexity")).toEqual([...search, "PERPLEXITY_SEARCH_TYPE", "PERPLEXITY_QUERIES_PER_CALL", "AI_WEB_SEARCH_MODEL", "PERPLEXITY_FAST_SEARCH_PRICE_USD", "PERPLEXITY_SEARCH_PRICE_USD", ...filters]);
-    expect(names("brave")).toEqual([...search, "BRAVE_MAX_PAGES", "BRAVE_SEARCH_PRICE_USD", ...filters]);
-    expect(names("tavily")).toEqual([...search, "TAVILY_SEARCH_DEPTH", "AI_WEB_SEARCH_MODEL", "TAVILY_CREDIT_PRICE_USD", ...filters]);
+    expect(names("perplexity")).toEqual([...search, "PERPLEXITY_SEARCH_TYPE", "PERPLEXITY_QUERIES_PER_CALL", "AI_WEB_SEARCH_MODEL", "PERPLEXITY_FAST_SEARCH_PRICE_USD", "PERPLEXITY_SEARCH_PRICE_USD", "PERPLEXITY_BILLING_URL", ...filters]);
+    expect(names("brave")).toEqual([...search, "BRAVE_MAX_PAGES", "BRAVE_SEARCH_PRICE_USD", "BRAVE_BILLING_URL", ...filters]);
+    expect(names("tavily")).toEqual([...search, "TAVILY_SEARCH_DEPTH", "AI_WEB_SEARCH_MODEL", "TAVILY_CREDIT_PRICE_USD", "TAVILY_BILLING_URL", ...filters]);
     expect(names("brevo-api")).toEqual(["MAIL_FROM", "MAIL_TRANSPORT"]);
     // Jobbbox's own MTA receives the emails sent to the Forwarding addresses (#580), within Email intake's limits (#442).
     expect(names("email-intake")).toEqual(["EMAIL_INTAKE_DOMAIN", "EMAIL_INTAKE_MTA_IP_RANGES", "EMAIL_INTAKE_DAILY_CAP", "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD", "APPLICATION_EXCHANGES_ENABLED"]);
     expect(names("brevo-smtp")).toEqual(["MAIL_FROM", "MAIL_TRANSPORT"]);
-    for (const id of ["lusha", "kaspr", "apollo"]) expect(names(id), id).toEqual(["CONTACT_ENRICHMENT_PROVIDER", "CONTACT_ENRICHMENT_DPA_SIGNED"]);
+    for (const id of ["lusha", "kaspr", "apollo"]) expect(names(id), id).toEqual(["CONTACT_ENRICHMENT_PROVIDER", "CONTACT_ENRICHMENT_DPA_SIGNED", `${id.toUpperCase()}_BILLING_URL`]);
     expect(names("stripe")).toEqual(["STRIPE_PRICE_STANDARD", "STRIPE_PRICE_PREMIUM", "STRIPE_PRICE_COACHING_SESSION", "STRIPE_PRICE_COACHING_SESSION_PREMIUM"]);
     const budget = ["JOB_DISCOVERY_BUDGET_JOB_OFFERS", "JOB_DISCOVERY_BUDGET_EUR", "JOB_DISCOVERY_BUDGET_SECONDS"];
     expect(names("job-site")).toEqual(budget);
     // La Bonne Boite's Target Companies (#406) are visited per the web search's settings (#402), on the Recherche web tab.
     expect(names("france-travail")).toEqual(budget);
+    expect(names("fantastic-jobs")).toEqual(["FANTASTIC_JOBS_BILLING_URL"]);
     expect(names("greenhouse")).toEqual([]);
   });
 
@@ -191,11 +193,13 @@ describe("the Tools", () => {
       { name: "ANTHROPIC_ENDPOINT", enabledWhen: ["vertex"] },
       { name: "VERTEX_REGION" },
       { name: "VERTEX_PROJECT_ID", required: true },
+      { name: "ANTHROPIC_VERTEX_BILLING_URL" },
     ]);
     // Only the chosen contact-enrichment provider is called, and only once its DPA is signed.
     expect(toolById("kaspr")?.settings).toEqual([
       { name: "CONTACT_ENRICHMENT_PROVIDER", enabledWhen: ["kaspr"] },
       { name: "CONTACT_ENRICHMENT_DPA_SIGNED", enabledWhen: ["true"] },
+      { name: "KASPR_BILLING_URL" },
     ]);
     // MAIL_TRANSPORT=console writes emails to the server's log: Brevo is not called.
     expect(toolById("brevo-api")?.settings).toEqual([{ name: "MAIL_FROM" }, { name: "MAIL_TRANSPORT", disabledWhen: ["console"] }]);
@@ -317,5 +321,31 @@ describe("the Tools with a quota (#1115)", () => {
     expect(TOOLS.filter((tool) => (tool as Tool).billingUrl !== undefined)).toEqual(TOOLS.filter((tool) => hasQuota(tool)));
     expect(hasQuota(toolById("greenhouse")!)).toBe(false);
     expect(hasQuota(localRouteTool("applications"))).toBe(false);
+  });
+
+  it("each list the Platform Setting of their billing page among their settings, its default their billingUrl (#1123)", () => {
+    for (const tool of TOOLS as readonly Tool[]) {
+      const listed = (tool.settings ?? []).filter((setting) => setting.name.endsWith("_BILLING_URL")).map((setting) => setting.name);
+      expect(listed, tool.id).toEqual(tool.billingUrl ? [billingUrlSettingName(tool)] : []);
+    }
+    expect(BILLING_URL_SETTINGS.map(({ name, tool }) => [name, tool])).toEqual([
+      ["ANTHROPIC_BILLING_URL", "anthropic"],
+      ["ANTHROPIC_BEDROCK_BILLING_URL", "anthropic-bedrock"],
+      ["ANTHROPIC_VERTEX_BILLING_URL", "anthropic-vertex"],
+      ["MISTRAL_BILLING_URL", "mistral"],
+      ["OPENAI_BILLING_URL", "openai"],
+      ["PERPLEXITY_BILLING_URL", "perplexity"],
+      ["BRAVE_BILLING_URL", "brave"],
+      ["TAVILY_BILLING_URL", "tavily"],
+      ["FANTASTIC_JOBS_BILLING_URL", "fantastic-jobs"],
+      ["LUSHA_BILLING_URL", "lusha"],
+      ["KASPR_BILLING_URL", "kaspr"],
+      ["APOLLO_BILLING_URL", "apollo"],
+    ]);
+    for (const setting of BILLING_URL_SETTINGS) expect(setting.default, setting.name).toBe(toolById(setting.tool)!.billingUrl);
+  });
+
+  it("send Perplexity's to the page its refusal names (#1123)", () => {
+    expect(toolById("perplexity")!.billingUrl).toBe("https://console.perplexity.ai/project/billing");
   });
 });

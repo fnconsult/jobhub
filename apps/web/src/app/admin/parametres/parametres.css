@@ -73,6 +73,14 @@
   color: inherit;
 }
 
+/* In a Tool's sheet, a value or a default too long for its line (a billing page's URL, #1123) breaks wherever it must,
+   inside the sheet's width: in its settings' Table and in its list of the settings its Tool depends on. Only there: on a
+   tab, a wide table scrolls in its own frame, and wrapping its values would move its rows' buttons. */
+[data-sheet] .settings-table td code,
+.sheet-settings-list code {
+  overflow-wrap: anywhere;
+}
+
 /* A setting's change: its field and Save on one line, what the field takes under them. */
 .setting-change {
   display: grid;

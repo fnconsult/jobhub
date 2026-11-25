@@ -9,6 +9,9 @@ const answering =
   async () =>
     new Response("{}", { status });
 
+/** Until a refused call is recorded: its body is read first, after the caller got its answer (#1123). */
+const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 describe("an external API's calls, as recorded", () => {
   it("records the provider, the operation (method and path), the HTTP status, how long it took and its cost", async () => {
     const calls: ExternalApiCall[] = [];
@@ -55,6 +58,7 @@ describe("an external API's calls, as recorded", () => {
         body: '{"name":"Marie Dupont"}',
       }),
     ).resolves.toMatchObject({ status: 429 });
+    await settled();
     await expect(
       recordingFetch<Fetch>(async () => Promise.reject(new Error("ECONNRESET")), log, { provider: "lusha" })("https://api.lusha.com/v2/person", {
         method: "POST",
@@ -85,16 +89,19 @@ describe("an external API's calls, as recorded", () => {
     const log = { record: (call: ExternalApiCall) => void calls.push(call) };
     const now = () => new Date("2026-11-24T10:00:00Z");
     const refusing =
-      (status: number, headers: Record<string, string> = {}): Fetch =>
+      (status: number, headers: Record<string, string> = {}, body: unknown = { error: "out_of_credits" }): Fetch =>
       async () =>
-        new Response(JSON.stringify({ error: "out_of_credits" }), { status, headers });
-    const call = (fetch: Fetch) => fetch("https://api.example/v2/person", { method: "POST", headers: {} });
+        new Response(JSON.stringify(body), { status, headers });
+    const call = async (fetch: Fetch) => {
+      await fetch("https://api.example/v2/person", { method: "POST", headers: {} });
+      await settled();
+    };
 
     await call(recordingFetch(refusing(402), log, { provider: "lusha", now }));
-    await call(recordingFetch(refusing(429, { "retry-after": "60" }), log, { provider: "kaspr", now }));
+    await call(recordingFetch(refusing(429, { "retry-after": "60" }, { error: "rate limit exceeded" }), log, { provider: "kaspr", now }));
     await call(recordingFetch(refusing(402, { "x-api-next-billing-date": "2026-12-01T00:00:00Z" }), log, { provider: "fantastic_jobs", now }));
     // Not a quota refusal: no reason, no renewal date.
-    await call(recordingFetch(refusing(401, { "retry-after": "60" }), log, { provider: "apollo", now }));
+    await call(recordingFetch(refusing(401, { "retry-after": "60" }, { error: "Unauthorized" }), log, { provider: "apollo", now }));
     await call(recordingFetch(refusing(200), log, { provider: "apollo", now }));
     // A Tool without a quota keeps none: Stripe's 402 is a card declined, a public API's 429 its own business.
     await call(recordingFetch(refusing(402), log, { provider: "stripe", now }));
@@ -111,6 +118,89 @@ describe("an external API's calls, as recorded", () => {
     ]);
     expect(calls[0]).not.toHaveProperty("renewsAt");
     expect(calls[3]).not.toHaveProperty("reason");
+  });
+
+  it("reads the provider's message of a refused call: Perplexity's 401 « insufficient_quota » is its credit spent, a connection test's too (#1123)", async () => {
+    const calls: ExternalApiCall[] = [];
+    const log = { record: (call: ExternalApiCall) => void calls.push(call) };
+    const body =
+      '{"error":{"message":"You exceeded your current quota, add credits at https://console.perplexity.ai/project/billing.","type":"insufficient_quota","code":401}}';
+    const perplexity: Fetch = async () => new Response(body, { status: 401, headers: { "content-type": "application/json" } });
+
+    const response = await recordingFetch(perplexity, log, { provider: "perplexity", operation: () => "connection_test" })("https://api.perplexity.ai/search", {
+      method: "POST",
+      headers: {},
+    });
+
+    // The caller still reads the body the provider sent.
+    expect(await response.text()).toBe(body);
+    await settled();
+    expect(calls).toEqual([expect.objectContaining({ provider: "perplexity", operation: "connection_test", ok: false, httpStatus: 401, reason: "quota_exhausted" })]);
+  });
+
+  it("reads it for every provider with a quota: Claude's spend cap and Brave's QUOTA_LIMITED; another provider's refusal is recorded at once", async () => {
+    const calls: ExternalApiCall[] = [];
+    const log = { record: (call: ExternalApiCall) => void calls.push(call) };
+    const refusing = (status: number, body: unknown): Fetch => async () => new Response(JSON.stringify(body), { status });
+    const spendCap = {
+      type: "error",
+      error: {
+        type: "rate_limit_error",
+        message: "You have reached your API usage limits: your organization has crossed its monthly API usage threshold, set based on your organization's API tier. You will regain access on 2026-09-01 at 00:00 UTC.",
+        details: { error_code: "enforced_spend_limit_reached" },
+      },
+    };
+    const call = (fetch: Fetch) => fetch("https://api.example/v1/models", { method: "GET", headers: {} });
+
+    await call(recordingFetch(refusing(429, spendCap), log, { provider: "anthropic", operation: () => "connection_test" }));
+    // Not a provider with a quota: recorded as soon as it answered, its body unread.
+    await call(recordingFetch(refusing(429, { error: "insufficient_quota" }), log, { provider: "greenhouse" }));
+    expect(calls.map(({ provider, reason }) => [provider, reason])).toEqual([["greenhouse", undefined]]);
+    await call(recordingFetch(refusing(429, { type: "ErrorResponse", error: { status: 429, code: "QUOTA_LIMITED", detail: "Request quota limit exceeded for plan." } }), log, { provider: "brave" }));
+    await settled();
+
+    expect(calls.map(({ provider, reason, renewsAt }) => [provider, reason, renewsAt])).toEqual([
+      ["greenhouse", undefined, undefined],
+      ["anthropic", "quota_exhausted", new Date("2026-09-01T00:00:00Z")],
+      ["brave", "quota_exhausted", undefined],
+    ]);
+  });
+
+  it("keeps a refusal whose message says no quota for what it is, and reads no more of its body than the AI layer does", async () => {
+    const calls: ExternalApiCall[] = [];
+    const log = { record: (call: ExternalApiCall) => void calls.push(call) };
+    const call = async (body: string, status: number) => {
+      await recordingFetch<Fetch>(async () => new Response(body, { status }), log, { provider: "perplexity" })("https://api.perplexity.ai/search", { method: "POST", headers: {} });
+      await settled();
+    };
+
+    await call('{"error":{"message":"Invalid API key","type":"invalid_api_key","code":401}}', 401);
+    // Past the 300 characters read: the words come too late to count.
+    await call(`${"x".repeat(300)} insufficient_quota`, 401);
+    await call('{"error":{"message":"rate limit exceeded"}}', 429);
+
+    expect(calls.map(({ reason }) => reason)).toEqual([undefined, undefined, "rate_limited"]);
+  });
+
+  it("records a refused call even when its body cannot be read or never ends, and answers at once", async () => {
+    const calls: ExternalApiCall[] = [];
+    const log = { record: (call: ExternalApiCall) => void calls.push(call) };
+    // An adapter's response without clone, and a body that never ends.
+    const bare: Fetch = async () => ({ ok: false, status: 402, headers: new Headers() }) as Response;
+    const endless: Fetch = async () => new Response(new ReadableStream({ start: () => {} }), { status: 401 });
+
+    await recordingFetch(bare, log, { provider: "lusha" })("https://api.lusha.com/v2/person", { method: "POST", headers: {} });
+    await expect(recordingFetch(endless, log, { provider: "apollo" })("https://api.apollo.io/v1/people", { method: "POST", headers: {} })).resolves.toMatchObject({ status: 401 });
+    await settled();
+    expect(calls).toEqual([expect.objectContaining({ provider: "lusha", httpStatus: 402, reason: "quota_exhausted" })]);
+
+    // Recorded without its message once it was waited for a second.
+    await new Promise((resolve) => setTimeout(resolve, 1_100));
+    expect(calls).toEqual([
+      expect.objectContaining({ provider: "lusha", httpStatus: 402, reason: "quota_exhausted" }),
+      expect.objectContaining({ provider: "apollo", httpStatus: 401, ok: false }),
+    ]);
+    expect(calls[1]).not.toHaveProperty("reason");
   });
 
   it("never records a payload, a query string or a secret", async () => {

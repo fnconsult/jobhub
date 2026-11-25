@@ -203,8 +203,9 @@ test.describe("Provider Secrets (on a provider's sheet in Paramètres)", () => {
     expect((await supportPage.goto(SHEET))?.status()).toBe(200);
     await expect(row(supportPage, NAME)).toContainText(fr.admin.platformSettings.providers.keyMissing);
     await expect(sheetOf(supportPage)).toContainText(fr.admin.platformSettings.sheet.readOnlyKeys);
-    // No action on its key: its one button is the Drawer's « Fermer » (#465).
-    await expect(sheetOf(supportPage).getByRole("button")).toHaveText([fr.designSystem.close]);
+    // No action on its key: its one button is the Drawer's « Fermer » (#465), besides the Explainable labels of the
+    // settings it shows, its billing page's included (#407, #1123), which explain and change nothing.
+    await expect(sheetOf(supportPage).locator("button:not(.explainable-label)")).toHaveText([fr.designSystem.close]);
     await expect(sheetOf(supportPage).locator("summary")).toHaveCount(0);
     const candidate = await personPage(browser, newAddress("keys-candidate"));
     expect((await candidate.goto("/admin/cles"))?.status()).toBe(404);

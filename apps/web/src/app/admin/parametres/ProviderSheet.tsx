@@ -9,7 +9,7 @@ import { Checkbox, TextInput } from "@/design/Field";
 import { Note } from "@/design/Note";
 import { Pill, Status } from "@/design/Pill";
 import { Table } from "@/design/Table";
-import { parametresHref, pricesOfTool, settingHref, sheetSettingsOf, type PossibleProvider } from "@/platform-settings/parametres";
+import { billingOfTool, parametresHref, pricesOfTool, settingHref, sheetSettingsOf, type PossibleProvider } from "@/platform-settings/parametres";
 import type { ResolvedPlatformSetting } from "@/platform-settings/resolver";
 import type { ApiAccess, ProviderApiAccess, ProviderSecretStatus } from "@/provider-secrets/index";
 import { routes } from "@/routes";
@@ -23,7 +23,8 @@ import { SettingsTable } from "./SettingsTable";
  * A provider's sheet, in the Drawer over its tab (#396, #465), opened from the address (`&fournisseur=`): its Provider Secrets (replaced, cleared and tested by
  * super-admins only, ADR-0020: a value goes in, never out), the keys env alone holds, its own settings and what it
  * serves, each of its APIs' access at its latest connection test (France Travail's, #400), the prices of its billed
- * units with their list price, source and date, changed here (#403), its uses whose price is not known, and a link to
+ * units with their list price, source and date, changed here (#403), its uses whose price is not known, the billing page
+ * the « Quota atteint » banner links to for a Tool with a quota, changed here (#1123), and a link to
  * its Outils page, where its calls are. Email intake's Tool's sheet is the Email intake sheet (#448): its settings changed
  * here, then its Recognised senders and « Expéditeurs proposés ».
  */
@@ -101,7 +102,7 @@ export function ProviderSheet({
         {row.settings.length === 0 ? (
           <p>{t("admin.platformSettings.sheet.noSettings")}</p>
         ) : linkedSettings.length === 0 ? null : (
-          <ul>
+          <ul className="sheet-settings-list">
             {linkedSettings.map((setting) => (
               <li key={setting.name}>
                 <Link prefetch={false} href={settingHref(setting.name)}>
@@ -117,6 +118,8 @@ export function ProviderSheet({
       {emailIntake ? <EmailIntakeSections ctx={ctx} lists={emailIntake} /> : null}
 
       <PricesSection ctx={ctx} row={row} settings={settings} unpricedCalls={unpricedCalls} />
+
+      <BillingSection ctx={ctx} row={row} settings={settings} />
 
       <p>
         <Link prefetch={false} href={routes.adminTool(tool.id)}>{t("admin.platformSettings.sheet.toolPage")}</Link>
@@ -171,6 +174,24 @@ function PricesSection({ ctx, row, settings, unpricedCalls }: { ctx: Ctx; row: P
           ) : null}
         </>
       ) : null}
+    </section>
+  );
+}
+
+/**
+ * The billing page of a Tool with a quota (#1123): where the « Quota atteint » banner, the Dashboard's « API » block and
+ * the daily email send an Administrator to pay for or renew it. The catalog's by default; changed by Technique and
+ * super-admins, since the page differs by account and project; « Rétablir » goes back to the default. None for another Tool.
+ */
+function BillingSection({ ctx, row, settings }: { ctx: Ctx; row: PossibleProvider; settings: readonly ResolvedPlatformSetting[] }) {
+  const { t } = ctx;
+  const names = billingOfTool(row.tool);
+  if (names.length === 0) return null;
+  return (
+    <section className="stack" aria-labelledby="sheet-billing">
+      <h3 id="sheet-billing">{t("admin.platformSettings.sheet.billingTitle")}</h3>
+      <p>{t("admin.platformSettings.sheet.billingIntro")}</p>
+      <SettingsTable ctx={ctx} caption={t("admin.platformSettings.sheet.billingCaption", { provider: row.tool.name })} names={names} settings={settings} envOnly={[]} />
     </section>
   );
 }

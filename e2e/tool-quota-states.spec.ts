@@ -102,6 +102,16 @@ const searchCase = (label: string, tool: string, reply: Reply, reason: Case["rea
 const contactCase = (label: string, provider: "lusha" | "kaspr" | "apollo", reply: Reply, reason: Case["reason"]): Case => ({ label, tool: provider, reason, step: { do: "contact", provider, reply } });
 
 const ANTHROPIC_CREDITS = refusal(400, { type: "error", error: { type: "invalid_request_error", message: "Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits." } });
+/** Its documented body, its date moved to the future: a renewal date passed ends the state. */
+const CLAUDE_SPEND_CAP = refusal(429, {
+  type: "error",
+  error: {
+    type: "rate_limit_error",
+    message:
+      "You have reached your API usage limits: your organization has crossed its monthly API usage threshold, set based on your organization's API tier. You will regain access on 2099-01-01 at 00:00 UTC.",
+    details: { error_code: "enforced_spend_limit_reached" },
+  },
+});
 const OPENAI_NO_CREDIT = refusal(429, { error: { message: "You exceeded your current quota, please check your plan and billing details.", type: "insufficient_quota", code: "insufficient_quota" } });
 const OPENAI_RATE = refusal(429, { error: { message: "Rate limit reached for gpt-5.5 in organization org-x on requests per min (RPM): Limit 3, Used 3. Please try again in 20s.", type: "requests", code: "rate_limit_exceeded" } });
 
@@ -112,6 +122,8 @@ const GROUPS: { name: string; env: Record<string, string>; cases: Case[] }[] = [
     env: DIRECT,
     cases: [
       aiCase("Anthropic API: a 400 « credit balance is too low »", "anthropic", "anthropic", ANTHROPIC_CREDITS, "quota_exhausted"),
+      // Its monthly spend cap (platform.claude.com/docs/en/api/rate-limits, #1123): a 429 that is a credit spent.
+      aiCase("Anthropic API: a 429 enforced_spend_limit_reached", "anthropic", "anthropic", CLAUDE_SPEND_CAP, "quota_exhausted"),
       aiCase("OpenAI: a 429 insufficient_quota", "openai", "openai", OPENAI_NO_CREDIT, "quota_exhausted"),
       aiCase("OpenAI: a 429 of rate", "openai", "openai", OPENAI_RATE, "rate_limited"),
       aiCase("Mistral: a 402", "mistral", "mistral", refusal(402, { message: "Payment required" }), "quota_exhausted"),
@@ -129,7 +141,10 @@ const GROUPS: { name: string; env: Record<string, string>; cases: Case[] }[] = [
     name: "Anthropic on Bedrock",
     env: { ...KEYS, ANTHROPIC_API_KEY: "", ANTHROPIC_ENDPOINT: "bedrock", AWS_BEARER_TOKEN_BEDROCK: "test-bedrock-key", AI_SCORING_PROVIDER: "anthropic" },
     cases: [
-      aiCase("Bedrock: a 400 « credit balance is too low »", "anthropic-bedrock", "anthropic", ANTHROPIC_CREDITS, "quota_exhausted"),
+      // Not an answer Bedrock documents (AWS bills Claude there): the credit-balance wording, read the same on any endpoint.
+      aiCase("Bedrock endpoint: the credit-balance wording", "anthropic-bedrock", "anthropic", ANTHROPIC_CREDITS, "quota_exhausted"),
+      // Bedrock's ServiceQuotaExceededException (@aws-sdk/client-bedrock-runtime@3.1177.0, #1123): a quota window.
+      aiCase("Bedrock: a 400 ServiceQuotaExceededException", "anthropic-bedrock", "anthropic", refusal(400, { message: "Your request exceeds the service quota for your account. You can resubmit your request later." }), "rate_limited"),
       aiCase("Bedrock: a 429", "anthropic-bedrock", "anthropic", refusal(429, { message: "Too many requests" }), "rate_limited"),
     ],
   },
@@ -137,6 +152,8 @@ const GROUPS: { name: string; env: Record<string, string>; cases: Case[] }[] = [
     name: "Perplexity",
     env: { ...DIRECT, AI_WEB_SEARCH_PROVIDER: "perplexity" },
     cases: [
+      // What Perplexity answered the Beta once its credits were spent (#1123).
+      searchCase("Perplexity: a 401 insufficient_quota", "perplexity", refusal(401, { error: { message: "You exceeded your current quota, add credits at https://console.perplexity.ai/project/billing.", type: "insufficient_quota", code: 401 } }), "quota_exhausted"),
       searchCase("Perplexity: a 402", "perplexity", refusal(402, { error: { message: "Insufficient credits" } }), "quota_exhausted"),
       searchCase("Perplexity: a 429", "perplexity", refusal(429, { error: { message: "Too many requests" } }), "rate_limited"),
     ],

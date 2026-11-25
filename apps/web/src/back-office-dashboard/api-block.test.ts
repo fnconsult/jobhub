@@ -42,7 +42,7 @@ describe("the Dashboard's « API » block (#1116)", () => {
         since: null,
         renewsAt: null,
         configHref: "/admin/parametres?tab=recherche-web&fournisseur=perplexity",
-        billingUrl: "https://www.perplexity.ai/account/api/billing",
+        billingUrl: "https://console.perplexity.ai/project/billing",
       },
     ]);
   });
@@ -85,10 +85,22 @@ describe("the Dashboard's « API » block (#1116)", () => {
 
     for (const role of BACK_OFFICE_ROLES) expect(configOf(role).map((row) => [row.toolId, row.state, row.billingUrl]), role).toEqual([
       ["mistral", "quota_exhausted", "https://console.mistral.ai/billing"],
-      ["perplexity", "ok", "https://www.perplexity.ai/account/api/billing"],
+      ["perplexity", "ok", "https://console.perplexity.ai/project/billing"],
     ]);
     expect(configOf("support")[0]!.configHref).toBe("/admin/parametres?tab=ia&fournisseur=mistral");
     // Neither Paramètres nor Outils: the billing page alone.
     expect(configOf("plans-manager")[0]!.configHref).toBeNull();
+  });
+
+  it("links each Tool's billing page as its settings set it, the catalog's when cleared (#1123)", () => {
+    const env = { MISTRAL_API_KEY: "key", PERPLEXITY_API_KEY: "key" };
+    const set = { PERPLEXITY_BILLING_URL: { value: "https://console.perplexity.ai/project/abc123/billing", updatedBy: "ops@jobbbox.ai", updatedAt: SINCE } };
+    const billingOf = (tools: ToolsState) => apiBlockRows(statesWith(), tools, superAdmin).map((row) => [row.toolId, row.billingUrl]);
+
+    expect(billingOf({ env, signInTypes: [], settings: snapshotOfSettings(env, set) })).toEqual([
+      ["mistral", "https://console.mistral.ai/billing"],
+      ["perplexity", "https://console.perplexity.ai/project/abc123/billing"],
+    ]);
+    expect(billingOf(MISTRAL_AND_PERPLEXITY)[1]).toEqual(["perplexity", "https://console.perplexity.ai/project/billing"]);
   });
 });

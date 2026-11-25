@@ -2,7 +2,8 @@
  * The Dashboard's « API » block (#1116, decisions #1111): every Administrator, whatever their roles, sees the Tool quota
  * state of each Tool with a quota that is configured, « OK » included. One row per such Tool, in the catalog's order: its
  * name, its state (« OK », « limite atteinte », « quota épuisé »), since when, when its provider said the quota renews,
- * and the « Quota atteint » banner's two links (#1115): where it is configured, its provider's billing page.
+ * and the « Quota atteint » banner's two links (#1115): where it is configured, its provider's billing page as Paramètres
+ * sets it (`billingUrlOf`, #1123).
  *
  *   apiBlockRows(await currentToolQuotaStates(), await currentState(), access)
  *
@@ -12,7 +13,7 @@
  */
 import type { Tool } from "@jobhub/shared";
 import type { BackOfficeAccess } from "../admin/access";
-import { quotaConfigHref } from "../quota-banner/index";
+import { billingUrlOf, quotaConfigHref } from "../quota-banner/index";
 import type { ToolQuotaState, ToolQuotaStatus } from "../tool-quotas/index";
 import { toolStatus, type ToolsState } from "../tools/index";
 
@@ -31,10 +32,11 @@ export interface ApiBlockRow {
   billingUrl: string;
 }
 
-/** The block's rows: one per Tool of `states` that `tools` says is configured, in their order. */
+/** The block's rows: one per Tool of `states` that `tools` says is configured, in their order, linked as its settings say. */
 export function apiBlockRows(states: readonly ToolQuotaState[], tools: ToolsState, reader: Pick<BackOfficeAccess, "can">): ApiBlockRow[] {
   return states.flatMap(({ tool, state, since, renewsAt }) => {
-    if (!tool.billingUrl || toolStatus(tool, tools).status !== "configured") return [];
-    return [{ toolId: tool.id, toolName: tool.name, state, since, renewsAt, configHref: quotaConfigHref(tool, reader), billingUrl: tool.billingUrl }];
+    const billingUrl = billingUrlOf(tool, tools.settings);
+    if (!billingUrl || toolStatus(tool, tools).status !== "configured") return [];
+    return [{ toolId: tool.id, toolName: tool.name, state, since, renewsAt, configHref: quotaConfigHref(tool, reader), billingUrl }];
   });
 }

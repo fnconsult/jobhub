@@ -213,6 +213,8 @@ describe("the worker's clients, on Provider Secrets (#208)", () => {
       const worker = workerClients({ resolver, production: false, jobOffers: {} as never, fetch: fakeProviders().fetch, externalApis: { record: (call) => void calls.push(call) } });
 
       await search(worker);
+      // A refusal is recorded once its body is read for its words (#1123), after the search got its answer.
+      await new Promise((resolve) => setTimeout(resolve, 0));
       await search(worker);
 
       const renewsAt = new Date("2099-01-01T00:00:00Z");

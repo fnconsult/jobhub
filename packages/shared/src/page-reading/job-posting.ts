@@ -5,7 +5,7 @@
  */
 import type { ContractType, JobOfferDetails, RemoteWork, SalaryRange } from "../domain";
 import { parseStatedDate } from "../posting-date";
-import { decodeEntities, htmlToText, jsonLdBlocks } from "./html";
+import { decodeEntities, htmlToText, jsonLdBlocks, mainHeading } from "./html";
 
 type Json = Record<string, unknown>;
 
@@ -164,6 +164,19 @@ export function readJobPosting(html: string): JobOfferDetails | null {
   const posted = parseStatedDate(text(posting.datePosted));
   if (posted) details.postedAt = posted;
   return details;
+}
+
+/**
+ * The job title the page states (#1128): its single `JobPosting`'s `title` (or `name`), even when that node lacks the
+ * description `readJobPosting` needs, else its posting's heading (`mainHeading`), never a heading of the site's banner.
+ * What the AI reading of the page is told to take as the title, and what replaces a title it read otherwise.
+ */
+export function statedJobTitle(html: string): { title: string; from: "job_posting" | "heading" } | undefined {
+  const nodes = jobPostingNodes(html);
+  const posted = nodes.length === 1 ? (text(nodes[0]!.title) ?? text(nodes[0]!.name)) : undefined;
+  if (posted) return { title: posted, from: "job_posting" };
+  const heading = mainHeading(html);
+  return heading ? { title: heading, from: "heading" } : undefined;
 }
 
 /** How many JobPosting nodes the page carries (more than one means a list of postings). */

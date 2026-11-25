@@ -130,7 +130,7 @@ function parse(json: string): unknown {
 }
 
 function isJobPosting(node: Json): boolean {
-  return asArray(node["@type"]).some((type) => typeof type === "string" && type.replace(/^.*[/:]/, "") === "JobPosting");
+  return asArray(node["@type"]).some((type) => typeof type === "string" && type.replace(/^.*[/:]/, "").toLowerCase() === "jobposting");
 }
 
 /** Every JobPosting in the page's JSON-LD, wherever it sits (a list, an @graph, nested). */

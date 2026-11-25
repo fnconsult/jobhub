@@ -5,8 +5,8 @@
  * of bot protection), and just enough HTML reading to get a posting's text and JobPosting data.
  * Not in the package's root export: the browser extension bundles that one.
  */
-export { decodeEntities, htmlToText, jsonLdBlocks, metaRobots } from "./html";
-export { countJobPostings, jobPostingValidThrough, listedPostingUrls, readJobPosting } from "./job-posting";
+export { decodeEntities, htmlToText, jsonLdBlocks, mainHeading, metaRobots } from "./html";
+export { countJobPostings, jobPostingValidThrough, listedPostingUrls, readJobPosting, statedJobTitle } from "./job-posting";
 export {
   createPoliteFetcher,
   pageReadTool,

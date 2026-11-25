@@ -92,7 +92,8 @@ export interface Tool {
   usage: ToolUsage | null;
   /**
    * For a Tool with a quota (`hasQuota`, #1114, #1115): its provider's page where the quota is paid for or renewed, which the
-   * Back Office's « Quota atteint » banner opens in a new tab. None for any other Tool.
+   * Back Office's « Quota atteint » banner opens in a new tab. None for any other Tool. The default of its Platform
+   * Setting (`billingUrlSettingName`, #1123), which its settings list and its sheet changes: the page differs by account.
    */
   billingUrl?: `https://${string}`;
   residency: ToolResidency;
@@ -304,10 +305,11 @@ const WEB_SEARCH_SETTINGS = (...own: string[]): readonly ToolSetting[] => [
   { name: "JOB_DISCOVERY_RESULTS_PER_QUERY" },
 ];
 const JOB_DISCOVERY_BUDGET: readonly ToolSetting[] = [{ name: "JOB_DISCOVERY_BUDGET_JOB_OFFERS" }, { name: "JOB_DISCOVERY_BUDGET_EUR" }, { name: "JOB_DISCOVERY_BUDGET_SECONDS" }];
-/** Only the chosen provider is called, and only once its data-processing agreement is signed (ADR-0015). */
+/** Only the chosen provider is called, and only once its data-processing agreement is signed (ADR-0015); then its billing page (#1123). */
 const ENRICHMENT_SETTINGS = (provider: string): readonly ToolSetting[] => [
   { name: "CONTACT_ENRICHMENT_PROVIDER", enabledWhen: [provider] },
   { name: "CONTACT_ENRICHMENT_DPA_SIGNED", enabledWhen: ["true"] },
+  { name: `${provider.toUpperCase()}_BILLING_URL` },
 ];
 /** MAIL_TRANSPORT=console writes the emails to the server's log: Brevo is not called. */
 const MAIL_SETTINGS: readonly ToolSetting[] = [{ name: "MAIL_FROM" }, { name: "MAIL_TRANSPORT", disabledWhen: ["console"] }];
@@ -388,7 +390,7 @@ export const TOOLS = [
     module: ANTHROPIC_MODULE,
     runsIn: "both",
     keys: ["ANTHROPIC_API_KEY"],
-    settings: [{ name: "ANTHROPIC_ENDPOINT" }],
+    settings: [{ name: "ANTHROPIC_ENDPOINT" }, { name: "ANTHROPIC_BILLING_URL" }],
     usage: { table: "ai_usage", provider: "anthropic", endpoint: "api.anthropic.com", external: "anthropic" },
     billingUrl: "https://console.anthropic.com/settings/billing",
     residency: "outside_eu",
@@ -419,7 +421,7 @@ export const TOOLS = [
     module: ANTHROPIC_MODULE,
     runsIn: "both",
     keys: ["AWS_BEARER_TOKEN_BEDROCK"],
-    settings: [{ name: "ANTHROPIC_ENDPOINT" }, { name: "BEDROCK_REGION" }],
+    settings: [{ name: "ANTHROPIC_ENDPOINT" }, { name: "BEDROCK_REGION" }, { name: "ANTHROPIC_BEDROCK_BILLING_URL" }],
     usage: { table: "ai_usage", provider: "anthropic", endpoint: "bedrock ", external: "anthropic_bedrock" },
     billingUrl: "https://console.aws.amazon.com/billing/home",
     residency: "eu",
@@ -448,7 +450,7 @@ export const TOOLS = [
     module: ANTHROPIC_MODULE,
     runsIn: "both",
     keys: [],
-    settings: [{ name: "ANTHROPIC_ENDPOINT", enabledWhen: ["vertex"] }, { name: "VERTEX_REGION" }, { name: "VERTEX_PROJECT_ID", required: true }],
+    settings: [{ name: "ANTHROPIC_ENDPOINT", enabledWhen: ["vertex"] }, { name: "VERTEX_REGION" }, { name: "VERTEX_PROJECT_ID", required: true }, { name: "ANTHROPIC_VERTEX_BILLING_URL" }],
     usage: { table: "ai_usage", provider: "anthropic", endpoint: "vertex " },
     billingUrl: "https://console.cloud.google.com/billing",
     residency: "eu",
@@ -477,7 +479,7 @@ export const TOOLS = [
     module: CHAT_COMPLETIONS_MODULE,
     runsIn: "both",
     keys: ["MISTRAL_API_KEY"],
-    settings: [{ name: "AI_IDENTITY_MODEL" }],
+    settings: [{ name: "AI_IDENTITY_MODEL" }, { name: "MISTRAL_BILLING_URL" }],
     usage: { table: "ai_usage", provider: "mistral", external: "mistral" },
     billingUrl: "https://console.mistral.ai/billing",
     residency: "eu",
@@ -509,7 +511,7 @@ export const TOOLS = [
     module: CHAT_COMPLETIONS_MODULE,
     runsIn: "both",
     keys: ["OPENAI_API_KEY"],
-    settings: [{ name: "OPENAI_DATA_RESIDENCY" }],
+    settings: [{ name: "OPENAI_DATA_RESIDENCY" }, { name: "OPENAI_BILLING_URL" }],
     usage: { table: "ai_usage", provider: "openai" },
     billingUrl: "https://platform.openai.com/settings/organization/billing/overview",
     residency: "outside_eu",
@@ -538,9 +540,10 @@ export const TOOLS = [
     module: "packages/ai/src/providers/perplexity.ts",
     runsIn: "both",
     keys: ["PERPLEXITY_API_KEY"],
-    settings: WEB_SEARCH_SETTINGS("PERPLEXITY_SEARCH_TYPE", "PERPLEXITY_QUERIES_PER_CALL", "AI_WEB_SEARCH_MODEL", "PERPLEXITY_FAST_SEARCH_PRICE_USD", "PERPLEXITY_SEARCH_PRICE_USD"),
+    settings: WEB_SEARCH_SETTINGS("PERPLEXITY_SEARCH_TYPE", "PERPLEXITY_QUERIES_PER_CALL", "AI_WEB_SEARCH_MODEL", "PERPLEXITY_FAST_SEARCH_PRICE_USD", "PERPLEXITY_SEARCH_PRICE_USD", "PERPLEXITY_BILLING_URL"),
     usage: { table: "ai_usage", provider: "perplexity", external: "perplexity" },
-    billingUrl: "https://www.perplexity.ai/account/api/billing",
+    // The page Perplexity itself links to when it refuses a call for its credits spent (#1123).
+    billingUrl: "https://console.perplexity.ai/project/billing",
     residency: "outside_eu",
     receivesPersonalData: true,
     recipient: {
@@ -563,7 +566,7 @@ export const TOOLS = [
     module: "packages/ai/src/providers/brave.ts",
     runsIn: "both",
     keys: ["BRAVE_SEARCH_API_KEY"],
-    settings: WEB_SEARCH_SETTINGS("BRAVE_MAX_PAGES", "BRAVE_SEARCH_PRICE_USD"),
+    settings: WEB_SEARCH_SETTINGS("BRAVE_MAX_PAGES", "BRAVE_SEARCH_PRICE_USD", "BRAVE_BILLING_URL"),
     usage: { table: "ai_usage", provider: "brave", external: "brave" },
     billingUrl: "https://api-dashboard.search.brave.com/app/subscriptions",
     residency: "outside_eu",
@@ -585,7 +588,7 @@ export const TOOLS = [
     module: "packages/ai/src/providers/tavily.ts",
     runsIn: "both",
     keys: ["TAVILY_API_KEY"],
-    settings: WEB_SEARCH_SETTINGS("TAVILY_SEARCH_DEPTH", "AI_WEB_SEARCH_MODEL", "TAVILY_CREDIT_PRICE_USD"),
+    settings: WEB_SEARCH_SETTINGS("TAVILY_SEARCH_DEPTH", "AI_WEB_SEARCH_MODEL", "TAVILY_CREDIT_PRICE_USD", "TAVILY_BILLING_URL"),
     usage: { table: "ai_usage", provider: "tavily", external: "tavily" },
     billingUrl: "https://app.tavily.com/billing",
     residency: "outside_eu",
@@ -647,6 +650,7 @@ export const TOOLS = [
     module: "apps/worker/src/job-discovery/fantastic-jobs/api.ts",
     runsIn: "worker",
     keys: ["FANTASTIC_JOBS_API_KEY"],
+    settings: [{ name: "FANTASTIC_JOBS_BILLING_URL" }],
     usage: { table: "external_api_usage", provider: "fantastic_jobs" },
     billingUrl: "https://fantastic.jobs/api",
     // A Dutch company, but where it processes the queries was not found (#522): not established.
@@ -1119,6 +1123,17 @@ export type ToolId = (typeof TOOLS)[number]["id"];
 type Usages = (typeof TOOLS)[number]["usage"];
 
 /** The providers recorded in `external_api_usage`: what `recordingFetch` and `recordingClient` may be given. */
+/**
+ * The Platform Setting holding a Tool's billing page (#1123), named after its id: PERPLEXITY_BILLING_URL,
+ * FANTASTIC_JOBS_BILLING_URL. Every Tool with a `billingUrl` has one, its default, among its settings.
+ */
+export const billingUrlSettingName = (tool: Pick<Tool, "id">): string => `${tool.id.toUpperCase().replace(/-/g, "_")}_BILLING_URL`;
+
+/** The billing pages' Platform Settings (#1123), in the catalog's order: each Tool with a quota's, its `billingUrl` as default. */
+export const BILLING_URL_SETTINGS: readonly { name: string; tool: string; default: string }[] = (TOOLS as readonly Tool[]).flatMap((tool) =>
+  tool.billingUrl ? [{ name: billingUrlSettingName(tool), tool: tool.id, default: tool.billingUrl }] : [],
+);
+
 export type ExternalApiProvider = Extract<Usages, { table: "external_api_usage" }>["provider"] | Extract<Usages, { external: string }>["external"];
 
 /** The `external_api_usage.provider` ids `tool`'s calls are recorded under: none for an AI Tool without a connection test. */

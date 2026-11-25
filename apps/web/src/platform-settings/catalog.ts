@@ -14,7 +14,7 @@
 import { AI_ROUTING_SETTINGS, PRICE_SETTINGS } from "@jobhub/ai";
 // The light module, not the package's index: the proxy reads this catalog, and must not bundle every Help Article.
 import { MOTION_MEDIA_ORIGIN } from "@jobhub/help/motion-scripts";
-import { MAX_POSTING_AGE_DAYS } from "@jobhub/shared";
+import { BILLING_URL_SETTINGS, MAX_POSTING_AGE_DAYS } from "@jobhub/shared";
 import { DEVELOPMENT_MAIL_FROM, isSender } from "../auth/sender";
 import { CONTACT_PROVIDERS, NO_PROVIDER } from "../enriched-contacts/providers/types";
 import { SEARCH_TIMEOUT_MS } from "../job-searches";
@@ -23,7 +23,7 @@ import { SEARCH_TIMEOUT_MS } from "../job-searches";
 export const QUERY_LANGUAGE_CHOICES = ["fr+en", "fr", "en"] as const;
 
 /** The groups Paramètres shows the Platform Settings in, in order. */
-export const PLATFORM_SETTING_GROUPS = ["ai_routing", "coach", "web_search", "prices", "email", "email_intake", "job_digest", "job_discovery", "enriched_contacts", "extension", "public_site", "help_centre", "coach_space", "maintenance"] as const;
+export const PLATFORM_SETTING_GROUPS = ["ai_routing", "coach", "web_search", "prices", "billing_urls", "email", "email_intake", "job_digest", "job_discovery", "enriched_contacts", "extension", "public_site", "help_centre", "coach_space", "maintenance"] as const;
 export type PlatformSettingGroup = (typeof PLATFORM_SETTING_GROUPS)[number];
 
 /** What values a setting takes: the same rule the code applies to env's value. */
@@ -88,6 +88,9 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
   // The price of each Tool's billed unit and the EUR/USD rate (#403, ADR-0042): list prices in code, overridden on the
   // Tool's sheet. AI Usage records each call at the prices in use, and a Job discovery run's budget spends that cost.
   ...PRICE_SETTINGS.map((price): PlatformSetting => ({ name: price.name, group: "prices", type: price.unit === "rate" ? decimal(0.01, 100) : decimal(0, 100), default: price.default })),
+  // Each Tool with a quota's billing page (#1123), which the « Quota atteint » banner, the « API » block and the daily
+  // email link to: the catalog's by default, changed on the Tool's sheet since it differs by account and project.
+  ...BILLING_URL_SETTINGS.map((billing): PlatformSetting => ({ name: billing.name, group: "billing_urls", type: { kind: "url" }, default: billing.default })),
   { name: "MAIL_FROM", group: "email", type: { kind: "sender" }, default: DEVELOPMENT_MAIL_FROM },
   // Livraison's daily email (worker, 18:00 Paris): comma-separated addresses; empty, none is sent. Set on one environment only.
   { name: "DELIVERY_STATUS_EMAIL_TO", group: "email", type: { kind: "text" }, default: "" },
@@ -153,7 +156,8 @@ export const platformSetting = (name: string): PlatformSetting | undefined => BY
 
 /**
  * The groups super-admins edit on Paramètres so far: the worker's Job Digest and Job discovery (#299),
- * AI routing (#301), the email sender (#300), Enriched Contacts (#302), the extension's store page (#303), the help videos' origin (#568), maintenance (#542)
+ * AI routing (#301), the email sender (#300), Enriched Contacts (#302), the extension's store page (#303), the help videos' origin (#568), maintenance (#542),
+ * the billing pages of the Tools with a quota (#1123)
  * (« Conversation au centre », #601, was one until it became the only layout, #608).
  * The others are shown read-only until their slice of ADR-0033 ships.
  */
@@ -162,6 +166,7 @@ const EDITABLE_GROUPS: readonly PlatformSettingGroup[] = [
   "coach",
   "web_search",
   "prices",
+  "billing_urls",
   "email",
   "email_intake",
   "job_digest",

@@ -295,6 +295,8 @@ const jobs = createJobs({
   toolQuotaAlert: createToolQuotaAlert({
     store: postgresToolQuotaAlertStore(database),
     states: (now) => toolQuotaStates(database, now),
+    // Each Tool's billing page as Paramètres sets it (#1123).
+    settings: () => platformSettings.resolver.current(),
     administrators: () => administratorRecipients(database, permanentSuperAdminsFromEnv(process.env)),
     mailer,
     appUrl: baseURL,

@@ -48,6 +48,9 @@ const WEB_SEARCH = [
 /** The prices of the Tools' billed units and the EUR/USD rate (#403), overridden on each Tool's sheet. */
 const PRICES = ["PERPLEXITY_FAST_SEARCH_PRICE_USD", "PERPLEXITY_SEARCH_PRICE_USD", "BRAVE_SEARCH_PRICE_USD", "TAVILY_CREDIT_PRICE_USD", "EUR_PER_USD"];
 
+/** The billing page of each Tool with a quota (#1123), changed on its sheet: what the « Quota atteint » links open. */
+const BILLING_URLS = ["ANTHROPIC", "ANTHROPIC_BEDROCK", "ANTHROPIC_VERTEX", "MISTRAL", "OPENAI", "PERPLEXITY", "BRAVE", "TAVILY", "FANTASTIC_JOBS", "LUSHA", "KASPR", "APOLLO"].map((tool) => `${tool}_BILLING_URL`);
+
 /** Email intake's: the domain of the Candidates' Forwarding addresses (#441), its daily cap, « filtre trop large » threshold and Brevo's IP ranges (#442), and the Applications' Exchanges switch (#1099). */
 const EMAIL_INTAKE = ["EMAIL_INTAKE_DOMAIN", "EMAIL_INTAKE_DAILY_CAP", "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD", "EMAIL_INTAKE_MTA_IP_RANGES", "APPLICATION_EXCHANGES_ENABLED"];
 
@@ -74,7 +77,7 @@ describe("the Platform Settings catalog", () => {
 
   it("holds every Platform Setting of ADR-0033, the web search's bounded settings and the prices, once each", () => {
     const names = PLATFORM_SETTINGS.map((setting) => setting.name);
-    expect([...names].sort()).toEqual([...ADR_0033, ...WEB_SEARCH, ...PRICES, ...EMAIL_INTAKE, ...MAINTENANCE, ...DELIVERY, ...COACH, ...HELP_CENTRE, ...COACH_SPACE].sort());
+    expect([...names].sort()).toEqual([...ADR_0033, ...WEB_SEARCH, ...PRICES, ...BILLING_URLS, ...EMAIL_INTAKE, ...MAINTENANCE, ...DELIVERY, ...COACH, ...HELP_CENTRE, ...COACH_SPACE].sort());
     expect(new Set(names).size).toBe(names.length);
   });
 
@@ -220,6 +223,21 @@ describe("the Platform Settings catalog", () => {
     expect(parseSetting(store, "chromewebstore.google.com/detail/jobbbox")).toMatchObject({ ok: false });
     expect(parseSetting(store, "javascript:alert(1)")).toMatchObject({ ok: false });
     expect(parseSetting(store, "https://")).toMatchObject({ ok: false });
+  });
+
+  it("takes each Tool's billing page as an https URL only, the catalog's page by default, editable on Paramètres (#1123)", () => {
+    for (const name of BILLING_URLS) {
+      const billing = platformSetting(name)!;
+      expect(billing, name).toMatchObject({ group: "billing_urls", type: { kind: "url" } });
+      expect(isEditable(billing), name).toBe(true);
+      expect(parseSetting(billing, billing.default), name).toEqual({ ok: true, value: billing.default });
+    }
+    const perplexity = platformSetting("PERPLEXITY_BILLING_URL")!;
+    expect(perplexity.default).toBe("https://console.perplexity.ai/project/billing");
+    expect(parseSetting(perplexity, " https://console.perplexity.ai/project/abc123/billing ")).toEqual({ ok: true, value: "https://console.perplexity.ai/project/abc123/billing" });
+    for (const refused of ["http://console.perplexity.ai/project/billing", "console.perplexity.ai/project/billing", "javascript:alert(1)", "ftp://console.perplexity.ai", "https://", ""]) {
+      expect(parseSetting(perplexity, refused), refused).toMatchObject({ ok: false });
+    }
   });
 
   it("takes as the help videos' origin an https origin, or http on this machine, kept without its slash (#568)", () => {

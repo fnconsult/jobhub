@@ -14,7 +14,7 @@
  * them out.
  */
 import { PRICE_SETTINGS, SEARCH_TASK, taskRouteFromEnv, TEXT_TASKS } from "@jobhub/ai";
-import { TOOLS, type Tool, type ToolCategory, toolKeys } from "@jobhub/shared";
+import { billingUrlSettingName, TOOLS, type Tool, type ToolCategory, toolKeys } from "@jobhub/shared";
 import { isProviderSecretName } from "../provider-secrets/catalog";
 import type { ProviderSecretStatus } from "../provider-secrets/index";
 import { routes } from "../routes";
@@ -119,6 +119,9 @@ export function providerSheetHref(tool: Tool): string | undefined {
 /** The prices of `tool`'s billed units (#403), on its sheet; none for a Tool billed otherwise. */
 export const pricesOfTool = (tool: Tool): readonly string[] => PRICE_SETTINGS.filter((price) => price.provider === tool.id).map((price) => price.name);
 
+/** The billing page of `tool` (#1123), on its sheet: the Platform Setting of a Tool with a quota, none for another Tool. */
+export const billingOfTool = (tool: Tool): readonly string[] => (tool.billingUrl ? [billingUrlSettingName(tool)] : []);
+
 /**
  * The settings changed on `tool`'s sheet rather than on its tab: Email intake's (#448), on the sheet of its Tool (the
  * MTA), beside its key and its Recognised senders; Cal.com booking controls beside its own secrets.
@@ -128,9 +131,9 @@ export const sheetSettingsOf = (tool: Tool): readonly string[] => (tool.id === E
 /** Email intake's Tool (#442, #448, #580): its own MTA, whose sheet is the Email intake sheet. */
 export const EMAIL_INTAKE_TOOL = "email-intake";
 
-/** A setting's row on the tab that shows it: a Tool's price or own setting on its sheet, Environnement for one only env holds. */
+/** A setting's row on the tab that shows it: a Tool's price, billing page or own setting on its sheet, Environnement for one only env holds. */
 export function settingHref(name: string): string {
-  const sheetTool = (TOOLS as readonly Tool[]).find((tool) => pricesOfTool(tool).includes(name) || sheetSettingsOf(tool).includes(name));
+  const sheetTool = (TOOLS as readonly Tool[]).find((tool) => pricesOfTool(tool).includes(name) || billingOfTool(tool).includes(name) || sheetSettingsOf(tool).includes(name));
   const sheet = sheetTool ? tabOfTool(sheetTool) : undefined;
   if (sheetTool && sheet) return parametresHref(sheet.id, { fournisseur: sheetTool.id }, `setting-${name}`);
   const tab = PARAMETRES_TABS.find((candidate) => candidate.settings.includes(name) && !(name in ENV_ONLY_SETTINGS))?.id ?? "environment";

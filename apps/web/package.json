@@ -47,6 +47,8 @@
     "./administrators": "./src/admin/worker.ts",
     "./ai-usage": "./src/ai-usage/index.ts",
     "./web-search-alert": "./src/web-search-alert/index.ts",
+    "./tool-quota-alert": "./src/tool-quota-alert/index.ts",
+    "./tool-quotas": "./src/tool-quotas/index.ts",
     "./guardrails": "./src/guardrails/store.ts",
     "./guardrails/checks": "./src/guardrails/worker.ts",
     "./task-playbooks": "./src/task-playbooks/worker.ts",

@@ -364,7 +364,8 @@ test.describe("the AI Coach in an Application's Entretiens, Dossier, Contacts an
     const revealed = toolResult(revealedReply, "read_enriched_contacts");
     expect(revealed).toMatch(/contact \(id [^)]+\) Claire Martin, DRH : révélé/);
     expect(revealedReply).not.toContain("claire.martin@acme-industrie.example");
-    expect(revealedReply).not.toMatch(/@acme-industrie|\+33|0[1-9]( ?\d\d){4}/);
+    // A phone number stands apart: never digits inside an id (« …-3f0661206521 », a random UUID, is not one).
+    expect(revealedReply).not.toMatch(/@acme-industrie|\+33|(?<![\w-])0[1-9]( ?\d\d){4}(?![\w-])/);
     // Her details exist for the Candidate on the page, so the absence above is the model's, not the data's.
     const state = await (await candidate.page.request.get(`/api/applications/${applicationId}/enriched-contacts`)).json();
     expect(JSON.stringify(state)).toContain("claire.martin@acme-industrie.example");

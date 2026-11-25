@@ -101,6 +101,11 @@ export interface CoachActionCall {
    * looked for. Never the AI Coach's nor a Job Offer's. None: no fact is declared.
    */
   said?: readonly string[];
+  /**
+   * The AI Coach's messages the Candidate approved as a whole in their next one (« for the rest it is all good », #1133):
+   * an item one names counts as stated by the Candidate. Never a message they did not answer so.
+   */
+  approved?: readonly string[];
 }
 
 /** A field of the page's form, as « Modifier avant d'appliquer » shows it pre-filled in the Work Pane (#715). */
@@ -350,6 +355,8 @@ export interface CoachActionsReplyOptions {
   focus?: CoachFocus;
   /** The Candidate's own messages in the conversation, given to each call (ADR-0113): where a Declared Fact is checked. */
   said?: readonly string[];
+  /** The AI Coach's messages the Candidate approved as a whole (#1133), given to each call. */
+  approved?: readonly string[];
 }
 
 /** The Coach Actions of one reply, for the AI layer's tool calling. */
@@ -581,6 +588,7 @@ export function createCoachActions(deps: CoachActionsDeps): CoachActions {
               maxTokens,
               ...(options.focus ? { inView: options.focus } : {}),
               ...(options.said ? { said: options.said } : {}),
+              ...(options.approved?.length ? { approved: options.approved } : {}),
               ...(context.signal ? { signal: context.signal } : {}),
             }),
             seenOf,

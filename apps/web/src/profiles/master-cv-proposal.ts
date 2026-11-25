@@ -105,25 +105,81 @@ const inventedFigure = (text: string, master: string) => {
 
 /**
  * How edits are read: `declared`, the Candidate's own messages in the Coach Conversation (a value found in one, as whole
- * words, is a Declared Fact; `true`: checked already, when the card was made); `reference`, the Master CV of the
- * Tailored CV being edited, whose items and figures count as said.
+ * words, is a Declared Fact; `true`: checked already, when the card was made); `approved`, the AI Coach's messages the
+ * Candidate approved as a whole in their next one (« for the rest it is all good », `approvesTheRest`): an item it named
+ * there counts as stated of it (#1133); `reference`, the Master CV of the Tailored CV being edited, whose items and
+ * figures count as said.
  */
 export interface CvEditOptions {
   declared?: readonly string[] | true;
+  approved?: readonly string[];
   reference?: MasterCvContent;
 }
 
+/** The words of a text, normalised (no case, accents nor punctuation). */
+const wordList = (text: string) => normalise(text).split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+
+/** The edits that make `a` into `b` (Levenshtein), up to `most`; `most + 1` once past it. */
+function distance(a: string, b: string, most: number): number {
+  if (Math.abs(a.length - b.length) > most) return most + 1;
+  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j += 1) current[j] = Math.min(previous[j]! + 1, current[j - 1]! + 1, previous[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1));
+    previous = current;
+  }
+  return previous[b.length]!;
+}
+
 /**
- * Whether `value` is a Declared Fact: found, as whole words, in one of the Candidate's messages. `of`: the item it qualifies
- * (a language's level, a diploma's institution or year), named in that same message, never a value said of another one.
+ * Whether two words are one, a typo apart (#1133): « Recreuitement » for « Recruitment ». A short word must be exact (« SQL »
+ * is no « SAP »), a word of 5 letters or more may have one typo, of 9 or more two. A figure is always exact.
+ */
+function sameWord(a: string, b: string): boolean {
+  if (a === b) return true;
+  if (/\p{N}/u.test(a) || /\p{N}/u.test(b)) return false;
+  const length = Math.min(a.length, b.length);
+  const most = length >= 9 ? 2 : length >= 5 ? 1 : 0;
+  return most > 0 && distance(a, b, most) <= most;
+}
+
+/** Whether `text` names `value`: its words, in their order, one after the other, each the same or a typo apart. */
+export function names(text: string, value: string): boolean {
+  const wanted = wordList(value);
+  if (wanted.length === 0) return false;
+  if (normalise(text).includes(normalise(value))) return true;
+  const words = wordList(text);
+  for (let start = 0; start + wanted.length <= words.length; start += 1) {
+    if (wanted.every((word, index) => sameWord(words[start + index]!, word))) return true;
+  }
+  return false;
+}
+
+/**
+ * Whether a message of the Candidate approves, as a whole, what the AI Coach just listed: « for the rest it is all good »,
+ * « the others are fine », « pour le reste c'est bon ». Only « the rest » or « the others » said good: never a bare « ok »,
+ * which may answer anything (#1133).
+ */
+export function approvesTheRest(message: string): boolean {
+  const said = ` ${normalise(message)} `;
+  const rest = /\s(the rest|the others?|all the others?|everything else|rest of (?:them|it)|le reste|les autres|tout le reste|toutes les autres|tous les autres)\s/u;
+  const good = /\s(good|fine|ok|okay|correct|right|true|accurate|valid|yes|bon|bons|bonnes?|bien|correctes?|corrects?|justes?|vrais?|vraies?|valides?|oui)\s/u;
+  return rest.test(said) && good.test(said);
+}
+
+/**
+ * Whether `value` is a Declared Fact: named in one of the Candidate's messages, a typo apart at most (`names`). `of`: the
+ * item it qualifies (a language's level, a diploma's institution or year), named in that same message, never a value said
+ * of another one.
  */
 export function isDeclared(value: string, declared: CvEditOptions["declared"], of?: string): boolean {
   if (declared === true) return true;
-  const wanted = normalise(value);
-  if (!wanted.trim() || !declared) return false;
-  const named = of === undefined ? null : normalise(of);
-  return declared.some((message) => normalise(message).includes(wanted) && (named === null || normalise(message).includes(named)));
+  if (!normalise(value).trim() || !declared) return false;
+  return declared.some((message) => names(message, value) && (of === undefined || names(message, of)));
 }
+
+/** Whether the Candidate approved, as a whole, an AI Coach's message that named `item` (#1133). */
+const approvedItem = (item: string, approved: CvEditOptions["approved"]) => (approved ?? []).some((message) => names(message, item));
 
 /**
  * The items a CV edit may bring without a Declared Fact (ADR-0113): those of the CV and of its reference, each section on
@@ -165,7 +221,7 @@ function rephrasesSkill(skill: string, text: string): boolean {
 function proposedOf(
   master: MasterCvContent,
   edits: readonly MasterCvEdit[],
-  { declared, reference }: CvEditOptions = {},
+  { declared, approved, reference }: CvEditOptions = {},
 ): { content: MasterCvContent; origins: CvOrigins & { experience: number[] }; facts: string[] } | MasterCvReviewRefusal {
   const said = `${masterText(master)}${reference ? masterText(reference) : ""}`;
   const language = masterLanguage(master);
@@ -242,9 +298,14 @@ function proposedOf(
       if (!edit.text?.trim()) return invalid;
       const text = edit.text.trim();
       if (!rephrasesSkill(master.skills[origin]!, text)) {
-        // Another skill: only one the CV (or its reference) has, or one the Candidate declared (ADR-0113).
-        if (LIST_SEPARATOR.test(text) || !(known.skill(text) || isDeclared(text, declared))) return { ok: false, error: "added_item", text };
-        if (!known.skill(text)) facts.push(text);
+        // Another skill: only one the CV (or its reference) has, or one the Candidate declared (ADR-0113): named in their
+        // own words, or, translated (« Software engineering » for « Ingénierie logicielle »), approved as a whole once the
+        // AI Coach listed it (« for the rest it is all good », #1133). Either way, reviewed on its own, marked declared.
+        const stated = known.skill(text);
+        if (LIST_SEPARATOR.test(text) || !(stated || isDeclared(text, declared) || (declared !== true && approvedItem(master.skills[origin]!, approved)))) {
+          return { ok: false, error: "added_item", text };
+        }
+        if (!stated) facts.push(text);
       }
       content.skills[place] = text;
     } else if (section === "languages" && edit.level?.trim()) {

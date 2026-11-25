@@ -467,7 +467,10 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
         warn: () => {},
       });
       const started = clock();
-      const replied = await coach.reply("eval", { messages: [{ from: "candidate", text: each.message }], ...(each.inView ? { focus: { kind: each.inView.kind, id: "eval" } } : {}) });
+      const replied = await coach.reply("eval", {
+        messages: [...(each.earlier ?? []).map((message) => ({ from: message.from, text: message.text })), { from: "candidate" as const, text: each.message }],
+        ...(each.inView ? { focus: { kind: each.inView.kind, id: "eval" } } : {}),
+      });
       const responseMs = Math.round(clock() - started);
       const playedCase = { id: each.id, title: each.title, context: each.context, message: each.message, inView: each.inView, criteria: each.criteria, ...(each.consults ? { consults: each.consults } : {}) };
       if (!replied.ok) return { case: playedCase, reply: null, consulted: [], score: null, reason: "", costEur: 0, responseMs };
@@ -518,7 +521,15 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
           task: "eval",
           candidateId: null,
           system: JUDGE,
-          prompt: [framed("situation", fictionalContext(each, 2_000)), ...read, framed("message", each.message), framed("reponse", replied.reply), framed("criteres", each.criteria)].join("\n\n"),
+          prompt: [
+            framed("situation", fictionalContext(each, 2_000)),
+            ...read,
+            // The exchange before the message (#1133): the judge reads the reply as an answer to it.
+            ...(each.earlier?.length ? [framed("echange", each.earlier.map((message) => `${message.from === "candidate" ? "Candidat" : "Coach"} : ${message.text}`).join("\n"))] : []),
+            framed("message", each.message),
+            framed("reponse", replied.reply),
+            framed("criteres", each.criteria),
+          ].join("\n\n"),
           maxTokens: 300,
         })
         .catch(() => null);

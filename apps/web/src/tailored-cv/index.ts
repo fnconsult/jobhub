@@ -314,23 +314,49 @@ function invents(rephrased: string, masterText: string, keywords: string[]): boo
  * another, only figures are checked, and every rephrased item is shown against
  * the Master CV's for the Candidate's review.
  */
-function fromMasterCv(master: CvContent, reply: AiReply, keywords: string[], language: DocumentLanguage): { content: CvContent; origins: CvOrigins } {
+function fromMasterCv(master: CvContent, reply: AiReply, keywords: string[], language: DocumentLanguage): { content: CvContent; origins: CvOrigins; untranslated: string[] } {
   const masterText = cvText(master);
-  const checked = language === cvLanguage(master) ? keywords : [];
+  const translating = language !== cvLanguage(master);
+  const checked = translating ? [] : keywords;
   const rephrased = (proposed: string | undefined, original: string) => (proposed?.trim() && !invents(proposed, masterText, checked) ? proposed.trim() : original);
-  /** The Master CV's `items` the AI Coach kept, in its order, adapted; each found by its id (`prefix` and index), else by `matches`. */
-  const adapt = <T, W extends { id?: string }>(items: T[], prefix: string, wanted: W[] | undefined, matches: (item: T, wanted: W) => boolean, adapted: (item: T, wanted: W) => T) => {
-    if (!wanted) return { kept: items, origins: items.map((_, index) => index) };
+  /**
+   * The Master CV's texts kept as it writes them although the CV is asked in another language (#1133): a section the AI
+   * Coach left out or wrote in another shape, taken as it is, or items it named by no id the Master CV has, left out.
+   * Too short to tell their language (« Gestion d'équipe », « Recrutement »), `textsNotIn` would not find them.
+   */
+  const untranslated: string[] = [];
+  /**
+   * The Master CV's `items` the AI Coach kept, in its order, adapted; each found by its id (`prefix` and index), else by
+   * `matches`. `texts`: what of an item is written, for `untranslated`.
+   */
+  const adapt = <T, W extends { id?: string }>(
+    items: T[],
+    prefix: string,
+    wanted: W[] | undefined,
+    matches: (item: T, wanted: W) => boolean,
+    adapted: (item: T, wanted: W) => T,
+    texts: (item: T) => string[],
+  ) => {
+    if (!wanted) {
+      if (translating) untranslated.push(...items.flatMap(texts));
+      return { kept: items, origins: items.map((_, index) => index) };
+    }
     const origins: number[] = [];
     const kept: T[] = [];
+    let unknown = 0;
     for (const option of wanted) {
       const byId = new RegExp(`^${prefix}(\\d+)$`).exec(option.id?.trim() ?? "");
       let index = byId ? Number(byId[1]) : items.findIndex((item, position) => !origins.includes(position) && matches(item, option));
       if (index >= items.length || origins.includes(index)) index = -1;
-      if (index < 0) continue;
+      if (index < 0) {
+        unknown += 1;
+        continue;
+      }
       origins.push(index);
       kept.push(adapted(items[index]!, option));
     }
+    // Translated without its id, an item is found nowhere: the Master CV's it translates is asked for again, not cut unseen.
+    if (translating && unknown > 0) untranslated.push(...items.filter((_, index) => !origins.includes(index)).flatMap(texts));
     return { kept, origins };
   };
   // A job is found by its id, else by its employer and the years of its period, which a translation keeps.
@@ -346,6 +372,7 @@ function fromMasterCv(master: CvContent, reply: AiReply, keywords: string[], lan
       ...(wanted.location !== undefined ? { location: rephrased(wanted.location, job.location) } : {}),
       description: rephrased(wanted.description, job.description),
     }),
+    (job) => [job.title],
   );
   const education = adapt(
     master.education,
@@ -353,14 +380,23 @@ function fromMasterCv(master: CvContent, reply: AiReply, keywords: string[], lan
     reply.education,
     (item, wanted) => same(item.degree, wanted.degree) && same(item.institution, wanted.institution),
     (item, wanted) => ({ ...item, degree: rephrased(wanted.degree, item.degree), institution: rephrased(wanted.institution, item.institution) }),
+    (item) => [item.degree],
   );
-  const skills = adapt(master.skills, ID_PREFIX.skills, reply.skills, (skill, wanted) => same(skill, wanted.text), (skill, wanted) => rephrased(wanted.text, skill));
+  const skills = adapt(
+    master.skills,
+    ID_PREFIX.skills,
+    reply.skills,
+    (skill, wanted) => same(skill, wanted.text),
+    (skill, wanted) => rephrased(wanted.text, skill),
+    (skill) => [skill],
+  );
   const languages = adapt(
     master.languages,
     ID_PREFIX.languages,
     reply.languages,
     (item, wanted) => same(item.name, wanted.name),
     (item, wanted) => ({ ...item, name: rephrased(wanted.name, item.name), level: rephrased(wanted.level, item.level) }),
+    (item) => [item.name, item.level].filter(Boolean),
   );
   return {
     content: {
@@ -373,6 +409,7 @@ function fromMasterCv(master: CvContent, reply: AiReply, keywords: string[], lan
       languages: languages.kept,
     },
     origins: { experience: experience.origins, education: education.origins, skills: skills.origins, languages: languages.origins },
+    untranslated,
   };
 }
 
@@ -388,8 +425,10 @@ const LANGUAGE: Record<DocumentLanguage, string> = {
 
 /** Told when a proposal is left partly in another language than the Document Language: the passages to write again. */
 const NOT_IN: Record<DocumentLanguage, (passages: string[]) => string> = {
-  fr: (passages) => `Ta proposition précédente n'était pas entièrement en français. Propose de nouveau tout le CV en français, en traduisant aussi ces passages, sans rien changer aux faits ni aux chiffres :\n${passages.map((passage) => `« ${passage} »`).join("\n")}`,
-  en: (passages) => `Your previous proposal was not wholly in English. Propose the whole CV again in English, translating these passages too, changing no fact and no figure:\n${passages.map((passage) => `"${passage}"`).join("\n")}`,
+  fr: (passages) =>
+    `Ta proposition précédente n'était pas entièrement en français. Propose de nouveau tout le CV en français, en traduisant aussi ces passages, sans rien changer aux faits ni aux chiffres, chaque poste, diplôme, langue et compétence avec son "id" :\n${passages.map((passage) => `« ${passage} »`).join("\n")}`,
+  en: (passages) =>
+    `Your previous proposal was not wholly in English. Propose the whole CV again in English, translating these passages too, changing no fact and no figure, each job, degree, language and skill with its "id":\n${passages.map((passage) => `"${passage}"`).join("\n")}`,
 };
 
 /** The reply's shape (`replyIn`), in each Document Language, after the task Playbook's instructions. */
@@ -575,16 +614,19 @@ export function createTailoredCvs(database: Pool, deps: TailoredCvsDeps): Tailor
       if (signal?.aborted) return stopped;
       if (!asked.ok) return { ok: false, error: "unavailable", reason: asked.reason };
       let { reply } = asked;
-      let { content: adapted, origins } = fromMasterCv(master, reply, jobOffer.skills ?? [], language);
-      // Left partly in another language (a description or bullet kept as the Master CV writes it): asked for once more,
-      // those passages named; the second proposal is kept when it leaves fewer (#1077).
-      const notIn = textsNotIn(adapted, language);
+      const built = fromMasterCv(master, reply, jobOffer.skills ?? [], language);
+      let { content: adapted, origins } = built;
+      // Left partly in another language (a description or bullet kept as the Master CV writes it, a section taken as it is,
+      // a skill translated without its id): asked for once more, those passages named; the second proposal is kept when
+      // it leaves fewer (#1077, #1133).
+      const notInOf = (proposed: ReturnType<typeof fromMasterCv>) => [...new Set([...textsNotIn(proposed.content, language), ...proposed.untranslated])];
+      const notIn = notInOf(built);
       if (notIn.length > 0) {
         const again = await askForTailoredCv(recorder.ai, { task: "writing", candidateId, system: systemPrompt(run, language), prompt: `${prompt}\n\n${NOT_IN[language](notIn)}`, ...run.agent });
         if (signal?.aborted) return stopped;
         if (again.ok) {
           const rebuilt = fromMasterCv(master, again.reply, jobOffer.skills ?? [], language);
-          if (textsNotIn(rebuilt.content, language).length < notIn.length) ({ reply, content: adapted, origins } = { reply: again.reply, ...rebuilt });
+          if (notInOf(rebuilt).length < notIn.length) ({ reply, content: adapted, origins } = { reply: again.reply, content: rebuilt.content, origins: rebuilt.origins });
         }
       }
       const proposal: ProposalRow = {

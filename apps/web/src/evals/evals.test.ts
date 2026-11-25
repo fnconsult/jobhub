@@ -982,6 +982,19 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
       expect(again.results[0]).toMatchObject({ score: 0, reason: expect.stringContaining("propose_tailored_cv_changes") });
     });
 
+    it("replays the exchange before the message (#1133): the AI Coach reads it, the judge too, « Recreuitement » and « for the rest it is all good » as said", async () => {
+      const cases = casesNamed("tailored-cv-declared-in-own-words");
+      expect(cases[0]).toMatchObject({ earlier: [{ from: "candidate" }, { from: "coach" }], message: expect.stringContaining("Recreuitement"), proposal: { action: "propose_tailored_cv_changes" } });
+      const changes = { name: "propose_tailored_cv_changes", arguments: { applicationId: "a-fictive", changes: [{ kind: "rephrase", section: "skills", item: "Recrutement", text: "Recruitment" }] } };
+
+      const run = await calling([changes], cases).runAiCoach(claire);
+
+      expect(run.results[0], JSON.stringify(run.results[0])).toMatchObject({ score: 0.8 });
+      const coaching = mistral.calls.find((call) => call.messages.some((message) => String(message.content).includes("please translate them as well")));
+      expect(coaching?.messages.map((message) => message.role).slice(0, 3)).toEqual(["user", "assistant", "user"]);
+      expect(String(judge.calls.at(-1)!.messages[0]!.content)).toMatch(/<echange>\nCandidat : skills are not in english/);
+    });
+
     it("scores 0 the rename with no Typed redirect, and judges it once the server built one", async () => {
       const rename = casesNamed("reach-rename-profile-redirect");
 

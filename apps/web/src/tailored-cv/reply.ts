@@ -26,7 +26,17 @@ const aiReply = z.object({
   summary: optional(z.string()),
   experience: optional(z.array(z.object({ id, employer: z.string(), period: z.string(), location: z.string().optional().catch(undefined), title: text, description: text }))),
   education: optional(z.array(z.object({ id, degree: z.string(), institution: text, year: text }))),
-  skills: optional(z.array(z.union([z.string().transform((skill) => ({ id: undefined, text: skill })), z.object({ id, text: z.string() })]))),
+  // A skill as asked ({ id, text }), as a bare text, or named as a language is ({ id, name }): a skill written another way
+  // would leave the whole section as the Master CV writes it, untranslated (#1133).
+  skills: optional(
+    z.array(
+      z.union([
+        z.string().transform((skill) => ({ id: undefined, text: skill })),
+        z.object({ id, text: z.string() }),
+        z.object({ id, name: z.string() }).transform(({ id, name }) => ({ id, text: name })),
+      ]),
+    ),
+  ),
   languages: optional(z.array(z.object({ id, name: z.string(), level: text }))),
   /** Requirements of the Job Offer the Master CV does not show. */
   missing: z.array(z.string()).catch([]),

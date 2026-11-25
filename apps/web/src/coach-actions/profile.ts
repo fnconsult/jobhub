@@ -309,11 +309,11 @@ function masterCvAction(sources: ProfileActionSources): CoachAction {
     // ADR-0113: offered even with an Application In view; the Candidate reads each change, a change with offer words
     // marked and unchecked, and saves the CV themselves.
     sentByCandidate: true,
-    async run({ profileId, changes }, { candidateId, language, said }) {
+    async run({ profileId, changes }, { candidateId, language, said, approved }) {
       const profile = await activeProfile(sources, candidateId, profileId);
       if (!profile) return NOT_FOUND;
       const offers = await sources.offersOf(candidateId, profile.id).catch(() => []);
-      const review = masterCvReview(profile.masterCv.content, changes, { offers, declared: said ?? [] });
+      const review = masterCvReview(profile.masterCv.content, changes, { offers, declared: said ?? [], ...(approved ? { approved } : {}) });
       if (!review.ok) return cvEditRefusal(review, "le CV de référence");
       const { t } = createI18n(language);
       const change: ProposedChange = {

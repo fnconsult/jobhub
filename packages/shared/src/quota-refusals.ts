@@ -8,10 +8,13 @@
  *   quotaRefusalOf("openai", { status: 429, message, headers })   // { reason: "quota_exhausted", renewsAt? } | undefined
  *   hasQuota(tool)                                                // whether its Tool quota state is read at all
  *
- * Read from each provider's documented answers: Anthropic's 400 « credit balance is too low », OpenAI's 429
- * `insufficient_quota`, Tavily's 432 and 433, a 402 or a plan spent anywhere (`out_of_credits`, Brave's
- * `QUOTA_LIMITED`). The renewal date is the one the provider gave: its `retry-after`, or Fantastic.jobs' next billing
- * date for its plan spent. A Tool without a quota (a public API, a Tool of our own, Stripe whose 402 is a card
+ * Read from each provider's documented answers: Anthropic's 400 « credit balance is too low », its spend cap (a 429
+ * `enforced_spend_limit_reached`) and the spend limits an organization sets (a 400 « You have reached your specified
+ * API usage limits », #1123), OpenAI's 429 `insufficient_quota`, Perplexity's 401 `insufficient_quota`, Tavily's 432
+ * and 433, a 402 or a plan spent anywhere (`out_of_credits`, Brave's `QUOTA_LIMITED`). Bedrock's
+ * `ServiceQuotaExceededException` is a quota window (`rate_limited`), Mistral's model out of capacity no quota refusal.
+ * The renewal date is the one the provider gave: its `retry-after-ms` or `retry-after`, Fantastic.jobs' next billing
+ * date for its plan spent, or the date Claude's spend cap says access is regained. A Tool without a quota (a public API, a Tool of our own, Stripe whose 402 is a card
  * declined) has no quota refusal: its answers keep their own Failure Reason.
  */
 import type { FailureReason } from "./failure-reasons";
@@ -39,18 +42,31 @@ interface QuotaRules {
   spent: readonly number[];
   /** The header holding the date its plan is renewed, read for its plan spent. */
   renewalHeader?: string;
+  /** How it says, whatever the status, that a quota window is reached: a rate limit, not a credit spent. */
+  limited?: RegExp;
+  /** How it says it cannot serve the call for its own capacity: no refusal for the account's quota. */
+  capacity?: RegExp;
 }
 
 const PAYMENT_REQUIRED: QuotaRules = { spent: [402] };
+
+/**
+ * Bedrock's ServiceQuotaExceededException (`@aws-sdk/client-bedrock-runtime@3.1177.0`: HTTP 400, « Your request exceeds
+ * the service quota for your account. … You can resubmit your request later »): a quota window, a rate limit. Claude on
+ * Bedrock is recorded as `anthropic` (providers/anthropic.ts), its connection test as `anthropic_bedrock`.
+ */
+const CLAUDE: QuotaRules = { spent: [402], limited: /ServiceQuotaExceededException|exceeds the service quota/i };
 
 /**
  * The providers with a quota, by the id their calls are recorded under (`ai_usage.provider`, and the
  * `external_api_usage.provider` of their other calls): every Tool with an API whose provider counts its calls.
  */
 const QUOTA_RULES: Readonly<Record<string, QuotaRules>> = {
-  anthropic: PAYMENT_REQUIRED,
-  anthropic_bedrock: PAYMENT_REQUIRED,
-  mistral: PAYMENT_REQUIRED,
+  anthropic: CLAUDE,
+  anthropic_bedrock: CLAUDE,
+  // Its error glossary (docs.mistral.ai/llms/resources/error-glossary): 402 for billing (codes 2300 to 2308), 429 code
+  // 1300 for its rate limit, 429 codes 3505 and 3801 (`backend_out_of_capacity`) for the model out of capacity.
+  mistral: { spent: [402], capacity: /backend_out_of_capacity|"code"\s*:\s*"(?:3505|3801)"/i },
   openai: PAYMENT_REQUIRED,
   perplexity: PAYMENT_REQUIRED,
   brave: PAYMENT_REQUIRED,
@@ -66,12 +82,13 @@ const QUOTA_RULES: Readonly<Record<string, QuotaRules>> = {
 export const QUOTA_PROVIDERS: readonly string[] = Object.keys(QUOTA_RULES);
 
 /**
- * How a provider says its credit or plan is spent, whatever the status: Anthropic's credit balance, OpenAI's and
- * Perplexity's `insufficient_quota`, Brave's `QUOTA_LIMITED`, contact enrichment's `out_of_credits`, a payment required.
- * Never a rate limit's words (« rate limit exceeded for plan »).
+ * How a provider says its credit or plan is spent, whatever the status: Anthropic's credit balance, its spend cap and
+ * spend limits (their `error_code`, platform.claude.com/docs/en/api/errors and /api/rate-limits, and the wording of the
+ * limits it says it reached, #1123), OpenAI's and Perplexity's `insufficient_quota`, Brave's `QUOTA_LIMITED`, contact
+ * enrichment's `out_of_credits`, a payment required. Never a rate limit's words (« rate limit exceeded for plan »).
  */
 const SPENT =
-  /credit balance is too low|insufficient[_ ](?:quota|credits?|balance|funds)|exceeded your current quota|quota[_ ]limited|quota (?:limit )?(?:exceeded|exhausted|reached)|out[_ ]of[_ ]credits|payment[_ ]required/i;
+  /credit balance is too low|(?:enforced|contract|linked_organization)_spend_limit_reached|reached your (?:specified )?(?:workspace )?API usage limits|insufficient[_ ](?:quota|credits?|balance|funds)|exceeded your current quota|quota[_ ]limited|quota (?:limit )?(?:exceeded|exhausted|reached)|out[_ ]of[_ ]credits|payment[_ ]required/i;
 
 /**
  * SPENT's source, which Postgres reads as it is, case-insensitively (`~*`): how the calls recorded before #1114 are told
@@ -84,21 +101,50 @@ export function quotaRefusalOf(provider: string, answer: ProviderAnswer, now: Da
   const rules = Object.hasOwn(QUOTA_RULES, provider) ? QUOTA_RULES[provider] : undefined;
   const { status } = answer;
   if (!rules || typeof status !== "number" || status < 400 || status >= 500) return undefined;
-  const spent = rules.spent.includes(status) || SPENT.test(answer.message ?? "");
-  if (!spent && status !== 429) return undefined;
+  const message = answer.message ?? "";
+  const spent = rules.spent.includes(status) || SPENT.test(message);
+  const limited = !spent && (status === 429 || rules.limited?.test(message) === true);
+  if (!spent && (!limited || isCapacityRefusal(provider, answer))) return undefined;
   const reason: QuotaRefusalReason = spent ? "quota_exhausted" : "rate_limited";
-  const renewsAt = answer.headers ? renewalOf(answer.headers, now, spent ? rules.renewalHeader : undefined) : undefined;
+  const renewsAt = (answer.headers && renewalOf(answer.headers, now, spent ? rules.renewalHeader : undefined)) || regainedAt(message);
   return renewsAt ? { reason, renewsAt } : { reason };
 }
 
-/** The renewal date in `headers`: `renewalHeader`'s date when given and stated, else `retry-after` (seconds or a date). */
+/**
+ * Whether `answer` is its provider refusing for its own capacity, not for the account's quota: Mistral's 429 codes 3505
+ * and 3801 (#1123). Its Failure Reason is then `provider_unavailable`.
+ */
+export function isCapacityRefusal(provider: string, answer: ProviderAnswer): boolean {
+  const rules = Object.hasOwn(QUOTA_RULES, provider) ? QUOTA_RULES[provider] : undefined;
+  return answer.status === 429 && rules?.capacity?.test(answer.message ?? "") === true;
+}
+
+/**
+ * The renewal date in `headers`: `renewalHeader`'s date when given and stated, else `retry-after-ms` (milliseconds),
+ * else `retry-after` (seconds or a date), as the Anthropic, OpenAI and Perplexity SDKs read them.
+ */
 function renewalOf(headers: Headers, now: Date, renewalHeader: string | undefined): Date | undefined {
   const renewal = renewalHeader ? Date.parse(headers.get(renewalHeader) ?? "") : NaN;
   if (Number.isFinite(renewal)) return new Date(renewal);
+  const retryAfterMs = headers.get("retry-after-ms")?.trim();
+  if (retryAfterMs && /^\d+(?:\.\d+)?$/.test(retryAfterMs)) return new Date(now.getTime() + Number(retryAfterMs));
   const retryAfter = headers.get("retry-after")?.trim();
   if (!retryAfter) return undefined;
   const at = /^\d+$/.test(retryAfter) ? now.getTime() + Number(retryAfter) * 1000 : Date.parse(retryAfter);
   return Number.isFinite(at) ? new Date(at) : undefined;
+}
+
+/**
+ * When the message says access is regained: Claude's spend cap sends no header, but « You will regain access on
+ * 2026-09-01 at 00:00 UTC. » (platform.claude.com/docs/en/api/rate-limits, #1123). None when it says no valid date.
+ */
+function regainedAt(message: string): Date | undefined {
+  const said = /regain access on (\d{4})-(\d{2})-(\d{2}) at (\d{2}):(\d{2}) UTC/i.exec(message);
+  if (!said) return undefined;
+  const [year, month, day, hour, minute] = said.slice(1).map(Number) as [number, number, number, number, number];
+  const at = new Date(Date.UTC(year, month - 1, day, hour, minute));
+  const exact = at.getUTCFullYear() === year && at.getUTCMonth() === month - 1 && at.getUTCDate() === day && at.getUTCHours() === hour && at.getUTCMinutes() === minute;
+  return exact ? at : undefined;
 }
 
 /** Whether `tool` has a quota at its provider: an AI model, a web search provider, a contact enrichment provider, Fantastic.jobs. */

@@ -10,7 +10,7 @@
  *   const stripe = recordingClient(new Stripe(key), externalApis, { provider: "stripe" });
  */
 import type { FailureReason } from "./failure-reasons";
-import { quotaRefusalOf } from "./quota-refusals";
+import { QUOTA_PROVIDERS, quotaRefusalOf } from "./quota-refusals";
 import { scrubSecrets } from "./scrub-secrets";
 import type { ExternalApiProvider } from "./tools";
 
@@ -166,7 +166,8 @@ export function recordingFetch<F extends FetchLike>(fetch: F, log: ExternalApiLo
       done(null);
       throw error;
     }
-    done(response.status, undefined, response, response.ok ? undefined : errorMessageOf(response));
+    // A refusal from a provider with a quota is read for its words (#1123); any other call is recorded at once.
+    done(response.status, undefined, response, response.ok || !QUOTA_PROVIDERS.includes(options.provider) ? undefined : errorMessageOf(response));
     return response;
   };
   return recording as F;
@@ -179,7 +180,8 @@ const ERROR_MESSAGE_MAX_LENGTH = 300;
 const ERROR_MESSAGE_WAIT_MS = 1_000;
 
 /**
- * What a refused call's body says (#1123): Perplexity's 401 `insufficient_quota` is said nowhere else. Read from a
+ * What a refused call's body says, for a provider with a quota (#1123): Perplexity's 401 `insufficient_quota`, Claude's
+ * spend limits, OpenAI's `insufficient_quota` or Brave's `QUOTA_LIMITED` are said nowhere else. Read from a
  * clone, so the caller still reads the body; none when it cannot be read (an adapter's response without `clone`) or
  * has not come within ERROR_MESSAGE_WAIT_MS.
  */

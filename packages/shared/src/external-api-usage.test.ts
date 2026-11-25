@@ -138,6 +138,34 @@ describe("an external API's calls, as recorded", () => {
     expect(calls).toEqual([expect.objectContaining({ provider: "perplexity", operation: "connection_test", ok: false, httpStatus: 401, reason: "quota_exhausted" })]);
   });
 
+  it("reads it for every provider with a quota: Claude's spend cap and Brave's QUOTA_LIMITED; another provider's refusal is recorded at once", async () => {
+    const calls: ExternalApiCall[] = [];
+    const log = { record: (call: ExternalApiCall) => void calls.push(call) };
+    const refusing = (status: number, body: unknown): Fetch => async () => new Response(JSON.stringify(body), { status });
+    const spendCap = {
+      type: "error",
+      error: {
+        type: "rate_limit_error",
+        message: "You have reached your API usage limits: your organization has crossed its monthly API usage threshold, set based on your organization's API tier. You will regain access on 2026-09-01 at 00:00 UTC.",
+        details: { error_code: "enforced_spend_limit_reached" },
+      },
+    };
+    const call = (fetch: Fetch) => fetch("https://api.example/v1/models", { method: "GET", headers: {} });
+
+    await call(recordingFetch(refusing(429, spendCap), log, { provider: "anthropic", operation: () => "connection_test" }));
+    // Not a provider with a quota: recorded as soon as it answered, its body unread.
+    await call(recordingFetch(refusing(429, { error: "insufficient_quota" }), log, { provider: "greenhouse" }));
+    expect(calls.map(({ provider, reason }) => [provider, reason])).toEqual([["greenhouse", undefined]]);
+    await call(recordingFetch(refusing(429, { type: "ErrorResponse", error: { status: 429, code: "QUOTA_LIMITED", detail: "Request quota limit exceeded for plan." } }), log, { provider: "brave" }));
+    await settled();
+
+    expect(calls.map(({ provider, reason, renewsAt }) => [provider, reason, renewsAt])).toEqual([
+      ["greenhouse", undefined, undefined],
+      ["anthropic", "quota_exhausted", new Date("2026-09-01T00:00:00Z")],
+      ["brave", "quota_exhausted", undefined],
+    ]);
+  });
+
   it("keeps a refusal whose message says no quota for what it is, and reads no more of its body than the AI layer does", async () => {
     const calls: ExternalApiCall[] = [];
     const log = { record: (call: ExternalApiCall) => void calls.push(call) };

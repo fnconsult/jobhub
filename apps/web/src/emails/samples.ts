@@ -1,24 +1,28 @@
 /**
- * The eight emails, each built by its own module from fixed sample data: what the both-languages test
+ * The nine emails, each built by its own module from fixed sample data: what the both-languages test
  * (seven-emails.test.ts) and the screenshot baselines (e2e/email-html.spec.ts) render.
  */
+import { toolById, type Tool } from "@jobhub/shared";
 import type { Locale } from "@jobhub/shared/i18n";
+import { backOfficeAccess } from "../admin/access";
 import { appointmentReminderEmail } from "../appointment-reminders/email";
 import { signInEmail } from "../auth/sign-in-email";
 import { appleFailureEmail } from "../sign-in-providers/alerts";
 import { webSearchAlertEmail } from "../web-search-alert";
+import { quotaBannerLines } from "../quota-banner";
+import { toolQuotaAlertEmail } from "../tool-quota-alert";
 import { followUpEmail } from "../follow-ups/email";
 import { jobDigestEmail } from "../job-digests/email";
 import { quotaReductionEmail } from "../quota-reductions/email";
 import type { RenderedEmail } from "./index";
 
-export const EMAIL_NAMES = ["signIn", "jobDigest", "followUp", "abandonedFollowUp", "appointmentReminder", "appleFailureAlert", "webSearchSpendAlert", "quotaReduction"] as const;
+export const EMAIL_NAMES = ["signIn", "jobDigest", "followUp", "abandonedFollowUp", "appointmentReminder", "appleFailureAlert", "webSearchSpendAlert", "toolQuotaAlert", "quotaReduction"] as const;
 export type EmailName = (typeof EMAIL_NAMES)[number];
 
 const APP_URL = "https://app.jobbbox.fr";
 const application = { jobTitle: "DAF H/F", applicationUrl: `${APP_URL}/candidatures/application-1`, settingsUrl: `${APP_URL}/compte/relances` };
 
-/** Each of the eight emails in `language`, from sample data. */
+/** Each of the nine emails in `language`, from sample data. */
 export function sampleEmails(language: Locale): Record<EmailName, RenderedEmail> {
   return {
     signIn: signInEmail({ url: `${APP_URL}/api/auth/magic-link/verify?token=abc`, code: "428193", minutes: 15 }, language),
@@ -52,6 +56,17 @@ export function sampleEmails(language: Locale): Record<EmailName, RenderedEmail>
     ),
     appleFailureAlert: appleFailureEmail([{ id: "apple", reason: "invalid_apple_key" }], APP_URL, language),
     webSearchSpendAlert: webSearchAlertEmail({ month: "2026-10", spendEur: 2.4, thresholdEur: 2 }, APP_URL, language),
+    toolQuotaAlert: toolQuotaAlertEmail(
+      quotaBannerLines(
+        [
+          { tool: toolById("openai") as Tool, state: "quota_exhausted", since: new Date("2026-11-25T08:42:00Z"), renewsAt: null },
+          { tool: toolById("tavily") as Tool, state: "rate_limited", since: new Date("2026-11-25T13:05:00Z"), renewsAt: null },
+        ],
+        backOfficeAccess(["super-admin"]),
+      ),
+      APP_URL,
+      language,
+    ),
     quotaReduction: quotaReductionEmail(
       {
         planName: "Standard",

@@ -73,6 +73,7 @@ import { migrateTailoredDocuments } from "./tailored-documents/index";
 import { migrateTargetCompanies } from "./target-companies/index";
 import { migrateUnansweredQuestions } from "./unanswered-questions/index";
 import { migrateWebSearchAlerts } from "./web-search-alert/index";
+import { migrateToolQuotaAlerts } from "./tool-quota-alert/index";
 import { migrateWithdrawals } from "./withdrawals/index";
 
 /**
@@ -144,6 +145,7 @@ export async function migrateDatabase(
     ["Back Office Assistant conversations are up to date", () => migrateAssistantConversations(database)],
     ["AI Usage is up to date", () => migrateAiUsage(database)],
     ["Web search alerts are up to date", () => migrateWebSearchAlerts(database)],
+    ["« Quota atteint » emails are up to date", () => migrateToolQuotaAlerts(database)],
     ["Coaching Playbooks, the Core Digest, the Sources list and the task Playbooks are up to date", () => migrateCoachingPlaybooks(database, () => importedPlaybooks(env)),
     ],
     ["Guardrails are up to date", () => migrateGuardrails(database)],

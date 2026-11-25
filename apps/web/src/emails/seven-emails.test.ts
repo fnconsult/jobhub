@@ -4,7 +4,7 @@ import { mailClientLint } from "./mail-client-lint";
 import { EMAIL_NAMES, sampleEmails, type EmailName } from "./samples";
 
 /**
- * Each of the eight emails, rendered in both Interface Languages from its sample (./samples), checked in both parts:
+ * Each of the nine emails, rendered in both Interface Languages from its sample (./samples), checked in both parts:
  * the same facts and links in the text and the HTML, in the right language, the HTML passing the mail-client lint.
  */
 const greeting: Record<Locale, string> = { fr: "Bonjour,", en: "Hello," };
@@ -85,6 +85,32 @@ const facts: Record<EmailName, Record<Locale, string[]>> = {
     fr: ["2,40", "2,00", "2026-10", "Rien n'est coupé", "Voir le détail dans Consommation IA", "https://app.jobbbox.fr/admin/consommation-ia?periode=2026-10", "super-admin"],
     en: ["€2.40", "€2.00", "2026-10", "Nothing is cut", "See the details in Consommation IA", "https://app.jobbbox.fr/admin/consommation-ia?periode=2026-10", "super-admin"],
   },
+  toolQuotaAlert: {
+    fr: [
+      "OpenAI : quota épuisé depuis le 25 nov. 2026, 09:42.",
+      "Tavily : limite atteinte depuis le 25 nov. 2026, 14:05.",
+      "Configurer OpenAI",
+      "https://app.jobbbox.fr/admin/outils/openai",
+      "Facturation de OpenAI",
+      "https://platform.openai.com/settings/organization/billing/overview",
+      "Facturation de Tavily",
+      "https://app.tavily.com/billing",
+      "Vous ne recevrez pas d'autre e-mail de quota aujourd'hui",
+      "administrateur",
+    ],
+    en: [
+      "OpenAI: quota used up since 25 Nov 2026, 09:42.",
+      "Tavily: rate limit reached since 25 Nov 2026, 14:05.",
+      "Configure OpenAI",
+      "https://app.jobbbox.fr/admin/outils/openai",
+      "OpenAI billing",
+      "https://platform.openai.com/settings/organization/billing/overview",
+      "Tavily billing",
+      "https://app.tavily.com/billing",
+      "You will get no other quota email today",
+      "administrator",
+    ],
+  },
   quotaReduction: {
     fr: [
       "Le 14 novembre 2026, ce que comprend votre offre Standard va baisser",
@@ -117,11 +143,11 @@ const facts: Record<EmailName, Record<Locale, string[]>> = {
 
 const unescape = (html: string) => html.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 
-describe.each(SUPPORTED_LOCALES)("the eight emails in %s", (language) => {
+describe.each(SUPPORTED_LOCALES)("the nine emails in %s", (language) => {
   const emails = sampleEmails(language);
 
-  it("are the eight", () => {
-    expect(EMAIL_NAMES).toHaveLength(8);
+  it("are the nine", () => {
+    expect(EMAIL_NAMES).toHaveLength(9);
     expect(Object.keys(emails).sort()).toEqual([...EMAIL_NAMES].sort());
     expect(Object.keys(facts).sort()).toEqual([...EMAIL_NAMES].sort());
   });
@@ -140,7 +166,7 @@ describe.each(SUPPORTED_LOCALES)("the eight emails in %s", (language) => {
       expect(text.startsWith(`${greeting[language]}\n\n`)).toBe(true);
       expect(html).toContain(`<html lang="${language}"`);
       expect(html).toContain(`>${greeting[language]}</p>`);
-      for (const part of [subject, text, html]) expect(part).not.toMatch(/\{\{|\b(emails|signInEmail|jobDigest|followUps|appointmentReminder|appleAlert|webSearchAlert)\.[a-z]/);
+      for (const part of [subject, text, html]) expect(part).not.toMatch(/\{\{|\b(emails|signInEmail|jobDigest|followUps|appointmentReminder|appleAlert|webSearchAlert|toolQuotaAlert|admin)\.[a-z]/);
     });
 
     it("has a footer saying why it came, and an HTML part that passes the mail-client lint", () => {

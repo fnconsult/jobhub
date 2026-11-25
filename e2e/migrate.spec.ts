@@ -177,6 +177,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "tailored_document_version", // issue #1079: the versions of the Tailored CV, Cover Letter and Outreach Message
         "target_company", // issue #406: a Profile's Target Companies
         "target_company_refresh", // issue #406: what a Profile's La Bonne Boite companies were last fetched for
+        "tool_quota_alert", // issue #1117: the day's « Quota atteint » email, once sent, and the Tools it listed; no Candidate
         "two_step_verification", // issue #663: a Candidate's Two-step verification, its key encrypted, its backup codes hashed
         "unanswered_question", // issue #344: the questions the AI Coach could not answer, no link to a Candidate
         "verification",

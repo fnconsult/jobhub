@@ -3,7 +3,7 @@ kind: glossary
 audience: administrator
 topic: fournisseurs-et-tools
 title: Quota atteint
-synonyms: [quota atteint, quota épuisé, limite atteinte, quota, crédit épuisé, plan épuisé, limite de débit, rate limit, 429, facturation, renouveler le quota, bandeau]
+synonyms: [quota atteint, quota épuisé, limite atteinte, quota, crédit épuisé, plan épuisé, limite de débit, rate limit, 429, facturation, renouveler le quota, bandeau, e-mail, alerte]
 ---
 Un outil a son **quota atteint** quand son fournisseur refuse de l'appeler pour une question de quota. Seuls les outils à API qui en ont un sont concernés : les modèles d'IA, la recherche web, l'enrichissement de contacts et Fantastic.jobs. Il y a deux états :
 
@@ -13,6 +13,8 @@ Un outil a son **quota atteint** quand son fournisseur refuse de l'appeler pour 
 Chaque état commence au premier refus du fournisseur et dure tant qu'il refuse : il prend fin au premier appel accepté de cet outil, ou à la date de renouvellement donnée par le fournisseur. Un test de connexion réussi ne suffit pas : il vérifie la clé, pas le quota.
 
 Tant qu'au moins un outil a son quota atteint, le bandeau « Quota atteint » s'affiche en tête de chaque page du Back Office, pour tout Administrator, quel que soit son rôle. Il disparaît de lui-même dans la demi-minute qui suit le retour à la normale. Chaque ligne nomme l'outil, son état et depuis quand.
+
+Le premier quota atteint de la journée (heure de Paris) envoie aussi un e-mail à chaque Administrator, quel que soit son rôle, dans sa langue : il liste les outils dont le quota est encore atteint, avec les deux mêmes liens. Il en part au plus un par jour : un autre outil atteint le même jour figure dans l'e-mail du lendemain s'il l'est encore. Aucun e-mail ne part quand un quota redevient disponible.
 
 Pour y remédier, chaque ligne donne deux liens :
 

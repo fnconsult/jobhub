@@ -55,7 +55,7 @@ test.describe("the web app's files (manifest, emails)", () => {
   });
 });
 
-test.describe("the eight emails (Brevo)", () => {
+test.describe("the nine emails (Brevo)", () => {
   const samples = (() => {
     const run = spawnSync(path.resolve("node_modules/.bin/tsx"), ["e2e/support/email-samples.ts", "fr"], { encoding: "utf8" });
     if (run.status !== 0) throw new Error(run.stderr);
@@ -63,7 +63,7 @@ test.describe("the eight emails (Brevo)", () => {
   })();
 
   test("every email opens on the logo: an absolute, hosted PNG at 28 px, named « Jobbbox »", () => {
-    expect(Object.keys(samples)).toHaveLength(8);
+    expect(Object.keys(samples)).toHaveLength(9);
     for (const [name, html] of Object.entries(samples)) {
       const images = [...html.matchAll(/<img\b[^>]*>/g)].map((match) => match[0]);
       expect(images, name).toHaveLength(1);

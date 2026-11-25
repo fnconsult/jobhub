@@ -3,7 +3,7 @@ kind: glossary
 audience: administrator
 topic: fournisseurs-et-tools
 title: Quota reached
-synonyms: [quota reached, quota used up, rate limit reached, quota, credit used up, plan used up, rate limit, 429, billing, renew the quota, banner]
+synonyms: [quota reached, quota used up, rate limit reached, quota, credit used up, plan used up, rate limit, 429, billing, renew the quota, banner, email, alert]
 ---
 A tool has its **quota reached** when its provider refuses to serve it because of a quota. Only the API tools that have one are concerned: the AI models, web search, contact enrichment and Fantastic.jobs. There are two states:
 
@@ -13,6 +13,8 @@ A tool has its **quota reached** when its provider refuses to serve it because o
 Each state starts at the provider's first refusal and lasts as long as it refuses: it ends at that tool's first accepted call, or at the renewal date the provider gave. A connection test that passes is not enough: it checks the key, not the quota.
 
 While at least one tool has its quota reached, the « Quota reached » banner shows at the head of every Back Office page, for every Administrator, whatever their role. It goes away by itself within half a minute once the state is back to normal. Each line names the tool, its state and since when.
+
+The first quota reached in the day (Paris time) also sends an email to every Administrator, whatever their role, in their language: it lists the tools whose quota is still reached, with the same two links. At most one goes out a day: another tool reached the same day is in the next day's email if it still is. No email goes out when a quota is available again.
 
 To fix it, each line gives two links:
 

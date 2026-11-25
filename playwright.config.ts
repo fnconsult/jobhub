@@ -138,7 +138,7 @@ export default defineConfig({
     // the stand-in forwarding to the suite's web server. Needs docker; E2E_SKIP_DOCKER=1 skips it.
     { name: "edge", testMatch: /\/edge\.spec\.ts/, use: { ...devices["Desktop Chrome"], baseURL: webOrigin } },
     { name: "repo", testMatch: /(repo|migrate|agent-runs|setup-wizards|legal-text-notices)\.spec\.ts/ },
-    { name: "ai", testMatch: /(ai|ai-tool-calls|ai-actions-coach|ai-coach-scope|offer-email-reading|tool-quota-states)\.spec\.ts/ },
+    { name: "ai", testMatch: /(ai|ai-tool-calls|ai-actions-coach|ai-coach-scope|offer-email-reading|tool-quota-states|tool-quota-alert)\.spec\.ts/ },
     // The coach-knowledge package (#128), loaded in a fresh process through its public entry point.
     { name: "coach-knowledge", testMatch: /coach-knowledge\.spec\.ts/ },
     // The static Notion-like layout prototype (#132), served by the spec itself and driven in Chromium.

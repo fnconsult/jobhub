@@ -652,6 +652,12 @@
     "action": "See the details in Consommation IA",
     "last": "You will get no other alert this month."
   },
+  "toolQuotaAlert": {
+    "subject": "Jobbbox: quota reached for {{tools}}",
+    "title": "Quota reached",
+    "intro": "The provider of each of these tools refuses its calls for lack of quota: they fail until the quota is available again.",
+    "last": "You will get no other quota email today, nor when a quota is available again: the Quota reached banner in the Back Office shows the current state."
+  },
   "appleAlert": {
     "subject": "Jobbbox: sign-in with Apple needs fixing",
     "title": "Sign-in with Apple needs fixing",
@@ -6334,7 +6340,8 @@
     "signature": "The Jobbbox team",
     "linkLead": "{{label}}:",
     "reasons": {
-      "superAdmin": "You receive this email because you are a super-admin of Jobbbox."
+      "superAdmin": "You receive this email because you are a super-admin of Jobbbox.",
+      "administrator": "You receive this email because you are an administrator of Jobbbox."
     }
   },
   "quickActions": {

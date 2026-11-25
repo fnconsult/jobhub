@@ -16,6 +16,7 @@
  * is checked, made and recorded in the Back Office Audit in one transaction, one
  * at a time. So is a reset of an account's Two-step verification, by super-admins alone.
  */
+import { DEFAULT_LOCALE, isSupportedLocale, type Locale } from "@jobhub/shared/i18n";
 import type { Pool } from "pg";
 import type { Queryable } from "../database/pool";
 import { resetTwoStepVerification } from "../two-step-verification/index";
@@ -278,6 +279,36 @@ export async function superAdminEmails(database: Pick<Pool, "query">, isPermanen
      WHERE r.role = 'super-admin' AND c."emailVerified"`,
   );
   return [...new Set([...isPermanentSuperAdmin.emails, ...rows.map((row) => row.email)])].sort();
+}
+
+/** An Administrator, as an alert emailed to all of them reaches them (#1117). */
+export interface AdministratorRecipient {
+  /** Lower case. */
+  email: string;
+  /** Their Interface Language; French for an ADMIN_EMAILS member with no account yet. */
+  language: Locale;
+  roles: BackOfficeRole[];
+}
+
+/**
+ * Where to alert every Administrator, whatever their roles (the « Quota atteint » email, #1117): every verified account
+ * holding a role, and every ADMIN_EMAILS address, a super-admin with or without an account. By email, each once.
+ */
+export async function administratorRecipients(database: Pick<Pool, "query">, isPermanentSuperAdmin: PermanentSuperAdmins): Promise<AdministratorRecipient[]> {
+  const { rows } = await database.query<{ email: string; language: unknown; roles: string[] }>(
+    `SELECT lower(c.email) AS email, c."interfaceLanguage" AS language, coalesce(array_agg(r.role) FILTER (WHERE r.role IS NOT NULL), '{}') AS roles
+       FROM candidate c LEFT JOIN administrator_role r ON r.candidate_id = c.id
+      WHERE c."emailVerified" AND (r.role IS NOT NULL OR lower(c.email) = ANY($1::text[]))
+      GROUP BY c.id`,
+    [isPermanentSuperAdmin.emails],
+  );
+  const recipients = new Map<string, AdministratorRecipient>(isPermanentSuperAdmin.emails.map((email) => [email, { email, language: DEFAULT_LOCALE, roles: ["super-admin"] }]));
+  for (const row of rows) {
+    const permanent = isPermanentSuperAdmin.emails.includes(row.email);
+    const language = isSupportedLocale(row.language) ? row.language : DEFAULT_LOCALE;
+    recipients.set(row.email, { email: row.email, language, roles: inOrder(permanent ? [...row.roles, "super-admin"] : row.roles) });
+  }
+  return [...recipients.values()].sort((a, b) => a.email.localeCompare(b.email));
 }
 
 /** Creates the Back Office Roles table. Run after the Candidate accounts' migration. Safe to run repeatedly. */

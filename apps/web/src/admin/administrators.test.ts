@@ -2,7 +2,7 @@ import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { permanentSuperAdminsFromEnv } from "./access";
-import { createAdministrators, migrateAdministratorRoles, type Administrators, type Person } from "./administrators";
+import { administratorRecipients, createAdministrators, migrateAdministratorRoles, type Administrators, type Person } from "./administrators";
 import { createBackOffice, migrateBackOfficeAudit, type BackOffice } from "./back-office";
 import { createTwoStepVerification } from "../two-step-verification/index";
 import { totpAt } from "../two-step-verification/totp";
@@ -242,6 +242,24 @@ describe.skipIf(!connectionString)("Administrators and their Back Office Roles (
     expect(await administrators.grant(claire, "paul@jobbbox.fr", ["support"])).toEqual({ ok: false, error: "unverified_account" });
     expect((await database.query("SELECT 1 FROM administrator_role WHERE candidate_id = $1", [paul.id])).rowCount).toBe(0);
     expect(await backOffice.journal()).toEqual([]);
+  });
+
+  it("lists every Administrator to email, whatever their roles, in their Interface Language (#1117)", async () => {
+    await administrators.grant(claire, "paul@jobbbox.fr", ["support"]);
+    await administrators.grant(claire, "marie.dupont@example.fr", ["coach-manager", "help-editor"]);
+    await database.query(`UPDATE candidate SET "interfaceLanguage" = 'en' WHERE id = $1`, [marie.id]);
+    // A role counts only for a verified email; an ADMIN_EMAILS member with no account yet is a super-admin all the same.
+    const lucie = await signUp("lucie@example.fr");
+    await administrators.grant(claire, "lucie@example.fr", ["support"]);
+    await database.query(`UPDATE candidate SET "emailVerified" = false WHERE id = $1`, [lucie.id]);
+    const isPermanentSuperAdmin = permanentSuperAdminsFromEnv({ ADMIN_EMAILS: "claire@jobbbox.fr, Ops@Jobbbox.fr" });
+
+    expect(await administratorRecipients(database, isPermanentSuperAdmin)).toEqual([
+      { email: "claire@jobbbox.fr", language: "fr", roles: ["super-admin"] },
+      { email: "marie.dupont@example.fr", language: "en", roles: ["coach-manager", "help-editor"] },
+      { email: "ops@jobbbox.fr", language: "fr", roles: ["super-admin"] },
+      { email: "paul@jobbbox.fr", language: "fr", roles: ["support"] },
+    ]);
   });
 
   describe("with no ADMIN_EMAILS", () => {

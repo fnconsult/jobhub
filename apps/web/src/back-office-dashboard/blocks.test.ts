@@ -13,10 +13,14 @@ describe("the Back Office Dashboard's blocks", () => {
     const shown = BACK_OFFICE_ROLES.filter((role) => dashboardBlocks(backOfficeAccess([role])).includes("extension"));
 
     expect(shown).toEqual(["super-admin", "platform-manager", "support"]);
-    expect(dashboardBlocks(backOfficeAccess(["super-admin"]))).toEqual(["jobDiscovery", "extension"]);
+    expect(dashboardBlocks(backOfficeAccess(["super-admin"]))).toEqual(["api", "jobDiscovery", "extension"]);
   });
 
-  it("shows a Plans manager none of them", () => {
-    expect(dashboardBlocks(backOfficeAccess(["plans-manager"]))).toEqual([]);
+  it("shows the « API » block, each Tool's quota state, to every Back Office Role, first (#1116)", () => {
+    for (const role of BACK_OFFICE_ROLES) expect(dashboardBlocks(backOfficeAccess([role]))[0], role).toBe("api");
+  });
+
+  it("shows a Plans manager the « API » block alone", () => {
+    expect(dashboardBlocks(backOfficeAccess(["plans-manager"]))).toEqual(["api"]);
   });
 });

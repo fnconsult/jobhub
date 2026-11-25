@@ -29,8 +29,11 @@ export interface QuotaBannerLine {
   billingUrl: string;
 }
 
-/** Where `reader` configures `tool`: its sheet in Paramètres when its key is entered there, else its Outils page. */
-function configHrefOf(tool: Tool, reader: Pick<BackOfficeAccess, "can">): string | null {
+/**
+ * Where `reader` configures `tool`: its sheet in Paramètres when its key is entered there, else its Outils page; null
+ * when they may open neither. The banner's « configuration » link, and the Dashboard's « API » block's (#1116).
+ */
+export function quotaConfigHref(tool: Tool, reader: Pick<BackOfficeAccess, "can">): string | null {
   const sheet = toolKeys(tool).some(isProviderSecretName) ? providerSheetHref(tool) : undefined;
   if (sheet && reader.can("platformSettings", "read")) return sheet;
   return reader.can("tools", "read") ? routes.adminTool(tool.id) : null;
@@ -40,7 +43,7 @@ function configHrefOf(tool: Tool, reader: Pick<BackOfficeAccess, "can">): string
 export function quotaBannerLines(states: readonly ToolQuotaState[], reader: Pick<BackOfficeAccess, "can">): QuotaBannerLine[] {
   return states.flatMap(({ tool, state, since }) => {
     if (state === "ok" || !tool.billingUrl) return [];
-    return [{ toolId: tool.id, toolName: tool.name, state, since, configHref: configHrefOf(tool, reader), billingUrl: tool.billingUrl }];
+    return [{ toolId: tool.id, toolName: tool.name, state, since, configHref: quotaConfigHref(tool, reader), billingUrl: tool.billingUrl }];
   });
 }
 

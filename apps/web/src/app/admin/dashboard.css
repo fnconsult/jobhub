@@ -42,3 +42,14 @@
   stop-color: var(--color-chart-series-1);
   stop-opacity: 0;
 }
+
+/*
+ * The « API » block's two links on each Tool (#1116): its configuration, its provider's billing page. In a card they
+ * sit under its metadata, but in the link colour: the body text size, not the metadata's.
+ */
+.dashboard .dashboard-api-links {
+  font-size: var(--font-size-body);
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}

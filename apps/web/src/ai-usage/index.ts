@@ -14,13 +14,14 @@
  *  - `aiUsageReport(database, aiUsagePeriod(key, now), { surface })`: totals and breakdowns of a period, its AI calls
  *    from one Surface only when asked (`aiUsageSurfaceFilter`).
  *  - `purgeExpiredAiUsage(database, now)`, run nightly by the worker: rows are kept RETENTION_MONTHS.
+ *  - `backfillQuotaRefusals(database)`, at each migration: the calls refused for their quota before #1114 (#1123).
  * What each call said is kept apart, in the AI Message Log (`./message-log`), 30 days.
  * Recording never fails nor delays a call: an insert that fails is only warned about.
  * Aggregates of no one: these tables are not tied to a Candidate, so they stay out of the
  * data export and outlive account deletion.
  */
 import type { Message, UsageLog } from "@jobhub/ai";
-import { cleanTechnicalMessage, FAILURE_REASONS, scrubStoredText, type ExternalApiCall, type ExternalApiLog, type FailureReason, type Outcome } from "@jobhub/shared";
+import { cleanTechnicalMessage, FAILURE_REASONS, QUOTA_PROVIDERS, scrubStoredText, SPENT_PATTERN, type ExternalApiCall, type ExternalApiLog, type FailureReason, type Outcome } from "@jobhub/shared";
 import type { Pool } from "pg";
 import { utcBefore } from "../database/before";
 import { SURFACES, type Surface } from "../request-surface";
@@ -526,4 +527,21 @@ export async function migrateAiUsage(database: Pick<Pool, "query">): Promise<voi
     -- An Eval Run's kept before is known by its task (eval); a route's test call kept before, not at all (30 days at most).
     ALTER TABLE ai_message_log ADD COLUMN IF NOT EXISTS test boolean NOT NULL DEFAULT false;
   `);
+}
+
+/**
+ * Reclassifies `quota_exhausted` the AI calls refused for their quota before #1114 was deployed (#1123), which kept
+ * `provider_rejected`: a failed call of a provider with a quota (QUOTA_PROVIDERS) whose technical message, in the AI
+ * Message Log, says its credit or plan spent by the same rule as `quotaRefusalOf` (SPENT_PATTERN), such as Perplexity's
+ * 401 `insufficient_quota`. A call whose log was purged (30 days) keeps its reason; so does every other call. Says how
+ * many it changed. Safe to run repeatedly: a second run changes none.
+ */
+export async function backfillQuotaRefusals(database: Pick<Pool, "query">): Promise<number> {
+  const { rowCount } = await database.query(
+    `UPDATE ai_usage u SET reason = 'quota_exhausted'
+      WHERE u.reason = 'provider_rejected' AND u.outcome = 'failed' AND u.provider = ANY($1::text[])
+        AND EXISTS (SELECT 1 FROM ai_message_log l WHERE l.usage_id = u.id AND l.technical_reason->>'message' ~* $2)`,
+    [QUOTA_PROVIDERS, SPENT_PATTERN],
+  );
+  return rowCount ?? 0;
 }

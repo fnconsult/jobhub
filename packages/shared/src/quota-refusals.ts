@@ -62,6 +62,9 @@ const QUOTA_RULES: Readonly<Record<string, QuotaRules>> = {
   fantastic_jobs: { spent: [402], renewalHeader: "x-api-next-billing-date" },
 };
 
+/** The providers with a quota, by the id their calls are recorded under: what the backfill of #1123 reads. */
+export const QUOTA_PROVIDERS: readonly string[] = Object.keys(QUOTA_RULES);
+
 /**
  * How a provider says its credit or plan is spent, whatever the status: Anthropic's credit balance, OpenAI's and
  * Perplexity's `insufficient_quota`, Brave's `QUOTA_LIMITED`, contact enrichment's `out_of_credits`, a payment required.
@@ -69,6 +72,12 @@ const QUOTA_RULES: Readonly<Record<string, QuotaRules>> = {
  */
 const SPENT =
   /credit balance is too low|insufficient[_ ](?:quota|credits?|balance|funds)|exceeded your current quota|quota[_ ]limited|quota (?:limit )?(?:exceeded|exhausted|reached)|out[_ ]of[_ ]credits|payment[_ ]required/i;
+
+/**
+ * SPENT's source, which Postgres reads as it is, case-insensitively (`~*`): how the calls recorded before #1114 are told
+ * apart in SQL by the same rule (`backfillQuotaRefusals`, #1123). Plain alternatives and non-capturing groups only.
+ */
+export const SPENT_PATTERN: string = SPENT.source;
 
 /** The provider's quota refusal in `answer`; none for any other answer, no answer, and a provider without a quota. */
 export function quotaRefusalOf(provider: string, answer: ProviderAnswer, now: Date = new Date()): QuotaRefusal | undefined {

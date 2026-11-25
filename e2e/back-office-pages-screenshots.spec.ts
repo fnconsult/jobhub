@@ -102,11 +102,6 @@ const PREPARE: Partial<Record<string, () => Promise<void>>> = { "activite-extens
  * Sets the month, year and day of each element's text to one fixed date, so the line takes the same room whatever day the
  * spec runs (docs/agents/screenshot-baselines.md): « novembre 2026, au 23 » and « 23 nov. » both become 15 January 2026's.
  */
-/** Takes what `selectors` match out of the page before its shot, the room it takes too: what other specs change. */
-async function leaveOut(page: Page, selectors: readonly string[]) {
-  for (const selector of selectors) await page.locator(selector).evaluateAll((elements) => elements.forEach((element) => ((element as HTMLElement).style.display = "none")));
-}
-
 async function fixDates(page: Page, selectors: readonly string[]) {
   for (const selector of selectors) {
     await page.locator(selector).evaluateAll((elements) =>
@@ -122,6 +117,11 @@ async function fixDates(page: Page, selectors: readonly string[]) {
       }),
     );
   }
+}
+
+/** Takes what `selectors` match out of the page before its shot, the room it takes too: what other specs change. */
+async function leaveOut(page: Page, selectors: readonly string[]) {
+  for (const selector of selectors) await page.locator(selector).evaluateAll((elements) => elements.forEach((element) => ((element as HTMLElement).style.display = "none")));
 }
 
 const PAGES = [

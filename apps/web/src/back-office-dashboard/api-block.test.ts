@@ -1,4 +1,4 @@
-import { QUOTA_TOOL_IDS, type ToolId } from "@jobhub/shared";
+import { hasQuota, TOOLS, type Tool, type ToolId } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import { backOfficeAccess, BACK_OFFICE_ROLES } from "../admin/access";
 import { snapshotOfSettings } from "../platform-settings/resolver";
@@ -11,9 +11,9 @@ const RENEWS = new Date("2026-12-01T00:00:00Z");
 
 /** Every Tool with a quota ok, but those of `refused`. */
 const statesWith = (refused: Partial<Record<ToolId, ToolQuotaState["state"]>> = {}, renewsAt: Date | null = null): ToolQuotaState[] =>
-  QUOTA_TOOL_IDS.map((toolId) => {
-    const state = refused[toolId];
-    return state ? { toolId, state, since: SINCE, renewsAt } : { toolId, state: "ok", since: null, renewsAt: null };
+  (TOOLS as readonly Tool[]).filter(hasQuota).map((tool) => {
+    const state = refused[tool.id as ToolId];
+    return state ? { tool, state, since: SINCE, renewsAt } : { tool, state: "ok", since: null, renewsAt: null };
   });
 
 /** The Tools' status read from `env`, nothing set in the Back Office. */
@@ -69,7 +69,7 @@ describe("the Dashboard's « API » block (#1116)", () => {
     expect(apiBlockRows(statesWith({ mistral: "quota_exhausted" }), toolsWith({}), superAdmin)).toEqual([]);
   });
 
-  it("leads to the Tool's sheet in Paramètres where its key is entered there, to its Outils page otherwise", () => {
+  it("leads where the « Quota atteint » banner leads: the Tool's sheet in Paramètres where its key is entered there, its Outils page otherwise", () => {
     const apollo = { APOLLO_API_KEY: "key", CONTACT_ENRICHMENT_PROVIDER: "apollo", CONTACT_ENRICHMENT_DPA_SIGNED: "true" };
     const rows = apiBlockRows(statesWith(), toolsWith({ OPENAI_API_KEY: "key", ...apollo }), superAdmin);
 

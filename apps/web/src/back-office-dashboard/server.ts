@@ -2,7 +2,7 @@ import type { BackOfficeAccess } from "@/admin/access";
 import { sharedPool } from "@/database/pool";
 import { readNumberSetting } from "@/platform-settings/catalog";
 import { getPlatformSettingsResolver } from "@/platform-settings/server";
-import { createToolQuotas } from "@/tool-quotas";
+import { currentToolQuotaStates } from "@/tool-quotas/server";
 import { currentState } from "@/tools/server";
 import { webSearchAlertThresholdFromEnv } from "@/web-search-alert";
 import { apiBlockRows, type ApiBlockRow } from "./api-block";
@@ -18,8 +18,11 @@ export function currentJobDiscoveryDashboard(): Promise<JobDiscoveryDashboard> {
   });
 }
 
-/** The « API » block's rows now (#1116): each configured Tool's quota state, read from its recorded calls, as `reader` follows its links. */
+/**
+ * The « API » block's rows now (#1116): each configured Tool's quota state, read with the « Quota atteint » banner's
+ * (cached, bounded), as `reader` follows its links.
+ */
 export async function currentApiBlock(reader: Pick<BackOfficeAccess, "can">): Promise<ApiBlockRow[]> {
-  const [states, tools] = await Promise.all([createToolQuotas(sharedPool()).states(), currentState()]);
+  const [states, tools] = await Promise.all([currentToolQuotaStates(), currentState()]);
   return apiBlockRows(states, tools, reader);
 }

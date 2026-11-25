@@ -108,9 +108,15 @@ const recordable = (operation: string): string => scrubSecrets(operation.replace
 
 /**
  * Starts timing one call; the function it returns records it, once it answered `httpStatus`
- * (null: no answer) with `response` when a fetch gave one. Everything is guarded: recording never fails nor delays the call it records.
+ * (null: no answer) with `response` when a fetch gave one, and `message`, the provider's error as far as it is read
+ * (#1123): the call is timed when it answered, recorded once the message is read. Everything is guarded: recording
+ * never fails nor delays the call it records.
  */
-function startCall(log: ExternalApiLog, options: RecordingOptions, operationOfCall: () => string): (httpStatus: number | null, ok?: boolean, response?: Response | null) => void {
+function startCall(
+  log: ExternalApiLog,
+  options: RecordingOptions,
+  operationOfCall: () => string,
+): (httpStatus: number | null, ok?: boolean, response?: Response | null, message?: Promise<string | undefined>) => void {
   const now = options.now ?? (() => new Date());
   const clock = options.clock ?? (() => performance.now());
   const warn = options.warn ?? ((message: string, error: unknown) => console.warn(`[external-api] ${message}`, error instanceof Error ? error.message : error));
@@ -118,12 +124,10 @@ function startCall(log: ExternalApiLog, options: RecordingOptions, operationOfCa
   try {
     const at = now();
     const started = clock();
-    return (httpStatus, ok, response) => {
+    return (httpStatus, ok, response, message) => {
       try {
         const operation = recordable(operationOfCall());
         const answered = ok ?? (httpStatus !== null && httpStatus >= 200 && httpStatus < 300);
-        // A Tool's refusal for its quota, with the renewal date it gave (#1114).
-        const refusal = answered ? undefined : quotaRefusalOf(options.provider, { status: httpStatus, ...(response && { headers: response.headers }) }, at);
         const call: ExternalApiCall = {
           provider: options.provider,
           operation,
@@ -132,9 +136,14 @@ function startCall(log: ExternalApiLog, options: RecordingOptions, operationOfCa
           ok: answered,
           httpStatus,
           costEur: options.costEur?.(httpStatus, operation, response ?? null) ?? null,
-          ...refusal,
         };
-        void Promise.resolve(log.record(call)).catch(failed);
+        const record = (said: string | undefined) => {
+          // A Tool's refusal for its quota, with the renewal date it gave (#1114), read from its message too (#1123).
+          const refusal = answered ? undefined : quotaRefusalOf(options.provider, { status: httpStatus, ...(said && { message: said }), ...(response && { headers: response.headers }) }, at);
+          void Promise.resolve(log.record({ ...call, ...refusal })).catch(failed);
+        };
+        if (message) void message.then(record, () => record(undefined)).catch(failed);
+        else record(undefined);
       } catch (error) {
         failed(error);
       }
@@ -157,10 +166,40 @@ export function recordingFetch<F extends FetchLike>(fetch: F, log: ExternalApiLo
       done(null);
       throw error;
     }
-    done(response.status, undefined, response);
+    done(response.status, undefined, response, response.ok ? undefined : errorMessageOf(response));
     return response;
   };
   return recording as F;
+}
+
+/** The longest part of a refused call's body read for its message: as much as the AI layer keeps (providers/http.ts). */
+const ERROR_MESSAGE_MAX_LENGTH = 300;
+
+/** How long a refused call's body is waited for before the call is recorded without its message. */
+const ERROR_MESSAGE_WAIT_MS = 1_000;
+
+/**
+ * What a refused call's body says (#1123): Perplexity's 401 `insufficient_quota` is said nowhere else. Read from a
+ * clone, so the caller still reads the body; none when it cannot be read (an adapter's response without `clone`) or
+ * has not come within ERROR_MESSAGE_WAIT_MS.
+ */
+function errorMessageOf(response: Response): Promise<string | undefined> | undefined {
+  try {
+    if (typeof response.clone !== "function") return undefined;
+    // Cloned before the caller gets the response, which may then read its own body.
+    const read = response
+      .clone()
+      .text()
+      .then((text) => text.slice(0, ERROR_MESSAGE_MAX_LENGTH));
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const late = new Promise<undefined>((resolve) => {
+      timer = setTimeout(resolve, ERROR_MESSAGE_WAIT_MS, undefined);
+      (timer as { unref?: () => void }).unref?.();
+    });
+    return Promise.race([read, late]).finally(() => clearTimeout(timer));
+  } catch {
+    return undefined;
+  }
 }
 
 export interface RecordingClientOptions extends RecordingOptions {

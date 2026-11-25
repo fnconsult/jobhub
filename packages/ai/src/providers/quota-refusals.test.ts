@@ -52,6 +52,14 @@ describe("an AI provider refusing a call for its quota (#1114)", () => {
     ["Mistral's payment required", mistral, 402, { object: "error", message: "Payment required", type: "payment_required" }, "quota_exhausted"],
     ["Mistral's rate limit", mistral, 429, { object: "error", message: "Requests rate limit exceeded", type: "rate_limited" }, "rate_limited"],
     ["Perplexity's credits spent", perplexity, 402, { error: { message: "Insufficient credits", type: "payment_required" } }, "quota_exhausted"],
+    // What Perplexity answers once its credits are spent, as the Beta got it (#1123): a 401, its message saying so.
+    [
+      "Perplexity's 401 insufficient_quota",
+      perplexity,
+      401,
+      { error: { message: "You exceeded your current quota, add credits at https://console.perplexity.ai/project/billing.", type: "insufficient_quota", code: 401 } },
+      "quota_exhausted",
+    ],
     ["Perplexity's rate limit", perplexity, 429, { error: { message: "rate limited", type: "rate_limit_exceeded" } }, "rate_limited"],
     ["Brave's plan quota", brave, 429, { type: "ErrorResponse", error: { status: 429, code: "QUOTA_LIMITED", detail: "Request quota limit exceeded for plan." } }, "quota_exhausted"],
     ["Brave's payment required", brave, 402, { type: "ErrorResponse", error: { status: 402, code: "SUBSCRIPTION_NOT_FOUND", detail: "Payment required." } }, "quota_exhausted"],

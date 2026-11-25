@@ -1,0 +1,28 @@
+@layer base, components;
+
+@layer components {
+  /* The « Quota atteint » banner (#1115): at the head of the page, one line per Tool, its two links beside its words. */
+  .quota-banner {
+    margin-bottom: var(--space-4);
+  }
+
+  .quota-banner ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .quota-banner li + li {
+    margin-top: var(--space-2);
+  }
+
+  .quota-banner li > p {
+    margin: 0;
+  }
+
+  .quota-banner__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-4);
+  }
+}

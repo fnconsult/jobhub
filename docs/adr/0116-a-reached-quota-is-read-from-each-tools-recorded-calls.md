@@ -26,3 +26,5 @@ The product owner wants to know when a Tool with an API (an AI model, a web sear
 - `quota_exhausted` joins the Failure Reason catalog, counted on Consommation IA and Outils like any other reason.
 - A state is as fresh as the Tool's latest call: a Tool no one calls keeps its last state until its renewal date, if any.
 - A Tool's quota state lasts no longer than its calls are kept (24 months).
+- A connection test of a Tool is not a call the provider accepted: it never ends a state (#1115). A state restarts after a renewal date that had passed.
+- States are cached 30 s across Back Office requests (none on the e2e target), so the Tool quota banner of every page goes within half a minute (#1115).

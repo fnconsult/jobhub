@@ -507,6 +507,10 @@ export async function migrateAiUsage(database: Pick<Pool, "query">): Promise<voi
     ALTER TABLE ai_usage ADD COLUMN IF NOT EXISTS reason text;
     ALTER TABLE ai_usage ALTER COLUMN provider DROP NOT NULL, ALTER COLUMN endpoint DROP NOT NULL, ALTER COLUMN model DROP NOT NULL;
     CREATE INDEX IF NOT EXISTS ai_usage_outcome_at_idx ON ai_usage (outcome, at DESC);
+    -- A Tool's refusals for its quota, newest first (#1114): read on every Back Office page by the « Quota atteint »
+    -- banner (#1115, apps/web/src/tool-quotas), which finds them here, never among every call of its provider.
+    CREATE INDEX IF NOT EXISTS ai_usage_quota_refusal_idx ON ai_usage (provider, at DESC) WHERE reason IN ('rate_limited', 'quota_exhausted');
+    CREATE INDEX IF NOT EXISTS external_api_usage_quota_refusal_idx ON external_api_usage (provider, at DESC) WHERE reason IN ('rate_limited', 'quota_exhausted');
     -- What the AI Message Log adds: whether the call left, and the technical reason (super-admins only, 30 days).
     ALTER TABLE ai_message_log ADD COLUMN IF NOT EXISTS sent boolean NOT NULL DEFAULT true;
     ALTER TABLE ai_message_log ADD COLUMN IF NOT EXISTS technical_reason jsonb;

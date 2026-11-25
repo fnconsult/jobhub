@@ -94,14 +94,16 @@ export function createFantasticJobs(options: FantasticJobsOptions): FantasticJob
   const maxPerSearch = options.maxPerSearch ?? DEFAULT_MAX_PER_SEARCH;
   /**
    * The quotas the last answers stated; until when a spent one holds the calls back (ms), why (its rate limit after a
-   * 429, else its quota spent), and whether Fantastic.jobs gave that date (not QUOTA_HOLD_MS, a guess of ours).
+   * 429, else its quota spent), and whether Fantastic.jobs gave that date as the end of what it holds back for: its
+   * wait asked for, or its next billing date for its plan spent. Not QUOTA_HOLD_MS, a guess of ours, nor the billing
+   * date a 429 is held until (ADR-0031): its plan's renewal says nothing of when its rate limit ends (#1115).
    */
   let usage: Usage = {};
   let held: { until: number; reason: QuotaRefusalReason; stated: boolean } | null = null;
   const hold = (at: number, reason: QuotaRefusalReason, retryAfterMs?: number) => {
     const renewal = usage.nextBillingDate?.getTime();
     if (retryAfterMs !== undefined) held = { until: at + retryAfterMs, reason, stated: true };
-    else if (renewal !== undefined && renewal > at) held = { until: renewal, reason, stated: true };
+    else if (renewal !== undefined && renewal > at) held = { until: renewal, reason, stated: reason === "quota_exhausted" };
     else held = { until: at + QUOTA_HOLD_MS, reason, stated: false };
   };
   /** A search held back, recorded as a failed call never made, under its call's operation (#1114). Never fails nor delays the search. */

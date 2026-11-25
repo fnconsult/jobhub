@@ -13,7 +13,7 @@
  * the keys before they go anywhere. Each test that calls its provider is recorded as one
  * `connection_test` call to its Tool (#234): its outcome and duration, never a key.
  */
-import { checkFranceTravailAccess, createFranceTravailTokens, recordingClient, recordingFetch, type ExternalApiLog, type ExternalApiProvider } from "@jobhub/shared";
+import { checkFranceTravailAccess, CONNECTION_TEST_OPERATION, createFranceTravailTokens, recordingClient, recordingFetch, type ExternalApiLog, type ExternalApiProvider } from "@jobhub/shared";
 import nodemailer from "nodemailer";
 import { checkApnsKey } from "../push-notifications/apns";
 import { checkFcmServiceAccount } from "../push-notifications/fcm";
@@ -58,7 +58,7 @@ const TOOL_OF: Record<SecretProvider, ExternalApiProvider | null> = {
 
 /** The shortest inbound secret taken: the MTA and the app share it, and it is the door's only key from the network. */
 const MIN_INBOUND_SECRET_LENGTH = 32;
-const CONNECTION_TEST = "connection_test";
+const CONNECTION_TEST = CONNECTION_TEST_OPERATION;
 
 /**
  * Brave's web search, as packages/ai/src/providers/brave.ts calls it: one search of one result is its cheapest

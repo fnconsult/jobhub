@@ -3,3 +3,10 @@
 .release-line {
   display: none !important;
 }
+
+/* The « Quota atteint » banner (#1115) heads every Back Office page while a Tool's provider refuses it for its quota:
+   on the suite's server, that depends on the calls other specs make at the same time (ai-consumption's refused
+   Guardrail checks, #262), so baselines leave it out; e2e/quota-banner.spec.ts checks it on a server of its own. */
+.quota-banner {
+  display: none !important;
+}

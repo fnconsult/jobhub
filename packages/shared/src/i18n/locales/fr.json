@@ -2083,6 +2083,18 @@
     "yourRoles": "Vos rôles : {{roles}}.",
     "readOnly": "Lecture seule : vos rôles ne permettent pas de modifier cette section.",
     "rowActions": "Actions",
+    "quotaBanner": {
+      "title": "Quota atteint",
+      "line": "{{tool}} : {{state}} depuis le {{since}}.",
+      "lineNoSince": "{{tool}} : {{state}}.",
+      "states": {
+        "rate_limited": "limite atteinte",
+        "quota_exhausted": "quota épuisé"
+      },
+      "configure": "Configurer {{tool}}",
+      "billing": "Facturation de {{tool}}",
+      "newTab": "(nouvel onglet)"
+    },
     "dashboard": {
       "title": "Dashboard",
       "subtitle": "Ce que la plateforme consomme, et comment se porte la recherche d'offres.",

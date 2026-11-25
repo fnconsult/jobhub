@@ -1,6 +1,6 @@
 import type { MasterCvContent } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
-import { acceptedMasterCv, masterCvReview } from "./master-cv-proposal";
+import { acceptedCvEdits, acceptedMasterCv, masterCvReview } from "./master-cv-proposal";
 
 const master: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -219,5 +219,28 @@ describe("a Declared Fact enters a CV (ADR-0113, #1097)", () => {
     const tailored = { ...master, skills: ["IFRS"] };
     const review = masterCvReview(tailored, [{ kind: "add", section: "skills", text: "SAP" }], { reference: master });
     expect(review.ok && review.changes).toEqual([{ id: "skills.added.SAP", section: "skills", kind: "added", item: "SAP" }]);
+  });
+});
+
+describe("a Tailored CV in English with a French reference CV, reworked from the Coach Conversation (#1133)", () => {
+  const reference: MasterCvContent = { ...master, skills: ["Ingénierie logicielle", "Gestion d'équipe", "Recrutement", "Conseil technique", "Clients grands comptes", "Communication"] };
+  const english = ["Software engineering", "Team management", "Recruitment", "Technical consulting", "Key accounts", "Communication"];
+  const tailored: MasterCvContent = { ...master, headline: "Chief Financial Officer", skills: english, languages: [{ name: "English", level: "fluent" }] };
+  const edits = [
+    { kind: "reorder" as const, section: "skills" as const, order: ["Key accounts", "Software engineering"] },
+    { kind: "rephrase" as const, section: "headline" as const, text: "Chief Financial Officer, industry" },
+  ];
+
+  it("its skills reordered, the reordering accepted or rejected and another change rejected, every skill stays in English", () => {
+    const review = masterCvReview(tailored, edits, { reference });
+    if (!review.ok) throw new Error("refused");
+    const ids = review.changes.map((change) => change.id);
+    expect(ids).toEqual(["headline.rephrased", "skills.reordered"]);
+
+    expect(acceptedCvEdits(tailored, edits, ids, { reference })?.content.skills).toEqual(["Key accounts", "Software engineering", "Team management", "Recruitment", "Technical consulting", "Communication"]);
+    expect(acceptedCvEdits(tailored, edits, ["headline.rephrased"], { reference })?.content.skills).toEqual(english);
+    const headlineRejected = acceptedCvEdits(tailored, edits, ["skills.reordered"], { reference })?.content;
+    expect(headlineRejected?.headline).toBe("Chief Financial Officer");
+    expect(headlineRejected?.skills.every((skill) => !reference.skills.includes(skill) || skill === "Communication")).toBe(true);
   });
 });

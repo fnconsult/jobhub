@@ -7,7 +7,9 @@ import { newAddress } from "./support/mailbox";
 
 // Issue #408: the Back Office's home is the Dashboard, the sidebar's first entry. Its Job discovery block (web search
 // spend against the alert threshold, the runs' cost against their budget, stop reasons, cost by item) shows only to
-// the roles that read Consommation IA: super-admins, Technique and Support; a Plans manager sees none of it.
+// the roles that read Consommation IA: super-admins, Technique and Support; a Plans manager sees none of it. Its « API »
+// block (#1116), each configured Tool's quota state, shows to every role. What it says of each state is checked in
+// e2e/back-office-dashboard-api.spec.ts, on a server of its own: here, specs side by side record refused calls.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const admin = fr.admin;
 const texts = admin.dashboard.jobDiscovery;
@@ -46,6 +48,11 @@ async function recordWebSearch() {
   }
 }
 
+const api = admin.dashboard.api;
+
+const apiBlock = (page: Page) => page.getByRole("region", { name: new RegExp(`^${api.title} ·`) });
+/** A Tool's card in the « API » block. */
+const toolCard = (page: Page, name: string) => apiBlock(page).locator("[data-stat]").filter({ has: page.getByRole("term").filter({ hasText: name }) });
 const block = (page: Page) => page.getByRole("region", { name: new RegExp(`^${texts.title}`) });
 const nav = (page: Page) => page.getByRole("navigation", { name: admin.nav.label });
 
@@ -99,7 +106,7 @@ test.describe("Back Office Dashboard", () => {
     expect(results.violations.map(({ id, nodes }) => ({ id, nodes: nodes.map((node) => node.target.join(" ")) }))).toEqual([]);
   });
 
-  test("a Plans manager sees none of the blocks; Support sees them", async ({ page, browser }) => {
+  test("a Plans manager sees the « API » block alone; Support sees every block", async ({ page, browser }) => {
     await signInWithMagicLink(page, SUPER_ADMIN);
     const plansManager = newAddress("dashboard-plans");
     const support = newAddress("dashboard-support");
@@ -111,12 +118,16 @@ test.describe("Back Office Dashboard", () => {
     await plansPage.goto("/admin");
     await expect(plansPage.getByRole("heading", { level: 1 })).toHaveText(admin.dashboard.title);
     await expect(nav(plansPage).getByRole("link").first()).toHaveText(admin.nav.dashboard);
-    await expect(plansPage.getByText(admin.dashboard.noBlocks)).toBeVisible();
+    await expect(apiBlock(plansPage)).toBeVisible();
+    // Mistral, the suite's AI provider, is configured: listed, whatever its state while other specs run.
+    await expect(toolCard(plansPage, "Mistral AI")).toBeVisible();
+    // Neither Paramètres nor Outils for a Plans manager: the billing link alone.
+    await expect(toolCard(plansPage, "Mistral AI").getByRole("link")).toHaveCount(1);
     await expect(block(plansPage)).toHaveCount(0);
     await expect(plansPage.getByRole("main")).not.toContainText(texts.webSpend);
 
     await supportPage.goto("/admin");
+    await expect(apiBlock(supportPage)).toBeVisible();
     await expect(block(supportPage)).toBeVisible();
-    await expect(supportPage.getByText(admin.dashboard.noBlocks)).toHaveCount(0);
   });
 });

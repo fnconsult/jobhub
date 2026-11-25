@@ -1161,7 +1161,7 @@ The internal pages where Administrators manage Plans, Plan Quotas, Coupons, Huma
 _Avoid_: Admin panel, dashboard, console
 
 **Back Office Dashboard**:
-The Back Office's home page: figures and charts of what the platform consumes and how Job discovery does (web search spend against its monthly alert threshold, cost of a run and per new Job Offer, runs that fell back, stop reasons, where a run's cost goes), each block shown only to the roles that read its section.
+The Back Office's home page: figures and charts of what the platform consumes and how Job discovery does (web search spend against its monthly alert threshold, cost of a run and per new Job Offer, runs that fell back, stop reasons, where a run's cost goes), each block shown only to the roles that read its section, except the « API » block, which every role sees: the Tool quota state of each configured Tool with a quota, with the banner's « Configuration » and « Facturation » links (#1116).
 _Avoid_: Home, overview
 
 **Back Office Activity**:
@@ -1199,7 +1199,7 @@ An external service the application calls at runtime, from the web app or the wo
 _Avoid_: Integration, connector, service
 
 **Tool quota state**:
-Whether a Tool with a quota at its provider (an AI model, a web search provider, a contact-enrichment provider, Fantastic.jobs) is refused for it: ok, « limite atteinte » (Failure Reason `rate_limited`, its rate limit, a 429) or « quota épuisé » (Failure Reason `quota_exhausted`, its credit or plan spent), since when, and the renewal date its provider gave (its `retry-after`, Fantastic.jobs' next billing date), if any. A state starts at the provider's first refusal and lasts while it refuses; it ends at the first call of that Tool the provider accepts, or at that renewal date; a connection test never ends it, and a state restarts after a renewal date that had passed. Read over the last 31 days, cached 30 s across Back Office requests (the Tool quota banner goes within half a minute), each time from the Tool's recorded calls (AI Usage and `external_api_usage`, whose refusals keep their reason and renewal date), never stored (ADR-0116). A Tool without a quota (a public API, a Tool of our own, Stripe) has none.
+Whether a Tool with a quota at its provider (an AI model, a web search provider, a contact-enrichment provider, Fantastic.jobs) is refused for it: ok, « limite atteinte » (Failure Reason `rate_limited`, its rate limit, a 429) or « quota épuisé » (Failure Reason `quota_exhausted`, its credit or plan spent), since when, and the renewal date its provider gave (its `retry-after`, Fantastic.jobs' next billing date), if any. A state starts at the provider's first refusal and lasts while it refuses; it ends at the first call of that Tool the provider accepts, or at that renewal date; a connection test never ends it, and a state restarts after a renewal date that had passed. Read over the last 31 days, cached 30 s across Back Office requests (the Tool quota banner goes within half a minute), each time from the Tool's recorded calls (AI Usage and `external_api_usage`, whose refusals keep their reason and renewal date), never stored (ADR-0116). A Tool without a quota (a public API, a Tool of our own, Stripe) has none. One shared read serves every Back Office surface, the Tool quota banner and the Dashboard's « API » block.
 _Avoid_: Quota status, credit alert, rate limit state
 
 **Recipient list**:

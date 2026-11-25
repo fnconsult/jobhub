@@ -119,6 +119,11 @@ async function fixDates(page: Page, selectors: readonly string[]) {
   }
 }
 
+/** Takes what `selectors` match out of the page before its shot, the room it takes too: what other specs change. */
+async function leaveOut(page: Page, selectors: readonly string[]) {
+  for (const selector of selectors) await page.locator(selector).evaluateAll((elements) => elements.forEach((element) => ((element as HTMLElement).style.display = "none")));
+}
+
 const PAGES = [
   {
     name: "parametres",
@@ -143,6 +148,9 @@ const PAGES = [
     mask: () => [".dashboard-period", ".chart-note", ".chart-plot", ".chart-x"],
     // A mask hides the text, not the room it takes: « 0,00 € au 23 nov. · … » wraps on a phone where « 10 nov. » did not.
     fixedDates: [".dashboard-period", ".chart-note"],
+    // The « API » block (#1116) lists the Tools configured, which other specs change as they enter keys: left out of the
+    // shot, its room too. Axe and the contrast check still read it; back-office-dashboard.spec.ts checks what it says.
+    leftOut: [".dashboard-api"],
   },
   {
     name: "activite-extension",
@@ -220,6 +228,7 @@ test.describe("the Back Office's pilot pages in the Design System (#465)", () =>
             const target: Locator = sheet ? page.locator("[data-sheet]") : page.locator("#main");
             await leaveOutRelease(page);
             if ("fixedDates" in shot) await fixDates(page, shot.fixedDates);
+            if ("leftOut" in shot) await leaveOut(page, shot.leftOut);
             if (!sheet) await page.setViewportSize({ width, height: await page.evaluate(() => document.documentElement.scrollHeight) });
             await settled(page);
             await expect(target).toHaveScreenshot(`${themedName(`${shot.name}-${name}`, theme)}.png`, { mask: shot.mask().map((selector) => page.locator(selector)) });

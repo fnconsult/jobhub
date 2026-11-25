@@ -655,7 +655,7 @@
   "toolQuotaAlert": {
     "subject": "Jobbbox: quota reached for {{tools}}",
     "title": "Quota reached",
-    "intro": "The provider of each of these Tools refuses its calls for lack of quota: they fail until the quota is available again.",
+    "intro": "The provider of each of these tools refuses its calls for lack of quota: they fail until the quota is available again.",
     "last": "You will get no other quota email today, nor when a quota is available again: the Quota reached banner in the Back Office shows the current state."
   },
   "appleAlert": {

@@ -655,7 +655,7 @@
   "toolQuotaAlert": {
     "subject": "Jobbbox : quota atteint pour {{tools}}",
     "title": "Quota atteint",
-    "intro": "Le fournisseur de chacun de ces Tools refuse ses appels faute de quota : ils échouent tant que le quota n'est pas de nouveau disponible.",
+    "intro": "Le fournisseur de chacun de ces outils refuse ses appels faute de quota : ils échouent tant que le quota n'est pas de nouveau disponible.",
     "last": "Vous ne recevrez pas d'autre e-mail de quota aujourd'hui, ni quand un quota redevient disponible : le bandeau « Quota atteint » du back office montre l'état à jour."
   },
   "appleAlert": {

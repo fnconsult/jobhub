@@ -707,6 +707,107 @@ Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experi
       if (!result.ok || !result.tailoredCv.proposal) throw new Error("no proposal");
       expect(result.tailoredCv.proposal.content.experience.map((job) => job.period)).toEqual(["Jan. 2005 – present", "Sept. 1995 – Dec. 2004"]);
     });
+
+    describe("every skill comes back in English, whatever the AI Coach's reply and the Candidate's review (#1133)", () => {
+      /** The Master CV of the product owner's capture: its skills too short to tell their language. */
+      const skillsCv: MasterCvContent = {
+        ...frenchCv,
+        skills: ["Ingénierie logicielle", "Gestion d'équipe", "Recrutement", "Conseil technique", "Clients grands comptes", "Communication"],
+        languages: [
+          { name: "Anglais", level: "langue de travail" },
+          { name: "Français", level: "bilingue" },
+          { name: "Arabe", level: "langue maternelle" },
+        ],
+      };
+      const ENGLISH_SKILLS = ["Software engineering", "Team management", "Recruitment", "Technical consulting", "Key accounts", "Communication"];
+      const englishSkills = ENGLISH_SKILLS.map((text, index) => ({ id: `s${index}`, text }));
+      const englishLanguages = [
+        { id: "l0", name: "English", level: "working language" },
+        { id: "l1", name: "French", level: "bilingual" },
+        { id: "l2", name: "Arabic", level: "native language" },
+      ];
+      const skillsTranslated = { ...translated, skills: englishSkills, languages: englishLanguages };
+      /** Each French skill as the Master CV writes it, but « Communication », which English writes the same. */
+      const frenchOnly = skillsCv.skills.filter((skill) => !ENGLISH_SKILLS.includes(skill));
+
+      /** The Application, its Master CV the capture's, and an English Job Offer asking for those skills. */
+      async function capturedApplication() {
+        const english = await saveApplication({ ...ENGLISH_OFFER, source: { url: "https://jobs.example.com/head-of-engineering" }, skills: ENGLISH_SKILLS });
+        const application = await createApplications(database, { jobOffers, profiles }).get(candidateId, english);
+        const saved = await profiles.saveMasterCv(candidateId, application!.profile.id, { basedOnVersion: 1, content: skillsCv });
+        if (!saved?.ok) throw new Error("fixture Master CV refused");
+        return english;
+      }
+      const noFrenchSkill = (skills: string[]) => expect(skills.filter((skill) => skillsCv.skills.includes(skill) && !ENGLISH_SKILLS.includes(skill))).toEqual([]);
+
+      it.each([
+        ["left out", { ...skillsTranslated, skills: undefined }],
+        ["written in another shape (one text)", { ...skillsTranslated, skills: "Software engineering, Team management" }],
+        ["translated without their ids", { ...skillsTranslated, skills: ENGLISH_SKILLS }],
+      ])("skills the AI Coach's reply has %s are asked for once more, named, and the English ones kept", async (_, first) => {
+        const english = await capturedApplication();
+        replies = [first, skillsTranslated];
+        reply = {};
+
+        const result = await tailoredCvs.propose(candidateId, english, { language: "en" });
+
+        const asked = provider.calls.filter((call) => !call.system?.startsWith("Translate"));
+        expect(asked).toHaveLength(2);
+        const again = asked[1]!.messages.map((message) => message.content).join("\n");
+        for (const skill of frenchOnly) expect(again).toContain(`"${skill}"`);
+        if (!result.ok || !result.tailoredCv.proposal) throw new Error("no proposal");
+        expect(result.tailoredCv.proposal.content.skills).toEqual(ENGLISH_SKILLS);
+      });
+
+      it("skills named as languages are ({ id, name }) are read as skills, in English at once", async () => {
+        const english = await capturedApplication();
+        replies = [{ ...skillsTranslated, skills: ENGLISH_SKILLS.map((name, index) => ({ id: `s${index}`, name })) }];
+        reply = {};
+
+        const result = await tailoredCvs.propose(candidateId, english, { language: "en" });
+
+        expect(provider.calls.filter((call) => !call.system?.startsWith("Translate"))).toHaveLength(1);
+        expect(result.ok && result.tailoredCv.proposal?.content.skills).toEqual(ENGLISH_SKILLS);
+      });
+
+      it("reordered by the AI Coach, the skills stay in English, the reordering accepted or rejected, and another change rejected", async () => {
+        const english = await capturedApplication();
+        const order = [4, 0, 2, 1, 3, 5];
+        replies = [{ ...skillsTranslated, skills: order.map((index) => englishSkills[index]!) }];
+        reply = {};
+
+        const result = await tailoredCvs.propose(candidateId, english, { language: "en" });
+
+        if (!result.ok || !result.tailoredCv.proposal) throw new Error("no proposal");
+        const { revision, changes, content } = result.tailoredCv.proposal;
+        expect(content.skills).toEqual(order.map((index) => ENGLISH_SKILLS[index]!));
+        expect(changes).toContainEqual(expect.objectContaining({ id: "skills.reordered", kind: "reordered" }));
+        const all = allOf(result.tailoredCv.proposal);
+
+        // Each review saved on the same proposal: the save drops it, so it is put back before the next.
+        const proposalRow = (await database.query(`SELECT proposal FROM tailored_cv WHERE application_id = $1`, [english])).rows[0].proposal;
+        const putBack = () => database.query(`UPDATE tailored_cv SET proposal = $2 WHERE application_id = $1`, [english, proposalRow]);
+        const saveWith = async (accepted: string[]) => {
+          const saved = await tailoredCvs.save(candidateId, english, { revision, accepted });
+          if (!saved.ok || !saved.tailoredCv.saved) throw new Error("not saved");
+          return saved.tailoredCv.saved.content;
+        };
+
+        // Every change accepted: the AI Coach's order, in English.
+        expect((await saveWith(all)).skills).toEqual(order.map((index) => ENGLISH_SKILLS[index]!));
+        // The reordering rejected: the Master CV's order, still in English.
+        await putBack();
+        const unordered = await saveWith(all.filter((id) => id !== "skills.reordered"));
+        expect(unordered.skills).toEqual(ENGLISH_SKILLS);
+        // Another change rejected (the headline's): the skills are not touched.
+        await putBack();
+        const headlineKept = await saveWith(all.filter((id) => id !== "headline.rephrased"));
+        expect(headlineKept.headline).toBe(skillsCv.headline);
+        expect(headlineKept.skills).toEqual(order.map((index) => ENGLISH_SKILLS[index]!));
+        noFrenchSkill(headlineKept.skills);
+        expect(headlineKept.languages.map((item) => `${item.name}: ${item.level}`)).toEqual(["English: working language", "French: bilingual", "Arabic: native language"]);
+      });
+    });
   });
 
   it("in the Master CV's language, a diploma, language or skill rewritten to state what it lacks keeps the Master CV's wording", async () => {
@@ -788,7 +889,8 @@ Réponds uniquement avec un objet JSON : {"headline": "", "summary": "", "experi
         headline: "Chief Financial Officer",
         summary: "Chief Financial Officer since 2005, 12 subsidiaries consolidated.",
         experience: [{ employer: "Groupe Seb", period: "2005 – 2024", title: "Chief Financial Officer", description: "IFRS consolidation of 12 subsidiaries." }],
-        languages: [{ name: "English", level: "fluent" }],
+        // Named by its id: translated, « English » is found nowhere else (#1133).
+        languages: [{ id: "l0", name: "English", level: "fluent" }],
       },
     ];
     reply = { chief: "directrice" };

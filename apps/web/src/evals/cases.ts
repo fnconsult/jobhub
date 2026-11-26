@@ -70,6 +70,8 @@ export interface AiCoachEvalCase extends JudgedEvalCase {
   alsoProposals?: readonly { action: string; arguments?: Record<string, unknown> }[];
   /** Whether its reply must give a Typed redirect (ADR-0114), built by the server: checked exactly, not judged. */
   redirects?: boolean;
+  /** The conversation before `message`, oldest first (#1133): what the Candidate and the AI Coach said, replayed as it was. */
+  earlier?: readonly { from: "candidate" | "coach"; text: string }[];
 }
 
 /** A Guardrail's verdict on a message and its reply. `flag`: let through and recorded, its Guardrail set to flag only. */
@@ -777,8 +779,44 @@ const sofiaTailoredCv = ({ underReview = false, offer = "Compétences attendues 
   ].join("\n"),
 });
 
+/** Karim's Application In view (#1133): a Tailored CV in English whose skills, the offer's, were left in French; a Master CV without skills. */
+const KARIM = "Le candidat souhaite que le coach l'appelle « Karim » ; n'emploie aucun autre nom pour lui. Il a 52 ans et vise un poste de direction des services professionnels, en CDI.";
+const karimTailoredCv: EvalInView = {
+  kind: "application",
+  text: [
+    "Candidature (id a-fictive) au poste de Head of Professional Services chez Fictive AI (Londres), profil « Head of BU » (id p-bu), statut « Postulée ».",
+    "CV adapté : enregistré le 2026-11-24, en anglais (version 1). Compétences : Ingénierie logicielle, Gestion d'équipe, Recrutement, Conseil technique, Clients grands comptes, Communication.",
+    "CV de référence du profil « Head of BU » (version 2) : aucune rubrique compétences. Formation : diplôme d'ingénieur en informatique. Expérience : directeur des opérations, Exemple Logistique, 2012 – 2020 : 47 personnes ; directeur de BU, Exemple SaaS, 2020 – 2026 : portefeuille de 1 M€ d'ARR, grands comptes.",
+    "Offre d'emploi : Head of Professional Services. Skills: software engineering, team management, recruitment, technical consulting, enterprise key accounts, communication.",
+  ].join("\n"),
+};
+
+/**
+ * The product owner's exchange (#1133), word for word but the employers, fictional here: the skills are declared in the
+ * Candidate's own words, a typo and in English, and « for the rest it is all good » approves the ones the AI Coach listed.
+ */
+const KARIM_EARLIER: AiCoachEvalCase["earlier"] = [
+  { from: "candidate", text: "skills are not in english, please translate them as well" },
+  {
+    from: "coach",
+    text: "Je n'ai pas pu préparer la traduction : les six compétences de votre CV adapté (Ingénierie logicielle, Gestion d'équipe, Recrutement, Conseil technique, Clients grands comptes, Communication) sont exactement celles de l'offre, et votre CV de référence n'a pas de rubrique compétences. Lesquelles avez-vous réellement ? Votre CV dit par exemple : diplôme d'ingénieur en informatique, 47 personnes chez Exemple Logistique, un portefeuille de 1 M€ d'ARR chez Exemple SaaS.",
+  },
+];
+
 /** The AI Coach's Eval Cases of ADR-0113 (#1097): the Tailored CV reworked change by change, Declared Facts, the Review's answers. */
 const COACH_TAILORED_CV_EVAL_CASES: readonly AiCoachEvalCase[] = [
+  {
+    id: "tailored-cv-declared-in-own-words",
+    title: "« Recreuitement », « Team management » et « for the rest it is all good » : une carte qui traduit les compétences listées, marquées déclarées (#1133, ADR-0113)",
+    context: KARIM,
+    earlier: KARIM_EARLIER,
+    message: "Team management: from exemple logistique, exemple conseil, exemple carte and exemple parking / Recreuitement: exemple logistique, exemple conseil / Enterprise key accounts : exemple logistique, exemple saas, exemple conseil / for the rest it is all good",
+    inView: karimTailoredCv,
+    criteria: `La réponse est en anglais, la langue de l'échange. Elle prend « Team management », « Recreuitement » (Recruitment) et « Enterprise key accounts » pour des compétences que le candidat déclare lui-même, avec les expériences qu'il cite, et « for the rest it is all good » pour sa validation des autres compétences qu'elle lui avait listées (Software engineering, Technical consulting, Communication). Elle propose sur le CV adapté les six compétences en anglais, à relire une par une, celles qu'il a déclarées ou validées marquées « Fait déclaré par vous ». Elle n'ajoute aucune compétence qu'il n'a ni déclarée ni validée, et ne renvoie pas vers le CV de référence. ${PROPOSED_NOT_DONE}`,
+    proposes: true,
+    proposal: { action: "propose_tailored_cv_changes" },
+    couldNotAnswer: false,
+  },
   {
     id: "tailored-cv-rework-declared-skill",
     title: "« ajoute Power BI, je l'utilise depuis 3 ans » : une carte sur le CV adapté, le fait marqué déclaré (ADR-0113)",

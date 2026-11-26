@@ -98,7 +98,7 @@ describe("the Job Offer Summary, read with the fields when its task Playbook is 
     expect(system).toMatch(/sans nom de personne/);
   });
 
-  it("sends version 1 word for word as before the task Playbook: the built-in field rules, then its rules", async () => {
+  it("sends version 1 word for word as before the task Playbook, the skills in the offer's language since #1133: the built-in field rules, then its rules", async () => {
     const { ai, claude } = setUp("{}");
 
     await readOfferFields(ai, { candidateId: "cand-1", jobOffer, reading });
@@ -113,6 +113,7 @@ Réponds uniquement par un objet JSON, sans texte autour :
 - "skills" : les compétences demandées, en quelques mots chacune (au plus 15).
 - "requiredExperienceYears" : le nombre minimal d'années d'expérience demandé.
 - Salaires en euros bruts annuels. N'invente rien : omets un champ que l'offre ne précise pas.
+- "skills" : écrites dans la langue de l'offre, avec ses mots (en anglais pour une offre en anglais), jamais traduites.
 - "summary" : deux ou trois phrases (400 caractères au plus) sur le poste, son périmètre et ce qui est attendu,
   écrites dans la langue de l'offre (en anglais pour une offre en anglais). Uniquement ce que l'offre dit, sans rien inventer
   ni juger, et sans nom de personne (recruteur, manager).
@@ -142,6 +143,8 @@ Réponds uniquement par un objet JSON, sans texte autour :
     const system = claude.calls[0]!.system ?? "";
     expect(system).not.toMatch(/summary|sector|subsector/);
     expect(system).toMatch(/Salaires en euros bruts annuels/);
+    // Read in the offer's language, its skills too: an English offer's are not written in French (#1133).
+    expect(system).toMatch(/"skills" : écrites dans la langue de l'offre/);
   });
 
   it("keeps a summary of the right shape, its spacing tidied, in the language it was written in", async () => {
@@ -194,6 +197,19 @@ describe("reading a job page (Job discovery)", () => {
 
     const listing = setUp('{"isJobOffer": false}');
     expect(await readJobPage(listing.ai, null, "page")).toBeNull();
+  });
+
+  it("keeps the JobPosting's title over a slogan the AI took for it", async () => {
+    const { ai } = setUp('{"isJobOffer": true, "title": "Doing what matters starts here", "content": "Avanade recrute un directeur de programme."}');
+    const read = await readJobPage(ai, null, "Doing what matters starts here\n\nSenior Program Director – Delivery Management", null, { title: "Senior Program Director – Delivery Management", from: "job_posting" });
+    expect(read?.title).toBe("Senior Program Director – Delivery Management");
+  });
+
+  it("tells the AI the posting's heading after the page, and never to take a slogan for the title", async () => {
+    const { ai, claude } = setUp('{"isJobOffer": true, "title": "Senior Program Director – Delivery Management", "content": "Avanade recrute."}');
+    await readJobPage(ai, null, "Doing what matters starts here", null, { title: "Senior Program Director – Delivery Management", from: "heading" });
+    expect(claude.calls[0]!.system).toMatch(/"title" : l'intitulé du poste .* jamais un slogan/);
+    expect(claude.calls[0]!.messages[0]!.content).toMatch(/<\/page>\nLe titre principal de l'offre sur la page .*"Senior Program Director – Delivery Management"/);
   });
 
   it("passes the page text as data it cannot close, never as instructions (ADR-0022)", async () => {

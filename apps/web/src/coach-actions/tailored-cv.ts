@@ -168,7 +168,7 @@ export function tailoredCvCoachActions(sources: TailoredCvActionSources): CoachA
   const changes = defineCoachAction({
     name: TAILORED_CV_ACTIONS.changes,
     description:
-      "Propose des changements du CV adapté d'une candidature du candidat, rubrique par rubrique, quand il le demande (« mets les compétences en liste », « coupe l'explication », « ajoute Power BI ») : reformuler (le titre, le résumé, un poste, une compétence), couper, réordonner, mettre en avant, ou ajouter (add) un fait qu'il t'a déclaré lui-même dans cette conversation (une compétence avec text ; une langue avec item et level ; un diplôme avec text, institution, year) ; rephrase d'une langue avec level corrige son niveau. Ils s'appliquent à la proposition en relecture, ses réponses gardées, ou au CV adapté enregistré : le candidat relit chaque changement dans le panneau de travail et l'accepte ou le refuse. Ne relance jamais toute la proposition pour cela (propose_tailored_cv). Lis-le d'abord avec read_tailored_cv ; nomme chaque élément comme il l'écrit. Jamais un élément, un chiffre ni un fait tiré de l'offre ou de toi : le serveur vérifie que le candidat l'a écrit. applicationId : omis, la candidature consultée.",
+      "Propose des changements du CV adapté d'une candidature du candidat, rubrique par rubrique, quand il le demande (« mets les compétences en liste », « coupe l'explication », « ajoute Power BI ») : reformuler (le titre, le résumé, un poste, une compétence), couper, réordonner, mettre en avant, ou ajouter (add) un fait qu'il t'a déclaré lui-même dans cette conversation (une compétence avec text ; une langue avec item et level ; un diplôme avec text, institution, year) ; rephrase d'une langue avec level corrige son niveau. Traduire une compétence dans la langue du CV adapté est un rephrase de cette compétence, que le candidat a déclarée avec ses mots ou validée d'un « pour le reste c'est bon » après ta liste. Ils s'appliquent à la proposition en relecture, ses réponses gardées, ou au CV adapté enregistré : le candidat relit chaque changement dans le panneau de travail et l'accepte ou le refuse. Ne relance jamais toute la proposition pour cela (propose_tailored_cv). Lis-le d'abord avec read_tailored_cv ; nomme chaque élément comme il l'écrit. Jamais un élément, un chiffre ni un fait tiré de l'offre ou de toi : le serveur vérifie que le candidat l'a écrit. applicationId : omis, la candidature consultée.",
     schema: z.object({ applicationId: id.optional(), changes: z.array(masterCvEditSchema).min(1).max(20) }),
     group: "documents",
     kind: "propose",
@@ -183,7 +183,7 @@ export function tailoredCvCoachActions(sources: TailoredCvActionSources): CoachA
       const base = baseOf(revisable);
       if (!base) return { ok: true, proposes: false, data: { message: NO_TAILORED_CV } };
       const offers = [`${application.jobOffer.title} ${application.jobOffer.content}`];
-      const review = masterCvReview(base.content, edits, { offers, declared: call.said ?? [], reference: base.reference });
+      const review = masterCvReview(base.content, edits, { offers, declared: call.said ?? [], ...(call.approved ? { approved: call.approved } : {}), reference: base.reference });
       if (!review.ok) return cvEditRefusal(review, "le CV adapté");
       const { t } = createI18n(call.language);
       const page = routes.applicationResult(application.id, "tailored_cv");

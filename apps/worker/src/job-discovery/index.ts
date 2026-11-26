@@ -151,6 +151,7 @@ import {
   metaRobots,
   pageReadTool,
   readJobPosting,
+  statedJobTitle,
   realClock,
   recordingSiteFetch,
   type Clock,
@@ -655,7 +656,7 @@ export function createJobDiscovery(options: JobDiscoveryOptions): JobDiscovery {
           await followListing();
           return;
         }
-        if (!details && countJobPostings(page.html) <= 1) details = await readJobPage(reading.aiFor("read_job_page"), candidateId, htmlToText(page.html), offerReadingInstructions);
+        if (!details && countJobPostings(page.html) <= 1) details = await readJobPage(reading.aiFor("read_job_page"), candidateId, htmlToText(page.html), offerReadingInstructions, statedJobTitle(page.html));
         if (!details) {
           skipped.push({ url, reason: "not_a_job_offer" });
           return;

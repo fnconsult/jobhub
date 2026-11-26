@@ -128,7 +128,7 @@ describe("reading a Job Offer from a link the Candidate pasted", () => {
     expect(read).toMatchObject({ ok: true, jobOffer: { title: "DAF H/F", employer: "Groupe Seb" } });
     expect(captures[0]!.input).toMatchObject({ source: { url: POSTING_URL }, title: "DAF H/F", content: "Groupe Seb recrute son DAF à Lyon.", contractType: "cdi", requiredExperienceYears: 15 });
     expect(llm.calls).toHaveLength(1);
-    expect(llm.calls[0]!.messages[0]!.content).toMatch(/^<page>\n[\s\S]*Groupe Seb recrute son DAF à Lyon[\s\S]*\n<\/page>$/);
+    expect(llm.calls[0]!.messages[0]!.content).toMatch(/^<page>\n[\s\S]*Groupe Seb recrute son DAF à Lyon[\s\S]*\n<\/page>\nLe titre principal de l'offre sur la page \(son <h1>, hors en-tête du site\) est "DAF H\/F"/);
     expect(usage.entries).toMatchObject([{ task: "offer_analysis", candidateId: "cand-1" }]);
   });
 

@@ -403,6 +403,35 @@ describe("where a Declared Fact is looked for (ADR-0113)", () => {
 
     expect(given).toEqual([["J'utilise Power BI depuis 3 ans.", "Ajoutez-le à mon CV."]]);
   });
+
+  it("the AI Coach's listing the Candidate approved as a whole in their next message (« for the rest it is all good »), and no other (#1133)", async () => {
+    const approved: (readonly string[] | undefined)[] = [];
+    const action = defineCoachAction({
+      name: "proposer_competence",
+      description: "Propose d'ajouter une compétence que le candidat a déclarée.",
+      schema: z.object({ skill: z.string() }),
+      group: "profile",
+      kind: "propose",
+      copiesText: true,
+      sentByCandidate: true,
+      async run({ skill }, call) {
+        approved.push(call.approved);
+        return { ok: true, data: { skill } };
+      },
+    });
+    const { coach } = setUp({ catalog: [...CATALOG, action], turns: [{ toolCalls: [{ name: "proposer_competence", arguments: { skill: "Software engineering" } }] }, { text: "Voici la carte." }] });
+
+    await coach.reply("marie", {
+      messages: [
+        { from: "coach", text: "Bonjour, que puis-je faire ?" },
+        { from: "candidate", text: "skills are not in english, please translate them as well" },
+        { from: "coach", text: "Lesquelles avez-vous : Ingénierie logicielle, Gestion d'équipe, Recrutement ?" },
+        { from: "candidate", text: "Team management: from acteos / for the rest it is all good" },
+      ],
+    });
+
+    expect(approved).toEqual([["Lesquelles avez-vous : Ingénierie logicielle, Gestion d'équipe, Recrutement ?"]]);
+  });
 });
 
 describe("emptyReplyText (#784)", () => {

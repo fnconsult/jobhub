@@ -31,6 +31,29 @@ export function htmlToText(html: string): string {
     .trim();
 }
 
+/**
+ * The posting's own heading: the first `<h1>` of the page's `<main>` or `<article>`, else the first one outside the
+ * site's banner (`<header>`, `<nav>`, `role="banner"`). A brand's slogan in the header (« Doing what matters starts
+ * here ») is never it. Undefined when the page has no such heading.
+ */
+export function mainHeading(html: string): string | undefined {
+  const source = html.replace(/<(script|style|noscript|template|svg)\b[\s\S]*?<\/\1\s*>/gi, " ").replace(/<!--[\s\S]*?-->/g, " ");
+  const firstHeading = (part: string) => {
+    for (const match of part.matchAll(/<h1\b[^>]*>([\s\S]*?)<\/h1\s*>/gi)) {
+      const heading = decodeEntities(match[1]!.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+      if (heading) return heading;
+    }
+    return undefined;
+  };
+  const main = /<(main|article)\b[^>]*>|<[a-z]+\b[^>]*\brole\s*=\s*["']?main\b[^>]*>/i.exec(source);
+  const inMain = main ? firstHeading(source.slice(main.index)) : undefined;
+  if (inMain) return inMain;
+  const outsideBanner = source
+    .replace(/<(header|nav)\b[\s\S]*?<\/\1\s*>/gi, " ")
+    .replace(/<([a-z]+)\b[^>]*\brole\s*=\s*["']?banner\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ");
+  return firstHeading(outsideBanner);
+}
+
 /** The text of every `<script type="application/ld+json">` block. */
 export function jsonLdBlocks(html: string): string[] {
   const blocks: string[] = [];

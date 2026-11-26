@@ -160,6 +160,33 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "requires": "coach-space-v2"
     },
     {
+      "id": "page-admin-agent-keys",
+      "locale": "fr",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "ia-et-conformite",
+      "title": "Clés d'agent",
+      "synonyms": [
+        "clés d'agent",
+        "clé d'agent",
+        "agent key",
+        "jeton d'agent",
+        "tri des signalements",
+        "triage-beta",
+        "triage-prod",
+        "agent ia",
+        "api",
+        "révoquer",
+        "échéance",
+        "journal des appels",
+        "empreinte"
+      ],
+      "route": "/admin/parametres?tab=cles-agent",
+      "motion": null,
+      "microAnimations": [],
+      "body": "L'onglet « Clés d'agent » de Paramètres, réservé aux super-admins, crée les clés qui laissent un agent IA lire la file des signalements pour les trier. Une clé n'ouvre aucune page du back office, ne vaut pour aucune autre partie de l'API et n'est jamais la session d'un administrateur. Elle appartient à l'environnement, pas à la personne qui l'a créée.\n\n« Créer une clé » demande un « Nom » (lettres minuscules, chiffres et tirets, par exemple triage-beta), une « Portée » (aujourd'hui « Signalements » seulement) et une « Échéance, en jours » de 90 jours au plus. La valeur de la clé s'affiche une seule fois, juste après sa création : copiez-la tout de suite. Jobbbox n'en garde que l'empreinte et ne peut jamais la réafficher.\n\nLa liste montre chaque clé avec sa portée, sa date de création, son échéance, son « Dernier usage » et son « État » (active, révoquée ou échue). « Révoquer » coupe la clé tout de suite : la révocation et l'échéance sont relues à chaque appel. « Journal » montre ses 50 derniers appels : la date, le chemin demandé et le résultat (accepté, ou refusé parce que la clé est révoquée, échue, hors portée, ou a dépassé la limite de débit), jamais le contenu rendu.\n\nAvec la portée « Signalements », l'agent lit seulement les signalements envoyés avec la mention « Un outil d'IA peut lire votre message pour nous aider à le traiter. », anonymisés : le nom, l'e-mail et le téléphone du candidat sont remplacés par « [NOM] », « [E-MAIL] »…, la page sort sans ses identifiants (/candidatures/:id), et jamais l'e-mail, le nom, l'offre ni l'identifiant du candidat. Il ne peut que marquer « Vu » : Signalements affiche alors « vu par triage-beta ».\n\nChaque clé créée ou révoquée est inscrite dans Actions des administrateurs par son nom, jamais par sa valeur."
+    },
+    {
       "id": "page-admin-human-coaches",
       "locale": "fr",
       "kind": "page",
@@ -1667,7 +1694,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/admin/signalements",
       "motion": null,
       "microAnimations": [],
-      "body": "Signalements (menu Candidats) liste les bugs, idées et questions que les candidats envoient depuis l'application, du plus ancien au plus récent. Le nombre « à traiter » s'affiche à côté du nom de la section pour qui peut les traiter. Les signalements sont lus par l'équipe seulement, jamais par une IA.\n\nLe type est « Bug », « Idée » ou « Question ». Une question arrive quand l'aide ou le coach IA n'a pas suffi au candidat : elle porte une copie de sa question et de la réponse du coach IA. Le statut est « Nouveau », « Vu » ou « Traité ». Filtrez avec « Filtrer par type » et « Filtrer par statut » (« À traiter » ou « Tous »).\n\nChaque ligne montre la date, le message, la page d'où il vient, la version de Jobbbox, le navigateur, la langue, la taille du texte, le candidat et son offre. « Ouvrir » donne le signalement entier, son « Contexte », son statut et la « Réponse de l'équipe ». Ouvrir un signalement ne change pas son statut.\n\nLe candidat voit la réponse signée « L'équipe Jobbbox », jamais avec votre nom, et une notification quand l'équipe a répondu ou marqué « Traité ». Une question ne se marque « Traité » qu'une fois répondue. Un signalement ne se supprime pas depuis le back office.\n\nLe Support et les super-admins changent le statut et répondent. Les rédacteurs de l'aide voient les questions seulement, sans l'e-mail ni l'offre du candidat. Chaque statut changé et chaque réponse écrite sont inscrits dans Actions des administrateurs, sans leurs mots.\n\nLa rubrique « Signalements de contenus de coaching », réservée aux personnes qui peuvent traiter les signalements, reçoit aussi les demandes sans compte. Toute décision de retrait, suspension ou maintien exige un motif notifié au signaleur et au responsable du contenu. Les coordonnées et l’explication originale du signaleur ne sont pas transmises au responsable."
+      "body": "Signalements (menu Candidats) liste les bugs, idées et questions que les candidats envoient depuis l'application, du plus ancien au plus récent. Le nombre « à traiter » s'affiche à côté du nom de la section pour qui peut les traiter. Les signalements envoyés avec la mention « Un outil d'IA peut lire votre message pour nous aider à le traiter. » sont aussi lus, anonymisés, par l'agent du tri des signalements, avec une clé d'agent (onglet « Clés d'agent » de Paramètres) ; les autres sont lus par l'équipe seulement. Un statut posé par l'agent s'affiche « vu par triage-beta », du nom de sa clé.\n\nLe type est « Bug », « Idée » ou « Question ». Une question arrive quand l'aide ou le coach IA n'a pas suffi au candidat : elle porte une copie de sa question et de la réponse du coach IA. Le statut est « Nouveau », « Vu » ou « Traité ». Filtrez avec « Filtrer par type » et « Filtrer par statut » (« À traiter » ou « Tous »).\n\nChaque ligne montre la date, le message, la page d'où il vient, la version de Jobbbox, le navigateur, la langue, la taille du texte, le candidat et son offre. « Ouvrir » donne le signalement entier, son « Contexte », son statut et la « Réponse de l'équipe ». Ouvrir un signalement ne change pas son statut.\n\nLe candidat voit la réponse signée « L'équipe Jobbbox », jamais avec votre nom, et une notification quand l'équipe a répondu ou marqué « Traité ». Une question ne se marque « Traité » qu'une fois répondue. Un signalement ne se supprime pas depuis le back office.\n\nLe Support et les super-admins changent le statut et répondent. Les rédacteurs de l'aide voient les questions seulement, sans l'e-mail ni l'offre du candidat. Chaque statut changé et chaque réponse écrite sont inscrits dans Actions des administrateurs, sans leurs mots.\n\nLa rubrique « Signalements de contenus de coaching », réservée aux personnes qui peuvent traiter les signalements, reçoit aussi les demandes sans compte. Toute décision de retrait, suspension ou maintien exige un motif notifié au signaleur et au responsable du contenu. Les coordonnées et l’explication originale du signaleur ne sont pas transmises au responsable."
     },
     {
       "id": "page-content-report",
@@ -3371,7 +3398,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "Pour un problème ou une idée, faites un signalement : « Signaler un problème » ou « Proposer une idée », sous la zone de message de chaque conversation. Vous le trouvez aussi avec l'icône à côté de « Mon compte », en bas du menu. Le formulaire s'ouvre à côté de la conversation, sans la cacher (par-dessus, en plein écran, sur téléphone) ; « Fermer » ou la touche Échap le referme et votre brouillon est gardé.\n\nPour poser une question à une personne, demandez d'abord à votre coach IA. Si sa réponse ne vous aide pas, répondez « Non » sous sa réponse : « Poser la question à l'équipe » envoie votre question et la réponse du coach à l'équipe Jobbbox, dans le même formulaire.\n\nL'équipe Jobbbox lit chaque signalement. Vous suivez son statut et la réponse de l'équipe dans Mon compte, rubrique Mes signalements.\n\nIl n'y a pas d'adresse e-mail de support : le signalement est le moyen de joindre une personne."
+      "body": "Pour un problème ou une idée, faites un signalement : « Signaler un problème » ou « Proposer une idée », sous la zone de message de chaque conversation. Vous le trouvez aussi avec l'icône à côté de « Mon compte », en bas du menu. Le formulaire s'ouvre à côté de la conversation, sans la cacher (par-dessus, en plein écran, sur téléphone) ; « Fermer » ou la touche Échap le referme et votre brouillon est gardé.\n\nPour poser une question à une personne, demandez d'abord à votre coach IA. Si sa réponse ne vous aide pas, répondez « Non » sous sa réponse : « Poser la question à l'équipe » envoie votre question et la réponse du coach à l'équipe Jobbbox, dans le même formulaire.\n\nSous votre message, le formulaire le dit : « Un outil d'IA peut lire votre message pour nous aider à le traiter. » Cet outil aide l'équipe à trier les signalements : votre nom et votre e-mail sont retirés du message avant qu'il le lise, il ne reçoit ni votre offre ni rien de votre compte, et il ne vous répond jamais lui-même.\n\nL'équipe Jobbbox lit chaque signalement. Vous suivez son statut et la réponse de l'équipe dans Mon compte, rubrique Mes signalements.\n\nIl n'y a pas d'adresse e-mail de support : le signalement est le moyen de joindre une personne."
     },
     {
       "id": "faq-help-and-ai",
@@ -5884,6 +5911,33 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "body": "Activity's « Administrator actions » tab is the back office's journal, formerly « Journal ». It records every change made in the back office: who, when, the section, the item, the action, and the values before and after. It also records every attempt refused or failed, with its reason but without the values entered, and every AI call or Candidate's Job Search a super-admin opened.\n\nSecret values are never recorded: a key shows « Value replaced (never recorded) » or « Value cleared: the environment variable is used again ». An unanswered question or a piece of feedback is named by its identifier, never by its words. Each entry is kept 3 years.\n\n« Show » filters by section: « All », « Roles », « Plans », « Coupons », « Human Coaches », « Coaching Playbooks », « Guardrails », « Feedback »… The « Tools » filter adds every call to an external tool (Stripe, Brevo, sign-in, connection tests, pages read), with its tool, operation, outcome and duration: no content, no Candidate, no secret. The « Linked mailboxes » filter adds the Linked mailboxes switched on, replaced, switched off or at their daily cap, with no Candidate or address. The most recent changes come first.\n\nThe « Store review sign-in code » section records each sign-in of a demo account with the store review sign-in code (action « Sign-in »), and each « Wrong code » typed for it, under the demo account's name. The code is never shown. It only fills during a review of the app by the App Store or Google Play, while the code is switched on.\n\nSuper-admins and Technique read this journal. No one changes it or erases a line."
     },
     {
+      "id": "page-admin-agent-keys",
+      "locale": "en",
+      "kind": "page",
+      "audience": "administrator",
+      "topic": "ia-et-conformite",
+      "title": "Agent keys (Clés d'agent)",
+      "synonyms": [
+        "agent keys",
+        "agent key",
+        "clés d'agent",
+        "agent token",
+        "feedback triage",
+        "triage-beta",
+        "triage-prod",
+        "ai agent",
+        "api",
+        "revoke",
+        "expiry",
+        "call log",
+        "fingerprint"
+      ],
+      "route": "/admin/parametres?tab=cles-agent",
+      "motion": null,
+      "microAnimations": [],
+      "body": "The « Agent keys » tab of Settings, for super-admins only, creates the keys that let an AI agent read the feedback queue to triage it. A key opens no back office page, works for no other part of the API and is never an administrator's session. It belongs to the environment, not to the person who created it.\n\n« Create a key » asks for a « Name » (lower-case letters, digits and hyphens, for example triage-beta), a « Scope » (only « Feedback » today) and an « Expiry, in days » of 90 days at most. The key's value shows only once, right after it is created: copy it at once. Jobbbox keeps only its fingerprint and can never show it again.\n\nThe list shows each key with its scope, creation date, expiry, « Last used » and « State » (active, revoked or expired). « Revoke » cuts the key off at once: revocation and expiry are read again on every call. « Log » shows its latest 50 calls: the date, the path asked for and the result (accepted, or refused because the key is revoked, expired, out of scope, or over the rate limit), never the content returned.\n\nWith the « Feedback » scope, the agent reads only the feedback sent with the notice « An AI tool may read your message to help us handle it. », anonymised: the Candidate's name, email and phone are replaced with « [NOM] », « [E-MAIL] »…, the page comes without its ids (/candidatures/:id), and never the Candidate's email, name, Plan or id. It can only mark « Seen »: Feedback then shows « seen by triage-beta ».\n\nEach key created or revoked is recorded in Administrator actions by its name, never its value."
+    },
+    {
       "id": "page-application-exchanges",
       "locale": "en",
       "kind": "page",
@@ -6508,7 +6562,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": "/admin/signalements",
       "motion": null,
       "microAnimations": [],
-      "body": "Feedback (Candidates menu) lists the bugs, ideas and questions Candidates send from the app, oldest first. The number « to handle » shows next to the section's name for whoever can handle them. Feedback is read by the team only, never by an AI.\n\nThe type is « Bug », « Idea » or « Question ». A question arrives when the help or the AI Coach did not satisfy the Candidate: it carries a copy of their question and of the AI Coach's reply. The status is « New », « Seen » or « Handled ». Filter with « Filter by type » and « Filter by status » (« To handle » or « All »).\n\nEach row shows the date, the message, the page it came from, the Jobbbox version, the browser, the language, the text size, the Candidate and their Plan. « Open » gives the whole feedback, its « Context », its status and « The team's reply ». Opening feedback does not change its status.\n\nThe Candidate sees the reply signed « L'équipe Jobbbox », never with your name, and a notification when the team replied or marked it « Handled ». A question is marked « Handled » only once replied to. Feedback cannot be deleted from the back office.\n\nSupport and super-admins change the status and reply. Help editors see the questions only, without the Candidate's email or Plan. Each status change and each reply written are recorded in Administrator actions, without their words.\n\n“Coaching content reports”, available to people allowed to handle feedback, also receives requests without an account. Every removal, suspension or keep decision requires a reason notified to the reporter and content owner. The reporter’s contact details and original explanation are not shared with the owner."
+      "body": "Feedback (Candidates menu) lists the bugs, ideas and questions Candidates send from the app, oldest first. The number « to handle » shows next to the section's name for whoever can handle them. Feedback sent with the notice « An AI tool may read your message to help us handle it. » is also read, anonymised, by the feedback triage agent, with an agent key (« Agent keys » tab of Settings); the rest is read by the team only. A status set by the agent shows « seen by triage-beta », after its key's name.\n\nThe type is « Bug », « Idea » or « Question ». A question arrives when the help or the AI Coach did not satisfy the Candidate: it carries a copy of their question and of the AI Coach's reply. The status is « New », « Seen » or « Handled ». Filter with « Filter by type » and « Filter by status » (« To handle » or « All »).\n\nEach row shows the date, the message, the page it came from, the Jobbbox version, the browser, the language, the text size, the Candidate and their Plan. « Open » gives the whole feedback, its « Context », its status and « The team's reply ». Opening feedback does not change its status.\n\nThe Candidate sees the reply signed « L'équipe Jobbbox », never with your name, and a notification when the team replied or marked it « Handled ». A question is marked « Handled » only once replied to. Feedback cannot be deleted from the back office.\n\nSupport and super-admins change the status and reply. Help editors see the questions only, without the Candidate's email or Plan. Each status change and each reply written are recorded in Administrator actions, without their words.\n\n“Coaching content reports”, available to people allowed to handle feedback, also receives requests without an account. Every removal, suspension or keep decision requires a reason notified to the reporter and content owner. The reporter’s contact details and original explanation are not shared with the owner."
     },
     {
       "id": "page-admin-guardrails",
@@ -9024,7 +9078,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "For a problem or an idea, send feedback: « Report a problem » or « Suggest an idea », under the message box of every conversation. You also find it with the icon beside « My account », at the foot of the menu. The form opens beside the conversation, without hiding it (over it, full screen, on a phone); « Close » or the Escape key closes it and your draft is kept.\n\nTo ask a person a question, ask your AI coach first. If its reply doesn't help, answer « No » under it: « Ask the team » sends your question and the coach's reply to the Jobbbox team, in the same form.\n\nThe Jobbbox team reads every piece of feedback. You follow its status and the team's reply in My account, My feedback section.\n\nThere is no support email address: feedback is how you reach a person."
+      "body": "For a problem or an idea, send feedback: « Report a problem » or « Suggest an idea », under the message box of every conversation. You also find it with the icon beside « My account », at the foot of the menu. The form opens beside the conversation, without hiding it (over it, full screen, on a phone); « Close » or the Escape key closes it and your draft is kept.\n\nTo ask a person a question, ask your AI coach first. If its reply doesn't help, answer « No » under it: « Ask the team » sends your question and the coach's reply to the Jobbbox team, in the same form.\n\nUnder your message, the form says so: « An AI tool may read your message to help us handle it. » This tool helps the team triage feedback: your name and email are taken out of the message before it reads it, it receives neither your Plan nor anything of your account, and it never answers you itself.\n\nThe Jobbbox team reads every piece of feedback. You follow its status and the team's reply in My account, My feedback section.\n\nThere is no support email address: feedback is how you reach a person."
     },
     {
       "id": "faq-sign-in-link",

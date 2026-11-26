@@ -75,3 +75,21 @@ Used by `/wayfinder`. The **map** is a single issue with **child** issues as tic
 - **Frontier query**: list the map's open children (`gh issue list --state open`, scoped to the map's sub-issues / task list), drop any with an open blocker (`issue_dependencies_summary.blocked_by > 0`, or an open issue in the `Blocked by` line) or an assignee; first in map order wins.
 - **Claim**: `gh issue edit <n> --add-assignee @me`, the session's first write.
 - **Resolve**: `gh issue comment <n> --body "<answer>"`, then `gh issue close <n>`, then append a context pointer (gist + link) to the map's Decisions-so-far.
+
+## Trier les signalements
+
+Signalement triage (ADR-0118, #1139) reads the Signalements through an Agent Key, never a session. The key is in the
+environment variable `JOBBBOX_AGENT_KEY`; the product owner creates it in Paramètres › « Clés d'agent » (`triage-beta`
+on the Beta first, `triage-prod` only after the Legal Review of #1140). An agent never creates one.
+
+- `GET /admin/api/signalements` (`?statut=nouveau`, `?statut=nouveau,vu`): the queue, only those sent with the AI
+  notice, redacted, each page path without its ids.
+- `GET /admin/api/signalements/:id`: one of them.
+- `POST /admin/api/signalements/:id/statut` with `{ "statut": "vu" }`: the only status an agent sets; the Back Office
+  shows « vu par <key> ».
+
+Each call sends `Authorization: Bearer $JOBBBOX_AGENT_KEY`: never the key's value in a command, a file, `git`, an issue
+or a comment (`scripts/hooks/no-secrets.mjs` refuses it). Never a Signalement's text in `git`, an issue, a comment or a
+test, and never kept outside the session: an issue is written in the agent's own words and carries the Signalement's
+id, never its message. A 401 (no key, or one revoked or expired), 403 (out of scope) or 429 (rate limit) stops the
+triage: say so, and do not try another way in.

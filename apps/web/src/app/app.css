@@ -4078,8 +4078,14 @@ html[data-in-app] :is(.sidebar-docked, .sidebar-drawer, .topbar .menu-toggle, .t
   white-space: nowrap;
 }
 
-.signalement-context .signalement-meta {
+.signalement-context .signalement-meta,
+.signalement-ai-notice {
   white-space: normal;
+}
+
+/* The AI notice (#1139, ADR-0118), right under the field and its count. */
+.signalement-ai-notice {
+  margin-top: var(--space-1);
 }
 
 /* What goes with it, « Joints automatiquement »: a quiet block on the surface, its detail a two-column list. */

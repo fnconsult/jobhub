@@ -12,6 +12,7 @@ import { Note } from "@/design/Note";
 import { Properties, Property } from "@/design/Properties";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
+import { signatureName } from "@/agent-keys/values";
 import { REPLY_MAX_LENGTH, SIGNALEMENT_STATUSES } from "@/signalements/values";
 import "../../section.css";
 
@@ -132,6 +133,8 @@ export default async function SignalementPage({ params, searchParams }: Params) 
         <Card title={t("admin.signalements.statusTitle")}>
           <div className="section-block">
             <p>{t("admin.signalements.statusNow", { status: t(`admin.signalements.statuses.${signalement.status}`) })}</p>
+            {/* A status an Agent Key set (#1139): « vu par triage-beta ». */}
+            {signatureName(signalement.statusChangedBy) ? <p data-status-by>{t("admin.signalements.seenBy", { name: signatureName(signalement.statusChangedBy) })}</p> : null}
             <p className="section-meta">{t("admin.signalements.statusHelp")}</p>
             <BackOfficeForm canWrite={canWrite} action={changeStatus} className="section-actions">
               <input type="hidden" name="id" value={signalement.id} />

@@ -129,6 +129,8 @@ const LUCIDE = {
   searchSites: Globe,
   // A key: Provider Secrets (#208).
   providerSecrets: KeyRound,
+  // An Agent Key (#1139): a key too, for an AI agent's calls.
+  agentKeys: KeyRound,
   // Sliders: the Platform Settings (#298).
   platformSettings: SlidersHorizontal,
   signInProviders: LogIn,

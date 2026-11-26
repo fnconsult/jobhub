@@ -21,7 +21,7 @@ const tab = (slug: string) => parametresTab(slug);
 
 describe("Paramètres in tabs (#396, ADR-0042)", () => {
   it("has one tab per kind of Tool, then Extension and, last, Environnement", () => {
-    expect(PARAMETRES_TABS.map((tab) => tab.slug)).toEqual(["recherche-web", "ia", "sources", "enrichissement", "e-mail", "paiement", "connexion", "extension", "environnement"]);
+    expect(PARAMETRES_TABS.map((tab) => tab.slug)).toEqual(["recherche-web", "ia", "sources", "enrichissement", "e-mail", "paiement", "connexion", "extension", "environnement", "cles-agent"]);
   });
 
   it("routes every editable Provider Secret to a provider sheet", () => {

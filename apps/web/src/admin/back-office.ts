@@ -69,6 +69,8 @@ export const BACK_OFFICE_SECTIONS = [
   "guardrails",
   "unanswered_questions",
   "signalements",
+  // An Agent Key created or revoked (#1139), by its name, never its value.
+  "agent_keys",
   // A recipient outside the EU switched on in Paramètres that the privacy policy in effect does not name (#548), by its Tool's id.
   "recipients_outside_eu",
   // A failed refund of a Withdrawal tried again (#511).
@@ -113,7 +115,7 @@ export type SecretAction = (typeof SECRET_ACTIONS)[number];
  * (« Rétablir »), env's or the code's default in use again (#299). `refused`: an attempt refused or failed (#263); `denied`: an
  * Administrator opened a section outside their Back Office Roles (#264). `switched_on`: a recipient outside the EU the privacy
  * policy in effect does not name was switched on in Paramètres (#548). `signed_in`: a demo account signed in with the store
- * review's sign-in code (#981), its actor the demo account itself.
+ * review's sign-in code (#981), its actor the demo account itself. `revoked`: an Agent Key revoked (#1139).
  */
 export type BackOfficeAction =
   | "added"
@@ -134,6 +136,7 @@ export type BackOfficeAction =
   | "denied"
   | "switched_on"
   | "signed_in"
+  | "revoked"
   | SecretAction;
 
 /** How a Back Office attempt ended (the Outcome, CONTEXT.md): the Back Office Audit only uses these two. */
@@ -257,6 +260,7 @@ const DENIED_SECTIONS = {
   signalements: "signalements",
   withdrawals: "withdrawals",
   deliveryStatus: "delivery_status",
+  agentKeys: "agent_keys",
 } as const satisfies Record<BackOfficeResource, BackOfficeSection>;
 
 /** The page an Administrator was denied `resource` on: the Back Office page it covers; Eval Runs are played from the Coaching Playbooks. */

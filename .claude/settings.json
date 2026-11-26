@@ -18,6 +18,15 @@
             "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/no-promotion.mjs\""
           }
         ]
+      },
+      {
+        "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit|mcp__github__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/no-secrets.mjs\""
+          }
+        ]
       }
     ]
   },

@@ -68,6 +68,7 @@ import { migrateReferenceData } from "./reference-data/index";
 import { migrateSearchSites } from "./search-sites/index";
 import { migrateSignInProviders } from "./sign-in-providers/index";
 import { migrateSignalements } from "./signalements/index";
+import { migrateAgentKeys } from "./agent-keys/index";
 import { migrateTailoredCvs } from "./tailored-cv/index";
 import { migrateTailoredDocuments } from "./tailored-documents/index";
 import { migrateTargetCompanies } from "./target-companies/index";
@@ -155,6 +156,7 @@ export async function migrateDatabase(
     ["Reference data is up to date", () => migrateReferenceData(database)],
     ["Unanswered Questions are up to date", () => migrateUnansweredQuestions(database)],
     ["Signalements are up to date", () => migrateSignalements(database)],
+    ["Agent Keys are up to date", () => migrateAgentKeys(database)],
     ["Extension Events are up to date", () => migrateExtensionEvents(database)],
     ["Forwarding addresses are up to date", () => migrateEmailIntake(database)],
     ["Legal Text notices are up to date", () => migrateLegalTextNotices(database)],

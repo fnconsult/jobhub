@@ -11,6 +11,7 @@ import { Pill, Status, type StatusTone, type Tone } from "@/design/Pill";
 import { Table } from "@/design/Table";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import { routes } from "@/routes";
+import { signatureName } from "@/agent-keys/values";
 import { SIGNALEMENT_STATUSES, SIGNALEMENT_TYPES } from "@/signalements/values";
 import { ALL_STATUSES, signalementsFilter } from "./filters";
 import "../section.css";
@@ -112,7 +113,19 @@ export default async function SignalementsPage({ searchParams }: { searchParams:
                     { header: t("admin.signalements.plan"), cell: (each: Listed) => (each.candidate ? planName(each.candidate.plan) : null) },
                   ]
                 : []),
-              { header: t("admin.signalements.status"), cell: (each) => <Status tone={STATUS_TONE[each.status]}>{t(`admin.signalements.statuses.${each.status}`)}</Status> },
+              {
+                header: t("admin.signalements.status"),
+                cell: (each) => {
+                  // A status an Agent Key set (#1139): « vu par triage-beta ».
+                  const key = signatureName(each.statusChangedBy);
+                  return (
+                    <>
+                      <Status tone={STATUS_TONE[each.status]}>{t(`admin.signalements.statuses.${each.status}`)}</Status>
+                      {key ? <span className="section-meta"> {t("admin.signalements.seenBy", { name: key })}</span> : null}
+                    </>
+                  );
+                },
+              },
             ]}
             rows={listed}
             rowKey={(each) => each.id}

@@ -1,6 +1,7 @@
 import type { Pool } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
+import { migrateBilling } from "../billing";
 import { createSignalements, migrateSignalements, purgeSignalements, signalementsOf, type Signalements, type SendingContext } from "./index";
 
 const CHROME_ON_MAC = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.7390.54 Safari/537.36";
@@ -29,6 +30,7 @@ describe.skipIf(!connectionString)("Signalements (#374, #283; needs Postgres: DA
   beforeEach(async () => {
     testAuth = await startTestAuth();
     database = testAuth.database;
+    await migrateBilling(database);
     await migrateSignalements(database);
     await migrateSignalements(database); // safe to run twice
     marie = await candidate("marie.dupont@example.fr");
@@ -58,6 +60,7 @@ describe.skipIf(!connectionString)("Signalements (#374, #283; needs Postgres: DA
             interfaceLanguage: "fr",
             textSize: "large",
           },
+          aiNoticeShown: false,
           status: "nouveau",
           statusChangedAt: null,
           reply: null,
@@ -66,6 +69,12 @@ describe.skipIf(!connectionString)("Signalements (#374, #283; needs Postgres: DA
           createdAt: now,
         },
       });
+    });
+
+    it("keeps whether the form showed the AI notice (#1139): only when it says so, never for an older form that does not", async () => {
+      expect(await signalements.send(marie, bug({ aiNotice: true }), FROM_MARIE)).toMatchObject({ ok: true, signalement: { aiNoticeShown: true } });
+      expect(await signalements.send(marie, bug({ aiNotice: "true" }), FROM_MARIE)).toMatchObject({ ok: true, signalement: { aiNoticeShown: false } });
+      expect(await signalements.send(marie, bug(), FROM_MARIE)).toMatchObject({ ok: true, signalement: { aiNoticeShown: false } });
     });
 
     it("stores, from the Jobbbox app, its version and system as it states them, its native fetch naming neither (#690)", async () => {
@@ -179,11 +188,46 @@ describe.skipIf(!connectionString)("Signalements (#374, #283; needs Postgres: DA
       expect(await signalements.changeStatus(question.id, "traite")).toMatchObject({ after: { status: "traite" } });
     });
 
+    it("signs a status set by an Agent Key `key:<name>` for the team, and forgets it once the team changes it (#1139)", async () => {
+      const signalement = await sent();
+
+      await signalements.changeStatus(signalement.id, "vu", database, "key:triage-beta");
+      expect(await signalements.one(signalement.id)).toMatchObject({ status: "vu", statusChangedBy: "key:triage-beta" });
+      expect((await signalements.list())[0]).toMatchObject({ statusChangedBy: "key:triage-beta" });
+      // Never in what the Candidate reads, nor in their Data export.
+      expect(JSON.stringify(await signalementsOf(database, marie))).not.toContain("triage-beta");
+
+      await signalements.changeStatus(signalement.id, "nouveau");
+      expect(await signalements.one(signalement.id)).toMatchObject({ status: "nouveau", statusChangedBy: null });
+    });
+
     it("finds nothing to change for an unknown id or status", async () => {
       expect(await signalements.changeStatus("0b6c2f1e-1111-4111-8111-111111111111", "vu")).toBeNull();
       expect(await signalements.changeStatus("pas-un-id", "vu")).toBeNull();
       expect(await signalements.changeStatus((await sent()).id, "ferme" as never)).toBeNull();
       expect(await signalements.reply("pas-un-id", "Merci.")).toBeNull();
+    });
+  });
+
+  describe("for Signalement triage (#1139, ADR-0118)", () => {
+    it("gives only those sent with the AI notice, oldest first, of the statuses asked, each with its Candidate's id for Redaction", async () => {
+      now = new Date("2026-10-25T09:00:00Z");
+      const before = await signalements.send(marie, bug(), FROM_MARIE);
+      now = new Date("2026-10-25T10:00:00Z");
+      const first = await signalements.send(marie, bug({ aiNotice: true }), FROM_MARIE);
+      now = new Date("2026-10-25T11:00:00Z");
+      const second = await signalements.send(marie, bug({ type: "idee", aiNotice: true }), FROM_MARIE);
+      if (!before.ok || !first.ok || !second.ok) throw new Error("fixture Signalement refused");
+      await signalements.changeStatus(second.signalement.id, "traite");
+
+      expect(await signalements.triageable()).toEqual([
+        { candidateId: marie, signalement: first.signalement },
+        { candidateId: marie, signalement: { ...second.signalement, status: "traite", statusChangedAt: now } },
+      ]);
+      expect((await signalements.triageable({ statuses: ["nouveau"] })).map((each) => each.signalement.id)).toEqual([first.signalement.id]);
+      expect(await signalements.triageableOne(first.signalement.id)).toEqual({ candidateId: marie, signalement: first.signalement });
+      expect(await signalements.triageableOne(before.signalement.id)).toBeNull();
+      expect(await signalements.triageableOne("pas-un-id")).toBeNull();
     });
   });
 

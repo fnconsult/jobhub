@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { agentKeyRefusal } from "@/agent-keys/http";
 import { apiVersionRefusal, UPGRADE_REQUIRED } from "@/api-version";
 import { contentSecurityPolicy } from "@/help-media";
 import { currentCoachSpaceV2, currentHelpMediaOrigin } from "@/help-media/origin";
@@ -17,6 +18,8 @@ import { pendingSessionAnswer } from "@/two-step-verification/proxy-gate";
  * Every request but Next's static files:
  * - during maintenance (#542), answers 503 to whatever does not stay open (see maintenance), read from the Platform
  *   Settings' per-process cache, never from the database;
+ * - answers 403 to a request carrying an Agent Key (#1139, ADR-0118) anywhere but its scopes' routes: a key never opens a
+ *   Back Office page nor any other route, before any of them runs (see agent-keys/http);
  * - answers `426 Upgrade Required` to an extension whose API Version is no longer served (#564, see api-version);
  * - redirects for good (308) the addresses of Légal that moved (#546): « IA dans Jobbbox », #470's Legal Documents
  *   and `?version=` (see legalRedirect);
@@ -41,6 +44,8 @@ export async function proxy(request: NextRequest) {
     const maintenance = currentMaintenance();
     if (maintenance) return maintenanceResponse(maintenance, pathname, new Date());
   }
+  const agentKeyOutOfScope = agentKeyRefusal(pathname, request.headers);
+  if (agentKeyOutOfScope) return withCommonHeaders(new NextResponse(agentKeyOutOfScope.body, agentKeyOutOfScope));
   const outdated = apiVersionRefusal(pathname, request.headers, currentExtensionStorePage);
   if (outdated) return withCommonHeaders(NextResponse.json(outdated, { status: UPGRADE_REQUIRED, headers: { "Cache-Control": "no-store" } }));
   const moved = legalRedirect(prefixed.pathname, request.nextUrl.searchParams);

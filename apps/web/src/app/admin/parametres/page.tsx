@@ -32,9 +32,12 @@ import { routes } from "@/routes";
 import { getSearchSites } from "@/search-sites/server";
 import type { SignInProviderStatus } from "@/sign-in-providers/index";
 import { getSignInProviders } from "@/sign-in-providers/server";
+import { getAgentKeys } from "@/agent-keys/server";
 import { currentState } from "@/tools/server";
 import { UncoveredRecipientNote } from "../outils/UncoveredRecipientNote";
 import { restoreSetting, saveSetting } from "./actions";
+import { AGENT_KEY_PARAMS } from "./agent-keys-params";
+import { AgentKeysSection } from "./AgentKeysSection";
 import { AddPanel, addableTypes } from "./AddPanel";
 import { AiTasksSection, PlaybookAgentPanel, RoutePanel, SearchTasksSection, type ModelChoices } from "./AiTasksSection";
 import { Here, type Ctx } from "./context";
@@ -205,7 +208,8 @@ function Notices({ ctx, search, signInProviders, requireSso }: { ctx: Ctx; searc
  * (`?tab=`), so a reload keeps it. A provider tab shows its active provider and its settings, then every possible
  * provider, whose sheet opens in a side panel (`&fournisseur=`). It absorbs Clés (on each provider's sheet), Connexion
  * (its tab) and Sites de recherche (Sources, Recherche web and Extension). One « + Ajouter » adds what the tab holds.
- * Super-admins change everything; Support reads every tab and changes nothing.
+ * Super-admins change everything; Support reads every tab and changes nothing, but « Clés d'agent » (#1139), which only
+ * super-admins see.
  */
 export default async function PlatformSettingsPage({ searchParams }: { searchParams: Promise<Search> }) {
   const { administrator, access, canWrite } = await requireBackOffice("platformSettings");
@@ -213,6 +217,8 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
   const t = await getServerT(locale);
   const search = await searchParams;
   const tab = parametresTab(one(search.tab));
+  // A tab of a resource fewer roles read (« Clés d'agent »): 404 to the others, recorded as a denied entry.
+  if (tab.resource) await requireBackOffice(tab.resource);
   const number = new Intl.NumberFormat(locale);
   /** What a setting takes, as its notices and help say it: "un nombre entier de 0 à 100", "un expéditeur d'e-mail…". */
   const rule = (type: PlatformSettingType): string => {
@@ -320,7 +326,14 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
   const confirming = canWrite && noticed?.confirm !== undefined && (confirmNotice === "unconfirmed" || confirmNotice === "restoreUnconfirmed") ? noticed : undefined;
   // The settings of this tab from env that differ from the code's default: how an old `.env` shows up (ADR-0033).
   const differing = settings.filter((setting) => setting.differsFromDefault && tab.settings.includes(setting.name)).length;
+  // The tabs this Administrator reads: « Clés d'agent » for super-admins only.
+  const shownTabs = PARAMETRES_TABS.filter((each) => !each.resource || access.can(each.resource, "read"));
   const notices = <Notices ctx={ctx} search={search} signInProviders={signInProviders} requireSso={signInSettings?.requireSsoForAdministrators ?? false} />;
+  // « Clés d'agent » (#1139): every key, the journal of the one asked for, the one just revoked by its name.
+  const agentKeys = tab.id === "agent_keys" && hasDatabase ? await getAgentKeys().list() : [];
+  const journalKey = agentKeys.find((key) => key.id === one(search[AGENT_KEY_PARAMS.journal]));
+  const agentKeyJournal = journalKey ? { key: journalKey, calls: await getAgentKeys().calls(journalKey.id) } : null;
+  const revokedKey = agentKeys.find((key) => key.name === one(search[AGENT_KEY_PARAMS.revoked]) && key.revokedAt)?.name ?? null;
 
   return (
     <BackOfficeLayout access={access} title={t("admin.platformSettings.title")}>
@@ -329,7 +342,7 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
           <PageIntro t={t} page={INTRO} subject={t("admin.platformSettings.title")}>
             {canWrite ? null : <p>{t("admin.readOnly")}</p>}
           </PageIntro>
-          {allowed.length > 0 ? (
+          {allowed.length > 0 && tab.id !== "agent_keys" ? (
             <Link prefetch={false} className={buttonClass({ variant: "primary" })} href={parametresHref(tab.id, { ajouter: addTypeFor(tab, undefined, allowed) })} data-opens-add>
               {t("admin.platformSettings.add.button")}
             </Link>
@@ -338,7 +351,7 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
 
         <TabLinks
           label={t("admin.platformSettings.tabsLabel")}
-          tabs={PARAMETRES_TABS.map((each) => ({ id: each.id, href: parametresHref(each.id), label: t(`admin.platformSettings.tabs.${each.id}`) }))}
+          tabs={shownTabs.map((each) => ({ id: each.id, href: parametresHref(each.id), label: t(`admin.platformSettings.tabs.${each.id}`) }))}
           shown={tab.id}
         />
 
@@ -378,7 +391,9 @@ export default async function PlatformSettingsPage({ searchParams }: { searchPar
               </Link>
             </p>
           ) : null}
-          {tab.id === "environment" ? (
+          {tab.id === "agent_keys" ? (
+            <AgentKeysSection ctx={ctx} keys={agentKeys} journal={agentKeyJournal} revoked={revokedKey} now={new Date()} />
+          ) : tab.id === "environment" ? (
             <>
               {/* Its own settings, which super-admins change: maintenance (#542), « Conversation au centre » (#601). */}
               <Card title={t("admin.platformSettings.active.settingsTitle")}>

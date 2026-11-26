@@ -1164,7 +1164,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(JSON.stringify(exported)).not.toContain(sessions[0]!.token);
   });
 
-  it("the export holds every Signalement the Candidate sent, newest first, with its context, status and the team's reply, never which Administrator handled it (#374)", async () => {
+  it("the export holds every Signalement the Candidate sent, newest first, with its context, status and the team's reply, never which Administrator or Agent Key handled it (#374, #1139)", async () => {
     const administrator = await signIn("support@jobbbox.ai");
     let now = new Date("2026-10-20T08:00:00Z");
     const signalements = createSignalements(database, { version: "35e2ea1", now: () => now });
@@ -1173,11 +1173,12 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     now = new Date("2026-10-21T08:00:00Z");
     const question = await signalements.send(
       candidateId,
-      { type: "question", message: "Je ne trouve pas l'export PDF.", path: "/", textSize: "standard", attachedQuestion: "Comment exporter ?", attachedCoachReply: "Je ne sais pas." },
+      { type: "question", message: "Je ne trouve pas l'export PDF.", path: "/", textSize: "standard", attachedQuestion: "Comment exporter ?", attachedCoachReply: "Je ne sais pas.", aiNotice: true },
       from,
     );
     if (!bug.ok || !question.ok) throw new Error("fixture Signalements refused");
     now = new Date("2026-10-22T08:00:00Z");
+    await signalements.changeStatus(question.signalement.id, "vu", database, "key:triage-beta");
     await signalements.reply(bug.signalement.id, "Merci, c'est corrigé.");
     await signalements.changeStatus(bug.signalement.id, "traite");
     await signalements.send(administrator, { type: "idee", message: "Une idée de l'équipe elle-même.", path: "/", textSize: "standard" }, from);
@@ -1192,8 +1193,9 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         attachedQuestion: "Comment exporter ?",
         attachedCoachReply: "Je ne sais pas.",
         context: { path: "/", version: "35e2ea1", browser: "Chrome 141, Mac", interfaceLanguage: "fr", textSize: "standard" },
-        status: "nouveau",
-        statusChangedAt: null,
+        aiNoticeShown: true,
+        status: "vu",
+        statusChangedAt: new Date("2026-10-22T08:00:00Z"),
         reply: null,
         repliedAt: null,
         replyUpdatedAt: null,
@@ -1206,6 +1208,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         attachedQuestion: null,
         attachedCoachReply: null,
         context: { path: "/profils", version: "35e2ea1", browser: "Chrome 141, Mac", interfaceLanguage: "fr", textSize: "large" },
+        aiNoticeShown: false,
         status: "traite",
         statusChangedAt: new Date("2026-10-22T08:00:00Z"),
         reply: "Merci, c'est corrigé.",
@@ -1214,7 +1217,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         createdAt: new Date("2026-10-20T08:00:00Z"),
       },
     ]);
-    expect(JSON.stringify(exported.signalements)).not.toMatch(new RegExp(`${administrator}|support@jobbbox\\.ai`));
+    expect(JSON.stringify(exported.signalements)).not.toMatch(new RegExp(`${administrator}|support@jobbbox\\.ai|triage-beta`));
   });
 
   it("the export holds the Candidate's Forwarding addresses, each with its activation date, and the sending addresses they added (#441)", async () => {

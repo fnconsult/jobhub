@@ -28,7 +28,7 @@ async function storedSignalements(email: string) {
   const db = new pg.Pool({ connectionString: databaseUrl });
   try {
     const { rows } = await db.query(
-      `SELECT type, message, path, version, browser, interface_language, text_size FROM signalement
+      `SELECT type, message, path, version, browser, interface_language, text_size, ai_notice_shown FROM signalement
         WHERE candidate_id = (SELECT id FROM candidate WHERE lower(email) = lower($1)) ORDER BY created_at`,
       [email],
     );
@@ -87,7 +87,8 @@ test.describe("the Signalement form (#375, #608)", () => {
     await expect(dialogOf(page).getByLabel(s.label.bug)).toBeVisible();
     await expect(messageOf(page)).toHaveAttribute("placeholder", s.placeholder.bug);
     await expect(dialogOf(page)).toContainText(s.notice);
-    await expect(dialogOf(page)).toContainText(s.readBy);
+    // Under the field (#1139): the AI notice, which the Signalement keeps as shown.
+    await expect(dialogOf(page).locator(".signalement-ai-notice")).toHaveText(s.aiNotice);
     await dialogOf(page).getByRole("button", { name: s.showDetail }).click();
     const detail = dialogOf(page).locator(".signalement-detail");
     await expect(detail).toContainText("/candidatures");
@@ -122,6 +123,7 @@ test.describe("the Signalement form (#375, #608)", () => {
       expect(row.browser).toMatch(/^Chrome \d+, /);
       expect(row.interface_language).toBe("fr");
       expect(row.version).toBeTruthy();
+      expect(row.ai_notice_shown).toBe(true);
     }
   });
 

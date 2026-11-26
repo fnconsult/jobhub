@@ -1,0 +1,20 @@
+import { agentCall, agentJson } from "@/agent-keys/http";
+import { getAgentKeys } from "@/agent-keys/server";
+import { getSignalementTriage } from "@/signalements/server";
+
+/**
+ * Marks a Signalement of triage's queue « vu » (#1139, ADR-0118), for an Agent Key of scope `signalements` only, signed
+ * `key:<name>` (statutMajPar): the Back Office shows « vu par triage-beta ». Only « vu »: the agent never sets
+ * « traité ». One already « vu » is left as it is.
+ * Body: { statut: "vu" }.
+ * 200 { signalement } · 400 { error: "only_vu" } · 401 · 403 · 404 · 409 { error: "already_handled" } · 429
+ */
+export async function POST(request: Request, { params }: RouteContext<"/admin/api/signalements/[id]/statut">) {
+  const call = await agentCall(request, "signalements", getAgentKeys());
+  if (!call.ok) return call.response;
+  const body: unknown = await request.json().catch(() => undefined);
+  if (!body || typeof body !== "object" || (body as { statut?: unknown }).statut !== "vu") return agentJson({ error: "only_vu" }, 400);
+  const done = await getSignalementTriage().markSeen((await params).id, call.key.name);
+  if (done.ok) return agentJson({ signalement: done.signalement });
+  return agentJson({ error: done.error }, done.error === "not_found" ? 404 : 409);
+}

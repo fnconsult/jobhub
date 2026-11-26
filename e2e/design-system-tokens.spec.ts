@@ -58,19 +58,22 @@ test.describe("Design System foundations (#461, ADR-0053)", () => {
     await expectInterFromOwnOrigin(page, requests);
   });
 
-  test("a Candidate's page is in Confort: 16px body and 13px metadata at the smallest Text Size, each scaled by it", async ({ page }) => {
+  test("a Candidate's page is in Confort: 16px body and 13px metadata at the default Text Size, each scaled by it", async ({ page }) => {
     await signInWithMagicLink(page, newAddress("design-system-confort"));
     await page.goto("/compte/preferences");
     await expect(page.locator("[data-density=\"compact\"]")).toHaveCount(0);
-    await setTextSize(page, "small");
+    await setTextSize(page, "standard");
     expect(await densitySizes(page, "main")).toEqual({ body: 16, meta: 13 });
     for (const t of await renderedTexts(page)) expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(fontFloorOf(t));
 
     await setTextSize(page, "xlarge");
-    expect(await densitySizes(page, "main")).toEqual({ body: 20, meta: 16.25 });
+    expect(await densitySizes(page, "main")).toEqual({ body: 18, meta: 14.625 });
+    // Petit, the Candidate's own choice, is the one step under the floor (ADR-0009, 2026-11-26).
+    await setTextSize(page, "small");
+    expect(await densitySizes(page, "main")).toEqual({ body: 12, meta: 9.75 });
   });
 
-  test("the Back Office is in Compact: 14px body and 12.5px metadata at the smallest Text Size, scaled by the Text Size too", async ({ page }) => {
+  test("the Back Office is in Compact: 14px body and 12.5px metadata at the default Text Size, scaled by the Text Size too", async ({ page }) => {
     const requests = recordRequests(page);
     await signInWithMagicLink(page, SUPER_ADMIN);
     await page.goto("/admin");
@@ -78,7 +81,7 @@ test.describe("Design System foundations (#461, ADR-0053)", () => {
     await expectInterFromOwnOrigin(page, requests);
     expect(await page.locator("main").first().evaluate((element) => element.closest("[data-density]")?.getAttribute("data-density"))).toBe("compact");
 
-    await setTextSize(page, "small");
+    await setTextSize(page, "standard");
     expect(await densitySizes(page, "main")).toEqual({ body: 14, meta: 12.5 });
     const texts = await renderedTexts(page);
     expect(texts.length).toBeGreaterThan(5);
@@ -89,6 +92,6 @@ test.describe("Design System foundations (#461, ADR-0053)", () => {
     }
 
     await setTextSize(page, "xlarge");
-    expect(await densitySizes(page, "main")).toEqual({ body: 17.5, meta: 15.625 });
+    expect(await densitySizes(page, "main")).toEqual({ body: 15.75, meta: 14.0625 });
   });
 });

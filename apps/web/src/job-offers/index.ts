@@ -120,6 +120,14 @@ export function visibleTo(candidateParam: string, alias?: string): string {
   return `(${column} IS NULL OR ${column} = ${candidateParam}::text)`;
 }
 
+/**
+ * The title of the Job Offer `offer` (the job_offer table's alias in the query) as the Candidate `candidateParam` sees it
+ * (#1130, ADR-0117): the title they gave their Application on it (../applications), else its own. For SQL that reads a
+ * Job Offer for one Candidate.
+ */
+export const offerTitleFor = (offer: string, candidateParam: string) =>
+  `COALESCE((SELECT t.job_title FROM application t WHERE t.job_offer_id = ${offer}.id AND t.candidate_id = ${candidateParam}::text), ${offer}.title)`;
+
 // A Date the caller built from what it read, never text to coerce: nothing from a request body reaches it.
 const postedAtSchema = z
   .date()

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { ServedEntry } from "@/ai-activity/entries";
 import { INTERVIEW_TIME_ZONE } from "@/applications";
 import { ApplicationProfileSelect, ApplicationStatusSelect, ReportUnavailableButton } from "@/components/ApplicationControls";
+import { ApplicationTitle } from "@/components/ApplicationTitle";
 import { ExternalLink } from "@/components/ExternalLink";
 import type { FicheContent, FicheLink } from "@/components/Fiche";
 import { ObjectConversation } from "@/components/ObjectConversation";
@@ -34,7 +35,8 @@ export function ApplicationConversation({ data, aiActivity, children }: { data: 
       candidateId={candidateId}
       subject={{ kind: APPLICATION, id: application.id }}
       inView={inView}
-      title={application.jobOffer.title}
+      // Renamed in place (#1130, ADR-0117): the Application's title, for this Candidate only.
+      title={<ApplicationTitle applicationId={application.id} title={application.jobOffer.title} />}
       aiActivity={aiActivity}
       fiche={ficheOf(data)}
       introduction={<p>{t("application.conversation.introduction", { title: application.jobOffer.title })}</p>}
@@ -121,6 +123,7 @@ function ApplicationCard({ data }: { data: ApplicationPageData }) {
         <div className="fiche-object-name">
           <p className="fiche-object-title">{jobOffer.title}</p>
           {facts ? <p className="application-card__facts">{facts}</p> : null}
+          {application.offerTitle ? <p className="application-card__facts">{t("application.title.offerTitle", { title: application.offerTitle })}</p> : null}
         </div>
       </div>
       <dl className="props">

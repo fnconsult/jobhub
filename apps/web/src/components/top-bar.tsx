@@ -39,7 +39,7 @@ export type TopBarAction = {
  * « Documents »; then « Aide ». « Fiche » comes before « Activité » here, so it is the icon a phone shows while no AI action
  * runs. « Effacer » left the Top Bar for the Context bar (#980); its rank is kept for the Jobbbox app's.
  */
-export const TOP_BAR_RANK = { page: 0, fiche: 10, activity: 20, offer: 24, results: 26, clear: 30, help: 40 } as const;
+export const TOP_BAR_RANK = { page: 0, fiche: 10, activity: 20, offer: 24, results: 26, clear: 30, rename: 35, help: 40 } as const;
 
 /** The action the compact Top Bar shows, and those under « … ». */
 export function arrangeTopBar(actions: readonly TopBarAction[]): { shown: TopBarAction | null; menu: TopBarAction[] } {

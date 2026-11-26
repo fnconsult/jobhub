@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createJobOffers, createSourceChecks, forgetExpiredGuestCaptures, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
-import { createApplications, interviewEndsAt, interviewPlaceParts, interviewWallClock, migrateApplications, type Applications } from "./index";
+import { createApplications, interviewEndsAt, interviewPlaceParts, interviewWallClock, MAX_APPLICATION_TITLE_LENGTH, migrateApplications, withApplicationTitles, type Applications } from "./index";
 
 const masterCv: MasterCvContent = {
   fullName: "Marie Dupont",
@@ -930,6 +930,69 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
       const { id } = await save({ jobOfferId, profileId });
 
       expect(await applications.change(candidateId, id, { reportedUnavailable: "oui" })).toMatchObject({ ok: false, errors: [{ field: "reportedUnavailable" }] });
+    });
+  });
+
+  describe("its own title (#1130, ADR-0117)", () => {
+    const TITLE = "Senior Program Director – Delivery Management";
+
+    it("is the Candidate's, wherever they read the Application, the Job Offer keeping its own for everyone else", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+      const otherProfile = await createProfile(otherCandidateId, "DAF");
+      const theirs = await save({ jobOfferId, profileId: otherProfile }, otherCandidateId);
+
+      const renamed = await applications.change(candidateId, id, { title: `  Senior Program Director\n –   Delivery Management  ` });
+
+      expect(renamed).toMatchObject({ ok: true, application: { jobOffer: { id: jobOfferId, title: TITLE }, offerTitle: "DAF H/F" } });
+      expect(renamed.ok && renamed.application).not.toHaveProperty("titleOrigin");
+      expect(await applications.list(candidateId)).toMatchObject([{ id, jobOffer: { title: TITLE } }]);
+      expect(await applications.titleOf(candidateId, id)).toEqual({ title: TITLE, offerTitle: "DAF H/F", renamed: true, version: TITLE, origin: null });
+      // Another Candidate's Application on the same Job Offer, and the Job Offer itself, keep its title.
+      expect(await applications.get(otherCandidateId, theirs.id)).toMatchObject({ jobOffer: { title: "DAF H/F" } });
+      expect(await applications.get(otherCandidateId, theirs.id)).not.toHaveProperty("offerTitle");
+      expect(await applications.list(otherCandidateId)).toMatchObject([{ jobOffer: { title: "DAF H/F" } }]);
+      expect((await jobOffers.get(jobOfferId))?.title).toBe("DAF H/F");
+      expect(await applications.titleOf(candidateId, theirs.id)).toBeNull();
+    });
+
+    it("comes with the Job Offer wherever the Candidate reads it, and only them", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+      await applications.change(candidateId, id, { title: TITLE });
+      const asRead = withApplicationTitles(jobOffers, database);
+
+      expect((await asRead.get(jobOfferId, candidateId))?.title).toBe(TITLE);
+      expect((await asRead.get(jobOfferId, otherCandidateId))?.title).toBe("DAF H/F");
+      expect((await asRead.get(jobOfferId))?.title).toBe("DAF H/F");
+      expect(asRead.capture).toBe(jobOffers.capture);
+    });
+
+    it("gives back the Job Offer's title when cleared, or given back as it is", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+      await applications.change(candidateId, id, { title: TITLE });
+
+      expect(await applications.change(candidateId, id, { title: null })).toMatchObject({ ok: true, application: { jobOffer: { title: "DAF H/F" } } });
+      expect(await applications.titleOf(candidateId, id)).toMatchObject({ title: "DAF H/F", renamed: false });
+
+      await applications.change(candidateId, id, { title: TITLE });
+      const back = await applications.change(candidateId, id, { title: "DAF H/F" });
+      expect(back.ok && back.application).not.toHaveProperty("offerTitle");
+      expect(await applications.titleOf(candidateId, id)).toMatchObject({ renamed: false });
+    });
+
+    it("is refused empty, too long, or on someone else's Application; from a Coach proposal, only from the title it saw", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+
+      expect(await applications.change(candidateId, id, { title: "   " })).toMatchObject({ ok: false, errors: [{ field: "title" }] });
+      expect(await applications.change(candidateId, id, { title: "x".repeat(MAX_APPLICATION_TITLE_LENGTH + 1) })).toMatchObject({ ok: false, errors: [{ field: "title", code: "too_long" }] });
+      expect(await applications.change(otherCandidateId, id, { title: TITLE })).toEqual({ ok: false, error: "not_found" });
+
+      const origin = { origin: "coach_proposal" as const, cardId: "card-1", appliedAt: new Date("2026-11-25T10:00:00Z") };
+      expect(await applications.change(candidateId, id, { title: TITLE }, { version: "Autre titre", origin })).toEqual({ ok: false, error: "conflict" });
+      expect(await applications.titleOf(candidateId, id)).toMatchObject({ renamed: false });
+      expect(await applications.change(candidateId, id, { title: TITLE }, { version: "DAF H/F", origin })).toMatchObject({ ok: true, application: { titleOrigin: origin } });
+      // The Candidate's own change drops the Origin.
+      await applications.change(candidateId, id, { title: "Directeur administratif et financier" });
+      expect(await applications.titleOf(candidateId, id)).toMatchObject({ origin: null });
     });
   });
 });

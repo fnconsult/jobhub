@@ -178,6 +178,7 @@ test.describe("the AI Coach with Coach Actions, end to end on the fake provider 
       "propose_application_status",
       "propose_application_profile",
       "propose_follow_up_sent",
+      "propose_application_title",
       "propose_search_criteria",
       "propose_master_cv_changes",
       "propose_profile_archive",

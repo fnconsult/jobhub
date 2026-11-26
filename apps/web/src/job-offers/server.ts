@@ -2,15 +2,26 @@ import { readOfferFields, type TaskInstructions } from "@jobhub/ai";
 import type { JobOffer } from "@jobhub/shared";
 import { getAi } from "@/ai/server";
 import { sharedPool } from "@/database/pool";
+import { withApplicationTitles } from "@/applications";
 import { createJobOffers, type JobOffers } from "./index";
 import { recordedReading } from "./summary-reading";
 
 let instance: JobOffers | undefined;
+let asCandidatesRead: JobOffers | undefined;
 
-/** The app's Job Offers module, on the database named by DATABASE_URL. */
-export function getJobOffers(): JobOffers {
+/** The app's Job Offers module, on the database named by DATABASE_URL, each Job Offer under its own title. */
+export function getSharedJobOffers(): JobOffers {
   instance ??= createJobOffers(sharedPool());
   return instance;
+}
+
+/**
+ * The app's Job Offers module as each Candidate reads it (#1130, ADR-0117): read for a Candidate, a Job Offer they renamed
+ * their Application on comes under their title.
+ */
+export function getJobOffers(): JobOffers {
+  asCandidatesRead ??= withApplicationTitles(getSharedJobOffers(), sharedPool());
+  return asCandidatesRead;
 }
 
 /**
@@ -20,5 +31,5 @@ export function getJobOffers(): JobOffers {
  * Agent write the summary and sector. Kept with that reading's Provenance. Throws what the AI layer throws.
  */
 export function summarizeJobOffer(jobOfferId: string, candidateId: string, reading: TaskInstructions): Promise<JobOffer | null> {
-  return getJobOffers().summarize(jobOfferId, (jobOffer) => recordedReading(getAi(), jobOffer, (ai) => readOfferFields(ai, { candidateId, jobOffer, reading })));
+  return getSharedJobOffers().summarize(jobOfferId, (jobOffer) => recordedReading(getAi(), jobOffer, (ai) => readOfferFields(ai, { candidateId, jobOffer, reading })));
 }

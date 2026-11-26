@@ -3519,6 +3519,22 @@ html[data-sidebar="closed"] .sidebar-docked {
   white-space: normal;
 }
 
+/* An Application's title, edited in place (#1130), keeps to its one line at every width, as its title did: it scrolls
+   sideways while edited, as tall as the title's line (no padding above and below), so the Top Bar keeps its height. */
+.topbar-title > .title-field:has(> h1 > textarea.title-edit-line) {
+  flex: 1 1 auto;
+}
+
+.topbar-title textarea.title-edit.title-edit-line {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding-block: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
 .topbar .menu-toggle {
   flex: none;
 }

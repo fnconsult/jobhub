@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import pg from "pg";
-import { activityButtonOf } from "./support/conversation";
+import { activityButtonOf, chooseInTopBarMore } from "./support/conversation";
 import { newAddress } from "./support/mailbox";
 import { signInByEmail, startOwnServer, type OwnServer } from "./support/own-server";
 
@@ -165,6 +165,33 @@ test.describe("« Conversation au centre »: an Application's page is its conver
     await expect(panelOf(page, fiche.views.offer)).toContainText("Pilotage de deux entrepôts.");
     await expect(panelOf(page, fiche.views.offer).getByRole("link", { name: fiche.openOffer })).toHaveAttribute("href", `/candidatures/${id}/offre`);
     await expect(viewIcon(page, fiche.views.offer)).toHaveAttribute("aria-expanded", "true");
+  });
+
+  test("« Renommer » the Application's conversation renames the Application, for this Candidate, in its Top Bar and under « … » on a phone (#1130)", async ({ browser }) => {
+    const renamed = "Responsable des entrepôts Rhône-Alpes";
+    const { page, id } = await withApplication(browser);
+    await page.goto(`/candidatures/${id}`);
+
+    const title = topBar(page).getByRole("textbox", { name: application.title.label, exact: true });
+    await expect(title).toHaveValue(TITLE);
+    await title.fill(renamed);
+    await title.press("Enter");
+    await expect(topBar(page).getByText(application.title.saved)).toBeVisible();
+
+    // The conversation, its Fiche and Mes candidatures follow; the Job Offer's own title stays beside it.
+    await page.reload();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(renamed);
+    await expect(ficheOf(page)).toContainText(tr(application.title.offerTitle, { title: TITLE }));
+    await page.goto("/candidatures");
+    await expect(page.getByRole("link", { name: `${renamed} · Acme Industrie`, exact: true }).first()).toBeVisible();
+    expect((await query<{ job_title: string | null }>("SELECT job_title FROM application WHERE id = $1", [id]))[0]!.job_title).toBe(renamed);
+    expect((await query<{ title: string }>("SELECT o.title FROM job_offer o JOIN application a ON a.job_offer_id = o.id WHERE a.id = $1", [id]))[0]!.title).toBe(TITLE);
+
+    // On a phone, « Renommer » under « … » puts the focus in the title.
+    const phone = await withApplication(browser, { width: 390, height: 844 });
+    await phone.page.goto(`/candidatures/${phone.id}`);
+    await chooseInTopBarMore(phone.page, application.title.rename);
+    await expect(topBar(phone.page).getByRole("textbox", { name: application.title.label, exact: true })).toBeFocused();
   });
 
   test("« Activité » opens on the Context bar, empty before the coach's first reply, « Effacer la conversation » at its foot (#607, #810, #980)", async ({ browser }) => {

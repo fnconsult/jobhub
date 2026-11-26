@@ -17,7 +17,7 @@ function themeVars(tokens: DesignTokens, theme: Theme): string[] {
   ];
 }
 
-/** The type sizes, line height, control height and row padding of one Density, in rem. */
+/** The type sizes, line height, control height and row padding of one Density, in rem; the control height never below its px. */
 function densityVars(tokens: DesignTokens, density: Density): string[] {
   const rem = (px: number) => `${px / tokens.rootFontSize}rem`;
   const { fontSize, metaFontSize, lineHeight, controlHeight, rowPadding } = tokens.density[density];
@@ -25,7 +25,9 @@ function densityVars(tokens: DesignTokens, density: Density): string[] {
     ...Object.entries(fontSize).map(([name, px]) => `--font-size-${name}: ${rem(px)};`),
     `--font-size-meta: ${rem(metaFontSize)};`,
     `--line-height-body: ${lineHeight};`,
-    `--size-control: ${rem(controlHeight)};`,
+    // A control keeps its height at the Standard Text Size when « small » shrinks the root (ADR-0009, 2026-11-26): the
+    // text gets smaller, never the target.
+    `--size-control: max(${rem(controlHeight)}, ${controlHeight}px);`,
     `--space-row: ${rem(rowPadding)};`,
   ];
 }

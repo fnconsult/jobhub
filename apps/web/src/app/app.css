@@ -2977,7 +2977,8 @@ blockquote.signalement-text {
 :root {
   --sidebar-width: 16rem;
   --coach-width: clamp(27rem, 34vw, 36rem);
-  --control-height: 2.75rem;
+  /* The 44px target of the Candidate's pages (ADR-0009), which the « Petit » Text Size (12px) never shrinks. */
+  --control-height: max(2.75rem, 44px);
   --scrim: var(--color-scrim);
   --shadow-overlay: var(--shadow-pop);
   --shadow-menu: var(--shadow-pop);

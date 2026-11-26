@@ -90,8 +90,14 @@ describe("auditDesignTokens (ADR-0009 accessibility floor, ADR-0053)", () => {
     );
   });
 
-  it("flags a text-size setting that would shrink Confort body text below 16px", () => {
-    const shrunk = { ...designTokens, textSize: { ...designTokens.textSize, small: 0.8 } };
+  it("flags a text-size setting other than « small » that would shrink Confort body text below 16px", () => {
+    const shrunk = { ...designTokens, textSize: { ...designTokens.textSize, standard: 0.9375 } };
+    expect(auditDesignTokens(shrunk)).toContainEqual(expect.objectContaining({ rule: "min-body-size", token: "textSize.standard" }));
+  });
+
+  it("lets « small », the Candidate's own choice, go down to 12px and no further", () => {
+    expect(auditDesignTokens(designTokens).filter((v) => v.token.startsWith("textSize."))).toEqual([]);
+    const shrunk = { ...designTokens, textSize: { ...designTokens.textSize, small: 0.7 } };
     expect(auditDesignTokens(shrunk)).toContainEqual(expect.objectContaining({ rule: "min-body-size", token: "textSize.small" }));
   });
 });

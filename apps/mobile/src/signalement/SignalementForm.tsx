@@ -23,10 +23,11 @@ export type SignalementStart = { kind: "type"; type: "bug" | "idee" } | { kind: 
 
 /**
  * The system's text scale as the web's Text Size names it (the app has none of its own, ADR-0076): what a Signalement says
- * of how the person reads.
+ * of how the person reads. The web's Petit is 0.75 of its Standard since 2026-11-26 (12 against 16px, ADR-0009), so a
+ * system scale counts as « small » from halfway down to it; the larger steps name the system's larger scales.
  */
 export function textSizeOf(fontScale: number): "small" | "standard" | "large" | "xlarge" {
-  if (fontScale < 0.95) return "small";
+  if (fontScale < 0.875) return "small";
   if (fontScale < 1.15) return "standard";
   if (fontScale < 1.4) return "large";
   return "xlarge";

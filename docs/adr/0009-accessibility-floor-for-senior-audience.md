@@ -97,3 +97,20 @@ Asked by the product owner after reviewing #933 (« when empty show the 2 button
 - Both stay at least 44 px, the glyphs at least 3:1.
 
 The exception covers Send's icon, in the web conversation's box only. Every other function still needs a visible label.
+
+## Amendment: the Text Size one step down, and Petit under the floor (issue #1152, 2026-11-26)
+
+Decided by the product owner (François), 2026-11-26: the default text is made smaller by shifting the Text Size one step down. Body text at each step, before → after:
+
+| Step | Before | After |
+|---|---|---|
+| Petit | 16 px | **12 px** |
+| Standard (the default) | 17 px | **16 px** |
+| Moyen | 18 px | **17 px** |
+| Grand | 20 px | **18 px** |
+
+- **The 16 px floor is now the default's.** Standard and every step above keep Confort body text at 16 px at least, and the e2e text floors are checked at the default. The token audit (`auditDesignTokens`) holds every step but Petit to it.
+- **Petit alone goes below it**, as the Candidate's own choice on the slider of Préférences or the select of the public pages, never by default: 12 px body text, and metadata scaled with it (about 9.75 px). The token audit refuses a Petit under 12 px. The stored values (`small`, `standard`, `large`, `xlarge`) and the labels do not change: a device that had « Standard » now shows 16 px, and Moyen gives back the former default.
+- **The text shrinks, never the targets.** At every step, Design System controls keep their height at the Standard size (`--size-control: max(2.5rem, 40px)` in Confort, `max(2rem, 32px)` in Compact) and the Candidate's pages keep the 44 px target (`--control-height: max(2.75rem, 44px)`); WCAG 2.5.8's 24 × 24 px holds at Petit.
+- **Known shortfall, accepted by the product owner.** 12 px body text is under the usual readability recommendations for a 40+ audience (the RGAA and WCAG guidance generally take 16 px as the comfortable body size; WCAG 1.4.4 is met by the browser's zoom and the larger steps, not by Petit). It is recorded here as the product owner's decision; the default stays on the floor.
+- The Back Office (Compact) is not changed: it still scales from the root as ADR-0053 says, so its body text is 14 px at the default, on its floor (it was 14.875 px); an Administrator who picks Petit on the same device gets it smaller there too (10.5 px), by the same choice. The native app follows the system text size (amendment of 2026-11-04) and is not changed; only the name a Signalement gives the system's scale (`textSizeOf`) follows the new Petit.

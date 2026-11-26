@@ -1,4 +1,4 @@
-import { DENSITY_FLOORS, TEXT_COLORS } from "./audit";
+import { DENSITY_FLOORS, TEXT_COLORS, TEXT_SIZE_BELOW_FLOOR } from "./audit";
 import { kebab } from "./css";
 import { designTokens, legacyColorAliases, type Density } from "./tokens";
 
@@ -48,7 +48,7 @@ const LITERAL_COLOR = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch
 
 /**
  * Checks a stylesheet against the ADR-0009 floor of its Density: no type set below 16px in Confort (the default)
- * or 14px in Compact (the Back Office), and text coloured only with the text colours whose contrast the tokens
+ * or 14px in Compact (the Back Office), but the root at the « Petit » Text Size, never below 12px, and text coloured only with the text colours whose contrast the tokens
  * audit (so no grey body text). Colours are written only as custom properties, so every one is a named,
  * reviewable token. Returns an empty list when it complies.
  */
@@ -69,6 +69,12 @@ export function auditComponentStylesheet(css: string): StylesheetViolation[] {
   return audit(css, { floor: 0, component: true });
 }
 
+/**
+ * The root's font size at « Petit », the one Text Size step the Candidate may choose under the floor (ADR-0009,
+ * 2026-11-26): held to its own minimum instead.
+ */
+const BELOW_FLOOR_SELECTOR = `html[data-text-size="${TEXT_SIZE_BELOW_FLOOR.setting}"]`;
+
 function audit(css: string, { floor, component }: { floor: number; component: boolean }): StylesheetViolation[] {
   const violations: StylesheetViolation[] = [];
   for (const { selector, property, value } of declarations(css)) {
@@ -76,7 +82,8 @@ function audit(css: string, { floor, component }: { floor: number; component: bo
     const flag = (rule: StylesheetViolation["rule"]) => violations.push({ rule, selector, declaration });
     if (property === "font-size") {
       const px = sizeInPx(value);
-      if (px !== null && px < floor) flag("min-body-size");
+      const min = selector === BELOW_FLOOR_SELECTOR ? Math.min(floor, TEXT_SIZE_BELOW_FLOOR.minPx) : floor;
+      if (px !== null && px < min) flag("min-body-size");
     }
     if (component && ((property === "font-size" && !TOKEN_FONT_SIZE.test(value)) || (property === "font" && value.toLowerCase() !== "inherit"))) {
       flag("font-size-token");

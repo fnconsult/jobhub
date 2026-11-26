@@ -214,9 +214,9 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
     const pane = workPane(page);
     await expect(pane.getByRole("heading", { level: 2 })).toBeFocused();
     const box = (await pane.boundingBox())!;
-    // A card a 1rem gutter from the screen's edge (17px at the standard text size), 32vw wide between 20rem and 32rem.
-    expect(box.x + box.width).toBeCloseTo(1440 - 17, 0);
-    expect(box.width).toBeCloseTo(Math.min(32 * 17, 0.32 * 1440), 0);
+    // A card a 1rem gutter from the screen's edge (16px at the standard text size), 32vw wide between 20rem and 32rem.
+    expect(box.x + box.width).toBeCloseTo(1440 - 16, 0);
+    expect(box.width).toBeCloseTo(Math.min(32 * 16, 0.32 * 1440), 0);
     // Beside the page: the page stays beside it, not under it.
     const main = (await page.getByRole("main").boundingBox())!;
     expect(main.x + main.width).toBeLessThanOrEqual(box.x + 1);
@@ -232,7 +232,7 @@ test.describe("the sidebar layout of the Candidate's pages", () => {
   });
 
   test("with no room beside the page for its Sections, the sidebar lists them, the main menu one arrow away", async ({ page }) => {
-    // Room for the Sections beside the page at the standard text size (17px), until the Work Pane opens.
+    // Room for the Sections beside the page at the standard text size (16px), until the Work Pane opens.
     await page.setViewportSize({ width: 1170, height: 800 });
     await signInWithMagicLink(page, newAddress("sidebar-sections"));
     await page.goto("/compte/relances");

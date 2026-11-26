@@ -6,7 +6,8 @@ import { newAddress } from "./support/mailbox";
 
 // The Text Size setting sits in Mon compte → Préférences as a four-step slider
 // (Petit, Standard, Moyen, Grand), no longer in the sidebar. It stays on this
-// device (localStorage) and never goes below the ADR-0009 16px floor.
+// device (localStorage). Since #1152 the steps are 12, 16, 17 and 18px: the default
+// sits on the ADR-0009 16px floor, and only Petit, the Candidate's choice, goes below it.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 
 test.describe("the Text Size slider in Préférences", () => {
@@ -21,17 +22,18 @@ test.describe("the Text Size slider in Préférences", () => {
     await expect(page.locator(".text-size-steps li")).toHaveText(["Petit", "Standard", "Moyen", "Grand"]);
     await expect(slider).toHaveAttribute("aria-valuetext", "Standard");
     await expect(html).toHaveAttribute("data-text-size", "standard");
-    expect(await bodyFontSize()).toBe("17px");
+    expect(await bodyFontSize()).toBe("16px");
+    for (const t of await renderedTexts(page)) expect.soft(t.fontSizePx, t.text).toBeGreaterThanOrEqual(16);
 
     await slider.focus();
     await page.keyboard.press("ArrowRight");
     await expect(slider).toHaveAttribute("aria-valuetext", "Moyen");
     await expect(html).toHaveAttribute("data-text-size", "large");
-    expect(await bodyFontSize()).toBe("18px");
+    expect(await bodyFontSize()).toBe("17px");
 
     await page.keyboard.press("End");
     await expect(slider).toHaveAttribute("aria-valuetext", "Grand");
-    expect(await bodyFontSize()).toBe("20px");
+    expect(await bodyFontSize()).toBe("18px");
     expect(await page.evaluate(() => localStorage.getItem("jobbbox.textSize"))).toBe("xlarge");
 
     await page.reload();
@@ -41,8 +43,9 @@ test.describe("the Text Size slider in Préférences", () => {
     await slider.focus();
     await page.keyboard.press("Home");
     await expect(slider).toHaveAttribute("aria-valuetext", "Petit");
-    expect(await bodyFontSize()).toBe("16px");
-    for (const t of await renderedTexts(page)) expect.soft(t.fontSizePx, t.text).toBeGreaterThanOrEqual(16);
+    expect(await bodyFontSize()).toBe("12px");
+    // The text shrinks, never the slider: it keeps its 44px target.
+    expect((await slider.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   });
 
   test("is no longer in the sidebar", async ({ page }) => {

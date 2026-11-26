@@ -41,3 +41,14 @@ docker compose -f app/deploy/compose.yml -p "$JOBHUB_SLUG" --env-file .env run -
 ```
 
 The `migrate` service must reach the sites, as the worker does for Job discovery.
+
+## Staging from GitHub, without the VPS
+
+For the Beta only, the `retitle-job-offers.yml` workflow runs the **dry run** over SSH, with the `staging` Environment's secrets, as `consumption-backfill.yml` does. It uses the `migrate` image of the commit the Beta serves, and refuses to overlap a deployment of staging. It has no way to `--apply`: that stays a hand step on the VPS, once the list is checked.
+
+```sh
+gh workflow run retitle-job-offers.yml               # dry run, every shared Job Offer
+gh workflow run retitle-job-offers.yml -f limit=50   # at most 50, oldest first
+```
+
+The list is in the run's log.

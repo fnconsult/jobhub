@@ -1,6 +1,8 @@
 /**
  * Signalements (#278, #374): what a signed-in Candidate sends the Jobbbox team from the app (a Bug, an Idée, or a
- * Question after help that did not satisfy them), read by people only, never sent to an AI, so never redacted (#283).
+ * Question after help that did not satisfy them). Each keeps whether its form showed the AI notice (#1139, ADR-0118):
+ * only those sent with it reach Signalement triage (`triageable`, redacted by signalements/triage); the others are
+ * read by people only, never sent to an AI (#283).
  *
  * One deep module in front of Postgres. `createSignalements(database, { version })` answers:
  *  - `send` one: checks its type and message, keeps its context (the page's path without query or `#…`, the
@@ -11,7 +13,10 @@
  *  - `changeStatus` and `reply`, the team's side (the Back Office, #376), on its transaction: any status in any
  *    direction, but a Question is marked `traite` only once it has a reply; one reply, editable until `traite`;
  *  - `list`, `one` and `countToHandle`, what the team reads (#376): oldest first, of some types and statuses, each with
- *    the Candidate's email and Plan; and how many are « à traiter » (TO_HANDLE_STATUSES);
+ *    the Candidate's email and Plan and, for a status an Agent Key set, its signature (`key:triage-beta`); and how many
+ *    are « à traiter » (TO_HANDLE_STATUSES);
+ *  - `triageable` and `triageableOne`, what Signalement triage may read (#1139): only those sent with the AI notice,
+ *    each with its Candidate's id, which signalements/triage uses for Redaction and never returns;
  *  - `notifications`, `closeNotifications` and `remove`, the Candidate's side (#377): the Signalement notifications
  *    due (a reply saved or `traite` since they last closed it, derived from the row as it stands), closing one or all
  *    of them, and deleting one of their own;
@@ -71,6 +76,8 @@ export interface Signalement {
   attachedQuestion: string | null;
   attachedCoachReply: string | null;
   context: SignalementContext;
+  /** Whether its form said « Un outil d'IA peut lire votre message… » (#1139): false for those sent before the notice. */
+  aiNoticeShown: boolean;
   status: SignalementStatus;
   /** When its status last changed; null while `nouveau` from the start. */
   statusChangedAt: Date | null;
@@ -86,6 +93,14 @@ export interface Signalement {
 /** A Signalement as the team reads it (#376): with who sent it, by the Candidate's email and current Plan. */
 export interface SentSignalement extends Signalement {
   candidate: { email: string; plan: Plan };
+  /** Who set its status when an Agent Key did (`key:triage-beta`, #1139); null when the team did. Never in the Data export. */
+  statusChangedBy: string | null;
+}
+
+/** A Signalement Signalement triage may read (#1139): sent with the AI notice, with its Candidate's id for Redaction only. */
+export interface TriageableSignalement {
+  candidateId: string;
+  signalement: Signalement;
 }
 
 /** Which Signalements the team reads: of these types and statuses (default: every one). */
@@ -117,10 +132,11 @@ export interface Signalements {
    */
   send(candidateId: string, sent: unknown, context: SendingContext): Promise<SendResult>;
   /**
-   * Sets its status, dated when it changes, on `within` (the Back Office's transaction). Null for no such Signalement
-   * or status. A Question without a reply cannot be marked `traite`.
+   * Sets its status, dated when it changes, on `within` (the Back Office's transaction), signed `by` an Agent Key
+   * (`key:triage-beta`, #1139) or, without it, by the team. Null for no such Signalement or status. A Question without
+   * a reply cannot be marked `traite`.
    */
-  changeStatus(id: string, status: SignalementStatus, within?: Queryable): Promise<Changed | { refused: "reply_required" } | null>;
+  changeStatus(id: string, status: SignalementStatus, within?: Queryable, by?: string): Promise<Changed | { refused: "reply_required" } | null>;
   /** Saves the team's reply (trimmed, at most REPLY_MAX_LENGTH), dated, on `within`. Null for no such Signalement; refused once it is `traite`. */
   reply(id: string, text: unknown, within?: Queryable): Promise<Changed | { errors: FieldError[] } | { refused: "already_handled" } | null>;
   /** The team's list: those of `filter`'s types and statuses, oldest first. Changes nothing. */
@@ -129,6 +145,10 @@ export interface Signalements {
   one(id: string): Promise<SentSignalement | null>;
   /** How many are « à traiter » (TO_HANDLE_STATUSES): what the Back Office's sidebar shows next to Signalements. */
   countToHandle(): Promise<number>;
+  /** Those sent with the AI notice, of `statuses` (default: every one), oldest first (#1139). Changes nothing. */
+  triageable(filter?: { statuses?: readonly SignalementStatus[] }): Promise<TriageableSignalement[]>;
+  /** One sent with the AI notice; null for any other (#1139). */
+  triageableOne(id: string): Promise<TriageableSignalement | null>;
   /**
    * The Candidate's Signalement notifications not closed yet, newest first (#377): one for each of their Signalements
    * the team replied to or marked `traite` since the Candidate last closed its notification (one even when both
@@ -185,6 +205,7 @@ interface Row {
   browser: string | null;
   interface_language: Locale;
   text_size: TextSizeSetting;
+  ai_notice_shown: boolean;
   status: SignalementStatus;
   status_changed_at: Date | null;
   reply: string | null;
@@ -194,18 +215,23 @@ interface Row {
 }
 
 const COLUMNS = `id::text, type, message, attached_question, attached_coach_reply, path, version, browser, interface_language, text_size,
-  status, status_changed_at, reply, replied_at, reply_updated_at, created_at`;
+  ai_notice_shown, status, status_changed_at, reply, replied_at, reply_updated_at, created_at`;
 
 interface SentRow extends Row {
   email: string;
   plan: Plan | null;
+  status_changed_by: string | null;
 }
 
+const prefixed = (prefix: string) => COLUMNS.split(",").map((column) => `${prefix}.${column.trim()}`).join(", ");
+
 /** The columns of `signalement s` with its Candidate's email and Plan, for SentRow. */
-const SENT = `${COLUMNS.split(",").map((column) => `s.${column.trim()}`).join(", ")}, c.email, cp.plan
+const SENT = `${prefixed("s")}, s.status_changed_by, c.email, cp.plan
   FROM signalement s JOIN candidate c ON c.id = s.candidate_id LEFT JOIN candidate_plan cp ON cp.candidate_id = s.candidate_id`;
 
-const sentFrom = (row: SentRow): SentSignalement => ({ ...fromRow(row), candidate: { email: row.email, plan: row.plan ?? FREE_PLAN } });
+const sentFrom = (row: SentRow): SentSignalement => ({ ...fromRow(row), candidate: { email: row.email, plan: row.plan ?? FREE_PLAN }, statusChangedBy: row.status_changed_by });
+
+const triageableFrom = (row: Row & { candidate_id: string }): TriageableSignalement => ({ candidateId: row.candidate_id, signalement: fromRow(row) });
 
 const fromRow = (row: Row): Signalement => ({
   id: row.id,
@@ -214,6 +240,7 @@ const fromRow = (row: Row): Signalement => ({
   attachedQuestion: row.attached_question,
   attachedCoachReply: row.attached_coach_reply,
   context: { path: row.path, version: row.version, browser: row.browser, interfaceLanguage: row.interface_language, textSize: row.text_size },
+  aiNoticeShown: row.ai_notice_shown,
   status: row.status,
   statusChangedAt: row.status_changed_at,
   reply: row.reply,
@@ -239,6 +266,7 @@ interface Checked {
   attachedCoachReply: string | null;
   path: string | null;
   textSize: TextSizeSetting;
+  aiNoticeShown: boolean;
 }
 
 /** The Signalement to store, or the fields to fix. */
@@ -264,6 +292,8 @@ function checked(sent: unknown): Checked | FieldError[] {
     attachedCoachReply: attachedCoachReply as string | null,
     path: pagePath(body.path),
     textSize: resolveTextSize(typeof body.textSize === "string" ? body.textSize : null).setting,
+    // Only a form that showed the notice says so (#1139): one sent from an older form, or saying anything else, did not.
+    aiNoticeShown: body.aiNotice === true,
   };
 }
 
@@ -300,8 +330,8 @@ export function createSignalements(database: Pool, deps: SignalementsDeps): Sign
         );
         if (counted[0]!.n >= SENDING_LIMIT) return { ok: false, refused: "too_many" } as const;
         const { rows } = await client.query<Row>(
-          `INSERT INTO signalement (candidate_id, type, message, attached_question, attached_coach_reply, path, version, browser, interface_language, text_size, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING ${COLUMNS}`,
+          `INSERT INTO signalement (candidate_id, type, message, attached_question, attached_coach_reply, path, version, browser, interface_language, text_size, created_at, ai_notice_shown)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING ${COLUMNS}`,
           [
             candidateId,
             signalement.type,
@@ -314,19 +344,25 @@ export function createSignalements(database: Pool, deps: SignalementsDeps): Sign
             isSupportedLocale(context.interfaceLanguage) ? context.interfaceLanguage : DEFAULT_LOCALE,
             signalement.textSize,
             at,
+            signalement.aiNoticeShown,
           ],
         );
         return { ok: true, signalement: fromRow(rows[0]!) } as const;
       });
     },
 
-    async changeStatus(id, status, within = database) {
+    async changeStatus(id, status, within = database, by) {
       if (!isSignalementStatus(status)) return null;
       const before = await locked(id, within);
       if (!before) return null;
       if (before.status === status) return { before, after: before };
       if (status === "traite" && before.type === "question" && !before.reply) return { refused: "reply_required" };
-      const { rows } = await within.query<Row>(`UPDATE signalement SET status = $2, status_changed_at = $3 WHERE id = $1 RETURNING ${COLUMNS}`, [id, status, now()]);
+      const { rows } = await within.query<Row>(`UPDATE signalement SET status = $2, status_changed_at = $3, status_changed_by = $4 WHERE id = $1 RETURNING ${COLUMNS}`, [
+        id,
+        status,
+        now(),
+        by ?? null,
+      ]);
       return { before, after: fromRow(rows[0]!) };
     },
 
@@ -372,6 +408,20 @@ export function createSignalements(database: Pool, deps: SignalementsDeps): Sign
       if (!UUID.test(id)) return false;
       const { rowCount } = await database.query(`DELETE FROM signalement WHERE id = $1 AND candidate_id = $2`, [id, candidateId]);
       return Boolean(rowCount);
+    },
+
+    async triageable({ statuses = SIGNALEMENT_STATUSES } = {}) {
+      const { rows } = await database.query<Row & { candidate_id: string }>(
+        `SELECT ${COLUMNS}, candidate_id FROM signalement WHERE ai_notice_shown AND status = ANY($1::text[]) ORDER BY created_at, id`,
+        [statuses],
+      );
+      return rows.map(triageableFrom);
+    },
+
+    async triageableOne(id) {
+      if (!UUID.test(id)) return null;
+      const { rows } = await database.query<Row & { candidate_id: string }>(`SELECT ${COLUMNS}, candidate_id FROM signalement WHERE ai_notice_shown AND id = $1`, [id]);
+      return rows[0] ? triageableFrom(rows[0]) : null;
     },
 
     async countToHandle() {
@@ -428,6 +478,10 @@ export async function migrateSignalements(database: Pool): Promise<void> {
     ALTER TABLE signalement ADD COLUMN IF NOT EXISTS replied_at timestamptz;
     -- When the Candidate last closed its notification, or opened « Mes signalements » (#377).
     ALTER TABLE signalement ADD COLUMN IF NOT EXISTS notification_closed_at timestamptz;
+    -- Whether the form said « Un outil d'IA peut lire votre message… » (#1139): false for every one sent before it.
+    ALTER TABLE signalement ADD COLUMN IF NOT EXISTS ai_notice_shown boolean NOT NULL DEFAULT false;
+    -- The Agent Key that set its status (key:triage-beta, #1139); null when the team did. Never in the Data export.
+    ALTER TABLE signalement ADD COLUMN IF NOT EXISTS status_changed_by text;
     CREATE INDEX IF NOT EXISTS signalement_candidate_idx ON signalement (candidate_id, created_at);
     CREATE INDEX IF NOT EXISTS signalement_handled_idx ON signalement (status_changed_at) WHERE status = 'traite';
   `);

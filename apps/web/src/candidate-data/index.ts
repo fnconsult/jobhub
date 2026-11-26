@@ -585,7 +585,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   back_office_assistant_conversation: "backOfficeAssistantConversations",
   back_office_assistant_message: "backOfficeAssistantConversations[].messages (blocked ones marked, each reply's Provenance, the item an Explainable label asked about; no AI costs)",
   ai_message_log: "aiMessageLog (no AI costs, a Failure Reason's and warnings' code and wording but not their technical detail)",
-  signalement: "signalements (with their context, status and the team's reply; never which Administrator handled them)",
+  signalement: "signalements (with their context, whether the AI notice was shown, status and the team's reply; never which Administrator or Agent Key handled them)",
   extension_event: "extensionEvents (what they did from the extension and its errors, the 12 months kept: kind, date, Extension Version, object; an error's code, route, status, place, browser and page's domain, #924)",
   checkout_order: "orders (what was ordered, the CGV version accepted, the Immediate Performance Request, when it was ordered and confirmed; no Stripe identifiers)",
   withdrawal: "withdrawals (the contract, its dates, the name and address given, when the acknowledgement went; no Stripe identifiers)",

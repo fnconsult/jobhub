@@ -627,16 +627,17 @@ export function createApplications(
     ]);
     // Both are kept as long as the Application: Job Offers are never deleted, Profiles only with the account.
     if (!jobOffer || !profile) throw new Error(`Application ${row.id} lost its Job Offer or Profile`);
+    // Renamed by the Candidate (#1130): their title, the Job Offer's kept beside it, and the one its Match Score reads (ADR-0117).
+    const shown = row.job_title && jobOffer.title !== row.job_title ? { ...jobOffer, title: row.job_title } : jobOffer;
     const application: Application = {
       id: row.id,
       status: row.status,
       statusChangedAt: row.status_changed_at,
       createdAt: row.created_at,
-      // Renamed by the Candidate (#1130): their title, the Job Offer's kept beside it.
-      jobOffer: row.job_title && jobOffer.title !== row.job_title ? { ...jobOffer, title: row.job_title } : jobOffer,
+      jobOffer: shown,
       profile: { id: profile.id, name: profile.name },
       interviews: interviews.get(row.id)!,
-      matchScore: scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer }),
+      matchScore: scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer: shown }),
     };
     if (row.reported_unavailable_at !== null) application.reportedUnavailableAt = row.reported_unavailable_at;
     const origin = readOrigin(row.status_origin);
@@ -738,8 +739,8 @@ export function createApplications(
     },
 
     async matchScores(candidateId) {
-      const { rows } = await database.query<{ id: string; job_offer_id: string; profile_id: string }>(
-        `SELECT id, job_offer_id, profile_id FROM application WHERE candidate_id = $1`,
+      const { rows } = await database.query<{ id: string; job_offer_id: string; profile_id: string; job_title: string | null }>(
+        `SELECT id, job_offer_id, profile_id, job_title FROM application WHERE candidate_id = $1`,
         [candidateId],
       );
       // Each Profile and Job Offer read once, however many Applications share it.
@@ -753,7 +754,9 @@ export function createApplications(
       await Promise.all(
         rows.map(async (row) => {
           const [profile, jobOffer] = await Promise.all([profileOf(row.profile_id), jobOfferOf(row.job_offer_id)]);
-          if (profile && jobOffer) scores.set(row.id, scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer }));
+          // Under the Candidate's own title, when they gave one (ADR-0117), as `get` scores it.
+          const shown = jobOffer && row.job_title ? { ...jobOffer, title: row.job_title } : jobOffer;
+          if (profile && shown) scores.set(row.id, scoreMatch({ cv: profile.masterCv.content, searchCriteria: profile.searchCriteria, jobOffer: shown }));
         }),
       );
       return scores;

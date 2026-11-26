@@ -83,6 +83,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "account",
         "action_card",
         "administrator_role", // issue #204: the Back Office Roles each Administrator holds
+        "agent_key", // issue #1139: an Agent Key's name, scope, expiry and SHA-256 fingerprint; no Candidate
+        "agent_key_call", // issue #1139: the latest calls of each Agent Key, no Candidate
         "ai_message_log", // issue #218: what each AI call said, kept 30 days
         "ai_tool_usage", // issue #218: the tools each AI call's model used
         "ai_usage", // issue #218: every AI call's tokens and cost, no Candidate
@@ -265,6 +267,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "action_card", from_column: "reply_seq", to_table: "coach_message" },
         // Back Office Roles (issue #204) go with their Administrator's account.
         { from_table: "administrator_role", from_column: "candidate_id", to_table: "candidate" },
+        // issue #1139: an Agent Key's calls go with the key; neither names a Candidate.
+        { from_table: "agent_key_call", from_column: "agent_key_id", to_table: "agent_key" },
         // issue #218: the AI Message Log goes with the Candidate's account and with its AI call; AI Usage names no Candidate.
         { from_table: "ai_message_log", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "ai_message_log", from_column: "usage_id", to_table: "ai_usage" },

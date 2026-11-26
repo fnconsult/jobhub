@@ -24,7 +24,8 @@ const KEY = "KASPR_API_KEY";
 const KASPR_SHEET = `${PATH}?tab=enrichissement&fournisseur=kaspr`;
 
 /** Each tab, by its address, with a heading it shows. */
-const TABS = [
+/** The tabs every Administrator reads; « Clés d'agent » (#1139) is the super-admins' alone. */
+const SHARED_TABS = [
   ["recherche-web", "web_search", admin.searchSites.discoverySites.title],
   ["ia", "ai", texts.providers.title],
   ["sources", "sources", texts.sources.title],
@@ -35,6 +36,7 @@ const TABS = [
   ["extension", "extension", admin.searchSites.jobSites.title],
   ["environnement", "environment", texts.environment.retired.title],
 ] as const;
+const TABS = [...SHARED_TABS, ["cles-agent", "agent_keys", admin.agentKeys.create.title]] as const;
 
 const unique = () => `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
 const tr = (template: string, values: Record<string, string>) => template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? "");
@@ -230,7 +232,7 @@ test.describe("Paramètres in tabs (#396)", () => {
     await page.getByRole("button", { name: admin.administrators.grant }).click();
     await expect(page.getByRole("status")).toBeVisible();
 
-    for (const [slug, , heading] of TABS) {
+    for (const [slug, , heading] of SHARED_TABS) {
       expect((await supportPage.goto(`${PATH}?tab=${slug}`))?.status(), slug).toBe(200);
       await expect(supportPage.getByRole("heading", { level: 2, name: heading, exact: true }), slug).toBeVisible();
       await expect(supportPage.getByText(admin.readOnly), slug).toBeVisible();

@@ -175,8 +175,49 @@ export function statedJobTitle(html: string): { title: string; from: "job_postin
   const nodes = jobPostingNodes(html);
   const posted = nodes.length === 1 ? (text(nodes[0]!.title) ?? text(nodes[0]!.name)) : undefined;
   if (posted) return { title: posted, from: "job_posting" };
-  const heading = mainHeading(html);
+  const heading = headingTitle(mainHeading(html), siteName(html));
   return heading ? { title: heading, from: "heading" } : undefined;
+}
+
+/** The site's own name, as its `og:site_name` gives it. */
+function siteName(html: string): string | undefined {
+  for (const tag of html.match(/<meta\b[^>]*>/gi) ?? []) {
+    if (!/\bproperty\s*=\s*["']?og:site_name\b/i.test(tag)) continue;
+    const content = /\bcontent\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tag);
+    const name = content ? decodeEntities(content[1] ?? content[2] ?? "").replace(/\s+/g, " ").trim() : "";
+    if (name) return name;
+  }
+  return undefined;
+}
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * A careers page's own heading, never one posting's (« Open Roles », « Nous rejoindre »): it states no job title (#1154).
+ */
+const CAREERS_HEADING =
+  /^(?:open (?:roles|positions)|current (?:openings|opportunities|vacancies)|job (?:openings|opportunities)|(?:all |our )?(?:jobs|careers?|vacancies|openings)|join (?:us|our team|the team)|we'?re hiring|work with us|(?:nos )?offres(?: d'emploi)?|offres? d'emploi|carri[eè]res?|nous rejoindre|rejoignez[- ]nous|recrutement|nous recrutons|on recrute|postuler|candidature spontan[ée]e)$/i;
+
+/** The gender marker French and German postings put after the job title: « H/F », « F/H/X », « (M/F/D) », « m/w/d ». */
+const GENDER_MARKER = /\(?\s*\b[HFMW]\s*\/\s*[HFMW](?:\s*\/\s*[XDN])?\b\s*\)?/i;
+
+/**
+ * What a posting's heading gives as its job title (#1154). A job board's `<h1>` often goes on past the title:
+ *  - after the gender marker, the employer or the recruiting firm (« Head Of Legal H/F Team.is », « … H/F - Ikigaï »):
+ *    the title ends with the marker;
+ *  - the site's own name at its end (`site`, its `og:site_name`), with no marker before it: it is left out;
+ *  - a parenthesis the page cut off (« … PME industrielles (m »): it is left out;
+ *  - a careers page's own heading (« Open Roles »): no title at all.
+ */
+export function headingTitle(heading: string | undefined, site?: string): string | undefined {
+  if (!heading) return undefined;
+  let title = heading.replace(/\s+/g, " ").trim();
+  const marker = GENDER_MARKER.exec(title);
+  if (marker && marker.index > 0) title = title.slice(0, marker.index + marker[0].length).trim();
+  else if (site) title = title.replace(new RegExp(`(?:\\s+[-–—|:,·@]|\\s+(?:chez|at))?\\s+${escapeRegExp(site)}$`, "i"), "").trim() || title;
+  title = title.replace(/\s*\([^()]*$/, "").replace(/[\s\-–—|:,·]+$/, "").trim();
+  if (!title || CAREERS_HEADING.test(title)) return undefined;
+  return title;
 }
 
 /** How many JobPosting nodes the page carries (more than one means a list of postings). */

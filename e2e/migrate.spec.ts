@@ -87,6 +87,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "ai_tool_usage", // issue #218: the tools each AI call's model used
         "ai_usage", // issue #218: every AI call's tokens and cost, no Candidate
         "application",
+        "application_title_change", // #1130: each change of the title a Candidate gave their Application
         "appointment_reminder", // issue #253: the Appointment Reminders sent, one per Agenda Item and date
         "appointment_reminder_setting", // issue #253: Appointment Reminders switched off or on in Mon compte
         "ats_score", // issue #8: the ATS Score last computed for each Profile
@@ -273,6 +274,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "application", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "application", from_column: "job_offer_id", to_table: "job_offer" },
         { from_table: "application", from_column: "profile_id", to_table: "profile" },
+        // #1130: each change of the title a Candidate gave their Application goes with it.
+        { from_table: "application_title_change", from_column: "application_id", to_table: "application" },
         // Appointment Reminders (issue #253) go with their Candidate and their Interview or Coaching Session.
         { from_table: "appointment_reminder", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "appointment_reminder", from_column: "coaching_session_id", to_table: "coaching_session" },

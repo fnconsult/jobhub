@@ -130,6 +130,7 @@ describe("Failure Reason catalog", () => {
       "summary_changes_unusable",
       "match_score_text_unread",
       "match_score_too_slow",
+      "coach_reply_empty",
       "test_failed",
       "test_expired",
       "not_tested",
@@ -251,6 +252,7 @@ describe("Failure Reason catalog", () => {
       "summary_changes_unusable",
       "match_score_text_unread",
       "match_score_too_slow",
+      "coach_reply_empty",
     ]);
     expect(failureReasonWording("job_titles_unavailable")).toBe("Recherche avec le seul titre des Critères");
     expect(failureReasonWording("company_news_unavailable")).toBe("Company Dossier construit sans actualités");

@@ -1653,7 +1653,7 @@
       "proposed": "Je vous propose cette modification ci-dessous : relisez-la, puis appliquez-la ou ignorez-la. Rien ne change sans vous.",
       "masterCvNotProposed": "Je n'ai pas pu préparer cette modification. Je ne propose que ce que votre CV de référence dit déjà, sans élément, compétence ni chiffre qu'il ne contient pas. Pour ajouter des compétences ou des outils, écrivez-les vous-même dans la section « CV de référence » de votre profil, puis enregistrez une nouvelle version.",
       "notProposed": "Je n'ai pas pu préparer cette modification telle quelle. Dites-moi précisément ce que vous voulez changer, ou faites-le depuis la page concernée.",
-      "none": "Je n'ai pas pu préparer de réponse à cette demande. Ce que je ne peux pas modifier moi-même se change depuis la page concernée (la candidature et ses sections, votre profil) : dites-moi précisément ce que vous voulez changer, et je vous proposerai ce que je peux."
+      "lastNet": "Je n'ai pas réussi à traiter votre demande. Reformulez-la, ou posez la question à l'équipe."
     },
     "jobOfferLink": {
       "read": "J'ai lu cette offre et je l'ai ajoutée à Jobbbox. Elle est à traiter : ouvrez-la pour voir son score de correspondance et la suivre avec l'un de vos profils.",
@@ -5905,6 +5905,7 @@
     "summary_changes_unusable": "Réécriture du résumé non comprise : le résumé reste tel quel",
     "match_score_text_unread": "Texte de l'offre non lu : Match Score sur ses seules données structurées",
     "match_score_too_slow": "Lecture de l'offre trop lente : Match Score sur ses seules données structurées",
+    "coach_reply_empty": "Le coach n'a rien écrit, même au dernier tour : le dernier filet a répondu",
     "test_failed": "Test de connexion échoué",
     "test_expired": "Connexion de test expirée",
     "not_tested": "Activation sans connexion de test réussie",

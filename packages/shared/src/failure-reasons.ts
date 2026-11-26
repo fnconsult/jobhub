@@ -73,6 +73,8 @@ export const FAILURE_REASONS = [
   "match_score_text_unread",
   /** The Job Offer's text was read too slowly: the Match Score is from its structured data only. */
   "match_score_too_slow",
+  /** The AI Coach wrote no text, even on its Last turn (ADR-0119): the Last net answered, with « Poser la question à l'équipe ». */
+  "coach_reply_empty",
   // Back Office attempts that failed or were refused (#263): the Back Office Audit records them.
   /** A connection test, or a test sign-in, did not pass. */
   "test_failed",
@@ -143,6 +145,7 @@ export const AI_CALL_WARNINGS: readonly FailureReason[] = [
   "summary_changes_unusable",
   "match_score_text_unread",
   "match_score_too_slow",
+  "coach_reply_empty",
 ];
 
 /** The codes an AI call can fail or warn with: the Journaux IA's Raison filter. */

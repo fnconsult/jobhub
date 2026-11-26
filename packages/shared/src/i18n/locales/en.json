@@ -1653,7 +1653,7 @@
       "proposed": "I propose this change below: review it, then apply or ignore it. Nothing changes without you.",
       "masterCvNotProposed": "I couldn't prepare this change. I only propose what your Master CV already says, never an item, skill or figure it doesn't hold. To add skills or tools, write them yourself in the « Master CV » section of your profile, then save a new version.",
       "notProposed": "I couldn't prepare this change as asked. Tell me precisely what you want to change, or make it from the page concerned.",
-      "none": "I could not prepare an answer to this request. What I cannot change myself is changed from the page concerned (the application and its sections, your profile): tell me exactly what you want to change, and I will propose what I can."
+      "lastNet": "I couldn't handle your request. Rephrase it, or ask the team."
     },
     "jobOfferLink": {
       "read": "I read this job offer and added it to Jobbbox. It is to be processed: open it to see its Match Score and follow it with one of your profiles.",
@@ -5905,6 +5905,7 @@
     "summary_changes_unusable": "Rewritten summary not understood: the summary stays as it was",
     "match_score_text_unread": "Job Offer text unread: Match Score from its structured data only",
     "match_score_too_slow": "Job Offer reading too slow: Match Score from its structured data only",
+    "coach_reply_empty": "The coach wrote nothing, even on its last turn: the last net answered",
     "test_failed": "Connection test failed",
     "test_expired": "Test sign-in expired",
     "not_tested": "Enabled without a passed test sign-in",

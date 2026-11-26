@@ -37,7 +37,9 @@ export function textSizeOf(fontScale: number): "small" | "standard" | "large" | 
  * (10 to 2,000 characters), and what goes with it, said before sending: the page, the app's version, the device, the
  * language and the text size; for a Question, the exchange too, and nothing else of the conversation. The version and
  * the device go in APP_DEVICE_HEADER, as the form shows them: a native fetch's user agent names neither, so the web app
- * keeps them in its place (« App Jobbbox 1.4.0, iOS 18.6 »). Read by the Jobbbox team, never by an AI (`POST /api/signalements`).
+ * keeps them in its place (« App Jobbbox 1.4.0, iOS 18.6 »). Under the field, the AI notice (#1139, ADR-0118): « Un outil d'IA
+ * peut lire votre message pour nous aider à le traiter. », and the body says it was shown (`aiNotice`), so Signalement
+ * triage may read it, redacted (`POST /api/signalements`).
  */
 export function SignalementForm({ start, path, onClose }: { start: SignalementStart; path: string; onClose: () => void }) {
   const { t, i18n } = useTranslation();
@@ -62,7 +64,8 @@ export function SignalementForm({ start, path, onClose }: { start: SignalementSt
     if (length < MESSAGE_MIN_LENGTH) return setProblem("tooShort");
     setWorking(true);
     setProblem(null);
-    const context = { message: text, path, textSize };
+    // The notice is under the field whenever the form is (#1139): the Signalement keeps that it was shown.
+    const context = { message: text, path, textSize, aiNotice: true };
     const body = question ? { type: "question", ...context, attachedQuestion: question.question, attachedCoachReply: question.coachReply } : { type: kind, ...context };
     const headers = sentFrom ? { [APP_DEVICE_HEADER]: appDeviceHeader(sentFrom) } : undefined;
     const response = await api("/api/signalements", { method: "POST", body: JSON.stringify(body), ...(headers ? { headers } : {}) }).catch(() => null);
@@ -121,6 +124,9 @@ export function SignalementForm({ start, path, onClose }: { start: SignalementSt
           {t("signalement.count", { count: length, max: MESSAGE_MAX_LENGTH })}
         </AppText>
         {problem === "tooShort" ? <AppText tone="danger">{t("signalement.tooShort", { min: MESSAGE_MIN_LENGTH })}</AppText> : null}
+        <AppText variant="meta" tone="secondary">
+          {t("signalement.aiNotice")}
+        </AppText>
       </View>
       <View style={{ gap: space[2] }}>
         {question ? (
@@ -147,9 +153,6 @@ export function SignalementForm({ start, path, onClose }: { start: SignalementSt
             <Detail label={t("signalement.detail.textSize")} value={t(`textSize.${textSize}`)} />
           </View>
         ) : null}
-        <AppText variant="meta" tone="secondary">
-          {t("signalement.readBy")}
-        </AppText>
       </View>
       {problem === "failed" || problem === "tooMany" ? (
         <View role="alert">

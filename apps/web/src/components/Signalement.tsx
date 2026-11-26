@@ -401,6 +401,8 @@ function SignalementForm({
       message: text,
       path: window.location.pathname,
       textSize: textSizeNow(),
+      // The AI notice is under the field whenever the form is (#1139, ADR-0118): the Signalement keeps that it was shown.
+      aiNotice: true,
     };
     const body = question
       ? {
@@ -487,6 +489,7 @@ function SignalementForm({
 
   const errorId = `${id}-error`;
   const countId = `${id}-count`;
+  const aiNoticeId = `${id}-ai-notice`;
   const detailButton = (
     <button
       className="link-button"
@@ -529,7 +532,9 @@ function SignalementForm({
           }
           aria-invalid={problem === "tooShort" || undefined}
           aria-describedby={
-            problem === "tooShort" ? `${errorId} ${countId}` : countId
+            problem === "tooShort"
+              ? `${errorId} ${countId} ${aiNoticeId}`
+              : `${countId} ${aiNoticeId}`
           }
           onChange={(event) => changeText(event.target.value)}
           onKeyDown={onKeyDown}
@@ -546,6 +551,9 @@ function SignalementForm({
             {t("signalement.count", { count: length, max: MESSAGE_MAX_LENGTH })}
           </span>
         </div>
+        <p id={aiNoticeId} className="signalement-meta signalement-ai-notice">
+          {t("signalement.aiNotice")}
+        </p>
       </div>
       <div className="signalement-context">
         {question ? (
@@ -589,7 +597,6 @@ function SignalementForm({
             <dd>{t(`textSize.${textSizeNow()}`)}</dd>
           </dl>
         ) : null}
-        <p className="signalement-meta">{t("signalement.readBy")}</p>
       </div>
       {problem === "tooMany" || problem === "failed" ? (
         <p className="field-error" role="alert">

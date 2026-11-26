@@ -142,10 +142,15 @@ describe("a Signalement in the Work Pane (#602, ADR-0057 amended by ADR-0070)", 
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.activeElement).toBe(within(pane()).getByRole("heading", { level: 2, name: "Envoyer un signalement" }));
     expect(within(pane()).getByRole("radio", { name: "Idée" }).getAttribute("aria-checked")).toBe("true");
+    // Under the field (#1139, ADR-0118): the AI notice, said to whoever reads the message too.
+    expect(within(pane()).getByText("Un outil d'IA peut lire votre message pour nous aider à le traiter.")).toBeTruthy();
+    expect(within(pane()).getByRole("textbox").getAttribute("aria-describedby")).toMatch(/ai-notice/);
     await user.type(within(pane()).getByRole("textbox"), "Un mode hors ligne serait utile.");
     await user.click(within(pane()).getByRole("button", { name: "Envoyer" }));
 
     expect(fetch).toHaveBeenCalledWith("/api/signalements", expect.objectContaining({ method: "POST" }));
+    // The Signalement keeps that the notice was shown.
+    expect(JSON.parse(String((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body))).toMatchObject({ type: "idee", aiNotice: true });
     expect(await within(pane()).findByText("Merci, c'est envoyé.")).toBeTruthy();
   });
 

@@ -358,7 +358,7 @@ describe("the Signalement form, native, under the box", () => {
     await user.press(button("Envoyer"));
     expect(await screen.findByText("Merci, c'est envoyé.")).toBeOnTheScreen();
     expect(web.signalements).toEqual([
-      { type: "question", message: "Comment relancer ?", path: "/", textSize: "standard", attachedQuestion: "Comment relancer ?", attachedCoachReply: "Envoyez un court message." },
+      { type: "question", message: "Comment relancer ?", path: "/", textSize: "standard", aiNotice: true, attachedQuestion: "Comment relancer ?", attachedCoachReply: "Envoyez un court message." },
     ]);
   });
 
@@ -367,6 +367,8 @@ describe("the Signalement form, native, under the box", () => {
     const user = userEvent.setup();
     await user.press(button("Signaler un problème"));
     expect(screen.getByText(/Joints automatiquement : la page, la version de Jobbbox, votre appareil/)).toBeOnTheScreen();
+    // Under the field (#1139): the AI notice, which the Signalement keeps as shown.
+    expect(screen.getByText("Un outil d'IA peut lire votre message pour nous aider à le traiter.")).toBeOnTheScreen();
     await user.press(button("Voir le détail"));
     expect(screen.getByText("Appareil")).toBeOnTheScreen();
 
@@ -378,7 +380,7 @@ describe("the Signalement form, native, under the box", () => {
     await user.type(screen.getByLabelText("Décrivez le problème"), " : le bouton ne répond pas");
     await user.press(button("Envoyer"));
     expect(await screen.findByText("Merci, c'est envoyé.")).toBeOnTheScreen();
-    expect(web.signalements).toEqual([{ type: "bug", message: "Bug : le bouton ne répond pas", path: "/", textSize: "standard" }]);
+    expect(web.signalements).toEqual([{ type: "bug", message: "Bug : le bouton ne répond pas", path: "/", textSize: "standard", aiNotice: true }]);
   });
 
   it("sends the app's version and device it says it attaches (#690): a native fetch's user agent names neither", async () => {

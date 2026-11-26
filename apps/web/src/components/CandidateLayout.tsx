@@ -98,7 +98,7 @@ async function closedWelcome(candidateId: string): Promise<boolean> {
  */
 async function sidebarMenus(candidateId: string): Promise<SidebarMenus> {
   try {
-    const [applications, notices, profiles, searches, digests, locale, offersToHandle] = await Promise.all([
+    const [applications, notices, profiles, searches, digests, locale, offersToHandle, conversations] = await Promise.all([
       getApplications().list(candidateId),
       getFollowUps().notices(candidateId),
       getProfiles().list(candidateId),
@@ -112,11 +112,26 @@ async function sidebarMenus(candidateId: string): Promise<SidebarMenus> {
           console.error("[sidebar] could not count the offers à traiter", error);
           return 0;
         }),
+      // Each Application's conversation, which its « … » clears (#1130). Without them, it offers « Renommer » alone.
+      getCoachConversations()
+        .list(candidateId)
+        .catch((error: unknown) => {
+          console.error("[sidebar] could not list the conversations", error);
+          return [];
+        }),
     ]);
+    const conversationOf = new Map(conversations.flatMap((conversation) => (conversation.subject?.kind === "application" ? [[conversation.subject.id, conversation.id] as const] : [])));
+    const applicationsSidebar = applicationsMenu({ applications, notices, matchScores: new Map() }).sidebar;
     const active = profiles.filter((profile) => !profile.archived).map(({ id, name }) => ({ id, name }));
     const dateLabel = objectDay(locale);
     return {
-      applications: applicationsMenu({ applications, notices, matchScores: new Map() }).sidebar,
+      applications: {
+        ...applicationsSidebar,
+        shown: applicationsSidebar.shown.map((object) => {
+          const conversationId = conversationOf.get(object.id);
+          return conversationId ? { ...object, conversationId } : object;
+        }),
+      },
       jobSearches: jobSearchesMenu({ profiles: active, searches, dateLabel, offersToHandle }).sidebar,
       jobDigests: jobDigestsMenu({ profiles: active, digests, dateLabel }).sidebar,
     };

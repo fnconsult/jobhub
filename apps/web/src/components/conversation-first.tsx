@@ -2,10 +2,11 @@
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useId, useMemo, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { badgeCount } from "@jobhub/shared";
+import { MAX_APPLICATION_TITLE_LENGTH } from "@/applications/limits";
 import { helpLocale, onThisPage } from "@/coach-help";
 import { useHelpSettings } from "@/coach-help/settings";
 import type { ConversationContext } from "@/coach/conversation";
@@ -17,7 +18,7 @@ import { useWorkPane } from "@/components/work-pane";
 import { buttonClass } from "@/design/button-class";
 import { ConfirmDialog } from "@/design/Dialog";
 import { routes } from "@/routes";
-import type { UnfoldedMenu } from "@/sidebar-menus";
+import type { MenuObject, UnfoldedMenu } from "@/sidebar-menus";
 
 /** A Free conversation as the Sidebar lists it (ADR-0070): a Coach Conversation with no Subject. */
 export type FreeConversation = { id: string; title: string };
@@ -309,7 +310,10 @@ export function SidebarMenu({
       </div>
       {open ? (
         <ul id={`${id}-objects`} className="sidebar-sublist" aria-label={label}>
-          {objects.shown.map((object) => (
+          {objects.shown.map((object) =>
+            object.title !== undefined ? (
+              <ApplicationMenuItem key={object.id} application={{ ...object, title: object.title }} current={object.href === pathname} onNavigate={onNavigate} />
+            ) : (
             <li key={object.id}>
               <Link className="sidebar-link" href={object.href} aria-current={object.href === pathname ? CURRENT : undefined} onClick={onNavigate}>
                 <span className="sidebar-link-text">{object.label}</span>
@@ -320,7 +324,8 @@ export function SidebarMenu({
                 ) : null}
               </Link>
             </li>
-          ))}
+            ),
+          )}
           <li>
             <Link className="sidebar-link sidebar-see-all" href={href} onClick={onNavigate}>
               {t("conversationFirst.seeAll", { count: objects.total })}
@@ -336,6 +341,134 @@ type FetchOutcome = "done" | "invalid" | "failed";
 
 /** A conversation's actions open under their button, from its start. */
 const MENU_ALIGN = "start";
+
+/**
+ * One Application under Mes candidatures in the Sidebar (#1130): its link, and the actions of its conversation, as a Free
+ * conversation has them: « Renommer », which renames the Application for this Candidate (its conversation takes its title,
+ * ADR-0117), and « Effacer la conversation » once it has one, after a confirming Dialog (the Application stays).
+ */
+function ApplicationMenuItem({
+  application,
+  current,
+  onNavigate,
+}: {
+  application: MenuObject & { title: string };
+  current: boolean;
+  onNavigate: (() => void) | undefined;
+}) {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const conversationFirst = useConversationFirst();
+  const id = useId();
+  const [renaming, setRenaming] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const actions = useRef<HTMLButtonElement>(null);
+  const backToActions = () => requestAnimationFrame(() => actions.current?.focus());
+
+  async function rename(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const title = String(new FormData(event.currentTarget).get("title") ?? "");
+    const response = await fetch(`/api/applications/${encodeURIComponent(application.id)}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title }),
+    }).catch(() => null);
+    const outcome: FetchOutcome = response?.ok ? "done" : response?.status === 400 ? "invalid" : "failed";
+    if (outcome !== "done") {
+      setError(t(outcome === "invalid" ? "application.title.invalid" : "coachPanel.listErrors.action"));
+      return;
+    }
+    setRenaming(false);
+    setError(null);
+    router.refresh();
+    backToActions();
+  }
+
+  async function clear() {
+    if (!application.conversationId) return;
+    const response = await fetch(`/api/coach/conversations/${encodeURIComponent(application.conversationId)}`, { method: "DELETE" }).catch(() => null);
+    // Already gone (another tab, or purged): cleared either way.
+    if (!response?.ok && response?.status !== 404) {
+      setError(t("coachPanel.listErrors.action"));
+      return;
+    }
+    if (current && conversationFirst?.page?.conversationId === application.conversationId) conversationFirst.page.startNew?.();
+    router.refresh();
+  }
+
+  return (
+    <li className="sidebar-conversation">
+      {renaming ? (
+        <form className="sidebar-rename" onSubmit={rename}>
+          <label className="visually-hidden" htmlFor={`${id}-title`}>
+            {t("application.title.label")}
+          </label>
+          <input
+            id={`${id}-title`}
+            name="title"
+            className="input"
+            defaultValue={application.title}
+            maxLength={MAX_APPLICATION_TITLE_LENGTH}
+            title={t("application.title.hint")}
+            required
+            autoFocus
+            onKeyDown={(event) => {
+              if (event.key !== "Escape") return;
+              event.preventDefault();
+              setRenaming(false);
+              setError(null);
+              backToActions();
+            }}
+          />
+        </form>
+      ) : (
+        <div className="sidebar-conversation-row">
+          <Link className="sidebar-link" href={application.href} aria-current={current ? CURRENT : undefined} onClick={onNavigate}>
+            <span className="sidebar-link-text">{application.label}</span>
+            {application.toHandle ? (
+              <span className="sidebar-dot" title={t("conversationFirst.toHandle")}>
+                <span className="visually-hidden">, {t("conversationFirst.toHandle")}</span>
+              </span>
+            ) : null}
+          </Link>
+          <DropdownMenu.Root modal={false}>
+            <DropdownMenu.Trigger ref={actions} className={`${buttonClass({ variant: "quiet", size: "sm" })} sidebar-conversation-actions`} aria-label={t("conversationFirst.actions", { title: application.label })}>
+              <Icons.more />
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content className="menu" align={MENU_ALIGN} sideOffset={4}>
+                <DropdownMenu.Item className="menu-item" onSelect={() => setRenaming(true)}>
+                  {t("coachPanel.rename")}
+                </DropdownMenu.Item>
+                {application.conversationId ? (
+                  <DropdownMenu.Item className="menu-item" onSelect={() => setClearing(true)}>
+                    {t("contextBar.clear")}
+                  </DropdownMenu.Item>
+                ) : null}
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+        </div>
+      )}
+      {error ? (
+        <p className="hint" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <ConfirmDialog
+        open={clearing}
+        onOpenChange={setClearing}
+        title={t("conversationFirst.clearTitle")}
+        confirmLabel={t("conversationFirst.clear")}
+        tone="danger"
+        onConfirm={() => void clear()}
+      >
+        {t("conversationFirst.clearText")}
+      </ConfirmDialog>
+    </li>
+  );
+}
 
 /** One Free conversation in the Sidebar: its link, and its actions (« Renommer », « Supprimer »). */
 function FreeConversationItem({ conversation, current, onNavigate }: { conversation: FreeConversation; current: boolean; onNavigate: (() => void) | undefined }) {

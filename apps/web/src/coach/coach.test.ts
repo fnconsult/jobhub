@@ -626,6 +626,16 @@ describe("the item In view, in full", () => {
     expect(context).toContain("vous pilotez la clôture mensuelle");
   });
 
+  it("an Application the Candidate renamed: their title, and the Job Offer's own to give back (ADR-0117)", async () => {
+    const renamed: Application = { ...application, jobOffer: { ...application.jobOffer, title: "Directrice financière groupe" }, offerTitle: application.jobOffer.title };
+    const { coach, provider } = coachWith({ workspace: { applications: [renamed] } });
+
+    await ask(coach, { kind: "application", id: application.id });
+
+    expect(contextOf(provider)).toContain("Directrice financière groupe");
+    expect(contextOf(provider)).toContain(`Le candidat a renommé cette candidature ; l'intitulé d'origine de l'offre est « ${application.jobOffer.title} ».`);
+  });
+
   it("an Application: a Cancelled Interview is said to be cancelled", async () => {
     const cancelled: Application = { ...application, interviews: [{ ...application.interviews[0]!, cancelledAt: new Date("2026-10-19T09:00:00Z") }] };
     const { coach, provider } = coachWith({ workspace: { applications: [cancelled] } });

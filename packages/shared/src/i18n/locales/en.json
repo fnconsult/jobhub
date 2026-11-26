@@ -4849,7 +4849,8 @@
       "hint": "For you only: the job offer keeps its title for anyone else.",
       "saved": "Title saved",
       "error": "The title could not be saved. Try again.",
-      "offerTitle": "Job offer's title: {{title}}"
+      "offerTitle": "Job offer's title: {{title}}",
+      "invalid": "Give the application a title of 1 to 200 characters."
     },
     "reportUnavailableHint": "For you only: the job offer does not change for anyone else, and your application keeps its status.",
     "undoReport": "Undo the report",

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { tailoredDocumentsMade, type Made } from "@/ai-activity";
 import { loadAiActivity } from "@/ai-activity/server";
+import { getApplications } from "@/applications/server";
 import { dossierSites } from "@/company-dossiers";
 import { ABANDON_CARD } from "@/follow-ups";
 import "./application.css";
@@ -41,7 +42,15 @@ export default async function ApplicationLayout({ params, children }: Params & {
       .filter((card) => card.kind !== ABANDON_CARD)
       .map((card) => ({ kind: "action_card" as const, name: card.title, at: card.createdAt, provenance: card.provenance })),
   ];
-  const aiActivity = await loadAiActivity.application(candidateId, { id: application.id, jobOffer: { id: application.jobOffer.id, title: application.jobOffer.title } }, made);
+  // Each change of its title (#1130), with the title before: the Job Offer's own the first time.
+  const titleChanges = (await getApplications().titleChanges(candidateId, application.id)).map(({ before, after, at, cardId }) => ({
+    what: data.t("coachProposals.fields.applicationTitle"),
+    before,
+    after,
+    at,
+    ...(cardId ? { cardId } : {}),
+  }));
+  const aiActivity = await loadAiActivity.application(candidateId, { id: application.id, jobOffer: { id: application.jobOffer.id, title: application.jobOffer.title } }, made, titleChanges);
   return (
     <ApplicationConversation data={data} aiActivity={aiActivity}>
       {children}

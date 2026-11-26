@@ -157,6 +157,17 @@ export interface ApplicationStatusState {
 export interface ApplicationChangeOptions {
   version?: string;
   origin?: Origin | null;
+  /** A title applied from this Coach proposal card (#1131): its change in the title history names it. */
+  proposalCard?: string;
+}
+
+/** One change of an Application's title (#1130): the title shown before and after it, and the Coach proposal card it came from. */
+export interface ApplicationTitleChange {
+  before: string;
+  after: string;
+  /** Set when the Candidate applied a Coach proposal; none for their own change (an « Annuler » included). */
+  cardId?: string;
+  at: Date;
 }
 
 export type SaveApplicationResult =
@@ -231,6 +242,8 @@ export interface Applications {
   profileOf(candidateId: string, applicationId: string): Promise<ApplicationProfileState | null>;
   /** The title the Application shows, its version and Origin (#1130, #1131); null when the Application is not the Candidate's. */
   titleOf(candidateId: string, applicationId: string): Promise<ApplicationTitleState | null>;
+  /** Every change of the Application's title, oldest first, the first from the Job Offer's own; [] for someone else's. */
+  titleChanges(candidateId: string, applicationId: string): Promise<ApplicationTitleChange[]>;
   /**
    * Removes an Application a Coach proposal created (« Annuler », #716), while it is intact: still at the status version
    * `version` and on the Profile `profileId`, with nothing that refers to it (an Interview, a Tailored Document, a Follow-up
@@ -778,6 +791,16 @@ export function createApplications(
       return { title, offerTitle: row.offer_title, renamed: row.job_title !== null, version: title, origin: readOrigin(row.title_origin) };
     },
 
+    async titleChanges(candidateId, applicationId) {
+      if (!UUID.test(applicationId)) return [];
+      const { rows } = await database.query<{ title_before: string; title_after: string; card_id: string | null; changed_at: Date }>(
+        `SELECT c.title_before, c.title_after, c.card_id, c.changed_at FROM application_title_change c JOIN application a ON a.id = c.application_id
+          WHERE a.id = $1 AND a.candidate_id = $2 ORDER BY c.changed_at, c.id`,
+        [applicationId, candidateId],
+      );
+      return rows.map((row) => ({ before: row.title_before, after: row.title_after, ...(row.card_id ? { cardId: row.card_id } : {}), at: row.changed_at }));
+    },
+
     async removeIntact(candidateId, applicationId, seen) {
       if (!UUID.test(applicationId)) return NOT_FOUND;
       return inTransaction(database, async (client): Promise<RemoveApplicationResult> => {
@@ -802,13 +825,18 @@ export function createApplications(
         // proposal (#1131), only from the title it was proposed from (`options.version`), never merged with a change since.
         const { rows } = await database.query<{ unchanged: boolean }>(
           `WITH seen AS (
-             SELECT a.id, o.title AS offer_title, COALESCE(a.job_title, o.title) = $4 AS unchanged
+             SELECT a.id, o.title AS offer_title, COALESCE(a.job_title, o.title) AS shown, COALESCE(a.job_title, o.title) = $4 AS unchanged
                FROM application a JOIN job_offer o ON o.id = a.job_offer_id WHERE a.id = $1 AND a.candidate_id = $2 FOR UPDATE OF a),
            changed AS (
              UPDATE application a SET job_title = NULLIF($3, seen.offer_title), title_origin = CASE WHEN NULLIF($3, seen.offer_title) IS NULL THEN NULL ELSE $5::jsonb END
-               FROM seen WHERE a.id = seen.id AND ($4::text IS NULL OR seen.unchanged) RETURNING a.id)
+               FROM seen WHERE a.id = seen.id AND ($4::text IS NULL OR seen.unchanged) RETURNING a.id),
+           -- Its history (#1130): the title shown before and after, when it is another.
+           logged AS (
+             INSERT INTO application_title_change (application_id, title_before, title_after, card_id)
+             SELECT seen.id, seen.shown, COALESCE($3, seen.offer_title), $6 FROM changed JOIN seen ON seen.id = changed.id
+              WHERE seen.shown <> COALESCE($3, seen.offer_title))
            SELECT $4::text IS NULL OR seen.unchanged AS unchanged FROM seen`,
-          [applicationId, candidateId, change.title, options.version ?? null, originJson(options)],
+          [applicationId, candidateId, change.title, options.version ?? null, originJson(options), options.proposalCard ?? null],
         );
         if (!rows[0]) return NOT_FOUND;
         if (!rows[0].unchanged) return CONFLICT;
@@ -1014,6 +1042,16 @@ export async function migrateApplications(database: Pool): Promise<void> {
     -- while a Coach proposal the Candidate applied gave it.
     ALTER TABLE application ADD COLUMN IF NOT EXISTS job_title text CHECK (char_length(job_title) BETWEEN 1 AND ${MAX_APPLICATION_TITLE_LENGTH});
     ALTER TABLE application ADD COLUMN IF NOT EXISTS title_origin jsonb;
+    -- Each change of its title (#1130): shown in its Activité with the title before, the Job Offer's own the first time.
+    CREATE TABLE IF NOT EXISTS application_title_change (
+      id bigserial PRIMARY KEY,
+      application_id uuid NOT NULL REFERENCES application (id) ON DELETE CASCADE,
+      title_before text NOT NULL,
+      title_after text NOT NULL,
+      card_id text,
+      changed_at timestamptz NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS application_title_change_application_idx ON application_title_change (application_id);
   `);
   await migrateRescheduleHistory(database, "interview", { enteredAt: "created_at" });
   // Saving an Application writes to the Offer box (ADR-0090).

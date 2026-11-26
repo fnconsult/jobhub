@@ -219,6 +219,8 @@ export interface ExportedApplication extends Application {
    * oldest first: sender, date, subject and text.
    */
   exchanges: ExportedApplicationExchange[];
+  /** Each change of its title (#1130), oldest first: the title before and after, and the Coach proposal card it came from. */
+  titleChanges: { before: string; after: string; cardId: string | null; at: Date }[];
 }
 
 /** An Exchange of an Application, as the Data export holds it (#1099). */
@@ -526,6 +528,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   application: "applications (each status's Origin, when a Coach proposal the Candidate applied gave it, #715, and each Profile's Origin, #716; the title they gave it, with the Job Offer's own and its Origin, #1130)",
   interview: "applications[].interviews (with their duration, format, place, date of cancellation and Origin, when a Coach proposal the Candidate applied left it so, #718)",
   interview_reschedule: "applications[].interviews[].reschedules (their Reschedule history)",
+  application_title_change: "applications[].titleChanges (each change of the title they gave it, with the title before, #1130)",
   tailored_cv: "applications[].tailoredDocuments (the proposal and the saved one, each with its Provenance)",
   tailored_document: "applications[].tailoredDocuments (each with its Provenance and, its text reworked from a Coach proposal, its Origin, ADR-0109)",
   tailored_document_version: "applications[].tailoredDocuments.versions (each version of the Tailored CV, Cover Letter and Outreach Message kept, with its date, origin, language and subject, #1079)",
@@ -803,7 +806,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
   }
 
   async function exportApplications(candidateId: string): Promise<ExportedApplication[]> {
-    const [summaries, followUpsOf, coachReviewsOf, enrichedContactsOf, companyDossiersOf, exchangesOf] = await Promise.all([
+    const [summaries, followUpsOf, coachReviewsOf, enrichedContactsOf, companyDossiersOf, exchangesOf, titleChangesOf] = await Promise.all([
       deps.applications.list(candidateId),
       grouped<{ sentAt: Date }>(
       `SELECT s.application_id AS key, s.sent_at AS "sentAt" FROM follow_up_sent s JOIN application a ON a.id = s.application_id
@@ -827,6 +830,11 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         candidateId,
       ),
       exchangesByApplication(candidateId),
+      grouped<{ before: string; after: string; cardId: string | null; at: Date }>(
+      `SELECT c.application_id AS key, c.title_before AS before, c.title_after AS after, c.card_id AS "cardId", c.changed_at AS at
+         FROM application_title_change c JOIN application a ON a.id = c.application_id WHERE a.candidate_id = $1 ORDER BY c.changed_at, c.id`,
+        candidateId,
+      ),
     ]);
     const exported = await Promise.all(
       summaries.map(async ({ id }): Promise<ExportedApplication | null> => {
@@ -852,6 +860,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           enrichedContacts: enrichedContactsOf(id),
           companyDossier: exportedDossier(companyDossiersOf(id)[0]),
           exchanges: exchangesOf(id),
+          titleChanges: titleChangesOf(id),
         };
       }),
     );

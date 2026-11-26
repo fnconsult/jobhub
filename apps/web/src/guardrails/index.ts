@@ -363,7 +363,7 @@ const scopeRewrite = (checks: readonly CoachScopeCheck[]) =>
  * ne peux pas », « I can't rewrite them here ». For what it never does (ADR-0119), a refusal that gives a reason
  * (`REASONS`) and says what it does instead (`INSTEAD`) has its way on.
  */
-const REFUSALS = [/\bje ne (?:peux|pourrai|suis pas en mesure)\b/, /\bimpossible (?:de|d')/, /\bje n'ai pas (?:la possibilite|acces)\b/, /\bi (?:can't|cannot|can not|am unable|'m unable|am not able)\b/, /\bnot able to\b/];
+const REFUSALS = [/\bje ne (?:(?:peux|pourrai)(?: \w+)? (?:pas|plus|jamais)|suis pas en mesure)\b/, /\bimpossible (?:de|d')/, /\bje n'ai pas (?:la possibilite|acces)\b/, /\bi (?:can't|cannot|can not|am unable|'m unable|am not able)\b/, /\bnot able to\b/];
 const REASONLESS = [/\bici,? je ne (?:peux|pourrai) pas\b/, /\bje ne (?:peux|pourrai) pas (?:le |la |les )?faire ici\b/, /\bi (?:can't|cannot) [a-z ]{0,30}\bhere\b/];
 const REASONS = [/\S ?:/, /\b(?:car|parce qu|puisqu|because|since)\b/];
 const INSTEAD = [
@@ -375,6 +375,21 @@ const INSTEAD = [
   /\bi can (?:however|also)\b/,
   /\bwhat i can do\b/,
 ];
+/**
+ * What nobody can know nor promise, said in the middle of advice (« je ne peux pas vous garantir une réponse, mais… »,
+ * « impossible de savoir si… », « I can't predict the outcome »): not a refusal of the request, so taken out of the reply
+ * before its refusals are looked for. « Je ne peux que vous conseiller… » is none either: REFUSALS wants a negation.
+ */
+const UNKNOWABLE = new RegExp(
+  String.raw`\b(?:je ne (?:peux|pourrai|saurais)(?: \w+)? pas|impossible (?:de |d')|i (?:can't|cannot|can not|am unable to|'m unable to|am not able to)) ?` +
+    String.raw`(?:(?:vous|te|le|la|les|l'|en|y|lui|leur|you|really|yet) ?)*` +
+    String.raw`(?:garantir|promettre|assurer|certifier|savoir|connaitre|predire|prevoir|deviner|anticiper|affirmer|dire (?:avec certitude|a coup sur|si|s'|quand|combien)|guarantee|promise|predict|know|foresee|tell (?:you )?(?:for sure|whether|if|when)|say (?:for sure|whether|if|when)|be (?:sure|certain))\b`,
+  "g",
+);
+const refuses = (said: string) => {
+  const left = said.replace(UNKNOWABLE, " ");
+  return REFUSALS.some((pattern) => pattern.test(left));
+};
 const hasWayOn = (said: string) => !REASONLESS.some((pattern) => pattern.test(said)) && REASONS.some((pattern) => pattern.test(said)) && INSTEAD.some((pattern) => pattern.test(said));
 
 /** Fixed distress words, matched without accents nor case: a short list that errs on the side of the 3114 message. */
@@ -497,7 +512,7 @@ function scopeRules(reply: string, scope: ReplyScope, written: readonly string[]
   const refusal =
     scope.cards === 0 &&
     scope.couldNotAnswer !== true &&
-    REFUSALS.some((pattern) => pattern.test(said)) &&
+    refuses(said) &&
     (scope.redirect ? REASONLESS.some((pattern) => pattern.test(said)) : !hasWayOn(said));
   return [...(refusal ? (["refusal_without_redirect"] as const) : []), ...(repeatsPrivate(reply, scope, written) ? (["private_repeated"] as const) : [])];
 }

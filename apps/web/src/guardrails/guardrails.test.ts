@@ -678,6 +678,32 @@ describe("« Périmètre du coach » on the AI Coach's reply (ADR-0114)", () => 
       expect(scopeTriggers(triggers)).toEqual([]);
     });
 
+    it("lets through ordinary advice that says what nobody can know or what it can only advise: not a refusal of the request", async () => {
+      const { guardrails, triggers } = setUp({ settings: { coach_scope: "flag" } });
+      const advice = [
+        "Je ne peux pas vous garantir une réponse, mais une relance à J+7 est raisonnable.",
+        "Impossible de savoir si le recruteur a lu votre CV. Relancez-le mardi, en rappelant votre entretien.",
+        "Je ne peux que vous conseiller de citer vos chiffres de clôture.",
+        "I can't predict the outcome, but your experience fits the role well: highlight it.",
+        "Je ne peux pas vous dire s'il vous rappellera ; en revanche, un message court jeudi montre votre intérêt.",
+        "Je ne peux pas le prévoir. Préparez plutôt deux exemples chiffrés pour l'entretien.",
+        "I cannot guarantee you'll get an interview, so apply to the three offers this week.",
+      ];
+
+      for (const text of advice) expect((await guardrails.guard("ai_coach", request("Vont-ils me répondre ?", scoped(text).reply))).outcome, text).toBe("replied");
+
+      expect(scopeTriggers(triggers)).toEqual([]);
+    });
+
+    it("still blocks a refusal of the request next to what it cannot know", async () => {
+      const { guardrails, triggers } = setUp({ settings: { coach_scope: "flag" } });
+
+      const guarded = await guardrails.guard("ai_coach", request("Relance le recruteur", scoped("Je ne peux pas vous garantir une réponse, et je ne peux pas envoyer la relance.").reply));
+
+      expect(guarded.outcome).toBe("blocked_reply");
+      expect(scopeTriggers(triggers)).toEqual(["refusal_without_redirect:blocked:block", "refusal_without_redirect:blocked:block"]);
+    });
+
     it("blocks a refusal that offers something else but gives no reason", async () => {
       const { guardrails, triggers } = setUp({ settings: { coach_scope: "flag" } });
 

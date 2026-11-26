@@ -542,7 +542,10 @@ describe("Job discovery", () => {
       const report = await discovery.discover({ candidateId: "c", criteria });
 
       expect(llm.calls).toHaveLength(1);
-      expect(llm.calls[0]!.messages[0]!.content).toBe("<page>\nAccueil\n\nDAF H/F\n\nGroupe Seb recrute son DAF.\n</page>");
+      expect(llm.calls[0]!.messages[0]!.content).toBe(
+        "<page>\nAccueil\n\nDAF H/F\n\nGroupe Seb recrute son DAF.\n</page>\n" +
+          "Le titre principal de l'offre sur la page (son <h1>, hors en-tête du site) est \"DAF H/F\" : c'est en général l'intitulé du poste, à reprendre sauf s'il n'en est pas un.",
+      );
       expect(report.jobOffers).toEqual([
         {
           id: "offer-1",

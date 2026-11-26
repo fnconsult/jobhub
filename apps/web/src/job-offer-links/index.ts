@@ -25,7 +25,7 @@
  */
 import { createProvenanceRecorder, readJobPage, type AiLayer, type ProvenanceRecorder, type TaskInstructions } from "@jobhub/ai";
 import { believablePostingDate, FORBIDDEN_SITES, isForbiddenSite, type JobOffer } from "@jobhub/shared";
-import { countJobPostings, createPoliteFetcher, DEFAULT_USER_AGENT, htmlToText, metaRobots, pageReadTool, readJobPosting, type Clock } from "@jobhub/shared/page-reading";
+import { countJobPostings, createPoliteFetcher, DEFAULT_USER_AGENT, htmlToText, metaRobots, pageReadTool, readJobPosting, statedJobTitle, type Clock } from "@jobhub/shared/page-reading";
 import type { JobOffers } from "../job-offers";
 
 export type JobOfferLinkResult = { ok: true; jobOffer: JobOffer } | { ok: false; reason: "forbidden_site" | "unreadable" | "not_a_job_offer" };
@@ -119,7 +119,7 @@ export function createJobOfferLinks(deps: JobOfferLinksDeps): JobOfferLinks {
         provenance?.site(page.url);
 
         let details = readJobPosting(page.html);
-        if (!details && countJobPostings(page.html) <= 1) details = await readJobPage(reading.aiFor("read_job_page"), candidateId, htmlToText(page.html), (await deps.reading?.()) ?? null);
+        if (!details && countJobPostings(page.html) <= 1) details = await readJobPage(reading.aiFor("read_job_page"), candidateId, htmlToText(page.html), (await deps.reading?.()) ?? null, statedJobTitle(page.html));
         if (!details) return { ok: false, reason: "not_a_job_offer" };
 
         // What the server read from the page itself is trusted, as Job discovery's is: never a date from a browser.

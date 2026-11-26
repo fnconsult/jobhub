@@ -66,6 +66,7 @@ export { createProvenanceRecorder } from "./provenance-recorder";
 export type { ProvenanceRecorder, ProvenanceRecorderOptions } from "./provenance-recorder";
 export type { FeatureStep, StepSubject, StepTool } from "./activity";
 export { readJobPage, readOfferFields } from "./job-offer-reading";
+export type { StatedJobTitle } from "./job-offer-reading";
 export { readOfferEmail } from "./offer-email-reading";
 export type { EmailOffer, OfferEmailKind, OfferEmailReading } from "./offer-email-reading";
 export { readCompanyFacts } from "./company-facts";

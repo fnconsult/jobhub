@@ -363,7 +363,7 @@ const scopeRewrite = (checks: readonly CoachScopeCheck[]) =>
  * ne peux pas », « I can't rewrite them here ». For what it never does (ADR-0119), a refusal that gives a reason
  * (`REASONS`) and says what it does instead (`INSTEAD`) has its way on.
  */
-const REFUSALS = [/\bje ne (?:(?:peux|pourrai)(?: \w+)? (?:pas|plus|jamais)|suis pas en mesure)\b/, /\bimpossible (?:de|d')/, /\bje n'ai pas (?:la possibilite|acces)\b/, /\bi (?:can't|cannot|can not|am unable|'m unable|am not able)\b/, /\bnot able to\b/];
+const REFUSALS = [/\bje ne (?:(?:peux|pourrai)(?: \w+)? (?:pas|plus|jamais)|suis pas en mesure)\b/, /\bimpossible (?:de|d')/, /\bje n'ai pas (?:la possibilite|acces)\b/, /\bi(?: can't| cannot| can not| am unable| am not able|'m unable|'m not able)\b/, /\bnot able to\b/];
 const REASONLESS = [/\bici,? je ne (?:peux|pourrai) pas\b/, /\bje ne (?:peux|pourrai) pas (?:le |la |les )?faire ici\b/, /\bi (?:can't|cannot) [a-z ]{0,30}\bhere\b/];
 const REASONS = [/\S ?:/, /\b(?:car|parce qu|puisqu|because|since)\b/];
 const INSTEAD = [
@@ -376,20 +376,44 @@ const INSTEAD = [
   /\bwhat i can do\b/,
 ];
 /**
- * What nobody can know nor promise, said in the middle of advice (« je ne peux pas vous garantir une réponse, mais… »,
- * « impossible de savoir si… », « I can't predict the outcome »): not a refusal of the request, so taken out of the reply
- * before its refusals are looked for. « Je ne peux que vous conseiller… » is none either: REFUSALS wants a negation.
+ * What a refusal clause is about when it is no refusal of the request but the limit of an answer (ADR-0119): what nobody
+ * can know, be sure of, promise or give exactly — « je ne peux pas être certain de sa réaction, mais… », « je ne peux pas
+ * vous donner de date exacte, mais comptez une semaine », « impossible de savoir si… », « I can't predict the outcome… ».
+ * Looked for anywhere in the clause, not only right after « je ne peux pas », and with every refusal's opening.
  */
-const UNKNOWABLE = new RegExp(
-  String.raw`\b(?:je ne (?:peux|pourrai|saurais)(?: \w+)? pas|impossible (?:de |d')|i (?:can't|cannot|can not|am unable to|'m unable to|am not able to)) ?` +
-    String.raw`(?:(?:vous|te|le|la|les|l'|en|y|lui|leur|you|really|yet) ?)*` +
-    String.raw`(?:garantir|promettre|assurer|certifier|savoir|connaitre|predire|prevoir|deviner|anticiper|affirmer|dire (?:avec certitude|a coup sur|si|s'|quand|combien)|guarantee|promise|predict|know|foresee|tell (?:you )?(?:for sure|whether|if|when)|say (?:for sure|whether|if|when)|be (?:sure|certain))\b`,
-  "g",
-);
-const refuses = (said: string) => {
-  const left = said.replace(UNKNOWABLE, " ");
-  return REFUSALS.some((pattern) => pattern.test(left));
-};
+const UNKNOWABLE = [
+  /\b(?:garanti|prom(?:ettre|is|esse)|certifi|predi(?:re|ction)|prevoi?r|prevision|devine|anticip|estim|affirm|connaitre)\w*/,
+  /\bsavoir\b/,
+  /\bassurer (?:que|qu')/,
+  /\bme prononcer\b/,
+  /\bdire (?:avec certitude|a coup sur|si|s'|quand|combien|pourquoi|lequel|laquelle|ce qu)/,
+  /\bcertitude\b/,
+  /\betre (?:\w+ ){0,3}(?:certaine?|sure?|assuree?)s?\b/,
+  /\ba coup sur\b/,
+  /\b(?:exacte?s?|exactement|precise?s?|precisement|precision)\b/,
+  /\b(?:guarantee|promise|predict|know|knowing|foresee|estimate|certainty|exact|exactly|precise|precisely)\b/,
+  /\bbe (?:\w+ ){0,2}(?:sure|certain)\b/,
+  /\bfor (?:sure|certain)\b/,
+  /\b(?:tell|say)(?: you)? (?:for sure|whether|if|when|how|why)\b/,
+];
+/** Where a refusal's clause stops: a mark, a conjunction, or the next refusal. */
+const CLAUSE_END = /[.;:!?,()\n]|\s(?:mais|but|et|and|ni|nor|ou|or|car|because|since|parce|puisqu|so|donc|alors)\b/;
+const REFUSAL = new RegExp(REFUSALS.map((pattern) => pattern.source).join("|"), "g");
+/**
+ * A refusal of the request (ADR-0114): a refusal clause (« je ne peux pas… », « impossible de… », « I can't… ») that is not
+ * about what nobody can know or give exactly. Each clause is judged on its own, so a true refusal next to such a limit
+ * (« je ne peux pas vous garantir une réponse, et je ne peux pas envoyer la relance ») is still one.
+ */
+const refuses = (said: string) =>
+  [...said.matchAll(REFUSAL)].some((match) => {
+    const from = match.index + match[0].length;
+    const rest = said.slice(from);
+    const next = rest.search(REFUSAL);
+    const end = rest.search(CLAUSE_END);
+    const stop = Math.min(...[next, end, rest.length].filter((at) => at >= 0));
+    const clause = said.slice(match.index, from + stop);
+    return !UNKNOWABLE.some((pattern) => pattern.test(clause));
+  });
 const hasWayOn = (said: string) => !REASONLESS.some((pattern) => pattern.test(said)) && REASONS.some((pattern) => pattern.test(said)) && INSTEAD.some((pattern) => pattern.test(said));
 
 /** Fixed distress words, matched without accents nor case: a short list that errs on the side of the 3114 message. */

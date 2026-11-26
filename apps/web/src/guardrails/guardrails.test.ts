@@ -695,6 +695,44 @@ describe("« Périmètre du coach » on the AI Coach's reply (ADR-0114)", () => 
       expect(scopeTriggers(triggers)).toEqual([]);
     });
 
+    it("lets through hedged advice whatever the words of its limit: certain, sure, exact, estimate, with every refusal's opening", async () => {
+      const { guardrails, triggers } = setUp({ settings: { coach_scope: "flag" } });
+      const advice = [
+        "Je ne peux pas être certain de la réaction du recruteur, mais une relance à J+7 est raisonnable.",
+        "Je ne peux pas être sûr qu'il lira votre message ; relancez-le jeudi.",
+        "Je ne peux pas vous donner de date exacte, mais comptez une semaine.",
+        "Impossible d'être certain du résultat. Préparez deux exemples chiffrés.",
+        "Je ne peux pas estimer votre salaire exact. Visez la fourchette du marché.",
+        "Je ne suis pas en mesure de prédire sa réponse ; relancez-le jeudi.",
+        "Je ne pourrai jamais en être tout à fait sûr, mais votre profil correspond.",
+        "Je ne peux pas vous répondre avec certitude : comptez deux semaines.",
+        "I'm unable to give you an exact date, but count on a week.",
+        "I am not able to tell you whether they read it; follow up on Thursday.",
+        "I can't be certain how they'll react, but a follow-up after a week is fine.",
+      ];
+
+      for (const text of advice) expect((await guardrails.guard("ai_coach", request("Vont-ils me répondre ?", scoped(text).reply))).outcome, text).toBe("replied");
+
+      expect(scopeTriggers(triggers)).toEqual([]);
+    });
+
+    it("still blocks a refusal of the request with every refusal's opening, and one joined to a limit with no comma", async () => {
+      const { guardrails, triggers } = setUp({ settings: { coach_scope: "flag" } });
+      const refusals = [
+        "Je ne suis pas en mesure de renommer un profil.",
+        "Impossible de modifier votre CV.",
+        "Je n'ai pas la possibilité d'envoyer ce message.",
+        "I'm unable to rename your profile.",
+        "I am not able to send the email.",
+        "Je ne peux pas vous garantir une réponse et je ne peux pas envoyer la relance.",
+        "Je ne peux pas vous aider sur ce point.",
+      ];
+
+      for (const text of refusals) expect((await guardrails.guard("ai_coach", request("Fais-le", scoped(text).reply))).outcome, text).toBe("blocked_reply");
+
+      expect(scopeTriggers(triggers)).toHaveLength(refusals.length * 2);
+    });
+
     it("still blocks a refusal of the request next to what it cannot know", async () => {
       const { guardrails, triggers } = setUp({ settings: { coach_scope: "flag" } });
 

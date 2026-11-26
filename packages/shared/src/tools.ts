@@ -1102,19 +1102,19 @@ export const TOOLS = [
     id: "github",
     name: "GitHub",
     purpose: {
-      fr: "API de GitHub, lue avec un jeton en lecture seule : la page Livraison et son e-mail quotidien (tickets, pull requests et déploiements de Jobbbox). Ne reçoit aucune donnée de Jobbbox.",
-      en: "GitHub's API, read with a read-only token: the Livraison page and its daily email (Jobbbox's tickets, pull requests and deployments). Receives no Jobbbox data.",
+      fr: "API de GitHub, lue avec un jeton en lecture seule : la page Livraison et son e-mail quotidien (tickets, pull requests et déploiements de Jobbbox), et « Prêt à clore » des signalements. Un second jeton, qui ne peut qu'écrire des issues, publie l'issue ou le commentaire que propose le tri des signalements, après l'anonymisation et un garde-fou : jamais un texte de candidat.",
+      en: "GitHub's API, read with a read-only token: the Livraison page and its daily email (Jobbbox's tickets, pull requests and deployments), and Signalements' « Prêt à clore ». A second token, which may only write issues, publishes the issue or comment Signalement triage proposes, after redaction and a guardrail: never a Candidate's text.",
     },
     category: "delivery",
     module: "apps/web/src/delivery-status",
     runsIn: "both",
-    keys: ["GITHUB_STATUS_TOKEN"],
+    keys: ["GITHUB_STATUS_TOKEN", "GITHUB_ISSUES_TOKEN"],
     // Who gets Livraison's daily email; empty, nobody.
     settings: [{ name: "DELIVERY_STATUS_EMAIL_TO" }],
     usage: { table: "external_api_usage", provider: "github" },
     residency: "outside_eu",
     receivesPersonalData: false,
-    residencyNote: { fr: "Société américaine ; lue seulement, aucune donnée personnelle envoyée.", en: "US company; only read, no personal data sent." },
+    residencyNote: { fr: "Société américaine ; aucune donnée personnelle envoyée : une issue publiée ne porte que l'identifiant du signalement.", en: "US company; no personal data sent: a published issue carries only the Signalement's id." },
   },
 ] as const satisfies readonly Tool[];
 

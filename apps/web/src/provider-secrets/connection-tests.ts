@@ -262,10 +262,16 @@ export function createConnectionTester(deps: ConnectionTesterDeps = {}): Connect
       const checked = await checkFcmServiceAccount(found.FCM_SERVICE_ACCOUNT, (url, init) => fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) }));
       return checked.ok ? ok : failed(checked.detail);
     },
-    // GitHub's rate limit: costs nothing and needs only a valid token.
+    // GitHub's rate limit: costs nothing and needs only a valid token. Each token entered is tested: the read-only one
+    // (Livraison) and the one that may only write issues (Signalement triage, #1141).
     async github(env, { bearer }) {
-      const found = keys(env, "GITHUB_STATUS_TOKEN");
-      return "missing" in found ? failed(`missing ${found.missing}`) : bearer("https://api.github.com/rate_limit", found.GITHUB_STATUS_TOKEN);
+      const entered = (["GITHUB_STATUS_TOKEN", "GITHUB_ISSUES_TOKEN"] as const).map((name) => env[name]?.trim()).filter((value): value is string => Boolean(value));
+      if (entered.length === 0) return failed("missing GITHUB_STATUS_TOKEN");
+      for (const token of entered) {
+        const tested = await bearer("https://api.github.com/rate_limit", token);
+        if (!tested.ok) return tested;
+      }
+      return ok;
     },
   };
 

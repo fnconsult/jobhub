@@ -93,11 +93,11 @@ const guardrailIds = (triggers: GuardrailTrigger[]) => triggers.map((trigger) =>
 
 describe("the catalogue of Guardrails, fixed in code", () => {
   it("has a stable id for each Guardrail", () => {
-    expect(GUARDRAIL_IDS).toEqual(["prompt_injection", "personal_data_leak", "secret_disclosure", "harmful_advice", "distress", "email_injection", "ungrounded_answer", "coach_scope"]);
+    expect(GUARDRAIL_IDS).toEqual(["prompt_injection", "personal_data_leak", "secret_disclosure", "harmful_advice", "distress", "email_injection", "ungrounded_answer", "coach_scope", "candidate_data_in_issue"]);
   });
 
-  it("never lets the distress, personal data leak and secret disclosure Guardrails be switched off", () => {
-    expect(ALWAYS_ON_GUARDRAILS).toEqual(["personal_data_leak", "secret_disclosure", "distress"]);
+  it("never lets the distress, personal data leak, secret disclosure and « Données du Candidate dans une issue » Guardrails be switched off", () => {
+    expect(ALWAYS_ON_GUARDRAILS).toEqual(["personal_data_leak", "secret_disclosure", "distress", "candidate_data_in_issue"]);
   });
 
   it("lets only the email Guardrail be switched off; the others block or flag, those always on only block", () => {
@@ -116,7 +116,7 @@ describe("the catalogue of Guardrails, fixed in code", () => {
   });
 
   it("has a default Guardrail message in French and in English for each conversation's Guardrail, the distress one giving the 3114 helpline", () => {
-    expect([...MESSAGE_GUARDRAILS].sort()).toEqual(GUARDRAIL_IDS.filter((id) => id !== "email_injection").sort());
+    expect([...MESSAGE_GUARDRAILS].sort()).toEqual(GUARDRAIL_IDS.filter((id) => id !== "email_injection" && id !== "candidate_data_in_issue").sort());
     for (const id of MESSAGE_GUARDRAILS) {
       expect(DEFAULT_GUARDRAIL_MESSAGES[id].fr.length).toBeGreaterThan(20);
       expect(DEFAULT_GUARDRAIL_MESSAGES[id].en.length).toBeGreaterThan(20);

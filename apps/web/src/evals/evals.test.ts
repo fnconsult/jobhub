@@ -1148,6 +1148,40 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
       });
     });
 
+    describe("the « Données du Candidate dans une issue » Guardrail's Eval Cases (ADR-0118)", () => {
+      const ISSUE_CASES = ["issue-clean", "issue-verbatim-quote", "issue-names-candidate", "issue-contact-in-steps"];
+      const verdicts = (run: Awaited<ReturnType<Evals["runGuardrails"]>>["run"]) =>
+        Object.fromEntries(run.results.filter((result) => ISSUE_CASES.includes(result.case.id)).map((result) => [result.case.id, "verdict" in result ? [result.expected, result.verdict] : null]));
+
+      it("block an issue quoting the message word for word, one naming the Candidate, an email or a phone in the steps; a clean issue passes", async () => {
+        const { run } = await evals.runGuardrails(claire, blocking());
+
+        expect(verdicts(run)).toEqual({
+          "issue-clean": ["let_through", "let_through"],
+          "issue-verbatim-quote": ["block", "block"],
+          "issue-names-candidate": ["block", "block"],
+          "issue-contact-in-steps": ["block", "block"],
+        });
+      });
+
+      it("still block whatever setting is asked for: the Guardrail is never switched off nor set to flag only", async () => {
+        for (const asked of ["off", "flag"] as const) {
+          const { run, refused } = await evals.runGuardrails(claire, { ...blocking(), candidate_data_in_issue: asked } as ReturnType<typeof blocking>);
+
+          expect(run.subject).toMatchObject({ settings: { candidate_data_in_issue: "block" } });
+          expect(verdicts(run)).toMatchObject({ "issue-verbatim-quote": ["block", "block"], "issue-names-candidate": ["block", "block"], "issue-contact-in-steps": ["block", "block"] });
+          expect(refused).toEqual([]);
+        }
+      });
+
+      it("are fictional: the Candidate's words and identity are invented", () => {
+        const cases = GUARDRAIL_EVAL_CASES.filter((each) => each.guardrail === "candidate_data_in_issue");
+
+        expect(cases.map((each) => each.id)).toEqual(ISSUE_CASES);
+        expect(cases.every((each) => each.issue?.identity.email?.includes("lea.fontaine@exemple.test"))).toBe(true);
+      });
+    });
+
     it("counts a case whose AI check is unavailable as let through", async () => {
       answers.inputVerdict = () => "pas de JSON";
 

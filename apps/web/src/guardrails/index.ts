@@ -45,8 +45,10 @@ import { emailInputRule, readingRule, type GuardedEmail } from "./email";
  * The Guardrails, each by its stable id. `email_injection`: « Contenu piégé dans un email », on Email intake's input (#446).
  * `ungrounded_answer`: « Réponse non fondée sur le profil », on the AI Coach's reply (#653).
  * `coach_scope`: « Périmètre du coach », on the AI Coach's reply (ADR-0114), with its four checks (COACH_SCOPE_CHECKS).
+ * `candidate_data_in_issue`: « Données du Candidate dans une issue », on the issue Signalement triage proposes, before
+ * Jobbbox publishes it (ADR-0118): fixed rules only (./issue), always on.
  */
-export const GUARDRAIL_IDS = ["prompt_injection", "personal_data_leak", "secret_disclosure", "harmful_advice", "distress", "email_injection", "ungrounded_answer", "coach_scope"] as const;
+export const GUARDRAIL_IDS = ["prompt_injection", "personal_data_leak", "secret_disclosure", "harmful_advice", "distress", "email_injection", "ungrounded_answer", "coach_scope", "candidate_data_in_issue"] as const;
 export type GuardrailId = (typeof GUARDRAIL_IDS)[number];
 
 /** The Guardrails that answer with a Guardrail message: those of a conversation. The email Guardrail has none: no one reads its answer. */
@@ -58,7 +60,7 @@ export const hasGuardrailMessage = (id: GuardrailId): id is MessageGuardrailId =
 export const isGuardrailId = (value: unknown): value is GuardrailId => GUARDRAIL_IDS.includes(value as GuardrailId);
 
 /** The Guardrails that can never be switched off: they always block. */
-export const ALWAYS_ON_GUARDRAILS: readonly GuardrailId[] = ["personal_data_leak", "secret_disclosure", "distress"];
+export const ALWAYS_ON_GUARDRAILS: readonly GuardrailId[] = ["personal_data_leak", "secret_disclosure", "distress", "candidate_data_in_issue"];
 
 /** What a Guardrail does when it finds something: block it, or let it through and record it; or it is switched off. */
 export const GUARDRAIL_SETTINGS = ["block", "flag", "off"] as const;
@@ -91,9 +93,10 @@ export const guardrailSettingsOf = (id: GuardrailId): readonly GuardrailSetting[
 
 /**
  * The AI calls that take free text and so have Guardrails: the conversations' agents, and Email intake's reading of an
- * email (ADR-0052). No other AI task has any.
+ * email (ADR-0052); and Signalement triage's agent, whose proposed issue is checked before Jobbbox publishes it (ADR-0118).
+ * No other AI task has any.
  */
-export const GUARDRAIL_AGENTS = ["ai_coach", "playbook_agent", "back_office_assistant", "email_intake"] as const;
+export const GUARDRAIL_AGENTS = ["ai_coach", "playbook_agent", "back_office_assistant", "email_intake", "signalement_triage"] as const;
 export type GuardrailAgent = (typeof GUARDRAIL_AGENTS)[number];
 
 const AGENT_GUARDRAILS: Record<GuardrailAgent, readonly GuardrailId[]> = {
@@ -102,6 +105,7 @@ const AGENT_GUARDRAILS: Record<GuardrailAgent, readonly GuardrailId[]> = {
   playbook_agent: MESSAGE_GUARDRAILS.filter((id) => id !== "coach_scope"),
   back_office_assistant: ["prompt_injection", "personal_data_leak", "secret_disclosure"],
   email_intake: ["email_injection"],
+  signalement_triage: ["candidate_data_in_issue"],
 };
 
 /** The Guardrails an agent has; none for anything else. */
@@ -297,11 +301,11 @@ const OUTPUT_PRIORITY: readonly MessageGuardrailId[] = ["secret_disclosure", "pe
 /** What the output AI check is asked for « Périmètre du coach »'s checks 1 and 2 (ADR-0114): a key of its own each. */
 const SCOPE_AI_KEYS = { coach_scope_change: "change_without_card", coach_scope_content: "content_in_reply" } as const satisfies Record<string, CoachScopeCheck>;
 type ScopeAiKey = keyof typeof SCOPE_AI_KEYS;
-/** A key of an AI check's verdict: a Guardrail's, or one of « Périmètre du coach »'s checks. */
-type CheckKey = GuardrailId | ScopeAiKey;
+/** A key of an AI check's verdict: a Guardrail's (but « Données du Candidate dans une issue », fixed rules only), or one of « Périmètre du coach »'s checks. */
+type CheckKey = Exclude<GuardrailId, "candidate_data_in_issue"> | ScopeAiKey;
 const guardrailOfKey = (key: CheckKey): GuardrailId => (key in SCOPE_AI_KEYS ? "coach_scope" : (key as GuardrailId));
 
-/** What each Guardrail looks for, as the AI check is told. */
+/** What each Guardrail looks for, as the AI check is told. « Données du Candidate dans une issue » has fixed rules only (./issue). */
 const LOOKS_FOR: Record<CheckKey, string> = {
   coach_scope:
     "la réponse sort du périmètre du coach emploi IA : elle annonce une modification faite, rédige un contenu au lieu de le proposer, ou refuse sans raison",

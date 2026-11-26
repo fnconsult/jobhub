@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { expect, test, type Page } from "@playwright/test";
-import { designTokens as liveTokens, TEXT_SIZE_STORAGE_KEY } from "../packages/shared/src/design";
+import { TEXT_SIZE_STORAGE_KEY } from "../packages/shared/src/design";
 
 // Issue #132: the clickable Notion-like layout prototype (docs/prototypes/notion-layout.html).
 // It is a static page, so its public entry point is the page in a browser. The artifact wraps the
@@ -22,7 +22,8 @@ const designTokens = {
   },
   fontFamily: { sans: 'ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' },
   fontSize: { body: 16 },
-  textSize: liveTokens.textSize,
+  // The Text Size scale it was drawn with (16, 17, 18 and 20px): the live one moved one step down in #1152.
+  textSize: { small: 1, standard: 1.0625, large: 1.125, xlarge: 1.25 },
 };
 const document_ = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body>${fragment}</body></html>`;
 

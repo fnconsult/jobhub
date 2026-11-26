@@ -93,5 +93,12 @@ test.describe("Design System foundations (#461, ADR-0053)", () => {
 
     await setTextSize(page, "xlarge");
     expect(await densitySizes(page, "main")).toEqual({ body: 15.75, meta: 14.0625 });
+
+    // At « Petit », no Back Office text under 12px (ADR-0009, 2026-11-26): body and metadata stop at the floor.
+    await setTextSize(page, "small");
+    expect(await densitySizes(page, "main")).toEqual({ body: 12, meta: 12 });
+    const small = await renderedTexts(page);
+    expect(small.length).toBeGreaterThan(5);
+    for (const t of small) expect.soft(t.fontSizePx, `font size of "${t.text}" at Petit`).toBeGreaterThanOrEqual(12);
   });
 });

@@ -13,6 +13,8 @@ export const MIN_META_TEXT_PX = DENSITY_FLOORS.confort.meta;
  * (ADR-0009, amendment of 2026-11-26). The default and every other step keep Confort body text at 16px at least.
  */
 export const TEXT_SIZE_BELOW_FLOOR = { setting: "small", minPx: 12 } as const;
+/** No text of the Compact Density (the Back Office) under this, at any Text Size, « Petit » included (ADR-0009, 2026-11-26). */
+export const MIN_COMPACT_TEXT_PX = 12;
 export const AA_TEXT_CONTRAST = 4.5;
 export const AA_NON_TEXT_CONTRAST = 3;
 
@@ -63,7 +65,7 @@ export function contrastRatio(foreground: string, background: string): number {
  * Toast), 3:1 for the graphics; and in each Density,
  * no type size below its body floor nor metadata below its metadata floor (Confort 16 / 13px, Compact 14 / 12.5px),
  * and no text-size setting that takes Confort body text under 16px, but « small », the Candidate's own choice, never
- * under 12px. Returns an empty list when the tokens comply.
+ * under 12px; and no Compact text under 12px at any Text Size. Returns an empty list when the tokens comply.
  */
 export function auditDesignTokens(tokens: DesignTokens): AccessibilityViolation[] {
   const violations: AccessibilityViolation[] = [];
@@ -109,6 +111,16 @@ export function auditDesignTokens(tokens: DesignTokens): AccessibilityViolation[
         density: "confort",
         detail: `body text at "${setting}" is ${px}px, needs ${floor}px`,
       });
+    }
+  }
+
+  // The Back Office at the smallest Text Size: each Compact size, scaled, but never under the Density's floor in px.
+  const smallest = Math.min(...Object.values(tokens.textSize));
+  const compact = tokens.density.compact as DesignTokens["density"]["compact"] & { minFontSize?: number };
+  for (const [name, px] of [...Object.entries(compact.fontSize), ["metaFontSize", compact.metaFontSize] as const]) {
+    const shown = Math.max(px * smallest, compact.minFontSize ?? 0);
+    if (shown < MIN_COMPACT_TEXT_PX) {
+      violations.push({ rule: "min-body-size", token: name, density: "compact", detail: `${name} is ${shown}px in compact at the smallest Text Size, needs ${MIN_COMPACT_TEXT_PX}px` });
     }
   }
 

@@ -95,6 +95,14 @@ describe("auditDesignTokens (ADR-0009 accessibility floor, ADR-0053)", () => {
     expect(auditDesignTokens(shrunk)).toContainEqual(expect.objectContaining({ rule: "min-body-size", token: "textSize.standard" }));
   });
 
+  it("keeps every Compact text at 12px at least at the smallest Text Size, through its floor in px", () => {
+    expect(auditDesignTokens(designTokens).filter((v) => v.density === "compact")).toEqual([]);
+    const unfloored = Object.fromEntries(Object.entries(designTokens.density.compact).filter(([key]) => key !== "minFontSize"));
+    const without = { ...designTokens, density: { ...designTokens.density, compact: unfloored } };
+    expect(auditDesignTokens(without as typeof designTokens)).toContainEqual(expect.objectContaining({ token: "body", density: "compact" }));
+    expect(auditDesignTokens(without as typeof designTokens)).toContainEqual(expect.objectContaining({ token: "metaFontSize", density: "compact" }));
+  });
+
   it("lets « small », the Candidate's own choice, go down to 12px and no further", () => {
     expect(auditDesignTokens(designTokens).filter((v) => v.token.startsWith("textSize."))).toEqual([]);
     const shrunk = { ...designTokens, textSize: { ...designTokens.textSize, small: 0.7 } };

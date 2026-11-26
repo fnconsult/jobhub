@@ -1,4 +1,4 @@
-import { DENSITY_FLOORS, TEXT_COLORS, TEXT_SIZE_BELOW_FLOOR } from "./audit";
+import { DENSITY_FLOORS, MIN_COMPACT_TEXT_PX, TEXT_COLORS, TEXT_SIZE_BELOW_FLOOR } from "./audit";
 import { kebab } from "./css";
 import { designTokens, legacyColorAliases, type Density } from "./tokens";
 
@@ -25,6 +25,22 @@ function declarations(css: string): Declaration[] {
   return found;
 }
 
+/** The smallest Text Size factor, « Petit »: what a size in rem or em is multiplied by on the smallest root. */
+const SMALLEST_TEXT_SIZE = Math.min(...Object.values(designTokens.textSize));
+
+/**
+ * A font size at the smallest Text Size, in px: a px size as it is, a rem or em size scaled, and `max(…)` the largest of
+ * its terms. Null when it cannot be read (a token, `inherit`).
+ */
+function sizeAtSmallestInPx(value: string): number | null {
+  const terms = /^max\((.+)\)$/i.exec(value)?.[1]?.split(",").map((term) => term.trim()) ?? [value];
+  const sizes = terms.map((term) => {
+    const px = sizeInPx(term);
+    return px === null ? null : /px$/i.test(term) ? px : px * SMALLEST_TEXT_SIZE;
+  });
+  return sizes.some((size) => size === null) ? null : Math.max(...(sizes as number[]));
+}
+
 function sizeInPx(value: string): number | null {
   const match = /^(\d*\.?\d+)(px|rem|em)$/i.exec(value);
   if (!match) return null;
@@ -48,12 +64,13 @@ const LITERAL_COLOR = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch
 
 /**
  * Checks a stylesheet against the ADR-0009 floor of its Density: no type set below 16px in Confort (the default)
- * or 14px in Compact (the Back Office), but the root at the « Petit » Text Size, never below 12px, and text coloured only with the text colours whose contrast the tokens
+ * or 14px in Compact (the Back Office), and in Compact no type under 12px at the « Petit » Text Size either (a size in
+ * rem is written `max(<rem>, 12px)`), but the root at « Petit », never below 12px, and text coloured only with the text colours whose contrast the tokens
  * audit (so no grey body text). Colours are written only as custom properties, so every one is a named,
  * reviewable token. Returns an empty list when it complies.
  */
 export function auditStylesheet(css: string, { density = "confort" }: { density?: Density } = {}): StylesheetViolation[] {
-  return audit(css, { floor: DENSITY_FLOORS[density].body, component: false });
+  return audit(css, { floor: DENSITY_FLOORS[density].body, component: false, minAtSmallest: density === "compact" ? MIN_COMPACT_TEXT_PX : 0 });
 }
 
 /** A font size read from one token, `var(--font-size-…)`, or the parent's. */
@@ -75,7 +92,7 @@ export function auditComponentStylesheet(css: string): StylesheetViolation[] {
  */
 const BELOW_FLOOR_SELECTOR = `html[data-text-size="${TEXT_SIZE_BELOW_FLOOR.setting}"]`;
 
-function audit(css: string, { floor, component }: { floor: number; component: boolean }): StylesheetViolation[] {
+function audit(css: string, { floor, component, minAtSmallest = 0 }: { floor: number; component: boolean; minAtSmallest?: number }): StylesheetViolation[] {
   const violations: StylesheetViolation[] = [];
   for (const { selector, property, value } of declarations(css)) {
     const declaration = `${property}: ${value}`;
@@ -84,6 +101,9 @@ function audit(css: string, { floor, component }: { floor: number; component: bo
       const px = sizeInPx(value);
       const min = selector === BELOW_FLOOR_SELECTOR ? Math.min(floor, TEXT_SIZE_BELOW_FLOOR.minPx) : floor;
       if (px !== null && px < min) flag("min-body-size");
+      // Compact (the Back Office): never under 12px, at « Petit » too; a size in rem is written `max(<rem>, 12px)`.
+      const smallest = sizeAtSmallestInPx(value);
+      if (smallest !== null && smallest < minAtSmallest && (px === null || px >= min)) flag("min-body-size");
     }
     if (component && ((property === "font-size" && !TOKEN_FONT_SIZE.test(value)) || (property === "font" && value.toLowerCase() !== "inherit"))) {
       flag("font-size-token");

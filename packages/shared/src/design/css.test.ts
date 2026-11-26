@@ -58,8 +58,9 @@ describe("renderDesignCss", () => {
 
   it("gives Compact under [data-density=\"compact\"]: 14px body, 12.5px metadata, controls 2rem and never under 32px, tighter rows, still in rem", () => {
     const compact = block(css, '[data-density="compact"]');
-    expect(compact).toContain("--font-size-body: 0.875rem;");
-    expect(compact).toContain("--font-size-meta: 0.78125rem;");
+    // Never under 12px, whatever the Text Size (ADR-0009, 2026-11-26).
+    expect(compact).toContain("--font-size-body: max(0.875rem, 12px);");
+    expect(compact).toContain("--font-size-meta: max(0.78125rem, 12px);");
     expect(compact).toContain("--size-control: max(2rem, 32px);");
     expect(compact).toContain("--space-row: 0.4375rem;");
   });

@@ -78,6 +78,8 @@ export const designTokens = {
     compact: {
       fontSize: { body: 14, lead: 15, h3: 16, h2: 18, h1: 24 },
       metaFontSize: 12.5,
+      /** No text under 12px at any Text Size, « Petit » included (ADR-0009, 2026-11-26): every size is `max(<rem>, 12px)`. */
+      minFontSize: 12,
       lineHeight: 1.45,
       controlHeight: 32,
       rowPadding: 7,

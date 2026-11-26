@@ -36,6 +36,17 @@ const PAGES: Record<string, SourcePage> = {
   "https://careers.exemple-digital.test/jobs/6": { ok: true, html: `<html><head><meta name="robots" content="noindex"></head><body><main><h1>Autre</h1></main></body></html>` },
 };
 
+/** A job board's headings that only say the title otherwise (#1154): none of them replaces it. */
+const BOARD: { title: string; h1: string; why: string }[] = [
+  { title: "Responsable Grands Comptes H/F", h1: "Responsable Grands Comptes H/F Cabinet Exemple", why: "the recruiting firm after the marker" },
+  { title: "Directrice de Projet F/H", h1: "Directrice de Projet F/H - Exemple Conseil", why: "the employer after the marker" },
+  { title: "Analyste Stratégie & Data", h1: "Analyste Stratégie &amp; Data à Lyon", why: "a place added" },
+  { title: "Senior Customer Success Lead, Strategic - France", h1: "Customer Success Lead, Strategic - France", why: "« Senior » left out" },
+  { title: "Commercial terrain B2B : prospection des PME", h1: "Commercial terrain B2B : prospection des PME (m", why: "a parenthesis cut off" },
+  { title: "Responsable de Cellule LBC-FT - Comptable Diplômé H/F", h1: "Responsable de Cellule Lbc-Ft - Comptable Diplome H/F Exemple Talents", why: "other case and accents" },
+  { title: "Program Manager AI", h1: "Open Roles", why: "a careers page's own heading" },
+];
+
 describe.skipIf(!connectionString)("correcting the titles of the Job Offers already stored (#1128, needs Postgres: DATABASE_URL)", () => {
   let testAuth: TestAuth;
   let database: Pool;
@@ -123,6 +134,25 @@ describe.skipIf(!connectionString)("correcting the titles of the Job Offers alre
     const again = await retitleJobOffers(database, { read, apply: true });
     expect(again).toMatchObject({ corrections: [], unchanged: 3 });
     expect((await database.query(`SELECT count(*)::int AS n FROM job_offer_title_correction`)).rows[0].n).toBe(2);
+  });
+
+  it("never lets a heading replace a title it only says otherwise: employer, place, « Senior », a cut parenthesis, case, a careers page (#1154)", async () => {
+    const board: Record<string, SourcePage> = Object.fromEntries(
+      BOARD.map(({ h1 }, n) => [`https://emplois.exemple-board.test/offres/${n}`, { ok: true, html: html(`<main><h1>${h1}</h1></main>`) }]),
+    );
+    const boardIds = [];
+    for (const [n, { title }] of BOARD.entries()) {
+      const captured = await jobOffers.capture({ source: { url: `https://emplois.exemple-board.test/offres/${n}` }, title, content: `Offre ${n}.`, employer: "Exemple" }, "candidate");
+      if (!captured.ok) throw new Error("fixture Job Offer refused");
+      boardIds.push(captured.jobOffer.id);
+    }
+
+    const report = await retitleJobOffers(database, { read: async (url) => board[url] ?? (await read(url)), apply: true });
+
+    expect(report.corrections.map((each) => each.jobOfferId)).toEqual([ids.slogan, ids.jsonLd]);
+    expect(report.unchanged).toBe(1 + 3);
+    expect(report.skipped).toEqual({ gone: 1, no_stated_title: 1 + 1, robots: 1, heading_overlaps_title: 3 });
+    for (const [n, id] of boardIds.entries()) expect(await titleOf(id), BOARD[n]!.why).toBe(BOARD[n]!.title);
   });
 
   it("goes as far as `limit`, oldest first", async () => {

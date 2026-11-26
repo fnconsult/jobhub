@@ -6,7 +6,7 @@
  * Not in the package's root export: the browser extension bundles that one.
  */
 export { decodeEntities, htmlToText, jsonLdBlocks, mainHeading, metaRobots } from "./html";
-export { countJobPostings, jobPostingValidThrough, listedPostingUrls, readJobPosting, statedJobTitle } from "./job-posting";
+export { countJobPostings, headingTitle, jobPostingValidThrough, listedPostingUrls, readJobPosting, statedJobTitle } from "./job-posting";
 export {
   createPoliteFetcher,
   pageReadTool,

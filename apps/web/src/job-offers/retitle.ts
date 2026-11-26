@@ -10,6 +10,8 @@
  *    another column, never read nor written here. A Candidate who renamed their Application keeps their title.
  *  - No AI call: a page that states no title (no JobPosting, no posting heading), or cannot be read (gone, robots,
  *    bot protection, a Forbidden site, noindex), is left as it is and counted.
+ *  - A title read from a heading only replaces one it has nothing in common with (#1154): a heading that holds the title
+ *    or that the title holds (a place added, « Senior » left out, other case or accents) leaves it as it is, counted.
  *  - Idempotent: run again, a Job Offer whose title is the one its source states is unchanged. Each change applied is
  *    kept in `job_offer_title_correction` with the title before, so it can be read back or undone by hand.
  */
@@ -39,6 +41,22 @@ export interface RetitleReport {
   /** Those whose source states no title, or could not be read, by reason. */
   skipped: Record<string, number>;
   applied: boolean;
+}
+
+/** A title as compared with another: its case, accents, dashes and spaces left aside. */
+const comparable = (title: string) =>
+  title
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[‐-―−-]+/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+
+/** Whether either title holds the other (#1154). */
+export function overlaps(heading: string, title: string): boolean {
+  const [a, b] = [comparable(heading), comparable(title)];
+  return a.includes(b) || b.includes(a);
 }
 
 /** Longest title a Job Offer takes, as its capture validates it. */
@@ -93,6 +111,12 @@ export async function retitleJobOffers(
     const after = stated.title.slice(0, MAX_TITLE);
     if (after === row.title) {
       report.unchanged += 1;
+      continue;
+    }
+    // A heading only replaces a title it has nothing in common with (a slogan): one that holds it, or that it holds,
+    // only says it otherwise (a place added, « Senior » left out, other case or accents), and the title read stays.
+    if (stated.from === "heading" && overlaps(after, row.title)) {
+      skip("heading_overlaps_title");
       continue;
     }
     const correction: TitleCorrection = { jobOfferId: row.id, sourceUrl: row.source_url, before: row.title, after, from: stated.from };

@@ -182,7 +182,7 @@ export default async function SignalementPage({ params, searchParams }: Params) 
               <ul data-issues>
                 {signalement.issues.map((issue) => (
                   <li key={issue.number}>
-                    <a href={issueUrl(issue.number)} target="_blank" rel="noreferrer">
+                    <a href={issueUrl(issue.number)}>
                       #{issue.number}
                     </a>{" "}
                     {t(`admin.signalements.issueKinds.${issue.kind}`, { key: signatureName(issue.linkedBy) ?? issue.linkedBy, date: at.format(issue.linkedAt) })}

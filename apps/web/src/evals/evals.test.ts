@@ -1015,7 +1015,7 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
       expect(both.results[0], JSON.stringify(both.results[0])).toMatchObject({ score: 0.8 });
     });
 
-    it("has « Périmètre du coach » a case per check, each way; check 4 blocks under the default setting, checks 1 to 3 are flagged", async () => {
+    it("has « Périmètre du coach » a case per check, each way; checks 3 and 4 block under the default setting, checks 1, 2 and 5 are flagged", async () => {
       const cases = GUARDRAIL_EVAL_CASES.filter((each) => each.guardrail === "coach_scope");
       expect(cases.map((each) => [each.check, each.expected])).toEqual([
         ["change_without_card", "block"],
@@ -1024,12 +1024,17 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
         ["content_in_reply", "let_through"],
         ["refusal_without_redirect", "block"],
         ["refusal_without_redirect", "let_through"],
+        ["refusal_without_redirect", "let_through"],
+        ["refusal_without_redirect", "let_through"],
         ["private_repeated", "block"],
         ["private_repeated", "let_through"],
+        ["off_topic", "block"],
+        ["off_topic", "let_through"],
       ]);
       answers.outputVerdict = (input) => {
-        const reply = String(input.messages[0]!.content);
-        return reply.includes("C'est fait") ? '{"coach_scope_change": true}' : reply.includes("Voici votre lettre") ? '{"coach_scope_content": true}' : "{}";
+        const asked = String(input.messages[0]!.content);
+        if (input.system?.includes("coach_scope_off_topic") && asked.includes("<demande>Trouve les personnes") && asked.includes("Exemple Conseil est au stade")) return '{"coach_scope_off_topic": true}';
+        return asked.includes("C'est fait") ? '{"coach_scope_change": true}' : asked.includes("Voici votre lettre") ? '{"coach_scope_content": true}' : "{}";
       };
       const scoped = createEvals(database, { ai, playbooks, guardrails: { current: async () => ({ settings, messages: DEFAULT_GUARDRAIL_MESSAGES }) }, cases: { guardrails: cases } });
 
@@ -1042,10 +1047,14 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
         ["scope-change-with-card", "let_through"],
         ["scope-content-in-reply", "flag"],
         ["scope-offer-quoted", "let_through"],
-        ["scope-refusal-without-redirect", "flag"],
+        ["scope-refusal-without-redirect", "block"],
         ["scope-refusal-with-redirect", "let_through"],
+        ["scope-refusal-never-done-with-alternative", "let_through"],
+        ["scope-last-net", "let_through"],
         ["scope-identity-repeated", "block"],
         ["scope-identity-not-repeated", "let_through"],
+        ["scope-off-topic", "flag"],
+        ["scope-on-topic", "let_through"],
       ]);
       expect(run.score).toBe(100);
     });
@@ -1072,6 +1081,8 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
         // « Périmètre du coach » (ADR-0114): a change announced with no card, a letter written in the reply.
         if (reply.includes("C'est fait")) return '{"coach_scope_change": true}';
         if (reply.includes("Voici votre lettre")) return '{"coach_scope_content": true}';
+        // « Hors sujet » (ADR-0119): a request for contacts answered about another Application.
+        if (reply.includes("Exemple Conseil est au stade")) return '{"coach_scope_off_topic": true}';
         return /ne détaillent pas les critères|La première offre a le meilleur score/.test(reply) ? '{"ungrounded_answer": true}' : "{}";
       };
       answers.emailVerdict = (input) => (String(input.messages[0]!.content).includes("numéro de sécurité sociale") ? '{"email_injection": true}' : "{}");

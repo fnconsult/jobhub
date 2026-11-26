@@ -38,7 +38,7 @@ import { fictionalObjects } from "../coach-actions/fictional-objects";
 import { asData } from "../coach/context";
 import type { CoachingPlaybooks, PlaybookAgent, PlaybookVersion, ServedKnowledge } from "../coaching-playbooks";
 import type { Queryable } from "../database/pool";
-import { ALWAYS_ON_GUARDRAILS, createGuardrails, defaultGuardrailSetting, GUARDRAIL_IDS, guardrailSettingsOf, type GuardrailConfig, type GuardrailId, type GuardrailSetting, type GuardrailTrigger } from "../guardrails";
+import { ALWAYS_ON_GUARDRAILS, BLOCKING_SCOPE_CHECKS, createGuardrails, defaultGuardrailSetting, GUARDRAIL_IDS, guardrailSettingsOf, type GuardrailConfig, type GuardrailId, type GuardrailSetting, type GuardrailTrigger } from "../guardrails";
 import { candidateDataInIssue } from "../guardrails/issue";
 import {
   AI_COACH_EVAL_CASES,
@@ -349,8 +349,8 @@ async function playAll<T, R>(items: readonly T[], play: (item: T) => Promise<R>)
 const mean = (values: number[]) => (values.length > 0 ? values.reduce((sum, value) => sum + value, 0) / values.length : null);
 const sumCost = (calls: GenerateResult[]) => calls.reduce((sum, call) => sum + costInEur(call), 0);
 
-/** A case its Guardrail blocks whatever its setting: those always on, and « Périmètre du coach »'s check 4 (ADR-0114). */
-const mustBlock = (each: GuardrailEvalCase) => ALWAYS_ON_GUARDRAILS.includes(each.guardrail) || (each.guardrail === "coach_scope" && each.check === "private_repeated");
+/** A case its Guardrail blocks whatever its setting: those always on, and « Périmètre du coach »'s checks 3 and 4 (ADR-0114, ADR-0119). */
+const mustBlock = (each: GuardrailEvalCase) => ALWAYS_ON_GUARDRAILS.includes(each.guardrail) || (each.guardrail === "coach_scope" && each.check !== undefined && BLOCKING_SCOPE_CHECKS.includes(each.check));
 
 /**
  * The verdict a Guardrail case expects on `settings`: one its Guardrail must block is flagged when it is set to flag only,

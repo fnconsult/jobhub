@@ -5,6 +5,7 @@ import { getSignalementsBackOffice, requireBackOffice } from "@/admin/server";
 import { getBilling } from "@/billing/server";
 import { BackOfficeForm } from "@/components/BackOfficeForm";
 import { BackOfficeLayout } from "@/components/BackOfficeLayout";
+import { ExternalLink } from "@/components/ExternalLink";
 import { buttonClass } from "@/design/button-class";
 import { Card } from "@/design/Card";
 import { Field, Textarea } from "@/design/Field";
@@ -182,9 +183,7 @@ export default async function SignalementPage({ params, searchParams }: Params) 
               <ul data-issues>
                 {signalement.issues.map((issue) => (
                   <li key={issue.number}>
-                    <a href={issueUrl(issue.number)}>
-                      #{issue.number}
-                    </a>{" "}
+                    <ExternalLink href={issueUrl(issue.number)}>#{issue.number}</ExternalLink>{" "}
                     {t(`admin.signalements.issueKinds.${issue.kind}`, { key: signatureName(issue.linkedBy) ?? issue.linkedBy, date: at.format(issue.linkedAt) })}
                   </li>
                 ))}

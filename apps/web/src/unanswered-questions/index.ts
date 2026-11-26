@@ -22,6 +22,7 @@
  * MARKED_RETENTION_DAYS after it was marked written or dismissed.
  */
 import { redactIdentity, type CandidateIdentity } from "@jobhub/ai";
+import { routePattern } from "../route-pattern";
 import { HELP_AUDIENCES, questionKey, type HelpAudience, type HelpSettings } from "@jobhub/help";
 import type { Pool } from "pg";
 import type { CoachReplyOutcome } from "../coach";
@@ -115,20 +116,10 @@ export const MARKED_RETENTION_DAYS = 30;
 const MAX_ANSWER_LENGTH = 4_000;
 /** Longest question kept: what the Back Office Assistant's box takes. */
 const MAX_QUESTION_LENGTH = 4_000;
-const MAX_SEGMENTS = 8;
+
+export { routePattern };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/**
- * The route pattern of a page's address: its path without query or fragment, each segment that is not a fixed word
- * of lower-case letters and hyphens (an id, whatever its shape) as `[id]`. Null for something that is not a path.
- */
-export function routePattern(address: string | null | undefined): string | null {
-  if (!address?.startsWith("/")) return null;
-  const segments = address.split(/[?#]/)[0]!.split("/").filter(Boolean);
-  if (segments.length > MAX_SEGMENTS) return null;
-  return `/${segments.map((segment) => (/^[a-z]+(?:-[a-z]+)*$/.test(segment) ? segment : "[id]")).join("/")}`;
-}
 
 /**
  * Whether the help missed `asked`: the AI Coach replied, said it asks how to use Jobbbox, and no Help Article served

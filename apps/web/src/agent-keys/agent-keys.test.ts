@@ -116,6 +116,25 @@ describe.skipIf(!connectionString)("Agent Keys (#1139, ADR-0118; needs Postgres:
       expect((await keys.authorize(value, "signalements", READ_QUEUE)).ok).toBe(true);
     });
 
+    it(`stores beyond its latest ${AGENT_KEY_LOG_SIZE} calls only the allowed ones the rate limit still counts, until they leave the window`, async () => {
+      const { key, value } = await created();
+      const stored = async () =>
+        (await throwaway.pool.query<{ outcome: string }>(`SELECT outcome FROM agent_key_call WHERE agent_key_id = $1 ORDER BY id DESC`, [key.id])).rows.map((row) => row.outcome);
+      for (let call = 0; call < AGENT_KEY_LOG_SIZE + 11; call++) await keys.authorize(value, "signalements", READ_QUEUE);
+
+      // 30 allowed then 31 refused: the latest 50, plus the 11 older allowed ones still counted.
+      const rows = await stored();
+      expect(rows).toHaveLength(AGENT_KEY_LOG_SIZE + 11);
+      expect(rows.slice(AGENT_KEY_LOG_SIZE).every((outcome) => outcome === "allowed")).toBe(true);
+      expect(rows.length).toBeLessThanOrEqual(AGENT_KEY_LOG_SIZE + AGENT_KEY_RATE_LIMIT.calls);
+      expect(await keys.calls(key.id)).toHaveLength(AGENT_KEY_LOG_SIZE);
+
+      // Once out of the window, the next call drops them.
+      now = new Date(now.getTime() + AGENT_KEY_RATE_LIMIT.seconds * 1000 + 1);
+      expect((await keys.authorize(value, "signalements", READ_QUEUE)).ok).toBe(true);
+      expect(await stored()).toHaveLength(AGENT_KEY_LOG_SIZE);
+    });
+
     it(`keeps the log of its latest ${AGENT_KEY_LOG_SIZE} calls, newest first`, async () => {
       const { key, value } = await created();
       for (let call = 0; call < AGENT_KEY_LOG_SIZE + 5; call++) {

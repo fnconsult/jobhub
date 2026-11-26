@@ -336,7 +336,7 @@ test("Paramètres shows the key's last use and the journal of its calls: the pat
   expect(await journal.innerText()).not.toContain(key);
 });
 
-test("the calls are rate limited: past the limit, 429; the journal keeps its 50 latest calls", async () => {
+test("the calls are rate limited: past the limit, 429; the journal shows its 50 latest calls, older ones kept only while the limit counts them", async () => {
   const limited = await createKey("rate-test");
   const statuses: number[] = [];
   for (let call = 0; call < 40; call++) statuses.push((await get(limited, API)).status());
@@ -348,11 +348,22 @@ test("the calls are rate limited: past the limit, 429; the journal keeps its 50 
   const { rows } = await database.query("SELECT count(*)::int AS n FROM agent_key_call WHERE agent_key_id = (SELECT id FROM agent_key WHERE name = 'rate-test')");
   expect(rows[0].n).toBe(41);
   for (let call = 0; call < 20; call++) await get(limited, API);
-  expect((await database.query("SELECT count(*)::int AS n FROM agent_key_call WHERE agent_key_id = (SELECT id FROM agent_key WHERE name = 'rate-test')")).rows[0].n).toBe(50);
+  // 30 allowed then 31 refused: the 50 latest, plus the 11 older allowed calls the rate limit still counts (else a flood of
+  // refused calls would push them out and let 30 more through).
+  const stored = async () =>
+    (await database.query("SELECT outcome FROM agent_key_call WHERE agent_key_id = (SELECT id FROM agent_key WHERE name = 'rate-test') ORDER BY id DESC")).rows.map((row) => row.outcome as string);
+  const flooded = await stored();
+  expect(flooded).toHaveLength(61);
+  expect(flooded.slice(50).every((outcome) => outcome === "allowed")).toBe(true);
+  expect((await get(limited, API)).status()).toBe(429);
   await admin.goto(keysTab);
   await admin.getByRole("link", { name: tr(keysText.journal.openLabel, { name: "rate-test" }) }).click();
   await expect(admin.locator("[data-agent-key-journal] tbody tr")).toHaveCount(50);
   await expect(admin.locator("[data-agent-key-journal]")).toContainText(keysText.outcomes.rate_limited);
+  // Once the window has passed (aged here rather than waited for), the next call is let through and only the 50 latest stay.
+  await database.query("UPDATE agent_key_call SET at = at - interval '2 minutes' WHERE agent_key_id = (SELECT id FROM agent_key WHERE name = 'rate-test')");
+  expect((await get(limited, API)).status()).toBe(200);
+  expect(await stored()).toHaveLength(50);
 });
 
 test("an expired key is refused, read afresh from the database at each call", async () => {

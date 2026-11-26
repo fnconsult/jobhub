@@ -27,6 +27,7 @@ import { purgeExpiredGuardrailTriggers, TRIGGER_RETENTION_MONTHS as GUARDRAIL_TR
 import { purgeUnansweredQuestions } from "@jobhub/web/unanswered-questions";
 import { createExchanges, OFFERED_RETENTION_DAYS } from "@jobhub/web/exchanges";
 import { purgeSignalements, RETENTION_MONTHS as SIGNALEMENT_RETENTION_MONTHS } from "@jobhub/web/signalements";
+import type { ReadyToCloseOutcome } from "@jobhub/web/signalements/ready-to-close";
 import { GUEST_RETENTION_DAYS as EXTENSION_EVENT_GUEST_RETENTION_DAYS, purgeExtensionEvents, RETENTION_MONTHS as EXTENSION_EVENT_RETENTION_MONTHS,
 } from "@jobhub/web/extension-events";
 import { purgeExpiredConsumption, RETENTION_MONTHS as CONSUMPTION_RETENTION_MONTHS } from "@jobhub/web/consumption";
@@ -140,6 +141,12 @@ export const PUSH_FAILURES_PURGE = "push-notifications.purge";
 
 /** Queue name: delete the Signalements marked `traite` SIGNALEMENT_RETENTION_MONTHS ago or more (#374, #283). Runs nightly. */
 export const SIGNALEMENTS_PURGE = "signalements.purge";
+
+/**
+ * Queue name: « Prêt à clore » (#1141, ADR-0118): the issues linked to the Signalements, checked against the commit this
+ * deployment serves. Run when the worker starts (each deploy starts it), then hourly for the issues linked since.
+ */
+export const SIGNALEMENTS_READY_TO_CLOSE = "signalements.ready-to-close";
 
 /**
  * Queue name: delete the Extension Events EXTENSION_EVENT_RETENTION_MONTHS old, and a Guest's (no Candidate)
@@ -295,6 +302,8 @@ export interface JobsDeps {
   appointmentReminders?: Pick<AppointmentReminders, "sendDue">;
   /** Push notifications (#698), sent through APNs and FCM. Satisfied by the web app's Push notifications module. Without them, nothing is sent. */
   pushNotifications?: Pick<PushNotifications, "send">;
+  /** « Prêt à clore » at each deploy (#1141), for the commit this deployment serves. Without it, nothing is checked. */
+  signalementsReadyToClose?: { afterDeploy(): Promise<ReadyToCloseOutcome> };
   /** Livraison's daily email. Satisfied by the web app's delivery status module. Without it, nothing is sent. */
   deliveryStatusEmails?: Pick<DeliveryStatusEmails, "send">;
   /** The Legal Text notices (#547), sent from Production only. Satisfied by the web app's Legal Text notices module. Without them, nothing to send. */
@@ -1005,6 +1014,26 @@ export function createJobs(deps: JobsDeps): Record<string, JobDefinition> {
         onceTablesExist(async () => {
           const purged = await purgeExpiredPushFailures(deps.database, now());
           if (purged) log(`[push-notifications] ${purged} failure(s) purged, ${PUSH_FAILURE_RETENTION_DAYS} days after`);
+        }),
+    },
+
+    // When the worker starts and hourly: each issue is read once per deployed commit, so a run between two deploys only
+    // reads the issues linked since, and those GitHub could not answer.
+    [SIGNALEMENTS_READY_TO_CLOSE]: {
+      cron: "23 * * * *",
+      handler: () =>
+        onceTablesExist(async () => {
+          const outcome = await deps.signalementsReadyToClose?.afterDeploy();
+          if (!outcome) return;
+          if ("skipped" in outcome) {
+            if (outcome.skipped === "missing_token") log("[signalements] GITHUB_STATUS_TOKEN is not set: « Prêt à clore » not checked");
+            return;
+          }
+          if (outcome.checked + outcome.failed === 0) return;
+          log(
+            `[signalements] ${outcome.checked} issue(s) checked against the deployed commit; ${outcome.ready.length} Signalement(s) « Prêt à clore »` +
+              (outcome.failed ? `; ${outcome.failed} could not be read, left to the next run` : ""),
+          );
         }),
     },
 

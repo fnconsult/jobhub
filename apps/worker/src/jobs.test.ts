@@ -29,7 +29,8 @@ import { createEmailIntakeActivity } from "../../web/src/email-intake/activity";
 import { alertEmail, inboundRequest } from "../../web/src/email-intake/fixtures/inbound-emails";
 import { createEmailIntakeInbound, receivedTextOf } from "@jobhub/web/email-intake";
 import { createAesGcmCipher } from "../../web/src/provider-secrets/cipher";
-import { ACCEPTANCES_PURGE, AI_USAGE_PURGE, APPOINTMENT_REMINDERS, CONSUMPTION_PURGE, EXTENSION_EVENTS_PURGE, DELIVERY_STATUS_EMAIL, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, DISCOVERY_RUNS_PURGE, OFFER_BOX_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, EXCHANGE_CHECK, EXCHANGES_PURGE, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, PUSH_NOTIFICATIONS_SEND, PUSH_FAILURES_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, TOOL_QUOTA_ALERT, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
+import type { ReadyToCloseOutcome } from "@jobhub/web/signalements/ready-to-close";
+import { ACCEPTANCES_PURGE, AI_USAGE_PURGE, APPOINTMENT_REMINDERS, CONSUMPTION_PURGE, EXTENSION_EVENTS_PURGE, DELIVERY_STATUS_EMAIL, SIGNALEMENTS_READY_TO_CLOSE, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, DISCOVERY_RUNS_PURGE, OFFER_BOX_PURGE, EMAIL_INTAKE_PURGE, EMAIL_INTAKE_READ, EXCHANGE_CHECK, EXCHANGES_PURGE, BACK_OFFICE_ASSISTANT_PURGE, GUARDRAIL_TRIGGERS_PURGE, BACK_OFFICE_AUDIT_PURGE, COACH_CONVERSATIONS_PURGE, UNANSWERED_QUESTIONS_PURGE, SIGNALEMENTS_PURGE, PUSH_NOTIFICATIONS_SEND, PUSH_FAILURES_PURGE, createJobs, PROVIDER_SECRETS_REENCRYPT, REFERENCE_DATA_REFRESH, TOOL_QUOTA_ALERT, WEB_SEARCH_ALERT, FOLLOW_UPS, JOB_DIGEST_RUN, JOB_DIGEST_SCHEDULE, JOB_DISCOVERY, JOB_SEARCH_TIMEOUTS, SOURCE_RECHECK, type JobsDeps } from "./jobs";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -812,6 +813,30 @@ describe("Livraison's daily email job", () => {
       "[delivery-status] DELIVERY_STATUS_EMAIL_TO is set but GITHUB_STATUS_TOKEN is not: no email sent",
     ]);
     await expect(createJobs({ ...otherDeps, database: noDatabase })[DELIVERY_STATUS_EMAIL]!.handler({})).resolves.toBeUndefined();
+  });
+});
+
+describe("the « Prêt à clore » job (#1141)", () => {
+  it("checks the Signalements' issues against the deployed commit hourly (and when the worker starts), saying what it did", async () => {
+    const logs: string[] = [];
+    const afterDeploy = vi.fn(async (): Promise<ReadyToCloseOutcome> => ({ checked: 3, ready: ["a", "b"], failed: 0 }));
+    const job = createJobs({ ...otherDeps, database: noDatabase, signalementsReadyToClose: { afterDeploy }, log: (line) => logs.push(line) })[SIGNALEMENTS_READY_TO_CLOSE]!;
+
+    expect(job.cron).toBe("23 * * * *");
+    await job.handler({});
+    afterDeploy.mockResolvedValueOnce({ checked: 1, ready: [], failed: 1 } as never);
+    await job.handler({});
+    afterDeploy.mockResolvedValueOnce({ checked: 0, ready: [], failed: 0 } as never);
+    await job.handler({});
+    afterDeploy.mockResolvedValueOnce({ skipped: "missing_token" } as never);
+    await job.handler({});
+
+    expect(logs).toEqual([
+      "[signalements] 3 issue(s) checked against the deployed commit; 2 Signalement(s) « Prêt à clore »",
+      "[signalements] 1 issue(s) checked against the deployed commit; 0 Signalement(s) « Prêt à clore »; 1 could not be read, left to the next run",
+      "[signalements] GITHUB_STATUS_TOKEN is not set: « Prêt à clore » not checked",
+    ]);
+    await expect(createJobs({ ...otherDeps, database: noDatabase })[SIGNALEMENTS_READY_TO_CLOSE]!.handler({})).resolves.toBeUndefined();
   });
 });
 

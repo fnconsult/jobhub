@@ -190,8 +190,9 @@ const SECTIONS: Record<BackOfficeResource, { name: string; page?: string }> = {
   tools: { name: "Outils (Tools) : les outils externes que l'application appelle", page: routes.adminTools },
   evalRuns: { name: "Évaluations (Eval Runs) des playbooks, du coach IA et des garde-fous", page: routes.adminCoachingPlaybooks },
   unansweredQuestions: { name: "Questions sans réponse (Unanswered Questions) : ce que l'aide n'a pas couvert", page: routes.adminUnansweredQuestions() },
-  // Read by people only (#283): no Signalement is ever given to the assistant, only where they are.
-  signalements: { name: "Signalements (Feedback) des Candidats : lus par l'équipe seulement, jamais par une IA", page: routes.adminSignalements() },
+  // No Signalement is ever given to the assistant, only where they are (#283); only Signalement triage reads them, through an Agent Key (#1139).
+  signalements: { name: "Signalements (Feedback) des Candidats : lus par l'équipe et, pour ceux envoyés avec la mention IA, par le tri des signalements (clé d'agent), anonymisés", page: routes.adminSignalements() },
+  agentKeys: { name: "Clés d'agent (Agent Keys) : les clés qui laissent un agent IA lire la file des signalements, anonymisée (onglet Clés d'agent de Paramètres)", page: routes.adminAgentKeys },
   deliveryStatus: { name: "Livraison : ce qui est en cours de construction et où cela tourne (Beta, Production), lu en direct sur GitHub", page: routes.adminDeliveryStatus },
   withdrawals: { name: "Rétractations (Withdrawals) des Candidats et leurs remboursements Stripe, un remboursement échoué relancé", page: routes.adminWithdrawals },
 };
@@ -439,6 +440,7 @@ const JOURNAL_SECTIONS: Record<BackOfficeAuditEntry["section"], string> = {
   guardrails: "garde-fous",
   unanswered_questions: "questions sans réponse",
   signalements: "signalements",
+  agent_keys: "clés d'agent",
   recipients_outside_eu: "destinataires hors UE",
   withdrawals: "rétractations",
   review_sign_in: "code de revue des stores",
@@ -473,6 +475,7 @@ const ACTIONS: Record<BackOfficeAuditEntry["action"], string> = {
   denied: "accès refusé",
   switched_on: "activation",
   signed_in: "connexion",
+  revoked: "révocation",
 };
 
 /**

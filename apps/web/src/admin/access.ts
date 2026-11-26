@@ -64,6 +64,11 @@ const statements = {
   withdrawals: ["read", "write"],
   /** Livraison: what is being built and where it runs, read live from GitHub; read-only, never a Candidate. */
   deliveryStatus: ["read"],
+  /**
+   * Agent Keys (Paramètres › « Clés d'agent », #1139, ADR-0118): read covers their names, scopes, expiries, last uses
+   * and call logs, never a value; write covers creating and revoking one. Super-admins only.
+   */
+  agentKeys: ["read", "write"],
 } as const satisfies Record<string, readonly Permission[]>;
 
 export type BackOfficeResource = keyof typeof statements;

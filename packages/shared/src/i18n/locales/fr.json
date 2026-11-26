@@ -2263,6 +2263,7 @@
       "providerSecrets": "Clés",
       "platformSettings": "Paramètres",
       "signInProviders": "Connexion",
+      "agentKeys": "Clés d'agent",
       "searchSites": "Sites de recherche",
       "administrators": "Administrateurs",
       "journal": "Actions des administrateurs",
@@ -2939,7 +2940,8 @@
         "billing": "Paiement",
         "sign_in": "Connexion",
         "extension": "Extension",
-        "environment": "Environnement"
+        "environment": "Environnement",
+        "agent_keys": "Clés d'agent"
       },
       "active": {
         "title": "Fournisseur actif",
@@ -3275,6 +3277,7 @@
         "journal": "Activité › Actions des administrateurs",
         "unanswered_questions": "Questions sans réponse",
         "signalements": "Signalements",
+        "agent_keys": "Clés d'agent",
         "recipients_outside_eu": "Destinataires hors UE",
         "discovery_runs": "Activité › Recherches",
         "received_emails": "Activité › Emails reçus",
@@ -3303,7 +3306,8 @@
         "scheduled": "Programmation",
         "cancelled": "Annulation",
         "applied": "Application",
-        "signed_in": "Connexion"
+        "signed_in": "Connexion",
+        "revoked": "Révocation"
       },
       "none": "Aucune modification enregistrée.",
       "caption": "Modifications du back office, des plus récentes aux plus anciennes",
@@ -3859,7 +3863,7 @@
     "signalements": {
       "title": "Signalements",
       "subtitle": "Ce que les candidats envoient à l'équipe, du plus ancien au plus récent.",
-      "intro": "Les bugs, idées et questions que les candidats envoient depuis l'application, à traiter du plus ancien au plus récent. Lus par l'équipe seulement, jamais par une IA.",
+      "intro": "Les bugs, idées et questions que les candidats envoient depuis l'application, à traiter du plus ancien au plus récent. Lus par l'équipe ; ceux envoyés avec la mention IA le sont aussi, anonymisés, par le tri des signalements.",
       "questionsOnly": "Vos rôles vous montrent les questions seulement, sans l'e-mail ni l'offre du candidat.",
       "noDeletion": "Un signalement ne se supprime pas depuis le back office.",
       "typeFilter": "Filtrer par type",
@@ -3928,6 +3932,78 @@
         "none": "Aucune",
         "written": "Écrite",
         "changed": "Modifiée"
+      },
+      "seenBy": "vu par {{name}}"
+    },
+    "agentKeys": {
+      "title": "Clés d'agent",
+      "intro": "Une clé d'agent laisse un agent IA lire une seule partie de l'API du back office : aujourd'hui la file des signalements envoyés avec la mention IA, anonymisée. Elle n'ouvre aucune page du back office et ne vaut jamais une session d'administrateur. Réservé aux super-admins.",
+      "create": {
+        "title": "Créer une clé",
+        "name": "Nom",
+        "nameHint": "Lettres minuscules, chiffres et tirets, par exemple triage-beta.",
+        "namePlaceholder": "triage-beta",
+        "scope": "Portée",
+        "days": "Échéance, en jours",
+        "daysHint": "{{max}} jours au plus.",
+        "submit": "Créer la clé",
+        "creating": "Création…"
+      },
+      "created": {
+        "title": "Clé « {{name}} » créée",
+        "once": "Copiez sa valeur maintenant : elle n'est montrée qu'une fois. Jobbbox n'en garde que l'empreinte.",
+        "value": "Valeur de la clé",
+        "expires": "Elle échoit le {{date}}."
+      },
+      "errors": {
+        "name_required": "Donnez un nom à la clé.",
+        "name_invalid": "Le nom ne prend que des lettres minuscules, des chiffres et des tirets, et commence par une lettre.",
+        "name_taken": "Une clé porte déjà ce nom.",
+        "days_invalid": "L'échéance va de 1 à {{max}} jours.",
+        "scope_invalid": "Choisissez la portée de la clé.",
+        "failed": "La clé n'a pas pu être créée. Réessayez."
+      },
+      "scopes": {
+        "signalements": "Signalements : la file anonymisée, et « vu »"
+      },
+      "caption": "Clés d'agent, les plus récentes d'abord",
+      "columns": {
+        "name": "Nom",
+        "scope": "Portée",
+        "createdAt": "Créée le",
+        "expiresAt": "Échéance",
+        "lastUsedAt": "Dernier usage",
+        "state": "État",
+        "actions": "Actions"
+      },
+      "never": "Jamais",
+      "states": {
+        "active": "Active",
+        "revoked": "Révoquée le {{date}}",
+        "expired": "Échue"
+      },
+      "revoke": "Révoquer",
+      "revokeLabel": "Révoquer la clé {{name}}",
+      "revoked": "La clé « {{name}} » est révoquée : elle ne vaut plus pour aucun appel.",
+      "none": "Aucune clé d'agent.",
+      "journal": {
+        "open": "Journal",
+        "openLabel": "Journal de la clé {{name}}",
+        "title": "Journal de « {{name}} »",
+        "intro": "Ses {{count}} derniers appels, du plus récent au plus ancien : le chemin demandé et ce qui a été répondu, jamais le contenu.",
+        "caption": "Derniers appels de la clé {{name}}",
+        "at": "Date",
+        "call": "Appel",
+        "outcome": "Résultat",
+        "none": "Aucun appel.",
+        "close": "Fermer le journal"
+      },
+      "outcomes": {
+        "allowed": "Accepté",
+        "revoked": "Refusé : clé révoquée",
+        "expired": "Refusé : clé échue",
+        "out_of_scope": "Refusé : hors portée",
+        "rate_limited": "Refusé : limite de débit"
       }
     },
     "evals": {
@@ -6119,7 +6195,7 @@
       "language": "Langue",
       "textSize": "Taille du texte"
     },
-    "readBy": "Lu par l'équipe Jobbbox, jamais par une IA",
+    "aiNotice": "Un outil d'IA peut lire votre message pour nous aider à le traiter.",
     "cancel": "Annuler",
     "send": "Envoyer",
     "sending": "Envoi…",

@@ -8,7 +8,8 @@
  *    401, 403 and 429 are answered here, `no-store`. A route of a scope never reads a session: a key never stands
  *    for an Administrator, and an Administrator's session never opens these routes.
  */
-import { AGENT_KEY_PREFIX, type AgentKey, type AgentKeys, type AgentKeyScope } from "./index";
+import type { AgentKey, AgentKeys } from "./index";
+import { AGENT_KEY_PREFIX, type AgentKeyScope } from "./values";
 
 /** The routes each scope opens, and only them. */
 export const AGENT_KEY_ROUTES: Record<AgentKeyScope, string> = { signalements: "/admin/api/signalements" };

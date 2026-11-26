@@ -15,6 +15,7 @@
  */
 import { PRICE_SETTINGS, SEARCH_TASK, taskRouteFromEnv, TEXT_TASKS } from "@jobhub/ai";
 import { billingUrlSettingName, TOOLS, type Tool, type ToolCategory, toolKeys } from "@jobhub/shared";
+import type { BackOfficeResource } from "../admin/access";
 import { isProviderSecretName } from "../provider-secrets/catalog";
 import type { ProviderSecretStatus } from "../provider-secrets/index";
 import { routes } from "../routes";
@@ -23,7 +24,7 @@ import { overSettings } from "./ai-routing";
 import { ENV_ONLY_SETTINGS, parseSetting, PLATFORM_SETTINGS, platformSetting } from "./catalog";
 import type { PlatformSettingsSnapshot } from "./resolver";
 
-export type ParametresTabId = "web_search" | "ai" | "sources" | "contact_enrichment" | "email" | "billing" | "sign_in" | "extension" | "environment";
+export type ParametresTabId = "web_search" | "ai" | "sources" | "contact_enrichment" | "email" | "billing" | "sign_in" | "extension" | "environment" | "agent_keys";
 
 export interface ParametresTab {
   id: ParametresTabId;
@@ -35,6 +36,8 @@ export interface ParametresTab {
   activeSetting?: string;
   /** The settings its « Fournisseur actif » card shows, in order: Platform Settings, and those only env holds (read-only). */
   settings: readonly string[];
+  /** The resource it shows beyond the Platform Settings, read by fewer roles: shown only to who reads it (« Clés d'agent », super-admins). */
+  resource?: BackOfficeResource;
 }
 
 const BOOKING_SETTINGS = ["CAL_COM_TEAM_ID", "CAL_COM_REMINDERS_DISABLED"] as readonly string[];
@@ -70,6 +73,8 @@ export const PARAMETRES_TABS: readonly ParametresTab[] = [
   { id: "sign_in", slug: "connexion", toolCategories: ["sign_in"], settings: [] },
   { id: "extension", slug: "extension", toolCategories: [], settings: namesOf(["extension"]) },
   { id: "environment", slug: "environnement", toolCategories: ["delivery", "push"], settings: namesOf(["maintenance", "help_centre", "public_site", "coach_space"]) },
+  // The Agent Keys (#1139, ADR-0118): no Tool and no setting, super-admins only.
+  { id: "agent_keys", slug: "cles-agent", toolCategories: [], settings: [], resource: "agentKeys" },
 ];
 
 /** What « + Ajouter » adds (#396): a provider (its key, on its sheet), a key, a model, a source, a Job discovery site, a Job Site or a Sign-in Provider. */
@@ -87,6 +92,7 @@ const ADD_TYPE_OF_TAB: Record<ParametresTabId, AddType> = {
   sign_in: "sign_in_provider",
   extension: "job_site",
   environment: "key",
+  agent_keys: "key",
 };
 
 /** The type « + Ajouter » shows: the one `asked` for, else the tab's, among those `allowed`; else the first allowed, none when none is. */

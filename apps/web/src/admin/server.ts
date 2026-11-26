@@ -18,7 +18,9 @@ import { getQuotaReductions } from "@/quota-reductions/server";
 import { currentSignInConfiguration } from "@/sign-in-providers/server";
 import { tellTwoStepChange } from "@/two-step-verification/server";
 import { permanentSuperAdminsFromEnv, type BackOfficeResource, type Permission } from "./access";
+import { getAgentKeys } from "@/agent-keys/server";
 import { createAdministrators, type AdministratorAccess, type Administrators, type Person } from "./administrators";
+import { createAgentKeysBackOffice, type AgentKeysBackOffice } from "./agent-keys-back-office";
 import { createBackOffice, type BackOffice } from "./back-office";
 import { createCoachingPlaybooksBackOffice, type CoachingPlaybooksBackOffice } from "./coaching-playbooks-back-office";
 import { createEvalCasesBackOffice, type EvalCasesBackOffice } from "./eval-cases-back-office";
@@ -41,6 +43,7 @@ let evalCasesBackOffice: EvalCasesBackOffice | undefined;
 let platformSettingsBackOffice: PlatformSettingsBackOffice | undefined;
 let unansweredQuestionsBackOffice: UnansweredQuestionsBackOffice | undefined;
 let signalementsBackOffice: SignalementsBackOffice | undefined;
+let agentKeysBackOffice: AgentKeysBackOffice | undefined;
 
 /** The app's Back Office writes and their Back Office Audit, on the database named by DATABASE_URL. */
 export function getBackOffice(): BackOffice {
@@ -109,6 +112,12 @@ export function getUnansweredQuestionsBackOffice(): UnansweredQuestionsBackOffic
 export function getSignalementsBackOffice(): SignalementsBackOffice {
   signalementsBackOffice ??= createSignalementsBackOffice(getSignalements(), getBackOffice());
   return signalementsBackOffice;
+}
+
+/** « Clés d'agent »: a super-admin's Agent Keys created and revoked, each recorded in the Back Office Audit by its name (#1139). */
+export function getAgentKeysBackOffice(): AgentKeysBackOffice {
+  agentKeysBackOffice ??= createAgentKeysBackOffice(getAgentKeys(), getBackOffice());
+  return agentKeysBackOffice;
 }
 
 /** Whether the person signed in on this request is an Administrator (holds any Back Office Role). */

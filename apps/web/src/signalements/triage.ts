@@ -12,7 +12,7 @@
  *    « vu par triage-beta ». One already « vu » is left as it is; one « traité » is refused.
  */
 import { redactIdentity, type CandidateIdentity } from "@jobhub/ai";
-import { agentSignature } from "../agent-keys";
+import { agentSignature } from "../agent-keys/values";
 import { routePattern } from "../route-pattern";
 import type { Signalement, Signalements, SignalementStatus, TriageableSignalement } from "./index";
 

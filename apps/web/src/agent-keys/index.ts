@@ -19,26 +19,9 @@ import { createHash, randomBytes } from "node:crypto";
 import type { Pool } from "pg";
 import { inTransaction, type Queryable } from "../database/pool";
 import type { FieldError } from "../validation";
+import { AGENT_KEY_LOG_SIZE, AGENT_KEY_MAX_DAYS, AGENT_KEY_NAME, AGENT_KEY_OUTCOMES, AGENT_KEY_PREFIX, AGENT_KEY_RATE_LIMIT, AGENT_KEY_SCOPES, isAgentKeyScope, type AgentKeyOutcome, type AgentKeyScope } from "./values";
 
-/** What every Agent Key's value starts with: the secret-blocking hook (scripts/hooks/no-secrets.mjs) knows it. */
-export const AGENT_KEY_PREFIX = "jbx_agent_";
-/** The scopes a key may be given: one each. */
-export const AGENT_KEY_SCOPES = ["signalements"] as const;
-export type AgentKeyScope = (typeof AGENT_KEY_SCOPES)[number];
-export const isAgentKeyScope = (value: unknown): value is AgentKeyScope => (AGENT_KEY_SCOPES as readonly unknown[]).includes(value);
-/** The longest a key lives, in days. */
-export const AGENT_KEY_MAX_DAYS = 90;
-/** How many of its latest calls a key's log keeps. */
-export const AGENT_KEY_LOG_SIZE = 50;
-/** How many calls a key may make in a rolling window, refused (429) beyond. Below AGENT_KEY_LOG_SIZE: counted from the log. */
-export const AGENT_KEY_RATE_LIMIT = { calls: 30, seconds: 60 } as const;
-/** A key's name: lower-case letters, digits and hyphens, starting with a letter. */
-export const AGENT_KEY_NAME = /^[a-z][a-z0-9-]{1,39}$/;
-
-/** How a key's name signs what it changes (`statutMajPar`): « key:triage-beta ». */
-export const agentSignature = (name: string): string => `key:${name}`;
-/** The key's name a signature holds; null for anything else. */
-export const signatureName = (signature: string | null): string | null => (signature?.startsWith("key:") ? signature.slice(4) : null);
+export * from "./values";
 
 export interface AgentKey {
   id: string;
@@ -49,10 +32,6 @@ export interface AgentKey {
   revokedAt: Date | null;
   lastUsedAt: Date | null;
 }
-
-/** What happened to one call of a known key. */
-export const AGENT_KEY_OUTCOMES = ["allowed", "revoked", "expired", "out_of_scope", "rate_limited"] as const;
-export type AgentKeyOutcome = (typeof AGENT_KEY_OUTCOMES)[number];
 
 export interface AgentKeyCall {
   at: Date;

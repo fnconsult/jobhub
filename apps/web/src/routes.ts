@@ -255,6 +255,8 @@ export const routes = {
   adminPlatformSettings: "/admin/parametres",
   /** The Sign-in Providers and Require SSO for Administrators: Paramètres' Connexion tab (#396, formerly Connexion). */
   adminSignInProviders: "/admin/parametres?tab=connexion",
+  /** The Agent Keys (#1139, ADR-0118): Paramètres' « Clés d'agent » tab, super-admins only. */
+  adminAgentKeys: "/admin/parametres?tab=cles-agent",
   /** The AI consumption report (Consommation IA), over a period ("7d", "2026-09"...): super-admins and Support. */
   adminAiUsage: (period?: string) => (period ? `/admin/consommation-ia?periode=${encodeURIComponent(period)}` : "/admin/consommation-ia"),
   /**

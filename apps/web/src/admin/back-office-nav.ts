@@ -21,6 +21,8 @@ export const BACK_OFFICE_PAGES = {
   providerSecrets: { href: routes.adminPlatformSettings, resource: "providerSecrets" },
   platformSettings: { href: routes.adminPlatformSettings, resource: "platformSettings" },
   signInProviders: { href: routes.adminSignInProviders, resource: "ssoProviders" },
+  // « Clés d'agent » (#1139): a tab of Paramètres, super-admins only.
+  agentKeys: { href: routes.adminAgentKeys, resource: "agentKeys" },
   aiUsage: { href: routes.adminAiUsage(), resource: "aiUsage" },
   // Activité (#404): one sidebar entry, read by whoever reads its Recherches (every reader of its other tabs does); its tabs
   // are the pages a denied Administrator is recorded on.

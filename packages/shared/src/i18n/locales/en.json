@@ -2263,6 +2263,7 @@
       "providerSecrets": "Keys",
       "platformSettings": "Settings",
       "signInProviders": "Sign-in",
+      "agentKeys": "Agent keys",
       "searchSites": "Search sites",
       "administrators": "Administrators",
       "journal": "Administrator actions",
@@ -2939,7 +2940,8 @@
         "billing": "Payment",
         "sign_in": "Sign-in",
         "extension": "Extension",
-        "environment": "Environment"
+        "environment": "Environment",
+        "agent_keys": "Agent keys"
       },
       "active": {
         "title": "Active provider",
@@ -3275,6 +3277,7 @@
         "journal": "Activity › Administrator actions",
         "unanswered_questions": "Unanswered questions",
         "signalements": "Feedback",
+        "agent_keys": "Agent keys",
         "recipients_outside_eu": "Recipients outside the EU",
         "discovery_runs": "Activity › Searches",
         "received_emails": "Activity › Received emails",
@@ -3303,7 +3306,8 @@
         "scheduled": "Scheduling",
         "cancelled": "Cancellation",
         "applied": "Application",
-        "signed_in": "Sign-in"
+        "signed_in": "Sign-in",
+        "revoked": "Revocation"
       },
       "none": "No change recorded.",
       "caption": "Back office changes, newest first",
@@ -3859,7 +3863,7 @@
     "signalements": {
       "title": "Feedback",
       "subtitle": "What Candidates send the team, oldest first.",
-      "intro": "The bugs, ideas and questions Candidates send from the app, to handle oldest first. Read by the team only, never by an AI.",
+      "intro": "The bugs, ideas and questions Candidates send from the app, to handle oldest first. Read by the team; those sent with the AI notice are also read, anonymised, by Feedback triage.",
       "questionsOnly": "Your roles show you the questions only, without the Candidate's email or Plan.",
       "noDeletion": "Feedback cannot be deleted from the back office.",
       "typeFilter": "Filter by type",
@@ -3928,6 +3932,78 @@
         "none": "None",
         "written": "Written",
         "changed": "Changed"
+      },
+      "seenBy": "seen by {{name}}"
+    },
+    "agentKeys": {
+      "title": "Agent keys",
+      "intro": "An agent key lets an AI agent read one part of the back office's API only: today the queue of feedback sent with the AI notice, anonymised. It opens no back office page and is never an administrator's session. Super-admins only.",
+      "create": {
+        "title": "Create a key",
+        "name": "Name",
+        "nameHint": "Lower-case letters, digits and hyphens, for example triage-beta.",
+        "namePlaceholder": "triage-beta",
+        "scope": "Scope",
+        "days": "Expiry, in days",
+        "daysHint": "{{max}} days at most.",
+        "submit": "Create the key",
+        "creating": "Creating…"
+      },
+      "created": {
+        "title": "Key « {{name}} » created",
+        "once": "Copy its value now: it is shown only once. Jobbbox keeps only its fingerprint.",
+        "value": "Key value",
+        "expires": "It expires on {{date}}."
+      },
+      "errors": {
+        "name_required": "Give the key a name.",
+        "name_invalid": "The name takes only lower-case letters, digits and hyphens, and starts with a letter.",
+        "name_taken": "A key already has this name.",
+        "days_invalid": "The expiry is from 1 to {{max}} days.",
+        "scope_invalid": "Choose the key's scope.",
+        "failed": "The key could not be created. Try again."
+      },
+      "scopes": {
+        "signalements": "Feedback: the anonymised queue, and « seen »"
+      },
+      "caption": "Agent keys, newest first",
+      "columns": {
+        "name": "Name",
+        "scope": "Scope",
+        "createdAt": "Created on",
+        "expiresAt": "Expiry",
+        "lastUsedAt": "Last used",
+        "state": "State",
+        "actions": "Actions"
+      },
+      "never": "Never",
+      "states": {
+        "active": "Active",
+        "revoked": "Revoked on {{date}}",
+        "expired": "Expired"
+      },
+      "revoke": "Revoke",
+      "revokeLabel": "Revoke the key {{name}}",
+      "revoked": "The key « {{name}} » is revoked: it no longer works for any call.",
+      "none": "No agent key.",
+      "journal": {
+        "open": "Log",
+        "openLabel": "Log of the key {{name}}",
+        "title": "Log of « {{name}} »",
+        "intro": "Its latest {{count}} calls, newest first: the path asked for and what was answered, never the content.",
+        "caption": "Latest calls of the key {{name}}",
+        "at": "Date",
+        "call": "Call",
+        "outcome": "Result",
+        "none": "No call.",
+        "close": "Close the log"
+      },
+      "outcomes": {
+        "allowed": "Accepted",
+        "revoked": "Refused: key revoked",
+        "expired": "Refused: key expired",
+        "out_of_scope": "Refused: out of scope",
+        "rate_limited": "Refused: rate limit"
       }
     },
     "evals": {
@@ -6119,7 +6195,7 @@
       "language": "Language",
       "textSize": "Text size"
     },
-    "readBy": "Read by the Jobbbox team, never by an AI",
+    "aiNotice": "An AI tool may read your message to help us handle it.",
     "cancel": "Cancel",
     "send": "Send",
     "sending": "Sending…",

@@ -42,7 +42,8 @@ export type GateDecision = "open" | "redirect" | "refuse";
 export function pendingSessionGate(path: string, method: string): GateDecision {
   const pathname = path.split(/[?#]/, 1)[0]!;
   if (pathname === SECOND_STEP_ENDPOINT || pathname === SECOND_STEP_PASSKEY_ENDPOINT || pathname === SETUP_ENDPOINT || AUTH_OPEN.includes(pathname)) return "open";
-  if (pathname === "/api" || pathname.startsWith("/api/")) return "refuse";
+  // An API route, the Back Office's agent API among them (/admin/api, #1139): 401, never a redirect.
+  if (pathname === "/api" || pathname.startsWith("/api/") || pathname.startsWith("/admin/api/")) return "refuse";
   if (FILES.some((prefix) => pathname.startsWith(prefix)) || FILE_PATHS.includes(pathname)) return "open";
   if (method !== "GET" && method !== "HEAD") return "refuse";
   return pathname === SECOND_STEP_PAGE ? "open" : "redirect";

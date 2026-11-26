@@ -13,7 +13,10 @@ export const isAgentKeyScope = (value: unknown): value is AgentKeyScope => (AGEN
 export const AGENT_KEY_MAX_DAYS = 90;
 /** How many of its latest calls a key's log keeps. */
 export const AGENT_KEY_LOG_SIZE = 50;
-/** How many calls a key may make in a rolling window, refused (429) beyond. Below AGENT_KEY_LOG_SIZE: counted from the log. */
+/**
+ * How many calls a key may make in a rolling window, refused (429) beyond. Counted from the log, which keeps, past its
+ * AGENT_KEY_LOG_SIZE latest calls, the allowed ones still in the window: at most AGENT_KEY_LOG_SIZE + `calls` rows a key.
+ */
 export const AGENT_KEY_RATE_LIMIT = { calls: 30, seconds: 60 } as const;
 /** A key's name: lower-case letters, digits and hyphens, starting with a letter. */
 export const AGENT_KEY_NAME = /^[a-z][a-z0-9-]{1,39}$/;

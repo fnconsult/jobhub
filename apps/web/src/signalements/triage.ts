@@ -75,12 +75,21 @@ export interface SignalementTriageDeps {
   environment: string;
 }
 
+/**
+ * `identity` with its Preferred Name taken out like a first name. Redaction leaves a Preferred Name in the text, and
+ * clearing it only ends that exemption: one that is neither the first nor the last name would still go through.
+ */
+function withPreferredNameTakenOut(identity: CandidateIdentity): CandidateIdentity {
+  const givenNames = typeof identity.givenName === "string" ? [identity.givenName] : [...(identity.givenName ?? [])];
+  return { ...identity, givenName: identity.preferredName ? [...givenNames, identity.preferredName] : givenNames, preferredName: null };
+}
+
 export function createSignalementTriage({ signalements, identityOf, environment }: SignalementTriageDeps): SignalementTriage {
   /** Its fixed keys, each text redacted with its Candidate's identity, their Preferred Name taken out too. */
   async function shown({ candidateId, signalement }: TriageableSignalement): Promise<TriageSignalement> {
     const identity = await identityOf(candidateId);
     const texts = [signalement.message, signalement.attachedQuestion ?? "", signalement.attachedCoachReply ?? ""];
-    const [message, attachedQuestion, attachedCoachReply] = redactIdentity(texts, identity ? { ...identity, preferredName: null } : null).texts;
+    const [message, attachedQuestion, attachedCoachReply] = redactIdentity(texts, identity && withPreferredNameTakenOut(identity)).texts;
     return {
       id: signalement.id,
       type: signalement.type,

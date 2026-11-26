@@ -104,6 +104,18 @@ describe.skipIf(!connectionString)("Agent Keys (#1139, ADR-0118; needs Postgres:
       expect((await keys.authorize(value, "signalements", READ_QUEUE)).ok).toBe(true);
     });
 
+    it(`still lets only ${AGENT_KEY_RATE_LIMIT.calls} calls through when a flood of refused ones fills its ${AGENT_KEY_LOG_SIZE}-call log`, async () => {
+      const { key, value } = await created();
+      const allowed: boolean[] = [];
+      for (let call = 0; call < AGENT_KEY_LOG_SIZE * 4; call++) allowed.push((await keys.authorize(value, "signalements", READ_QUEUE)).ok);
+
+      expect(allowed.filter(Boolean)).toHaveLength(AGENT_KEY_RATE_LIMIT.calls);
+      expect(allowed.indexOf(false)).toBe(AGENT_KEY_RATE_LIMIT.calls);
+      expect(await keys.calls(key.id)).toHaveLength(AGENT_KEY_LOG_SIZE);
+      now = new Date(now.getTime() + AGENT_KEY_RATE_LIMIT.seconds * 1000 + 1);
+      expect((await keys.authorize(value, "signalements", READ_QUEUE)).ok).toBe(true);
+    });
+
     it(`keeps the log of its latest ${AGENT_KEY_LOG_SIZE} calls, newest first`, async () => {
       const { key, value } = await created();
       for (let call = 0; call < AGENT_KEY_LOG_SIZE + 5; call++) {

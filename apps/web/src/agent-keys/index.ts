@@ -96,6 +96,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DAY_MS = 86_400_000;
 /** The longest path a call's log keeps. */
 const MAX_LOGGED_PATH = 300;
+/** A call the rate limit counts at `$2` (window `$3` seconds): one let through within its window. */
+const COUNTED = `outcome = 'allowed' AND at > $2::timestamptz - make_interval(secs => $3)`;
 
 /** The key to create, or what to fix. */
 function checked(input: unknown): { name: string; scope: AgentKeyScope; days: number } | FieldError[] {
@@ -174,9 +176,13 @@ export function createAgentKeys(database: Pool, deps: AgentKeysDeps = {}): Agent
           call.path.slice(0, MAX_LOGGED_PATH),
           refusal?.reason ?? "allowed",
         ]);
+        // Beyond its latest AGENT_KEY_LOG_SIZE calls, a call is kept only while the rate limit still counts it: otherwise a
+        // flood of refused calls would push the allowed ones out of the log and let as many through again.
         await client.query(
-          `DELETE FROM agent_key_call WHERE agent_key_id = $1 AND id NOT IN (SELECT id FROM agent_key_call WHERE agent_key_id = $1 ORDER BY id DESC LIMIT ${AGENT_KEY_LOG_SIZE})`,
-          [key.id],
+          `DELETE FROM agent_key_call WHERE agent_key_id = $1
+             AND id NOT IN (SELECT id FROM agent_key_call WHERE agent_key_id = $1 ORDER BY id DESC LIMIT ${AGENT_KEY_LOG_SIZE})
+             AND NOT (${COUNTED})`,
+          [key.id, at, AGENT_KEY_RATE_LIMIT.seconds],
         );
         if (refusal) return refusal;
         await client.query(`UPDATE agent_key SET last_used_at = $2 WHERE id = $1`, [key.id, at]);
@@ -189,7 +195,7 @@ export function createAgentKeys(database: Pool, deps: AgentKeysDeps = {}): Agent
 /** How many of its calls were let through in the rate limit's window before `at`. */
 async function recentAllowed(within: Queryable, keyId: string, at: Date): Promise<number> {
   const { rows } = await within.query<{ n: number }>(
-    `SELECT count(*)::int AS n FROM agent_key_call WHERE agent_key_id = $1 AND outcome = 'allowed' AND at > $2::timestamptz - make_interval(secs => $3)`,
+    `SELECT count(*)::int AS n FROM agent_key_call WHERE agent_key_id = $1 AND ${COUNTED}`,
     [keyId, at, AGENT_KEY_RATE_LIMIT.seconds],
   );
   return rows[0]!.n;
@@ -211,7 +217,7 @@ export async function migrateAgentKeys(database: Pool): Promise<void> {
       revoked_at timestamptz,
       last_used_at timestamptz
     );
-    -- Its latest ${AGENT_KEY_LOG_SIZE} calls: the path asked and the outcome, never what was answered.
+    -- Its latest ${AGENT_KEY_LOG_SIZE} calls, and the older ones the rate limit still counts: the path asked and the outcome, never what was answered.
     CREATE TABLE IF NOT EXISTS agent_key_call (
       id bigserial PRIMARY KEY,
       agent_key_id uuid NOT NULL REFERENCES agent_key (id) ON DELETE CASCADE,

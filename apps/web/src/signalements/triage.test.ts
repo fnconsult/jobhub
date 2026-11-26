@@ -5,6 +5,9 @@ import { createSignalementTriage, TRIAGE_KEYS } from "./triage";
 /** A fictitious Candidate: never a real Signalement's text, in a test or anywhere in git. */
 const MARIE = "candidate-marie";
 const IDENTITY = { fullName: ["Marie Dupont"], givenName: ["Marie"], lastName: ["Dupont"], preferredName: "Marie", email: ["marie.dupont@example.fr"] };
+/** Another, whose Preferred Name is neither her first nor her last name. */
+const MIMI = "candidate-mimi";
+const MIMI_IDENTITY = { fullName: ["Marie Dupont"], givenName: ["Marie"], lastName: ["Dupont"], preferredName: "Mimi", email: ["marie.dupont@example.fr"] };
 
 const signalement = (more: Partial<Signalement> = {}): Signalement => ({
   id: "0b6c2f1e-1111-4111-8111-111111111111",
@@ -47,7 +50,7 @@ function fakeSignalements(rows: TriageableSignalement[]) {
 
 const triageOf = (rows: TriageableSignalement[]) => {
   const { store, changes } = fakeSignalements(rows);
-  return { triage: createSignalementTriage({ signalements: store, identityOf: async (id) => (id === MARIE ? IDENTITY : null), environment: "staging" }), changes };
+  return { triage: createSignalementTriage({ signalements: store, identityOf: async (id) => (id === MARIE ? IDENTITY : id === MIMI ? MIMI_IDENTITY : null), environment: "staging" }), changes };
 };
 
 describe("Signalement triage's queue (#1139, ADR-0118): what an Agent Key reads", () => {
@@ -92,6 +95,15 @@ describe("Signalement triage's queue (#1139, ADR-0118): what an Agent Key reads"
     expect(asked!.attachedQuestion).toBe("Je suis [PRÉNOM], comment passer à l'offre Standard ? Écrivez-moi à [E-MAIL]");
     expect(asked!.attachedCoachReply).toBe("Bonjour [PRÉNOM], je ne trouve pas d'article sur ce point. Appelez le [TÉLÉPHONE].");
     expect(JSON.stringify(await triage.queue())).not.toMatch(/Marie|Dupont|marie\.dupont|06 12/);
+  });
+
+  it("redacts the Preferred Name too, one that is neither the first nor the last name", async () => {
+    const { triage } = triageOf([{ candidateId: MIMI, signalement: signalement({ message: "Je suis Mimi Dupont, dites Mimi. Marie sur mon CV." }) }]);
+
+    const [item] = await triage.queue();
+
+    expect(item!.message).not.toMatch(/Mimi|Marie|Dupont/);
+    expect(item!.message).toBe("Je suis [PRÉNOM] [NOM DE FAMILLE], dites [PRÉNOM]. [PRÉNOM 2] sur mon CV.");
   });
 
   it("gives the page's path with each id replaced by its type, never an id", async () => {

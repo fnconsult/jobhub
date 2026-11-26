@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { MailMessage } from "../auth";
 import { createDeliveryStatusEmails, deliveryStatusEmail, deliveryStatusRecipients, DELIVERY_STATUS_EMAIL_TO } from "./email";
 import type { DeliveryStatus, Ticket } from "./index";
+import type { SignalementsDigest } from "../signalements/digest";
 
 const ticket = (number: number, stage: Ticket["stage"]): Ticket => ({ number, title: `Ticket ${number}`, url: `https://github.com/acme/app/issues/${number}`, stage, evidence: {} });
 
@@ -47,6 +48,60 @@ describe("the daily delivery status email", () => {
     expect(text).not.toContain("sous-issue");
     expect(email.body).toContainEqual({ action: { label: "Ouvrir Livraison", url: "https://staging.jobbbox.ai/admin/livraison" } });
     expect(email.footer.link?.url).toMatch(/^https:\/\/staging\.jobbbox\.ai\/admin\/parametres\?tab=e-mail#setting-DELIVERY_STATUS_EMAIL_TO$/);
+  });
+
+  describe("its « Signalements » section (#1141)", () => {
+    const DIGEST: SignalementsDigest = {
+      environment: "production",
+      newByType: { bug: 2, idee: 1, question: 0 },
+      issues: [
+        { number: 1201, kind: "opened", signalements: 2, url: "https://github.com/fnconsult/jobhub/issues/1201" },
+        { number: 1188, kind: "commented", signalements: 1, url: "https://github.com/fnconsult/jobhub/issues/1188" },
+      ],
+      readyWithDraft: 3,
+      triage: { ran: true, at: new Date("2026-11-03T16:05:00Z") },
+    };
+
+    it("gives the new Signalements by type and environment, the issues opened or completed with a duplicate, those « Prêt à clore » waiting for Support, and the triage's last pass", () => {
+      const email = deliveryStatusEmail(STATUS, "https://jobbbox.ai", "fr", DIGEST);
+      const text = JSON.stringify(email.body);
+
+      expect(email.body).toContain("Signalements");
+      expect(text).toContain("Nouveaux signalements en Production : 2 bugs, 1 idée, 0 question");
+      expect(email.body).toContainEqual({ card: { title: "#1201", details: ["Ouverte pour 2 signalements"], url: "https://github.com/fnconsult/jobhub/issues/1201" } });
+      expect(email.body).toContainEqual({ card: { title: "#1188", details: ["Complétée par un doublon : 1 signalement"], url: "https://github.com/fnconsult/jobhub/issues/1188" } });
+      expect(text).toContain("Prêts à clore, brouillon à envoyer par Support : 3");
+      expect(email.body).toContainEqual({ link: { label: "Ouvrir les signalements", url: "https://jobbbox.ai/admin/signalements" } });
+      expect(text).toContain("Dernier passage du tri : 3 nov. 2026, 17:05");
+    });
+
+    it("says why the triage did not run", () => {
+      for (const [reason, words] of [
+        ["no_key", "aucune clé d'agent"],
+        ["key_expired", "clé échue"],
+        ["key_revoked", "clé révoquée"],
+        ["no_call", "aucun appel ce jour"],
+      ] as const) {
+        const text = JSON.stringify(deliveryStatusEmail(STATUS, "https://jobbbox.ai", "fr", { ...DIGEST, triage: { ran: false, reason } }).body);
+        expect(text).toContain(`Le tri n'a pas eu lieu : ${words}.`);
+      }
+    });
+
+    it("says when no issue was opened, and is left out without figures", () => {
+      expect(JSON.stringify(deliveryStatusEmail(STATUS, "https://jobbbox.ai", "fr", { ...DIGEST, issues: [] }).body)).toContain("Aucune issue ouverte ni complétée.");
+      expect(deliveryStatusEmail(STATUS, "https://jobbbox.ai").body).not.toContain("Signalements");
+    });
+
+    it("is sent with the email, and the email still goes when it cannot be computed", async () => {
+      const sent: MailMessage[] = [];
+      const mailer = { send: async (message: MailMessage) => void sent.push(message) };
+      const env = () => ({ [DELIVERY_STATUS_EMAIL_TO]: "dev@jobbbox.ai", GITHUB_STATUS_TOKEN: "t" });
+
+      await createDeliveryStatusEmails({ mailer, baseURL: "https://jobbbox.ai", env, read: async () => STATUS, signalements: async () => DIGEST }).send();
+      await createDeliveryStatusEmails({ mailer, baseURL: "https://jobbbox.ai", env, read: async () => STATUS, signalements: async () => Promise.reject(new Error("down")) }).send();
+
+      expect(sent.map((message) => message.text.includes("Nouveaux signalements"))).toEqual([true, false]);
+    });
   });
 
   it("reads its recipients from the setting: commas or spaces, addresses only, once each", () => {

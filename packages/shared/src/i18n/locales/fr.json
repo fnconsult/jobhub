@@ -3733,7 +3733,8 @@
         "distress": "Détresse",
         "email_injection": "Contenu piégé dans un email",
         "ungrounded_answer": "Réponse non fondée sur le profil",
-        "coach_scope": "Périmètre du coach"
+        "coach_scope": "Périmètre du coach",
+        "candidate_data_in_issue": "Données du Candidate dans une issue"
       },
       "descriptions": {
         "prompt_injection": "Un message, ou un texte collé, qui tente de modifier ou de faire révéler les instructions de l'IA, directement ou indirectement.",
@@ -3743,7 +3744,8 @@
         "distress": "Un candidat qui exprime une détresse grave : il reçoit le message du 3114. Personne n'est alerté.",
         "email_injection": "Un email reçu par la réception par email qui tente de donner des instructions à l'IA qui le lit, ou de soutirer les coordonnées du candidat : expéditeur non authentifié, email trop long, texte caché porteur d'instructions, formules d'injection connues, puis un contrôle par un modèle (anonymisé). Bloqué, il n'est pas lu, ne donne aucune offre et est écarté par un garde-fou. Quel que soit ce réglage, une lecture qui donne un email, un téléphone ou le nom d'une personne tirés de l'email, un lien absent de l'email ou plus de 30 offres est toujours écartée.",
         "ungrounded_answer": "Une réponse du coach IA qui classe des offres ou dit si une offre, une candidature ou un conseil convient au candidat sans citer ses compétences, ses expériences ou ses critères, ou qui prétend ne pas disposer des raisons d'un score ou de son CV. Bloquée, elle est réécrite une fois ; si elle l'est encore, le message ci-dessous s'affiche.",
-        "coach_scope": "Une réponse du coach IA qui sort de ce qu'il peut faire : (1) une modification annoncée sans carte (« c'est fait ») ; (2) un CV, une lettre, un message, une note ou une réponse à un e-mail écrits dans la réponse au lieu d'une carte ; (3) un refus sans raison ou sans renvoi vers la page où le faire ; (4) l'identité du CV de référence ou une note privée d'un coach reprise dans la réponse. Les contrôles 3 et 4 reposent sur des règles fixes, les contrôles 1 et 2 sur un modèle d'IA (anonymisé). Le contrôle 4 bloque toujours ; les contrôles 1 à 3 suivent ce réglage, « signaler seulement » par défaut. Bloquée, la réponse est réécrite une fois avec la raison ; si elle l'est encore, le message ci-dessous s'affiche."
+        "coach_scope": "Une réponse du coach IA qui sort de ce qu'il peut faire : (1) une modification annoncée sans carte (« c'est fait ») ; (2) un CV, une lettre, un message, une note ou une réponse à un e-mail écrits dans la réponse au lieu d'une carte ; (3) un refus sans raison ou sans renvoi vers la page où le faire ; (4) l'identité du CV de référence ou une note privée d'un coach reprise dans la réponse. Les contrôles 3 et 4 reposent sur des règles fixes, les contrôles 1 et 2 sur un modèle d'IA (anonymisé). Le contrôle 4 bloque toujours ; les contrôles 1 à 3 suivent ce réglage, « signaler seulement » par défaut. Bloquée, la réponse est réécrite une fois avec la raison ; si elle l'est encore, le message ci-dessous s'affiche.",
+        "candidate_data_in_issue": "Une issue, ou un commentaire, que l'agent de tri des signalements propose et que Jobbbox publie sur le dépôt GitHub public : l'identité, l'e-mail ou le téléphone du candidat, ou une citation mot pour mot de son message. Règles fixes, après l'anonymisation : rien n'est publié, et l'agent reçoit le motif pour réécrire son texte. Ce garde-fou ne se désactive jamais."
       },
       "languages": {
         "fr": "français",
@@ -3807,7 +3809,8 @@
         "title": "Évaluations des garde-fous",
         "intro": "Chaque nouveau réglage est d'abord évalué sur les cas d'évaluation des garde-fous, écrits par l'équipe technique et livrés avec l'application. Le verdict attendu de chaque cas est exact : laisser passer, bloquer ou signaler.",
         "played": "Voir l'évaluation jouée sur ce réglage"
-      }
+      },
+      "noMessageIssue": "Ce garde-fou n'affiche aucun message : l'agent de tri reçoit le motif du blocage (identité, e-mail, téléphone ou citation) et réécrit son texte. Rien n'est publié sur GitHub."
     },
     "unansweredQuestions": {
       "title": "Questions sans réponse",
@@ -3922,7 +3925,11 @@
         "not_found": "Ce signalement n'existe pas.",
         "required": "Écrivez la réponse avant de l'enregistrer.",
         "too_long": "La réponse dépasse 2 000 caractères.",
-        "invalid": "Cette réponse n'a pas pu être lue."
+        "invalid": "Cette réponse n'a pas pu être lue.",
+        "draftSaved": "Brouillon enregistré.",
+        "draftSent": "Réponse envoyée : le signalement est traité.",
+        "draftRemoved": "Brouillon supprimé.",
+        "no_draft": "Ce signalement n'a pas de brouillon à envoyer."
       },
       "journalFields": {
         "status": "Statut",
@@ -3931,9 +3938,29 @@
       "replyStates": {
         "none": "Aucune",
         "written": "Écrite",
-        "changed": "Modifiée"
+        "changed": "Modifiée",
+        "sent_draft": "Brouillon envoyé"
       },
-      "seenBy": "vu par {{name}}"
+      "seenBy": "vu par {{name}}",
+      "readyToClose": "Prêt à clore",
+      "draftWaiting": "brouillon à envoyer",
+      "issuesTitle": "Issues",
+      "readyToCloseSince": "Prêt à clore depuis le {{date}} : le correctif est déployé dans l'environnement d'où vient ce signalement. Relisez le brouillon, puis envoyez-le.",
+      "issueKinds": {
+        "opened": "publiée par Jobbbox pour {{key}}, le {{date}}",
+        "commented": "commentée comme doublon par Jobbbox pour {{key}}, le {{date}}"
+      },
+      "issuesHelp": "Visibles par l'équipe seulement, jamais par le candidat. L'issue ne porte que l'identifiant du signalement, jamais son texte ; supprimer le signalement retire le lien et laisse l'issue.",
+      "draftTitle": "Brouillon de réponse",
+      "draftProposedBy": "Brouillon proposé par {{key}} le {{date}}.",
+      "draftWritten": "Brouillon écrit le {{date}}.",
+      "draftEdited": "Modifié le {{date}}.",
+      "draftHelp": "Le candidat ne reçoit que la version en {{language}}, signée « L'équipe Jobbbox », jamais avec votre nom. L'envoi marque le signalement « Traité » : une seule notification pour les deux.",
+      "draftSentVersion": "Version envoyée au candidat ({{language}})",
+      "draftTranslation": "Traduction ({{language}})",
+      "sendDraft": "Envoyer au candidat",
+      "saveDraft": "Enregistrer le brouillon",
+      "removeDraft": "Supprimer le brouillon"
     },
     "agentKeys": {
       "title": "Clés d'agent",
@@ -4366,7 +4393,37 @@
         "deployed": "Commit {{commit}} depuis {{ref}}, déployé le {{at}}",
         "open": "Ouvrir Livraison",
         "reason": "Vous recevez cet e-mail car votre adresse est dans « Destinataires de l'e-mail quotidien de Livraison » (Paramètres, onglet E-mail).",
-        "settings": "Changer les destinataires"
+        "settings": "Changer les destinataires",
+        "signalements": {
+          "title": "Signalements",
+          "new": "Nouveaux signalements en {{environment}} : {{types}}.",
+          "types": {
+            "bug_one": "{{count}} bug",
+            "bug_other": "{{count}} bugs",
+            "idee_one": "{{count}} idée",
+            "idee_other": "{{count}} idées",
+            "question_one": "{{count}} question",
+            "question_other": "{{count}} questions"
+          },
+          "issues": {
+            "opened_one": "Ouverte pour {{count}} signalement",
+            "opened_other": "Ouverte pour {{count}} signalements",
+            "commented_one": "Complétée par un doublon : {{count}} signalement",
+            "commented_other": "Complétée par des doublons : {{count}} signalements",
+            "none": "Aucune issue ouverte ni complétée."
+          },
+          "readyWithDraft_one": "Prêt à clore, brouillon à envoyer par Support : {{count}}",
+          "readyWithDraft_other": "Prêts à clore, brouillon à envoyer par Support : {{count}}",
+          "open": "Ouvrir les signalements",
+          "triageRan": "Dernier passage du tri : {{at}}.",
+          "triageMissed": "Le tri n'a pas eu lieu : {{reason}}.",
+          "reasons": {
+            "no_key": "aucune clé d'agent",
+            "key_expired": "clé échue",
+            "key_revoked": "clé révoquée",
+            "no_call": "aucun appel ce jour"
+          }
+        }
       }
     },
     "activity": {

@@ -69,6 +69,15 @@ describe("testing a provider's keys with its cheapest authenticated call", () =>
     expect(requests[0]!.headers.get("authorization")).toBe("Bearer github_pat_x");
   });
 
+  it("tests the GitHub token that may only write issues too, when it is entered (#1141)", async () => {
+    const { fetch, requests } = fakeFetch(200, { rate: { remaining: 5000 } });
+
+    expect(await createConnectionTester({ fetch })("github", { GITHUB_STATUS_TOKEN: "github_pat_read", GITHUB_ISSUES_TOKEN: "github_pat_issues" })).toEqual({ ok: true });
+    expect(await createConnectionTester({ fetch })("github", { GITHUB_ISSUES_TOKEN: "github_pat_issues" })).toEqual({ ok: true });
+
+    expect(requests.map((request) => request.headers.get("authorization"))).toEqual(["Bearer github_pat_read", "Bearer github_pat_issues", "Bearer github_pat_issues"]);
+  });
+
   it.each<[SecretProvider, string, number]>([
     ["brave", "BRAVE_SEARCH_API_KEY", 401],
     ["brave", "BRAVE_SEARCH_API_KEY", 429],

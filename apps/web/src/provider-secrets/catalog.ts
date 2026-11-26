@@ -40,6 +40,9 @@ export const PROVIDER_SECRETS = [
   { name: "EMAIL_INTAKE_INBOUND_SECRET", provider: "email-intake" },
   // GitHub: the read-only token Back Office › Livraison reads the delivery status with.
   { name: "GITHUB_STATUS_TOKEN", provider: "github" },
+  // GitHub: the token that may only write issues, with which Jobbbox publishes the issue or comment Signalement triage
+  // proposes, once redacted and checked by its Guardrail (#1141, ADR-0118).
+  { name: "GITHUB_ISSUES_TOKEN", provider: "github" },
   // Push notifications (#698, ADR-0076), sent by the worker: APNs' .p8 key (its Key ID, APNS_KEY_ID, and APPLE_TEAM_ID stay
   // in env: they are no secret), and the FCM service account's JSON key.
   { name: "APNS_AUTH_KEY", provider: "apns" },

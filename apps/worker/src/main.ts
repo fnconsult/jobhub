@@ -29,7 +29,12 @@ import { allUsageLogs, createConsoleUsageLog } from "@jobhub/ai";
 import { createPostgresExternalApiLog, knownSecrets } from "@jobhub/web/ai-usage";
 import { createApplications, withApplicationTitles } from "@jobhub/web/applications";
 import { createAppointmentReminders } from "@jobhub/web/appointment-reminders";
-import { createDeliveryStatusEmails } from "@jobhub/web/delivery-status";
+import { createDeliveryStatusEmails, DEFAULT_DELIVERY_REPOSITORY } from "@jobhub/web/delivery-status";
+import { createSignalements } from "@jobhub/web/signalements";
+import { gitHubIssues } from "@jobhub/web/signalements/github-issues";
+import { createReadyToClose } from "@jobhub/web/signalements/ready-to-close";
+import { signalementsDigest } from "@jobhub/web/signalements/digest";
+import { createAgentKeys } from "@jobhub/web/agent-keys";
 import { candidateIdentityOf } from "@jobhub/web/candidate-identity";
 import { createDiscoveryRuns } from "@jobhub/web/discovery-runs";
 import { createBilling } from "@jobhub/web/billing";
@@ -70,7 +75,7 @@ import { jobDiscoveryBudgetFromEnv, targetCompanySettingsFromEnv, webSearchSetti
 import { startJobRunner, type JobRunner } from "./job-runner";
 import { createEmailReading } from "./email-intake";
 import { createEmailSourceReader } from "./email-intake/source-reading";
-import { createJobs, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, PROVIDER_SECRETS_REENCRYPT } from "./jobs";
+import { createJobs, LEGAL_TEXT_NOTICES, NOUVEAUTES_EMAILS, PROVIDER_SECRETS_REENCRYPT, SIGNALEMENTS_READY_TO_CLOSE } from "./jobs";
 import { workerClients } from "./provider-secrets";
 import { workerPostgresUsageLog } from "./ai-usage-log";
 
@@ -271,8 +276,38 @@ const jobs = createJobs({
   // Its Push notification too, under its own switch.
   appointmentReminders: createAppointmentReminders(database, { mailer, baseURL, push: pushNotifications, coachSpaceV2 }),
   pushNotifications,
+  // « Prêt à clore » (#1141): the Signalements' issues, read with GITHUB_STATUS_TOKEN, against the commit this deployment serves.
+  signalementsReadyToClose: {
+    afterDeploy: () => {
+      const release = currentRelease(process.env);
+      const env = () => secretsWithSettings(secrets, platformSettings.resolver).current().env;
+      return createReadyToClose({
+        signalements: createSignalements(database, { version: release.commit?.slice(0, 7) ?? "dev" }),
+        github: gitHubIssues({
+          writeToken: () => undefined,
+          readToken: () => env().GITHUB_STATUS_TOKEN,
+          repository: process.env.GITHUB_STATUS_REPOSITORY?.trim() || DEFAULT_DELIVERY_REPOSITORY,
+          apiUrl: process.env.GITHUB_API_URL || undefined,
+          fetch: recordingFetch(globalThis.fetch, externalApis, {
+            provider: "github",
+            costEur: () => 0,
+            operation: (method, url) => `${method} ${url.pathname.replace(/\/compare\/.*$/, "/compare").replace(/\/\d+(?=\/|$)/g, "/:id").replace(/^\/repos\/[^/]+\/[^/]+/, "/repos/:repo")}`,
+          }),
+        }),
+        environment: release.environment,
+      }).afterDeploy({ environment: release.environment, commit: release.commit });
+    },
+  },
   // Livraison's daily email (18:00 Paris) to DELIVERY_STATUS_EMAIL_TO, read with GITHUB_STATUS_TOKEN (Provider Secrets over env).
+  // Its « Signalements » section (#1141): Jobbbox's own figures, counts and issue links only.
   deliveryStatusEmails: createDeliveryStatusEmails({ mailer, baseURL, externalApis, env: () => ({ ...process.env, ...secretsWithSettings(secrets, platformSettings.resolver).current().env }),
+    signalements: () =>
+      signalementsDigest({
+        signalements: createSignalements(database, { version: currentRelease(process.env).commit?.slice(0, 7) ?? "dev" }),
+        agentKeys: createAgentKeys(database),
+        environment: currentRelease(process.env).environment,
+        issueUrl: (number) => `https://github.com/${process.env.GITHUB_STATUS_REPOSITORY?.trim() || DEFAULT_DELIVERY_REPOSITORY}/issues/${number}`,
+      }),
   }),
   // The notice email of each substantial Legal Text Version this build carries, from Production only (#547).
   legalTextNotices: createLegalTextNotices(database, { mailer, baseURL, production: sendsLegalTextNotices(process.env) }),
@@ -340,6 +375,8 @@ await runner.enqueue(LEGAL_TEXT_NOTICES);
 await runner.enqueue("coach-contracts.notices");
 // The Production deployment carrying an announced Release Note starts the worker: its Nouveautés emails go out now (#566).
 await runner.enqueue(NOUVEAUTES_EMAILS);
+// Each deploy starts the worker: the Signalements whose fix it carries become « Prêt à clore » now (#1141).
+await runner.enqueue(SIGNALEMENTS_READY_TO_CLOSE);
 console.info(`[worker] running ${Object.keys(jobs).length} job(s)`);
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {

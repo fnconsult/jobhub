@@ -1164,7 +1164,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     expect(JSON.stringify(exported)).not.toContain(sessions[0]!.token);
   });
 
-  it("the export holds every Signalement the Candidate sent, newest first, with its context, status and the team's reply, never which Administrator or Agent Key handled it (#374, #1139)", async () => {
+  it("the export holds every Signalement the Candidate sent, newest first, with its context, status, the team's reply and its issue numbers, never which Administrator or Agent Key handled it (#374, #1139, #1141)", async () => {
     const administrator = await signIn("support@jobbbox.ai");
     let now = new Date("2026-10-20T08:00:00Z");
     const signalements = createSignalements(database, { version: "35e2ea1", now: () => now });
@@ -1179,6 +1179,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
     if (!bug.ok || !question.ok) throw new Error("fixture Signalements refused");
     now = new Date("2026-10-22T08:00:00Z");
     await signalements.changeStatus(question.signalement.id, "vu", database, "key:triage-beta");
+    await signalements.linkIssue(bug.signalement.id, { number: 1201, kind: "opened" }, "key:triage-beta");
     await signalements.reply(bug.signalement.id, "Merci, c'est corrigé.");
     await signalements.changeStatus(bug.signalement.id, "traite");
     await signalements.send(administrator, { type: "idee", message: "Une idée de l'équipe elle-même.", path: "/", textSize: "standard" }, from);
@@ -1200,6 +1201,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         repliedAt: null,
         replyUpdatedAt: null,
         createdAt: new Date("2026-10-21T08:00:00Z"),
+        issueNumbers: [],
       },
       {
         id: bug.signalement.id,
@@ -1215,6 +1217,7 @@ describe.skipIf(!connectionString)("Candidate data export and account deletion (
         repliedAt: new Date("2026-10-22T08:00:00Z"),
         replyUpdatedAt: new Date("2026-10-22T08:00:00Z"),
         createdAt: new Date("2026-10-20T08:00:00Z"),
+        issueNumbers: [1201],
       },
     ]);
     expect(JSON.stringify(exported.signalements)).not.toMatch(new RegExp(`${administrator}|support@jobbbox\\.ai|triage-beta`));

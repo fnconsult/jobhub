@@ -39,6 +39,7 @@ import { asData } from "../coach/context";
 import type { CoachingPlaybooks, PlaybookAgent, PlaybookVersion, ServedKnowledge } from "../coaching-playbooks";
 import type { Queryable } from "../database/pool";
 import { ALWAYS_ON_GUARDRAILS, createGuardrails, defaultGuardrailSetting, GUARDRAIL_IDS, guardrailSettingsOf, type GuardrailConfig, type GuardrailId, type GuardrailSetting, type GuardrailTrigger } from "../guardrails";
+import { candidateDataInIssue } from "../guardrails/issue";
 import {
   AI_COACH_EVAL_CASES,
   EVAL_IN_VIEW_KINDS,
@@ -641,7 +642,13 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
         const triggers: GuardrailTrigger[] = [];
         const guardrails = createGuardrails({ ai, config: { current: async () => ({ settings, messages }) }, triggers: { record: (trigger) => void triggers.push(trigger) } });
         const started = clock();
-        // An email case plays Email intake's reading, the reading as the case gives it; any other, the AI Coach's reply.
+        // An issue case plays the fixed rules Jobbbox checks an issue with before it publishes it (ADR-0118), which no
+        // setting reaches; an email case plays Email intake's reading, the reading as the case gives it; any other, the AI Coach's reply.
+        if (each.issue) {
+          const checked = candidateDataInIssue(each.issue.fields, { identity: each.issue.identity, words: [each.message] });
+          const verdict: GuardrailVerdict = checked.ok ? "let_through" : "block";
+          return { case: each, expected: expectedVerdict(each, settings), verdict, passed: verdict === expectedVerdict(each, settings), costEur: 0, responseMs: Math.round(clock() - started) };
+        }
         const email = each.email;
         const guarded = email
           ? await guardrails.guardEmail({ candidateId: "eval", email: { text: each.message, authenticated: email.authenticated }, read: async () => email.reading })

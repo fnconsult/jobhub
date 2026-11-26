@@ -122,6 +122,15 @@ export default async function SignalementsPage({ searchParams }: { searchParams:
                     <>
                       <Status tone={STATUS_TONE[each.status]}>{t(`admin.signalements.statuses.${each.status}`)}</Status>
                       {key ? <span className="section-meta"> {t("admin.signalements.seenBy", { name: key })}</span> : null}
+                      {/* The team's alone (#1141): « Prêt à clore » once its fix is deployed, and its issues' numbers. */}
+                      {each.readyToCloseAt && each.status !== "traite" ? (
+                        <>
+                          {" "}
+                          <Pill tone="success">{t("admin.signalements.readyToClose")}</Pill>
+                        </>
+                      ) : null}
+                      {each.issues.length > 0 ? <span className="section-meta"> {each.issues.map((issue) => `#${issue.number}`).join(", ")}</span> : null}
+                      {each.draft && each.status !== "traite" ? <span className="section-meta"> {t("admin.signalements.draftWaiting")}</span> : null}
                     </>
                   );
                 },

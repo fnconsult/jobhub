@@ -4,6 +4,8 @@ import { createAgentKeys, migrateAgentKeys, type AgentKeys } from "@/agent-keys"
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "@/auth/test-support";
 import { migrateBilling } from "@/billing";
 import { createSignalements, migrateSignalements, type Signalements } from "@/signalements";
+import type { GuardrailTrigger } from "@/guardrails";
+import { IssuesError, type GitHubIssues } from "@/signalements/github-issues";
 import { createSignalementTriage, TRIAGE_KEYS } from "@/signalements/triage";
 
 const handled = vi.hoisted(() => ({ keys: null as unknown, triage: null as unknown }));
@@ -13,6 +15,8 @@ vi.mock("@/signalements/server", () => ({ getSignalementTriage: () => handled.tr
 const { GET: queue } = await import("./route");
 const { GET: one } = await import("./[id]/route");
 const { POST: setStatus } = await import("./[id]/statut/route");
+const { POST: proposeIssue } = await import("./[id]/issue/route");
+const { POST: proposeDraft } = await import("./[id]/brouillon/route");
 
 const WEB = "https://app.jobbbox.example";
 const FROM = { userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36", interfaceLanguage: "fr" };
@@ -26,12 +30,19 @@ describe.skipIf(!connectionString)("/admin/api/signalements: Signalement triage 
   let signalements: Signalements;
   let value: string;
   let marie: string;
+  let published: { kind: string; number?: number; title?: string; body: string; labels?: readonly string[] }[];
+  let triggers: GuardrailTrigger[];
+  let githubFailure: IssuesError | null;
 
   const asKey = (key: string | null = value, init: RequestInit = {}) => ({ ...init, headers: { ...(key ? { authorization: `Bearer ${key}` } : {}), ...(init.headers ?? {}) } });
   const getQueue = (query = "", key: string | null = value) => queue(new Request(`${WEB}/admin/api/signalements${query}`, asKey(key)));
   const getOne = (id: string, key: string | null = value) => one(new Request(`${WEB}/admin/api/signalements/${id}`, asKey(key)), { params: Promise.resolve({ id }) });
   const post = (id: string, body: unknown, key: string | null = value) =>
     setStatus(new Request(`${WEB}/admin/api/signalements/${id}/statut`, asKey(key, { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json" } })), { params: Promise.resolve({ id }) });
+  const postIssue = (id: string, body: unknown, key: string | null = value) =>
+    proposeIssue(new Request(`${WEB}/admin/api/signalements/${id}/issue`, asKey(key, { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json" } })), { params: Promise.resolve({ id }) });
+  const postDraft = (id: string, body: unknown, key: string | null = value) =>
+    proposeDraft(new Request(`${WEB}/admin/api/signalements/${id}/brouillon`, asKey(key, { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json" } })), { params: Promise.resolve({ id }) });
 
   async function sent(body: Record<string, unknown>): Promise<string> {
     const done = await signalements.send(marie, body, FROM);
@@ -49,10 +60,28 @@ describe.skipIf(!connectionString)("/admin/api/signalements: Signalement triage 
     keys = createAgentKeys(database, { now: () => now });
     signalements = createSignalements(database, { version: "35e2ea1", now: () => now });
     handled.keys = keys;
+    published = [];
+    triggers = [];
+    githubFailure = null;
+    const issues: Pick<GitHubIssues, "open" | "comment"> = {
+      async open(issue) {
+        if (githubFailure) throw githubFailure;
+        published.push({ kind: "opened", ...issue });
+        return { number: 1201, url: "https://github.com/fnconsult/jobhub/issues/1201" };
+      },
+      async comment(number, body) {
+        if (githubFailure) throw githubFailure;
+        published.push({ kind: "commented", number, body });
+        return { number, url: `https://github.com/fnconsult/jobhub/issues/${number}#issuecomment-1` };
+      },
+    };
     handled.triage = createSignalementTriage({
       signalements,
       identityOf: async () => ({ fullName: ["Marie Dupont"], givenName: ["Marie"], lastName: ["Dupont"], email: ["marie.dupont@example.fr"] }),
       environment: "staging",
+      issues,
+      triggers: { record: (trigger) => void triggers.push(trigger) },
+      now: () => now,
     });
     const created = await keys.create({ name: "triage-beta", scope: "signalements", days: 30 });
     if (!created.ok) throw new Error("key not created");
@@ -148,5 +177,66 @@ describe.skipIf(!connectionString)("/admin/api/signalements: Signalement triage 
     await getQueue("?statut=nouveau");
 
     expect(await keys.calls((await keys.list())[0]!.id)).toEqual([{ at: now, method: "GET", path: "/admin/api/signalements?statut=nouveau", outcome: "allowed" }]);
+  });
+
+  describe("an issue and a draft reply (#1141)", () => {
+    const ISSUE = { title: "Profil : « Valider » sans effet", summary: "Le bouton « Valider » du profil reste sans effet.", steps: "1. Ouvrir /profils/:id.\n2. Cliquer sur « Valider ».", expected: "Le profil est validé.", environment: "Beta", version: "35e2ea1", device: "Chrome 141, Mac" };
+
+    it("publishes the issue once it passes the Guardrail, links it, and the team reads its number", async () => {
+      const id = await sent({ type: "bug", message: "Je clique sur valider mon profil et rien ne se passe du tout.", path: "/profils/0b6c2f1e-2222-4222-8222-222222222222", textSize: "standard", aiNotice: true });
+
+      const response = await postIssue(id, ISSUE);
+
+      expect(response.status).toBe(201);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(await response.json()).toEqual({ issue: { number: 1201, url: "https://github.com/fnconsult/jobhub/issues/1201", kind: "opened" } });
+      expect(published).toHaveLength(1);
+      expect(published[0]).toMatchObject({ labels: ["needs-triage", "signalement"], body: expect.stringContaining(id) });
+      expect((await signalements.one(id))!.issues).toEqual([{ number: 1201, kind: "opened", linkedAt: now, linkedBy: "key:triage-beta" }]);
+    });
+
+    it("answers 422 with the reasons, publishes nothing, records the Guardrail Trigger", async () => {
+      const id = await sent({ type: "bug", message: "Je clique sur valider mon profil et rien ne se passe du tout.", path: "/", textSize: "standard", aiNotice: true });
+
+      const quoting = await postIssue(id, { ...ISSUE, summary: "« je clique sur valider mon profil et rien ne se passe »" });
+      const naming = await postIssue(id, { ...ISSUE, steps: "Se connecter comme Marie Dupont, 06 12 34 56 78." });
+
+      expect(quoting.status).toBe(422);
+      expect(await quoting.json()).toEqual({ error: "blocked", guardrail: "candidate_data_in_issue", reasons: ["verbatim_quote"], fields: ["summary"] });
+      expect(await naming.json()).toEqual({ error: "blocked", guardrail: "candidate_data_in_issue", reasons: ["identity", "phone"], fields: ["steps"] });
+      expect(published).toEqual([]);
+      expect(triggers).toHaveLength(2);
+      expect((await signalements.one(id))!.issues).toEqual([]);
+    });
+
+    it("comments on a duplicate; answers 404 for an issue GitHub does not have, 503 without the token, 400 for a text to fix", async () => {
+      const id = await sent({ type: "idee", message: "Une idée fictive pour le test.", path: "/", textSize: "standard", aiNotice: true });
+
+      expect((await postIssue(id, { commentOn: 1188 })).status).toBe(201);
+      expect(published[0]).toMatchObject({ kind: "commented", number: 1188, body: expect.stringContaining(id) });
+      expect((await postIssue(id, { title: "" })).status).toBe(400);
+      githubFailure = new IssuesError("not_found");
+      expect(await (await postIssue(id, { commentOn: 99999 })).json()).toEqual({ error: "issue_not_found" });
+      githubFailure = new IssuesError("missing_token");
+      expect((await postIssue(id, ISSUE)).status).toBe(503);
+      expect((await signalements.one(id))!.issues.map((issue) => issue.number)).toEqual([1188]);
+    });
+
+    it("keeps the draft reply, signed by the key; the agent never sets « traité »", async () => {
+      const id = await sent({ type: "question", message: "Une question fictive pour le test.", path: "/", textSize: "standard", aiNotice: true, attachedQuestion: "Comment faire ?", attachedCoachReply: "Je ne sais pas." });
+
+      const response = await postDraft(id, { fr: "Voici comment faire.", en: "Here is how." });
+
+      expect(response.status).toBe(201);
+      expect((await response.json()).draft).toEqual({ fr: "Voici comment faire.", en: "Here is how.", proposedBy: "key:triage-beta", proposedAt: now.toISOString(), forCandidate: "Voici comment faire." });
+      expect(await signalements.one(id)).toMatchObject({ status: "nouveau", reply: null, draft: { proposedBy: "key:triage-beta" } });
+      expect((await postDraft(id, { fr: "Seulement en français." })).status).toBe(400);
+      expect((await postDraft("0b6c2f1e-9999-4999-8999-999999999999", { fr: "a", en: "b" })).status).toBe(404);
+    });
+
+    it("refuses both without a key: an Agent Key only", async () => {
+      expect((await postIssue("0b6c2f1e-9999-4999-8999-999999999999", ISSUE, null)).status).toBe(401);
+      expect((await postDraft("0b6c2f1e-9999-4999-8999-999999999999", { fr: "a", en: "b" }, null)).status).toBe(401);
+    });
   });
 });

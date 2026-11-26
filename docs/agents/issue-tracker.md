@@ -78,18 +78,50 @@ Used by `/wayfinder`. The **map** is a single issue with **child** issues as tic
 
 ## Trier les signalements
 
-Signalement triage (ADR-0118, #1139) reads the Signalements through an Agent Key, never a session. The key is in the
-environment variable `JOBBBOX_AGENT_KEY`; the product owner creates it in Paramètres › « Clés d'agent » (`triage-beta`
-on the Beta first, `triage-prod` only after the Legal Review of #1140). An agent never creates one.
+Signalement triage (ADR-0118, #1139, #1141) reads the Signalements through an Agent Key, never a session. The key is in
+the environment variable `JOBBBOX_AGENT_KEY`; the product owner creates it in Paramètres › « Clés d'agent »
+(`triage-beta` on the Beta first, `triage-prod` only after the Legal Review of #1140). An agent never creates one, never
+runs a triage on real data and never schedules one unless the product owner asks.
 
 - `GET /admin/api/signalements` (`?statut=nouveau`, `?statut=nouveau,vu`): the queue, only those sent with the AI
   notice, redacted, each page path without its ids.
 - `GET /admin/api/signalements/:id`: one of them.
 - `POST /admin/api/signalements/:id/statut` with `{ "statut": "vu" }`: the only status an agent sets; the Back Office
   shows « vu par <key> ».
+- `POST /admin/api/signalements/:id/issue`: the issue Jobbbox publishes, never the agent (see below).
+- `POST /admin/api/signalements/:id/brouillon` with `{ "fr": "…", "en": "…" }`: the draft reply (below).
+
+The procedure, one Signalement at a time:
+
+1. **List the queue**, then mark each one you take up « vu » (`POST …/statut`). Never « traité »: Support sets it when
+   it sends the reply.
+2. **A Bug**: reproduce it on the Beta (staging.jobbbox.ai), with your own fictional account and data, never the
+   Candidate's: the page path, the Version, the device. Say in the issue whether you could reproduce it. When an object of
+   the Candidate's is needed (an Application, a CV), the issue asks Support, who reads it in the Back Office.
+3. **A Question** becomes one of three things:
+   - a defect of the AI Coach: an issue, and an Eval Case written from the exchange once nothing of the Candidate is left
+     (fictional names, places and data);
+   - a gap in the help: an issue to write or fix the Help Article;
+   - a reply only: no issue, a draft reply.
+
+   A Question is never linked to an Unanswered Question.
+4. **Propose the issue**, in your own words: `POST …/issue` with `{ "title", "summary", "steps", "expected",
+   "environment", "version", "device" }` (title and summary required). When an open issue already covers the problem,
+   `{ "commentOn": <its number> }` (with an optional `summary`) adds a comment carrying the new Signalement's id instead.
+   Jobbbox runs Redaction, then the « Données du Candidate dans une issue » Guardrail (always on: the Candidate's name,
+   email or phone, any email or phone, or six words in a row of their message), then publishes the issue on
+   `fnconsult/jobhub` labelled `needs-triage` and `signalement`, with the Signalement's id, and links it. A **422**
+   `{ "error": "blocked", "reasons", "fields" }` publishes nothing: write the fields named again, in other words, and
+   propose again. 201 answers `{ "issue": { "number", "url", "kind" } }`.
+5. **Propose the draft reply** (`POST …/brouillon`): in the Candidate's Interface Language (the queue's
+   `interfaceLanguage`) and its translation, both given as `fr` and `en`, at most 2,000 characters each. Support reads it,
+   edits it and sends it, signed « L'équipe Jobbbox ». For a Bug or an Idée with an issue, the reply goes once the fix is
+   deployed (« Prêt à clore », set by Jobbbox); for an Idée refused, or a Question answered without an issue, as soon as
+   Support has read it.
 
 Each call sends `Authorization: Bearer $JOBBBOX_AGENT_KEY`: never the key's value in a command, a file, `git`, an issue
 or a comment (`scripts/hooks/no-secrets.mjs` refuses it). Never a Signalement's text in `git`, an issue, a comment or a
 test, and never kept outside the session: an issue is written in the agent's own words and carries the Signalement's
 id, never its message. A 401 (no key, or one revoked or expired), 403 (out of scope) or 429 (rate limit) stops the
-triage: say so, and do not try another way in.
+triage: say so, and do not try another way in. A 503 on `…/issue` means Jobbbox has no token to write issues
+(GITHUB_ISSUES_TOKEN): say so and stop proposing issues; the drafts still go.

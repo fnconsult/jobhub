@@ -176,6 +176,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "sign_in_provider", // issue #209: Sign-in Providers configured in the Back Office
         "sign_in_setting", // issue #209: Require SSO for Administrators
         "signalement", // issue #374: the Candidate's Signalements (Bug / Idée / Question)
+        "signalement_draft", // issue #1141: the draft reply an Agent Key proposed, fr and en, until Support sends or deletes it
+        "signalement_issue", // issue #1141: the GitHub issues a Signalement is linked to, by number; no Candidate
         "tailored_cv", // issue #18: Tailored CV proposals and saved Tailored CVs
         "tailored_document", // issue #19: Cover Letters and Outreach Messages
         "tailored_document_version", // issue #1079: the versions of the Tailored CV, Cover Letter and Outreach Message
@@ -408,6 +410,9 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "session", from_column: "userId", to_table: "candidate" },
         // Signalements (issue #374) go with their Candidate.
         { from_table: "signalement", from_column: "candidate_id", to_table: "candidate" },
+        // A Signalement's draft reply and its issue links (issue #1141) go with it.
+        { from_table: "signalement_draft", from_column: "signalement_id", to_table: "signalement" },
+        { from_table: "signalement_issue", from_column: "signalement_id", to_table: "signalement" },
         // A Tailored CV (issue #18) goes with its Application.
         { from_table: "tailored_cv", from_column: "application_id", to_table: "application" },
         { from_table: "tailored_document", from_column: "application_id", to_table: "application" },

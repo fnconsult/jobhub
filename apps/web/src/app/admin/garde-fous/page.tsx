@@ -182,7 +182,7 @@ export default async function GuardrailsPage({ searchParams }: { searchParams: P
               </BackOfficeForm>
             )}
 
-            {guardrail.messages ? null : <p className="section-meta">{t("admin.guardrails.noMessage")}</p>}
+            {guardrail.messages ? null : <p className="section-meta">{t(guardrail.id === "candidate_data_in_issue" ? "admin.guardrails.noMessageIssue" : "admin.guardrails.noMessage")}</p>}
             {GUARDRAIL_LANGUAGES.map((each) => {
               if (!guardrail.messages) return null;
               const { latest, served, default: fallback } = guardrail.messages[each];

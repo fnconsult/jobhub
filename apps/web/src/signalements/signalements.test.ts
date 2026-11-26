@@ -231,6 +231,155 @@ describe.skipIf(!connectionString)("Signalements (#374, #283; needs Postgres: DA
     });
   });
 
+  describe("Signalement triage's follow-up: issues, draft reply, « Prêt à clore » (#1141, ADR-0118)", () => {
+    async function sent(change: Record<string, unknown> = {}, from: SendingContext = FROM_MARIE, who = marie) {
+      const result = await signalements.send(who, bug({ aiNotice: true, ...change }), from);
+      if (!result.ok) throw new Error("fixture Signalement refused");
+      return result.signalement;
+    }
+    const DRAFT = { fr: "Merci, c'est corrigé : la lettre s'enregistre de nouveau.", en: "Thank you, it is fixed: the letter saves again." };
+
+    it("keeps the issue numbers linked, for the team only, in the order they were linked; deleting the Signalement removes the links", async () => {
+      const one = await sent();
+      expect(await signalements.linkIssue(one.id, { number: 1201, kind: "opened" }, "key:triage-beta")).toBe(true);
+      now = new Date("2026-10-25T10:00:00Z");
+      expect(await signalements.linkIssue(one.id, { number: 1188, kind: "commented" }, "key:triage-beta")).toBe(true);
+      expect(await signalements.linkIssue(one.id, { number: 1188, kind: "commented" }, "key:triage-beta")).toBe(true);
+      expect(await signalements.linkIssue("0b6c2f1e-9999-4999-8999-999999999999", { number: 1, kind: "opened" }, "key:triage-beta")).toBe(false);
+
+      expect((await signalements.one(one.id))!.issues).toEqual([
+        { number: 1201, kind: "opened", linkedAt: new Date("2026-10-25T09:30:00Z"), linkedBy: "key:triage-beta" },
+        { number: 1188, kind: "commented", linkedAt: new Date("2026-10-25T10:00:00Z"), linkedBy: "key:triage-beta" },
+      ]);
+      expect((await signalements.list())[0]!.issues.map((issue) => issue.number)).toEqual([1201, 1188]);
+      // The Candidate's own reading and their Data export: the numbers alone, never who linked them.
+      expect((await signalementsOf(database, marie))[0]).toMatchObject({ issueNumbers: [1201, 1188] });
+      expect(JSON.stringify(await signalementsOf(database, marie))).not.toContain("triage-beta");
+
+      expect(await signalements.remove(marie, one.id)).toBe(true);
+      expect((await database.query("SELECT 1 FROM signalement_issue")).rowCount).toBe(0);
+    });
+
+    it("keeps the draft reply an Agent Key proposed, in French and English, signed by its key; the Candidate's own is in their Interface Language", async () => {
+      const english = await sent({}, { ...FROM_MARIE, interfaceLanguage: "en" });
+
+      expect(await signalements.saveDraft(english.id, DRAFT, { by: "key:triage-beta" })).toMatchObject({ ok: true });
+
+      expect((await signalements.one(english.id))!.draft).toEqual({ ...DRAFT, proposedBy: "key:triage-beta", proposedAt: now, editedAt: null, forCandidate: DRAFT.en });
+      expect(await signalementsOf(database, marie)).not.toContainEqual(expect.objectContaining({ draft: expect.anything() }));
+    });
+
+    it("lets Support edit the draft, keeping who proposed it, and delete it", async () => {
+      const one = await sent();
+      await signalements.saveDraft(one.id, DRAFT, { by: "key:triage-beta" });
+      now = new Date("2026-10-25T11:00:00Z");
+
+      expect(await signalements.saveDraft(one.id, { ...DRAFT, fr: "Merci, c'est réparé." })).toMatchObject({ ok: true });
+      expect((await signalements.one(one.id))!.draft).toMatchObject({ fr: "Merci, c'est réparé.", proposedBy: "key:triage-beta", editedAt: now, forCandidate: "Merci, c'est réparé." });
+
+      expect(await signalements.removeDraft(one.id)).toBe(true);
+      expect((await signalements.one(one.id))!.draft).toBeNull();
+      expect(await signalements.removeDraft(one.id)).toBe(false);
+    });
+
+    it("refuses a draft missing a language or too long, and one on a Signalement already « traité »", async () => {
+      const one = await sent();
+
+      expect(await signalements.saveDraft(one.id, { fr: "Merci." }, { by: "key:triage-beta" })).toEqual({ ok: false, errors: [{ field: "en", code: "required" }] });
+      expect(await signalements.saveDraft(one.id, { fr: "x".repeat(2_001), en: "Thanks." }, { by: "key:triage-beta" })).toEqual({ ok: false, errors: [{ field: "fr", code: "too_long" }] });
+      await signalements.changeStatus(one.id, "traite");
+      expect(await signalements.saveDraft(one.id, DRAFT, { by: "key:triage-beta" })).toEqual({ ok: false, refused: "already_handled" });
+      expect(await signalements.saveDraft("pas-un-id", DRAFT)).toBeNull();
+    });
+
+    it("sends the draft in the Candidate's language as the reply and marks it « traité » with it: one notification", async () => {
+      const english = await sent({}, { ...FROM_MARIE, interfaceLanguage: "en" });
+      await signalements.saveDraft(english.id, DRAFT, { by: "key:triage-beta" });
+      now = new Date("2026-10-26T09:00:00Z");
+
+      const done = await signalements.sendDraft(english.id);
+
+      expect(done).toMatchObject({ before: { status: "nouveau", reply: null }, after: { status: "traite", reply: DRAFT.en, repliedAt: now, statusChangedAt: now } });
+      expect((await signalements.one(english.id))!).toMatchObject({ draft: null, statusChangedBy: null });
+      expect(await signalements.notifications(marie)).toEqual([{ signalementId: english.id, sentAt: english.createdAt.toISOString(), replied: true }]);
+      expect(await signalements.sendDraft(english.id)).toEqual({ refused: "already_handled" });
+    });
+
+    it("refuses to send without a draft", async () => {
+      const one = await sent();
+
+      expect(await signalements.sendDraft(one.id)).toEqual({ refused: "no_draft" });
+      expect(await signalements.sendDraft("pas-un-id")).toBeNull();
+    });
+
+    it("marks « Prêt à clore » together every Signalement linked to the issues fixed, but those « traité »", async () => {
+      const first = await sent();
+      const second = await sent({ type: "idee" }, FROM_MARIE, await candidate("jean.martin@example.fr"));
+      const handled = await sent();
+      const other = await sent();
+      for (const id of [first.id, second.id, handled.id]) await signalements.linkIssue(id, { number: 1201, kind: id === first.id ? "opened" : "commented" }, "key:triage-beta");
+      await signalements.linkIssue(other.id, { number: 1300, kind: "opened" }, "key:triage-beta");
+      await signalements.changeStatus(handled.id, "traite");
+      now = new Date("2026-10-27T09:00:00Z");
+
+      expect((await signalements.markReadyToClose([1201])).sort()).toEqual([first.id, second.id].sort());
+      expect(await signalements.markReadyToClose([1201])).toEqual([]);
+
+      expect((await signalements.one(first.id))!.readyToCloseAt).toEqual(now);
+      expect((await signalements.one(second.id))!.readyToCloseAt).toEqual(now);
+      expect((await signalements.one(handled.id))!.readyToCloseAt).toBeNull();
+      expect((await signalements.one(other.id))!.readyToCloseAt).toBeNull();
+      // « Prêt à clore » is the team's alone: the Candidate's status is unchanged, and nothing notifies them.
+      expect((await signalementsOf(database, marie)).find((each) => each.id === first.id)).toMatchObject({ status: "nouveau" });
+      expect(JSON.stringify(await signalementsOf(database, marie))).not.toMatch(/ready/i);
+      expect((await signalements.notifications(marie)).map((each) => each.signalementId)).toEqual([handled.id]);
+    });
+
+    it("counts, for the Livraison email, the new ones by type, the issues linked since, and those « Prêt à clore » whose draft waits for Support", async () => {
+      now = new Date("2026-10-24T09:00:00Z");
+      const old = await sent();
+      await signalements.linkIssue(old.id, { number: 1100, kind: "opened" }, "key:triage-beta");
+      now = new Date("2026-10-25T09:00:00Z");
+      const bug = await sent();
+      const idee = await sent({ type: "idee" });
+      const other = await sent({ type: "idee" });
+      now = new Date("2026-10-25T10:00:00Z");
+      await signalements.linkIssue(bug.id, { number: 1201, kind: "opened" }, "key:triage-beta");
+      await signalements.linkIssue(idee.id, { number: 1201, kind: "commented" }, "key:triage-beta");
+      await signalements.linkIssue(other.id, { number: 1300, kind: "commented" }, "key:triage-beta");
+      await signalements.saveDraft(bug.id, DRAFT, { by: "key:triage-beta" });
+      await signalements.saveDraft(other.id, DRAFT, { by: "key:triage-beta" });
+      await signalements.markReadyToClose([1201, 1100]);
+
+      expect(await signalements.countsSince(new Date("2026-10-25T00:00:00Z"))).toEqual({
+        newByType: { bug: 1, idee: 2, question: 0 },
+        issues: [
+          { number: 1201, kind: "opened", signalements: 2 },
+          { number: 1300, kind: "commented", signalements: 1 },
+        ],
+        readyWithDraft: 1,
+      });
+    });
+
+    it("gives the issues still to check against a deployed commit, once each until another commit is deployed", async () => {
+      const first = await sent();
+      const second = await sent();
+      const handled = await sent();
+      await signalements.linkIssue(first.id, { number: 1201, kind: "opened" }, "key:triage-beta");
+      await signalements.linkIssue(second.id, { number: 1201, kind: "commented" }, "key:triage-beta");
+      await signalements.linkIssue(second.id, { number: 1300, kind: "opened" }, "key:triage-beta");
+      await signalements.linkIssue(handled.id, { number: 1400, kind: "opened" }, "key:triage-beta");
+      await signalements.changeStatus(handled.id, "traite");
+
+      expect(await signalements.issuesToCheck("aaaaaaa")).toEqual([1201, 1300]);
+      await signalements.markIssuesChecked([1201, 1300], "aaaaaaa");
+      expect(await signalements.issuesToCheck("aaaaaaa")).toEqual([]);
+      expect(await signalements.issuesToCheck("bbbbbbb")).toEqual([1201, 1300]);
+      await signalements.markReadyToClose([1300]);
+      expect(await signalements.issuesToCheck("bbbbbbb")).toEqual([1201]);
+    });
+  });
+
   describe("the Candidate's side: their notifications and deleting one (#377)", () => {
     async function sent(change: Record<string, unknown> = {}) {
       const result = await signalements.send(marie, bug(change), FROM_MARIE);

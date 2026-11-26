@@ -3733,7 +3733,8 @@
         "distress": "Distress",
         "email_injection": "Booby-trapped email content",
         "ungrounded_answer": "Answer not grounded in the profile",
-        "coach_scope": "Coach scope"
+        "coach_scope": "Coach scope",
+        "candidate_data_in_issue": "Candidate data in an issue"
       },
       "descriptions": {
         "prompt_injection": "A message, or pasted text, that tries to change or reveal the AI's instructions, directly or indirectly.",
@@ -3743,7 +3744,8 @@
         "distress": "A Candidate who expresses serious distress: they get the 3114 message. No one is alerted.",
         "email_injection": "An email Email intake receives that tries to give instructions to the AI reading it, or to obtain the Candidate's contact details: an unauthenticated sender, an email too long, hidden text carrying instructions, known injection patterns, then a check by a model (redacted). Blocked, it is not read, gives no job offer and is set aside by a guardrail. Whatever this setting, a reading that gives an email address, phone number or person's name taken from the email, a link absent from the email or more than 30 offers is always set aside.",
         "ungrounded_answer": "An AI Coach reply that ranks job offers or says whether an offer, an application or a piece of advice suits the candidate without citing their skills, experience or criteria, or that claims not to have the reasons for a score or their CV. Blocked, it is written again once; if it still is, the message below is shown.",
-        "coach_scope": "An AI Coach reply that goes beyond what it can do: (1) a change announced with no card (“done”); (2) a CV, a letter, a message, a note or a reply to an email written in the reply instead of a card; (3) a refusal with no reason or no redirect to the page where to do it; (4) the reference CV's identity or a coach's private note repeated in the reply. Checks 3 and 4 use fixed rules, checks 1 and 2 an AI model (anonymised). Check 4 always blocks; checks 1 to 3 follow this setting, “flag only” by default. When blocked, the reply is written again once with the reason; if it still is, the message below is shown."
+        "coach_scope": "An AI Coach reply that goes beyond what it can do: (1) a change announced with no card (“done”); (2) a CV, a letter, a message, a note or a reply to an email written in the reply instead of a card; (3) a refusal with no reason or no redirect to the page where to do it; (4) the reference CV's identity or a coach's private note repeated in the reply. Checks 3 and 4 use fixed rules, checks 1 and 2 an AI model (anonymised). Check 4 always blocks; checks 1 to 3 follow this setting, “flag only” by default. When blocked, the reply is written again once with the reason; if it still is, the message below is shown.",
+        "candidate_data_in_issue": "An issue, or a comment, that the Signalement triage agent proposes and Jobbbox publishes on the public GitHub repository: the Candidate's identity, email or phone, or a word-for-word quote of their message. Fixed rules, after redaction: nothing is published, and the agent gets the reason to write its text again. This guardrail can never be switched off."
       },
       "languages": {
         "fr": "French",
@@ -3807,7 +3809,8 @@
         "title": "Guardrails' Eval Runs",
         "intro": "Each new setting is first played on the Guardrails' Eval Cases, written by the engineering team and shipped with the app. Each case expects an exact verdict: let through, block or flag.",
         "played": "See the Eval Run played on this setting"
-      }
+      },
+      "noMessageIssue": "This guardrail shows no message: the triage agent gets the reason for the block (identity, email, phone or quote) and writes its text again. Nothing is published on GitHub."
     },
     "unansweredQuestions": {
       "title": "Unanswered questions",
@@ -3922,7 +3925,11 @@
         "not_found": "This feedback does not exist.",
         "required": "Write the reply before saving it.",
         "too_long": "The reply is over 2,000 characters.",
-        "invalid": "This reply could not be read."
+        "invalid": "This reply could not be read.",
+        "draftSaved": "Draft saved.",
+        "draftSent": "Reply sent: the Signalement is handled.",
+        "draftRemoved": "Draft deleted.",
+        "no_draft": "This Signalement has no draft to send."
       },
       "journalFields": {
         "status": "Status",
@@ -3931,9 +3938,29 @@
       "replyStates": {
         "none": "None",
         "written": "Written",
-        "changed": "Changed"
+        "changed": "Changed",
+        "sent_draft": "Draft sent"
       },
-      "seenBy": "seen by {{name}}"
+      "seenBy": "seen by {{name}}",
+      "readyToClose": "Ready to close",
+      "draftWaiting": "draft to send",
+      "issuesTitle": "Issues",
+      "readyToCloseSince": "Ready to close since {{date}}: the fix is deployed in the environment this Signalement came from. Read the draft again, then send it.",
+      "issueKinds": {
+        "opened": "published by Jobbbox for {{key}}, on {{date}}",
+        "commented": "commented as a duplicate by Jobbbox for {{key}}, on {{date}}"
+      },
+      "issuesHelp": "Seen by the team only, never by the Candidate. The issue carries only the Signalement's id, never its text; deleting the Signalement removes the link and leaves the issue.",
+      "draftTitle": "Draft reply",
+      "draftProposedBy": "Draft proposed by {{key}} on {{date}}.",
+      "draftWritten": "Draft written on {{date}}.",
+      "draftEdited": "Edited on {{date}}.",
+      "draftHelp": "The Candidate receives only the version in {{language}}, signed « L'équipe Jobbbox », never with your name. Sending it marks the Signalement « Handled »: one notification for both.",
+      "draftSentVersion": "Version sent to the Candidate ({{language}})",
+      "draftTranslation": "Translation ({{language}})",
+      "sendDraft": "Send to the Candidate",
+      "saveDraft": "Save the draft",
+      "removeDraft": "Delete the draft"
     },
     "agentKeys": {
       "title": "Agent keys",
@@ -4366,7 +4393,37 @@
         "deployed": "Commit {{commit}} from {{ref}}, deployed on {{at}}",
         "open": "Open Delivery",
         "reason": "You receive this email because your address is in « Recipients of Delivery's daily email » (Settings, Email tab).",
-        "settings": "Change the recipients"
+        "settings": "Change the recipients",
+        "signalements": {
+          "title": "Signalements",
+          "new": "New Signalements in {{environment}}: {{types}}.",
+          "types": {
+            "bug_one": "{{count}} bug",
+            "bug_other": "{{count}} bugs",
+            "idee_one": "{{count}} idea",
+            "idee_other": "{{count}} ideas",
+            "question_one": "{{count}} question",
+            "question_other": "{{count}} questions"
+          },
+          "issues": {
+            "opened_one": "Opened for {{count}} Signalement",
+            "opened_other": "Opened for {{count}} Signalements",
+            "commented_one": "Completed with a duplicate: {{count}} Signalement",
+            "commented_other": "Completed with duplicates: {{count}} Signalements",
+            "none": "No issue opened or completed."
+          },
+          "readyWithDraft_one": "Ready to close, draft for Support to send: {{count}}",
+          "readyWithDraft_other": "Ready to close, draft for Support to send: {{count}}",
+          "open": "Open the Signalements",
+          "triageRan": "Last triage pass: {{at}}.",
+          "triageMissed": "The triage did not run: {{reason}}.",
+          "reasons": {
+            "no_key": "no Agent Key",
+            "key_expired": "key expired",
+            "key_revoked": "key revoked",
+            "no_call": "no call today"
+          }
+        }
       }
     },
     "activity": {

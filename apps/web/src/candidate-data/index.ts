@@ -82,7 +82,7 @@ import { consumptionOf, type ConsumptionDay } from "../consumption";
 import type { JobSearchFailure, JobSearchStatus, OfferedJobSearch } from "../job-searches";
 import type { MasterCvVersion, ProfileOnboarding, Profiles } from "../profiles";
 import { rescheduleHistories } from "../reschedules";
-import { signalementsOf, type Signalement } from "../signalements";
+import { signalementsOf, type OwnSignalement } from "../signalements";
 import { extensionEventsOf, type ExportedExtensionEvent } from "../extension-events";
 import { ordersOf, type ExportedOrder } from "../orders";
 import { withdrawalsOf, type ExportedWithdrawal } from "../withdrawals";
@@ -417,9 +417,10 @@ export interface CandidateDataExport {
   coachMemory: { id: string; kind: string; text: string; createdAt: Date; updatedAt: Date }[];
   /**
    * Every Signalement the Candidate sent (#374), newest first: type, message, a Question's question and coach reply,
-   * context, status and the team's reply, with their dates; never which Administrator changed it or replied.
+   * context, status and the team's reply, with their dates, and the numbers of its issues (#1141); never which
+   * Administrator changed it or replied, nor which Agent Key proposed an issue.
    */
-  signalements: Signalement[];
+  signalements: OwnSignalement[];
   /**
    * What the Candidate did from the browser extension (#924), newest first, for the 12 months kept: each Extension Event's
    * kind, date, Extension Version and object, and an error's code, route, HTTP status, place, browser and page's domain.
@@ -589,6 +590,8 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   back_office_assistant_message: "backOfficeAssistantConversations[].messages (blocked ones marked, each reply's Provenance, the item an Explainable label asked about; no AI costs)",
   ai_message_log: "aiMessageLog (no AI costs, a Failure Reason's and warnings' code and wording but not their technical detail)",
   signalement: "signalements (with their context, whether the AI notice was shown, status and the team's reply; never which Administrator or Agent Key handled them)",
+  signalement_issue: "signalements[].issueNumbers (the numbers of the issues Jobbbox published or commented for it, #1141; never which Agent Key proposed them)",
+  signalement_draft: "not exported: the team's draft reply, unsent (#1141); once Support sends it, it is signalements[].reply",
   extension_event: "extensionEvents (what they did from the extension and its errors, the 12 months kept: kind, date, Extension Version, object; an error's code, route, status, place, browser and page's domain, #924)",
   checkout_order: "orders (what was ordered, the CGV version accepted, the Immediate Performance Request, when it was ordered and confirmed; no Stripe identifiers)",
   withdrawal: "withdrawals (the contract, its dates, the name and address given, when the acknowledgement went; no Stripe identifiers)",

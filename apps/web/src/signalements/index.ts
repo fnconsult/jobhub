@@ -17,6 +17,12 @@
  *    are « à traiter » (TO_HANDLE_STATUSES);
  *  - `triageable` and `triageableOne`, what Signalement triage may read (#1139): only those sent with the AI notice,
  *    each with its Candidate's id, which signalements/triage uses for Redaction and never returns;
+ *  - `linkIssue`, `saveDraft`, `removeDraft`, `sendDraft`, `markReadyToClose`, `issuesToCheck` and `markIssuesChecked`,
+ *    Signalement triage's follow-up (#1141, ADR-0118): the issue numbers Jobbbox published or commented for it, kept
+ *    for the team (and in the Data export, by number alone); the draft reply an Agent Key proposed, in French and in
+ *    English, which Support edits, deletes or sends (the Candidate's language as the reply, and `traite` with it: one
+ *    Signalement notification); « Prêt à clore », the team's alone, set together on every Signalement linked to an issue
+ *    a deployed commit closed, and the issues still to check against the deployed commit;
  *  - `notifications`, `closeNotifications` and `remove`, the Candidate's side (#377): the Signalement notifications
  *    due (a reply saved or `traite` since they last closed it, derived from the row as it stands), closing one or all
  *    of them, and deleting one of their own;
@@ -38,6 +44,9 @@ import type { FieldError } from "../validation";
 import { pagePath, whereSentFrom } from "./context";
 import {
   ATTACHED_MAX_LENGTH,
+  ISSUE_LINK_KINDS,
+  type DraftLanguage,
+  type IssueLinkKind,
   isSignalementStatus,
   isSignalementType,
   MESSAGE_MAX_LENGTH,
@@ -90,12 +99,51 @@ export interface Signalement {
   createdAt: Date;
 }
 
+/** An issue Signalement triage linked to a Signalement (#1141): opened for it by Jobbbox, or commented as a duplicate. */
+export interface SignalementIssue {
+  number: number;
+  kind: IssueLinkKind;
+  linkedAt: Date;
+  /** The Agent Key that proposed it (`key:triage-beta`). Never in the Data export. */
+  linkedBy: string;
+}
+
+/**
+ * The draft reply Signalement triage proposed (#1141): in French and in English, one of them the Candidate's Interface
+ * Language, which Support edits, deletes or sends. Never sent by the agent, never in the Data export.
+ */
+export interface SignalementDraft {
+  fr: string;
+  en: string;
+  /** « Brouillon proposé par triage-beta »: the Agent Key that proposed it; null for one Support wrote. */
+  proposedBy: string | null;
+  proposedAt: Date;
+  /** When Support last edited it; null while it is as proposed. */
+  editedAt: Date | null;
+  /** The version the Candidate would receive: the one in their Interface Language. */
+  forCandidate: string;
+}
+
 /** A Signalement as the team reads it (#376): with who sent it, by the Candidate's email and current Plan. */
 export interface SentSignalement extends Signalement {
   candidate: { email: string; plan: Plan };
   /** Who set its status when an Agent Key did (`key:triage-beta`, #1139); null when the team did. Never in the Data export. */
   statusChangedBy: string | null;
+  /** The issues linked to it, in the order they were (#1141); the Candidate never sees them in « Mes signalements ». */
+  issues: SignalementIssue[];
+  /** The draft reply waiting for Support; null without one. */
+  draft: SignalementDraft | null;
+  /** « Prêt à clore » (#1141): when a deployed commit closed one of its issues in its environment; null until then. The team's alone. */
+  readyToCloseAt: Date | null;
 }
+
+/** A Signalement as its Candidate has it (« Mes signalements », their Data export): with the numbers of its issues alone (#1141). */
+export interface OwnSignalement extends Signalement {
+  issueNumbers: number[];
+}
+
+/** What `saveDraft` and `sendDraft` refuse or answer. */
+export type SaveDraftResult = { ok: true; draft: SignalementDraft } | { ok: false; errors: FieldError[] } | { ok: false; refused: "already_handled" };
 
 /** A Signalement Signalement triage may read (#1139): sent with the AI notice, with its Candidate's id for Redaction only. */
 export interface TriageableSignalement {
@@ -145,6 +193,28 @@ export interface Signalements {
   one(id: string): Promise<SentSignalement | null>;
   /** How many are « à traiter » (TO_HANDLE_STATUSES): what the Back Office's sidebar shows next to Signalements. */
   countToHandle(): Promise<number>;
+  /** Links the issue `number` to it, proposed `by` an Agent Key (#1141). Linking it again changes nothing. False for no such Signalement. */
+  linkIssue(id: string, issue: { number: number; kind: IssueLinkKind }, by: string): Promise<boolean>;
+  /**
+   * Saves its draft reply ({ fr, en }, untrusted: each trimmed, at most REPLY_MAX_LENGTH) on `within`: proposed `by` an
+   * Agent Key (`key:triage-beta`), replacing any draft; without `by`, edited by Support, keeping who proposed it.
+   * Null for no such Signalement; refused once it is `traite`.
+   */
+  saveDraft(id: string, draft: unknown, options?: { by?: string; within?: Queryable }): Promise<SaveDraftResult | null>;
+  /** Deletes its draft reply on `within`. False when there was none. */
+  removeDraft(id: string, within?: Queryable): Promise<boolean>;
+  /**
+   * Sends its draft (#1141): the version in the Candidate's Interface Language becomes the reply, and it is marked
+   * `traite` with it, so the Candidate gets one Signalement notification; the draft is gone. Null for no such
+   * Signalement; refused without a draft, or once it is `traite`.
+   */
+  sendDraft(id: string, within?: Queryable): Promise<Changed | { refused: "no_draft" | "already_handled" } | null>;
+  /** Marks « Prêt à clore » every Signalement linked to one of `issues` but those `traite` or already so; returns their ids. */
+  markReadyToClose(issues: readonly number[]): Promise<string[]>;
+  /** The issues linked to a Signalement not yet `traite` nor « Prêt à clore », not yet checked against the deployed `commit`, ascending. */
+  issuesToCheck(commit: string): Promise<number[]>;
+  /** Records that `issues` were checked against the deployed `commit`. */
+  markIssuesChecked(issues: readonly number[], commit: string): Promise<void>;
   /** Those sent with the AI notice, of `statuses` (default: every one), oldest first (#1139). Changes nothing. */
   triageable(filter?: { statuses?: readonly SignalementStatus[] }): Promise<TriageableSignalement[]>;
   /** One sent with the AI notice; null for any other (#1139). */
@@ -221,15 +291,58 @@ interface SentRow extends Row {
   email: string;
   plan: Plan | null;
   status_changed_by: string | null;
+  ready_to_close_at: Date | null;
+  issues: { number: number; kind: IssueLinkKind; linkedAt: string; linkedBy: string }[];
+  draft_fr: string | null;
+  draft_en: string | null;
+  draft_proposed_by: string | null;
+  draft_proposed_at: Date | null;
+  draft_edited_at: Date | null;
 }
 
 const prefixed = (prefix: string) => COLUMNS.split(",").map((column) => `${prefix}.${column.trim()}`).join(", ");
 
-/** The columns of `signalement s` with its Candidate's email and Plan, for SentRow. */
-const SENT = `${prefixed("s")}, s.status_changed_by, c.email, cp.plan
-  FROM signalement s JOIN candidate c ON c.id = s.candidate_id LEFT JOIN candidate_plan cp ON cp.candidate_id = s.candidate_id`;
+/** Its linked issues, in the order they were linked, as JSON. */
+const ISSUES_OF = (signalement: string) => `(SELECT coalesce(json_agg(json_build_object('number', i.issue_number, 'kind', i.kind, 'linkedAt', i.linked_at, 'linkedBy', i.linked_by)
+  ORDER BY i.linked_at, i.issue_number), '[]'::json) FROM signalement_issue i WHERE i.signalement_id = ${signalement})`;
 
-const sentFrom = (row: SentRow): SentSignalement => ({ ...fromRow(row), candidate: { email: row.email, plan: row.plan ?? FREE_PLAN }, statusChangedBy: row.status_changed_by });
+/** The columns of `signalement s` with its Candidate's email and Plan, its issues and its draft, for SentRow. */
+const SENT = `${prefixed("s")}, s.status_changed_by, s.ready_to_close_at, c.email, cp.plan, ${ISSUES_OF("s.id")} AS issues,
+  d.fr AS draft_fr, d.en AS draft_en, d.proposed_by AS draft_proposed_by, d.proposed_at AS draft_proposed_at, d.edited_at AS draft_edited_at
+  FROM signalement s JOIN candidate c ON c.id = s.candidate_id LEFT JOIN candidate_plan cp ON cp.candidate_id = s.candidate_id
+  LEFT JOIN signalement_draft d ON d.signalement_id = s.id`;
+
+interface DraftRow {
+  fr: string;
+  en: string;
+  proposed_by: string | null;
+  proposed_at: Date;
+  edited_at: Date | null;
+}
+
+const draftFrom = (row: DraftRow, language: Locale): SignalementDraft => ({
+  fr: row.fr,
+  en: row.en,
+  proposedBy: row.proposed_by,
+  proposedAt: row.proposed_at,
+  editedAt: row.edited_at,
+  forCandidate: row[draftLanguage(language)],
+});
+
+/** The draft's language the Candidate reads: their Interface Language. */
+const draftLanguage = (language: Locale): DraftLanguage => (language === "en" ? "en" : "fr");
+
+const sentFrom = (row: SentRow): SentSignalement => ({
+  ...fromRow(row),
+  candidate: { email: row.email, plan: row.plan ?? FREE_PLAN },
+  statusChangedBy: row.status_changed_by,
+  issues: row.issues.map((issue) => ({ number: issue.number, kind: issue.kind, linkedAt: new Date(issue.linkedAt), linkedBy: issue.linkedBy })),
+  draft:
+    row.draft_fr !== null && row.draft_en !== null && row.draft_proposed_at !== null
+      ? draftFrom({ fr: row.draft_fr, en: row.draft_en, proposed_by: row.draft_proposed_by, proposed_at: row.draft_proposed_at, edited_at: row.draft_edited_at }, row.interface_language)
+      : null,
+  readyToCloseAt: row.ready_to_close_at,
+});
 
 const triageableFrom = (row: Row & { candidate_id: string }): TriageableSignalement => ({ candidateId: row.candidate_id, signalement: fromRow(row) });
 
@@ -424,6 +537,89 @@ export function createSignalements(database: Pool, deps: SignalementsDeps): Sign
       return rows[0] ? triageableFrom(rows[0]) : null;
     },
 
+    async linkIssue(id, issue, by) {
+      if (!UUID.test(id) || !Number.isInteger(issue.number) || issue.number < 1) return false;
+      const { rows } = await database.query<{ found: boolean }>(
+        `WITH linked AS (
+           INSERT INTO signalement_issue (signalement_id, issue_number, kind, linked_at, linked_by)
+           SELECT id, $2, $3, $4, $5 FROM signalement WHERE id = $1
+           ON CONFLICT (signalement_id, issue_number) DO NOTHING)
+         SELECT EXISTS (SELECT 1 FROM signalement WHERE id = $1) AS found`,
+        [id, issue.number, issue.kind, now(), by],
+      );
+      return rows[0]!.found;
+    },
+
+    async saveDraft(id, sent, { by, within = database } = {}) {
+      const body = (sent && typeof sent === "object" ? sent : {}) as Record<string, unknown>;
+      const fr = text("fr", body.fr, 1, REPLY_MAX_LENGTH);
+      const en = text("en", body.en, 1, REPLY_MAX_LENGTH);
+      const before = await locked(id, within);
+      if (!before) return null;
+      if (before.status === "traite") return { ok: false, refused: "already_handled" };
+      const errors = [fr, en].filter((each): each is FieldError => typeof each !== "string");
+      if (errors.length > 0 || typeof fr !== "string" || typeof en !== "string") return { ok: false, errors };
+      const { rows } = await within.query<DraftRow>(
+        by === undefined
+          ? `INSERT INTO signalement_draft (signalement_id, fr, en, proposed_by, proposed_at, edited_at) VALUES ($1, $2, $3, NULL, $4, $4)
+             ON CONFLICT (signalement_id) DO UPDATE SET fr = EXCLUDED.fr, en = EXCLUDED.en, edited_at = EXCLUDED.edited_at
+             RETURNING fr, en, proposed_by, proposed_at, edited_at`
+          : `INSERT INTO signalement_draft (signalement_id, fr, en, proposed_by, proposed_at, edited_at) VALUES ($1, $2, $3, $5, $4, NULL)
+             ON CONFLICT (signalement_id) DO UPDATE SET fr = EXCLUDED.fr, en = EXCLUDED.en, proposed_by = EXCLUDED.proposed_by, proposed_at = EXCLUDED.proposed_at, edited_at = NULL
+             RETURNING fr, en, proposed_by, proposed_at, edited_at`,
+        by === undefined ? [id, fr, en, now()] : [id, fr, en, now(), by],
+      );
+      return { ok: true, draft: draftFrom(rows[0]!, before.context.interfaceLanguage) };
+    },
+
+    async removeDraft(id, within = database) {
+      if (!UUID.test(id)) return false;
+      const { rowCount } = await within.query(`DELETE FROM signalement_draft WHERE signalement_id = $1`, [id]);
+      return Boolean(rowCount);
+    },
+
+    async sendDraft(id, within = database) {
+      const before = await locked(id, within);
+      if (!before) return null;
+      if (before.status === "traite") return { refused: "already_handled" };
+      const { rows: drafts } = await within.query<DraftRow>(`DELETE FROM signalement_draft WHERE signalement_id = $1 RETURNING fr, en, proposed_by, proposed_at, edited_at`, [id]);
+      if (!drafts[0]) return { refused: "no_draft" };
+      const at = now();
+      // The reply and « traité » in one write: the Candidate gets one Signalement notification for both.
+      const { rows } = await within.query<Row>(
+        `UPDATE signalement SET reply = $2, replied_at = coalesce(replied_at, $3), reply_updated_at = $3, status = 'traite', status_changed_at = $3, status_changed_by = NULL
+          WHERE id = $1 RETURNING ${COLUMNS}`,
+        [id, drafts[0][draftLanguage(before.context.interfaceLanguage)], at],
+      );
+      return { before, after: fromRow(rows[0]!) };
+    },
+
+    async markReadyToClose(issues) {
+      if (issues.length === 0) return [];
+      const { rows } = await database.query<{ id: string }>(
+        `UPDATE signalement SET ready_to_close_at = $2
+          WHERE status <> 'traite' AND ready_to_close_at IS NULL
+            AND id IN (SELECT signalement_id FROM signalement_issue WHERE issue_number = ANY($1::int[]))
+          RETURNING id::text`,
+        [issues, now()],
+      );
+      return rows.map((row) => row.id);
+    },
+
+    async issuesToCheck(commit) {
+      const { rows } = await database.query<{ issue_number: number }>(
+        `SELECT DISTINCT i.issue_number FROM signalement_issue i JOIN signalement s ON s.id = i.signalement_id
+          WHERE s.status <> 'traite' AND s.ready_to_close_at IS NULL AND i.checked_commit IS DISTINCT FROM $1 ORDER BY 1`,
+        [commit],
+      );
+      return rows.map((row) => row.issue_number);
+    },
+
+    async markIssuesChecked(issues, commit) {
+      if (issues.length === 0) return;
+      await database.query(`UPDATE signalement_issue SET checked_commit = $2 WHERE issue_number = ANY($1::int[])`, [issues, commit]);
+    },
+
     async countToHandle() {
       const { rows } = await database.query<{ n: number }>(`SELECT count(*)::int AS n FROM signalement WHERE status = ANY($1::text[])`, [TO_HANDLE_STATUSES]);
       return rows[0]!.n;
@@ -431,10 +627,17 @@ export function createSignalements(database: Pool, deps: SignalementsDeps): Sign
   };
 }
 
-/** Every Signalement the Candidate sent, newest first: what their Data export holds, and what they can follow (#377). */
-export async function signalementsOf(database: Queryable, candidateId: string): Promise<Signalement[]> {
-  const { rows } = await database.query<Row>(`SELECT ${COLUMNS} FROM signalement WHERE candidate_id = $1 ORDER BY created_at DESC, id`, [candidateId]);
-  return rows.map(fromRow);
+/**
+ * Every Signalement the Candidate sent, newest first: what their Data export holds, and what they can follow (#377);
+ * with the numbers of its issues alone (#1141), never who linked them, its draft or « Prêt à clore ».
+ */
+export async function signalementsOf(database: Queryable, candidateId: string): Promise<OwnSignalement[]> {
+  const { rows } = await database.query<Row & { issue_numbers: number[] }>(
+    `SELECT ${COLUMNS}, (SELECT coalesce(array_agg(i.issue_number ORDER BY i.linked_at, i.issue_number), '{}') FROM signalement_issue i WHERE i.signalement_id = signalement.id) AS issue_numbers
+       FROM signalement WHERE candidate_id = $1 ORDER BY created_at DESC, id`,
+    [candidateId],
+  );
+  return rows.map((row) => ({ ...fromRow(row), issueNumbers: row.issue_numbers }));
 }
 
 /** Deletes the Signalements marked `traite` RETENTION_MONTHS ago or more at `now`; returns how many. Safe to run again. */
@@ -484,5 +687,30 @@ export async function migrateSignalements(database: Pool): Promise<void> {
     ALTER TABLE signalement ADD COLUMN IF NOT EXISTS status_changed_by text;
     CREATE INDEX IF NOT EXISTS signalement_candidate_idx ON signalement (candidate_id, created_at);
     CREATE INDEX IF NOT EXISTS signalement_handled_idx ON signalement (status_changed_at) WHERE status = 'traite';
+    -- « Prêt à clore » (#1141): when a deployed commit closed one of its issues in its environment. The team's alone.
+    ALTER TABLE signalement ADD COLUMN IF NOT EXISTS ready_to_close_at timestamptz;
+    -- The issues Jobbbox published or commented for it (#1141, ADR-0118): their number, never their text. Deleting the
+    -- Signalement removes the link and leaves the issue, which holds nothing of the Candidate.
+    CREATE TABLE IF NOT EXISTS signalement_issue (
+      signalement_id uuid NOT NULL REFERENCES signalement (id) ON DELETE CASCADE,
+      issue_number integer NOT NULL CHECK (issue_number > 0),
+      kind text NOT NULL CHECK (kind IN (${listed(ISSUE_LINK_KINDS)})),
+      linked_at timestamptz NOT NULL,
+      -- The Agent Key that proposed it (key:triage-beta). Never in the Data export.
+      linked_by text NOT NULL,
+      -- The deployed commit it was last checked against for « Prêt à clore ».
+      checked_commit text,
+      PRIMARY KEY (signalement_id, issue_number)
+    );
+    CREATE INDEX IF NOT EXISTS signalement_issue_number_idx ON signalement_issue (issue_number);
+    -- The draft reply an Agent Key proposed (#1141), in French and in English, until Support sends or deletes it.
+    CREATE TABLE IF NOT EXISTS signalement_draft (
+      signalement_id uuid PRIMARY KEY REFERENCES signalement (id) ON DELETE CASCADE,
+      fr text NOT NULL CHECK (char_length(fr) BETWEEN 1 AND ${REPLY_MAX_LENGTH}),
+      en text NOT NULL CHECK (char_length(en) BETWEEN 1 AND ${REPLY_MAX_LENGTH}),
+      proposed_by text,
+      proposed_at timestamptz NOT NULL,
+      edited_at timestamptz
+    );
   `);
 }

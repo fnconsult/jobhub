@@ -34,3 +34,14 @@ export const SENDING_WINDOW_HOURS = 24;
 
 /** How long a Signalement is kept once marked `traite`; one not yet handled is kept until it is. */
 export const RETENTION_MONTHS = 12;
+
+/**
+ * How an issue is linked to a Signalement by Signalement triage (#1141, ADR-0118): Jobbbox `opened` it for this
+ * Signalement, or `commented` on one that already covered the same problem (a duplicate).
+ */
+export const ISSUE_LINK_KINDS = ["opened", "commented"] as const;
+export type IssueLinkKind = (typeof ISSUE_LINK_KINDS)[number];
+
+/** The languages of a draft reply: the Candidate's own is one of them (their Interface Language), the other its translation. */
+export const DRAFT_LANGUAGES = ["fr", "en"] as const;
+export type DraftLanguage = (typeof DRAFT_LANGUAGES)[number];

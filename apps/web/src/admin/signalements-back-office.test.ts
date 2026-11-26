@@ -104,6 +104,9 @@ describe.skipIf(!connectionString)("« Signalements » in the Back Office: Suppo
         replyUpdatedAt: null,
         createdAt: new Date("2026-10-23T09:00:00Z"),
         candidate: { email: "paul.martin@example.fr", plan: "standard" },
+        issues: [],
+        draft: null,
+        readyToCloseAt: null,
       });
       expect(listed[2]!.candidate).toEqual({ email: "marie.dupont@example.fr", plan: "free" });
     });

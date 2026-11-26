@@ -22,7 +22,7 @@ import type { CoachConversations } from "../coach-conversations";
 import type { JobOffers } from "../job-offers";
 import type { JobSearchFailure, JobSearchStatus } from "../job-searches";
 import { routes } from "../routes";
-import type { CreationGiven, PageElement, PageScope, ReplyGiven, VersionGiven } from "./entries";
+import type { CreationGiven, PageElement, PageScope, ReplyGiven, TitleChangeGiven, VersionGiven } from "./entries";
 import { activityElement, type ActionEnded, type ActivityElement, type ElementKind } from "./pane";
 
 const withEnded = (ended: ActionEnded | undefined) => (ended ? { ended } : {});
@@ -40,6 +40,8 @@ export interface PageActivity {
   elements: PageElement[];
   replies: ReplyGiven[];
   versions?: VersionGiven[];
+  /** On an Application's page, the changes of its title (#1130). */
+  titleChanges?: TitleChangeGiven[];
   /** On a Profile's page, its creation (#810): the Profile's page, which « Création du profil » opens. */
   creation?: CreationGiven;
 }
@@ -183,9 +185,15 @@ export async function agendaPage(sources: PageSources, candidateId: string): Pro
 }
 
 /** `/candidatures/[id]/*`, every Section: the Job Offer, what was made for the Application, and the Coach replies about it. */
-export async function applicationPage(sources: PageSources, candidateId: string, application: { id: string; jobOffer: OfferShown }, content: readonly Made[]): Promise<PageActivity> {
+export async function applicationPage(
+  sources: PageSources,
+  candidateId: string,
+  application: { id: string; jobOffer: OfferShown },
+  content: readonly Made[],
+  titleChanges: readonly TitleChangeGiven[] = [],
+): Promise<PageActivity> {
   const [offer, replies] = await Promise.all([offers(sources, [application.jobOffer], offerPage), repliesAbout(sources, candidateId, { kind: "application", id: application.id })]);
-  return { page: "any", elements: [...offer, ...made(content)], replies };
+  return { page: "any", elements: [...offer, ...made(content)], replies, titleChanges: [...titleChanges] };
 }
 
 /**

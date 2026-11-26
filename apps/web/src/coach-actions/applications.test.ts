@@ -306,6 +306,11 @@ describe.skipIf(!connectionString)("the Candidatures Coach Actions (#716, needs 
 
       expect(await actionCards.undo(marie, id)).toMatchObject({ ok: true });
       expect(await applications.titleOf(marie, applicationId)).toEqual({ title: "DAF H/F", offerTitle: "DAF H/F", renamed: false, version: "DAF H/F", origin: null });
+      // Its history: the change from the card, then « Annuler », the Candidate's own.
+      expect(await applications.titleChanges(marie, applicationId)).toEqual([
+        { before: "DAF H/F", after: TITLE, cardId: id, at: expect.any(Date) },
+        { before: TITLE, after: "DAF H/F", at: expect.any(Date) },
+      ]);
     });
 
     it("applies the title the Candidate edited on the card; refuses an empty one", async () => {

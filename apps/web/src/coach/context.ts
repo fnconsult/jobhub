@@ -441,6 +441,8 @@ export function applicationDetails(application: Application): string {
   return [
     `Statut : ${APPLICATION_STATUS[application.status]} depuis le ${day(application.statusChangedAt)} (enregistrée le ${day(application.createdAt)}).`,
     application.reportedUnavailableAt ? `Le candidat a signalé que l'offre n'est plus publiée (le ${day(application.reportedUnavailableAt)}).` : "",
+    // Renamed by the Candidate (ADR-0117): the title below is theirs; the Job Offer's own, to give back with propose_application_title.
+    application.offerTitle ? `Le candidat a renommé cette candidature ; l'intitulé d'origine de l'offre est « ${application.offerTitle} ».` : "",
     application.interviews.length ? ["Entretiens (heure de Paris), passés compris :", ...application.interviews.map((interview) => `- ${interviewLine(interview)}`)].join("\n") : "",
     `${matchScoreText(application.matchScore)}.`,
     jobOfferText(application.jobOffer),

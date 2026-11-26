@@ -5,7 +5,18 @@
  */
 
 /** One object of a menu as the Sidebar lists it: its name, its page, and whether something waits for the Candidate there. */
-export type MenuObject = { id: string; label: string; href: string; toHandle: boolean };
+export type MenuObject = {
+  id: string;
+  label: string;
+  href: string;
+  toHandle: boolean;
+  /**
+   * An Application's own title (Mes candidatures, #1130): its « … » renames it, as its conversation's Top Bar does, and
+   * clears its conversation (`conversationId`, once it has one).
+   */
+  title?: string;
+  conversationId?: string;
+};
 
 /**
  * What a menu unfolds into: the objects shown, in their order, and how many it has in all (« Tout voir (N) »). `count`:

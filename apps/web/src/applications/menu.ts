@@ -73,6 +73,7 @@ export function applicationsMenu({
       current.map((application) => ({
         id: application.id,
         label: [application.jobOffer.employer, application.jobOffer.title].filter(Boolean).join(" · "),
+        title: application.jobOffer.title,
         href: routes.application(application.id),
         toHandle: waiting.has(application.id),
       })),

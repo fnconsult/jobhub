@@ -1,0 +1,86 @@
+# Runs the dry run of the Job Offer title correction (#1128, ADR-0117, docs/ops/job-offer-titles.md) on the Beta, over
+# SSH like consumption-backfill.yml, for when nobody can reach the VPS by hand.
+#
+# Manual only, staging only, dry run only: `gh workflow run retitle-job-offers.yml` (optionally `-f limit=N`). It lists
+# what would change and changes nothing. There is no input for `--apply`: once the product owner has checked the list,
+# applying stays a hand step on the VPS (docs/ops/job-offer-titles.md#on-the-vps).
+#
+# It runs the script with the `migrate` image the Beta already runs (the deployed commit, already on the VPS), under the
+# deploy lock so it never overlaps a deployment.
+name: Job Offer titles (dry run)
+run-name: Job Offer titles, dry run (staging) by ${{ github.actor }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "At most this many Job Offers, oldest first (empty: all)"
+        type: string
+        required: false
+        default: ""
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: staging
+      deployment: false
+    steps:
+      - name: Check the limit
+        env:
+          LIMIT: ${{ inputs.limit }}
+        run: |
+          if [ -n "$LIMIT" ] && ! [[ "$LIMIT" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error::limit must be a positive whole number, got « $LIMIT »"
+            exit 1
+          fi
+
+      - name: Run the dry run on the VPS
+        # Pinned to a SHA, as in deploy.yml: this action receives the VPS key.
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+        env:
+          JOBHUB_TARGET: staging
+          JOBHUB_ROOT: ${{ vars.JOBHUB_ROOT }}
+          JOBHUB_HOST: ${{ vars.JOBHUB_HOST }}
+          JOBHUB_SLUG: ${{ vars.JOBHUB_SLUG }}
+          JOBHUB_IMAGES: ghcr.io/${{ github.repository }}
+          LIMIT: ${{ inputs.limit }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 55m
+          envs: JOBHUB_TARGET,JOBHUB_ROOT,JOBHUB_HOST,JOBHUB_SLUG,JOBHUB_IMAGES,LIMIT
+          script: |
+            set -euo pipefail
+            app="$JOBHUB_ROOT/app"
+            env_file="$JOBHUB_ROOT/.env"
+            [ -d "$app/.git" ] || { echo "✗ $app is not a checkout: deploy the Beta first" >&2; exit 1; }
+            # Never alongside a deployment of this environment (deploy.sh holds the same lock).
+            exec 9>"$JOBHUB_ROOT/.deploy.lock"
+            flock -n 9 || { echo "✗ a deployment of $JOBHUB_TARGET is running; try again when it is done" >&2; exit 1; }
+            JOBHUB_REVISION=$(git -C "$app" rev-parse HEAD)
+            export JOBHUB_ENV_FILE="$env_file" JOBHUB_TARGET JOBHUB_HOST JOBHUB_SLUG JOBHUB_REVISION JOBHUB_IMAGES
+            if docker info >/dev/null 2>&1; then
+              DOCKER=(docker)
+            elif sudo -n docker info >/dev/null 2>&1; then
+              DOCKER=(sudo -n --preserve-env=JOBHUB_ENV_FILE,JOBHUB_TARGET,JOBHUB_HOST,JOBHUB_SLUG,JOBHUB_REVISION,JOBHUB_IMAGES docker)
+            else
+              echo "✗ $(id -un) cannot run docker" >&2
+              exit 1
+            fi
+            ARGS=()
+            [ -z "$LIMIT" ] || ARGS=(--limit "$LIMIT")
+            echo "▸ $JOBHUB_TARGET at $JOBHUB_REVISION: Job Offer titles, dry run ${ARGS[*]:-}"
+            # Never --apply here: the dry run only lists.
+            "${DOCKER[@]}" compose -f "$app/deploy/compose.yml" -p "$JOBHUB_SLUG" --env-file "$env_file" \
+              run --rm --no-deps migrate \
+              node_modules/.bin/tsx apps/web/scripts/retitle-job-offers.ts "${ARGS[@]}"

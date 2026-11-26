@@ -335,7 +335,7 @@ export function applicationCoachActions(sources: ApplicationActionSources): Coac
       const before = await sources.applications.titleOf(candidateId, id);
       if (!before || !(await reachable(candidateId, id))) return NOT_FOUND;
       if (before.version !== change.version) return CONFLICT;
-      const changed = await sources.applications.change(candidateId, id, { title: change.value.title }, { version: change.version, origin: origin(call) });
+      const changed = await sources.applications.change(candidateId, id, { title: change.value.title }, { version: change.version, origin: origin(call), proposalCard: call.cardId });
       if (!changed.ok) return refused(changed);
       const after = await sources.applications.titleOf(candidateId, id);
       return { ok: true, undo: { applicationId: id, title: before.renamed ? before.title : null, origin: before.origin, version: after?.version ?? "" } };

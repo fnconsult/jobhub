@@ -98,8 +98,9 @@ describe("Mes candidatures as its menu conversation's card and its Sidebar objec
 
     expect(menu.sidebar).toEqual({
       shown: [
-        { id: "a1", label: "Acme · DAF H/F", href: "/candidatures/a1", toHandle: false },
-        { id: "a2", label: "Contrôleur de gestion", href: "/candidatures/a2", toHandle: true },
+        // `title`: the Application's own, which its « … » renames (#1130).
+        { id: "a1", label: "Acme · DAF H/F", title: "DAF H/F", href: "/candidatures/a1", toHandle: false },
+        { id: "a2", label: "Contrôleur de gestion", title: "Contrôleur de gestion", href: "/candidatures/a2", toHandle: true },
       ],
       total: 2,
     });

@@ -7,7 +7,8 @@ import type { UnfoldedMenu } from "@/sidebar-menus";
 import { ConversationFirstProvider, SidebarConversations, SidebarMenu } from "./conversation-first";
 
 const pathname = vi.hoisted(() => ({ current: "/" }));
-vi.mock("next/navigation", () => ({ usePathname: () => pathname.current }));
+const refresh = vi.hoisted(() => vi.fn());
+vi.mock("next/navigation", () => ({ usePathname: () => pathname.current, useRouter: () => ({ refresh }) }));
 
 const APPLICATIONS: UnfoldedMenu = {
   shown: [
@@ -105,5 +106,60 @@ describe("a Sidebar menu with objects, « Conversation au centre » on (ADR-0070
     renderInFrench(<Sidebar menus={{ applications: { shown: [], total: 0 } }} />);
     expect(within(sidebar()).getByRole("link", { name: "Mes candidatures" })).toBeTruthy();
     expect(within(sidebar()).queryByRole("button", { name: "Dérouler « Mes candidatures »" })).toBeNull();
+  });
+});
+
+describe("an Application's « … » in the Sidebar, as every conversation has it (#1130)", () => {
+  const CONVERSATION = "33333333-3333-4333-8333-333333333333";
+  const RENAMABLE: UnfoldedMenu = {
+    shown: [
+      { id: "a1", label: "Exemple Digital · Building tomorrow, together", title: "Building tomorrow, together", href: "/candidatures/a1", toHandle: false, conversationId: CONVERSATION },
+      { id: "a2", label: "Ledger · Contrôleur de gestion", title: "Contrôleur de gestion", href: "/candidatures/a2", toHandle: true },
+    ],
+    total: 2,
+  };
+  let fetch: ReturnType<typeof vi.fn>;
+  beforeEach(() => {
+    pathname.current = "/";
+    window.localStorage.clear();
+    refresh.mockClear();
+    fetch = vi.fn(async () => new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetch);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const openActions = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
+    within(sidebar()).getByRole("button", { name: `Actions pour « ${name} »` }).focus();
+    await user.keyboard("{Enter}");
+    return screen.findByRole("menu");
+  };
+
+  it("renames the Application from « Renommer »: its own title, for this Candidate only, and the page follows", async () => {
+    fetch.mockResolvedValueOnce(Response.json({ id: "a1" }));
+    const user = userEvent.setup();
+    renderInFrench(<Sidebar menus={{ applications: RENAMABLE }} />);
+
+    await user.click(within(await openActions(user, "Exemple Digital · Building tomorrow, together")).getByRole("menuitem", { name: "Renommer" }));
+    const title = within(sidebar()).getByRole("textbox", { name: "Intitulé de la candidature" });
+    expect(title).toHaveProperty("value", "Building tomorrow, together");
+    await user.clear(title);
+    await user.type(title, "Senior Program Director – Delivery Management{Enter}");
+
+    expect(fetch).toHaveBeenCalledWith("/api/applications/a1", expect.objectContaining({ method: "PATCH", body: JSON.stringify({ title: "Senior Program Director – Delivery Management" }) }));
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("clears its conversation after a confirming Dialog, the Application staying; none to clear before its first message", async () => {
+    const user = userEvent.setup();
+    renderInFrench(<Sidebar menus={{ applications: RENAMABLE }} />);
+
+    await user.click(within(await openActions(user, "Exemple Digital · Building tomorrow, together")).getByRole("menuitem", { name: "Effacer la conversation" }));
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Effacer" }));
+    expect(fetch).toHaveBeenCalledWith(`/api/coach/conversations/${CONVERSATION}`, { method: "DELETE" });
+    expect(refresh).toHaveBeenCalled();
+
+    await user.keyboard("{Escape}");
+    const menu = await openActions(user, "Ledger · Contrôleur de gestion");
+    expect(within(menu).getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Renommer"]);
   });
 });

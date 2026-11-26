@@ -533,4 +533,38 @@ describe("Activité entries (#807): a pure builder over a page's elements, Coach
     const unnamed = entries.at(-1)!;
     expect(unnamed.read!.map((element) => (element.kind === "object" ? element.name : null))).toEqual([null, null]);
   });
+
+  describe("an Application's title changes (#1130)", () => {
+    const WHAT = "Intitulé de la candidature";
+    const SLOGAN = "Building tomorrow, together";
+    const TITLE = "Senior Program Director – Delivery Management";
+
+    it("lists the Candidate's own change with the title before, the Job Offer's own the first time, newest first", () => {
+      const entries = activityEntries({
+        page: "any",
+        titleChanges: [
+          { what: WHAT, before: SLOGAN, after: TITLE, at: at("10:00") },
+          { what: WHAT, before: TITLE, after: "Directeur de programme", at: new Date(at("11:00")) },
+        ],
+      });
+
+      expect(entries.map(({ kind, at, origin, result }) => ({ kind, at, origin, change: result.change }))).toEqual([
+        { kind: "change", at: at("11:00"), origin: "candidate", change: { what: WHAT, before: TITLE, after: "Directeur de programme" } },
+        { kind: "change", at: at("10:00"), origin: "candidate", change: { what: WHAT, before: SLOGAN, after: TITLE } },
+      ]);
+      expect(entries.every((entry) => entry.cost.noAi)).toBe(true);
+    });
+
+    it("puts a change applied from a Coach proposal in the place of that card's own, « suite de » its reply, never twice", () => {
+      const reply: ReplyGiven = { ...firstReply, cards: [{ ...blagnac, change: { ...blagnac.change, what: WHAT, before: SLOGAN, after: TITLE } }] };
+      const entries = activityEntries({ page: "any", replies: [reply], titleChanges: [{ what: WHAT, before: SLOGAN, after: TITLE, at: at("14:05"), cardId: CARD }] });
+
+      const changes = entries.filter((entry) => entry.kind === "change");
+      expect(changes).toHaveLength(1);
+      expect(changes[0]).toMatchObject({ origin: "coach_proposal", messageId: "m2", result: { change: { what: WHAT, before: SLOGAN, after: TITLE } } });
+      expect(changes[0]!.after).toBe(entries.find((entry) => entry.kind === "coach_reply")!.key);
+      // Served without its reply, the server's entry keeps the card the browser links to its reply.
+      expect(servedEntries({ page: "any", titleChanges: [{ what: WHAT, before: SLOGAN, after: TITLE, at: at("14:05"), cardId: CARD }] })).toMatchObject([{ kind: "change", card: CARD }]);
+    });
+  });
 });

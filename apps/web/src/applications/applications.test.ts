@@ -979,6 +979,22 @@ describe.skipIf(!connectionString)("Applications (needs Postgres: DATABASE_URL)"
       expect(await applications.titleOf(candidateId, id)).toMatchObject({ renamed: false });
     });
 
+    it("keeps each change in its history, the title before, the Job Offer's own the first time; none for a title given again", async () => {
+      const { id } = await save({ jobOfferId, profileId });
+
+      await applications.change(candidateId, id, { title: TITLE });
+      await applications.change(candidateId, id, { title: TITLE });
+      await applications.change(candidateId, id, { title: "Directeur de programme" }, { version: TITLE, proposalCard: "card-7" });
+      await applications.change(candidateId, id, { title: null });
+
+      expect(await applications.titleChanges(candidateId, id)).toEqual([
+        { before: "DAF H/F", after: TITLE, at: expect.any(Date) },
+        { before: TITLE, after: "Directeur de programme", cardId: "card-7", at: expect.any(Date) },
+        { before: "Directeur de programme", after: "DAF H/F", at: expect.any(Date) },
+      ]);
+      expect(await applications.titleChanges(otherCandidateId, id)).toEqual([]);
+    });
+
     it("is refused empty, too long, or on someone else's Application; from a Coach proposal, only from the title it saw", async () => {
       const { id } = await save({ jobOfferId, profileId });
 

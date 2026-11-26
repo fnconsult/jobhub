@@ -4849,7 +4849,8 @@
       "hint": "Pour vous seulement : l'offre garde son intitulé pour les autres.",
       "saved": "Intitulé enregistré",
       "error": "L'intitulé n'a pas pu être enregistré. Réessayez.",
-      "offerTitle": "Intitulé de l'offre : {{title}}"
+      "offerTitle": "Intitulé de l'offre : {{title}}",
+      "invalid": "Donnez à la candidature un intitulé de 1 à 200 caractères."
     },
     "reportUnavailableHint": "Pour vous seulement : l'offre ne change pas pour les autres, et votre candidature garde son statut.",
     "undoReport": "Annuler le signalement",

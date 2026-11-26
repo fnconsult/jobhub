@@ -244,10 +244,24 @@ export interface ActivityEntry {
   noMatch?: { profileId: string };
 }
 
+/**
+ * A change of an Application's title (#1130), as its title history keeps it: `what`, the field's name in the page's
+ * language; `cardId`, the Coach proposal card it came from, none for the Candidate's own.
+ */
+export interface TitleChangeGiven {
+  what: string;
+  before: string;
+  after: string;
+  at: Date | string;
+  cardId?: string;
+}
+
 export interface ActivityInput {
   page: PageScope;
   elements?: readonly PageElement[];
   replies?: readonly ReplyGiven[];
+  /** An Application's title changes (#1130), each an entry with the title before. */
+  titleChanges?: readonly TitleChangeGiven[];
   /** Counted on a Profile's page only. */
   versions?: readonly VersionGiven[];
   /**
@@ -434,6 +448,27 @@ function versionEntry(given: VersionGiven): Built {
   };
 }
 
+/**
+ * An Application's title change (#1130): by the Candidate, or from the card it names, which then stands in the place of
+ * that card's own change, after its reply.
+ */
+function titleChangeEntry(given: TitleChangeGiven, index: number): Built {
+  return {
+    key: `title_change:${index + 1}`,
+    kind: "change",
+    at: iso(given.at),
+    object: { href: null, label: null },
+    origin: given.cardId ? "coach_proposal" : "candidate",
+    result: { end: { state: "done" }, change: { what: given.what, before: given.before, after: given.after } },
+    steps: [],
+    sites: [],
+    tools: [],
+    models: [],
+    cost: { quota: null, tokens: null, noAi: true },
+    ...(given.cardId ? { card: given.cardId } : {}),
+  };
+}
+
 const objectOf = (card: CardGiven) => ({ href: card.change.target.href, label: card.change.target.name });
 const changeOf = ({ change }: CardGiven) => ({ what: change.what, before: change.before, after: change.after });
 
@@ -460,6 +495,7 @@ function build(input: ActivityInput): Built[] {
   const replies = (input.replies ?? []).flatMap(replyEntries);
   const versions = input.page === "profile" ? (input.versions ?? []).filter((version) => version !== first).map((version) => [version.version, versionEntry(version)] as const) : [];
   const version = new Map(versions);
+  const titleChanges = (input.titleChanges ?? []).map(titleChangeEntry);
   given.forEach((element, index) => {
     const cause = element.after !== undefined ? elements[element.after] : element.scored !== undefined ? version.get(element.scored) : undefined;
     if (elements[index] && cause && cause !== elements[index]) elements[index].cause = cause;
@@ -467,7 +503,7 @@ function build(input: ActivityInput): Built[] {
   const prior = builtBefore(input.built ?? [], new Set(replies.flatMap((entry) => (entry.kind === "coach_reply" ? [entry.messageId!] : []))));
   // A version a card created is the change it made (even once undone): it follows that card's reply, in its place.
   const madeVersion = new Set<string>();
-  for (const entry of [...versions.map(([, each]) => each), ...prior]) {
+  for (const entry of [...versions.map(([, each]) => each), ...titleChanges, ...prior]) {
     const reply = entry.card ? replies.find((each) => each.cards?.has(entry.card!)) : undefined;
     if (!reply) continue;
     Object.assign(entry, { cause: reply, messageId: reply.messageId, proposal: reply.cards!.get(entry.card!) });
@@ -481,6 +517,7 @@ function build(input: ActivityInput): Built[] {
     ...elements.flatMap((entry) => (entry ? [entry] : [])),
     ...replies.filter((entry) => !(entry.kind === "change" && madeVersion.has(entry.card!))),
     ...versions.map(([, entry]) => entry),
+    ...titleChanges,
   ]);
   keyed(built);
   for (const entry of built) {

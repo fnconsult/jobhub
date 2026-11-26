@@ -82,7 +82,7 @@
   }
 
   .ds-viewer__zoom span {
-    min-width: 3.25rem;
+    min-width: max(3.25rem, 52px);
     font-size: var(--font-size-meta);
     font-variant-numeric: tabular-nums;
     color: var(--color-meta);
@@ -93,7 +93,7 @@
     display: grid;
     grid-template-columns: 6.5rem minmax(0, 1fr);
     height: min(40rem, 75vh);
-    min-height: 24rem;
+    min-height: max(24rem, 384px);
   }
 
   .ds-viewer__thumbs {

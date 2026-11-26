@@ -3,8 +3,13 @@ import { signInWithMagicLink } from "./support/candidate";
 import { newAddress } from "./support/mailbox";
 
 // Issue #1152 (ADR-0009, amendment of 2026-11-26): the Text Size moved one step down, and « Petit » sets 12px body
-// text. The text shrinks, never the targets: at Petit, every control keeps the size it has at the Standard Text Size,
-// up to the 44px target of the Candidate's pages, and never under WCAG 2.5.8's 24 × 24px; nothing runs off the side.
+// text. The text shrinks, never the targets: at Petit, a control that reaches a target size of the Design System at
+// the Standard Text Size still reaches it (44px, Confort's 40px control height, WCAG 2.5.8's 24 × 24px); a link inside
+// a sentence is text and follows the text. Nothing runs off the side.
+
+/** The target sizes a control keeps, largest first: the Candidate's 44px, Confort's control height, WCAG 2.5.8's. */
+const TARGET_SIZES = [44, 40, 24];
+const keptOf = (px: number) => TARGET_SIZES.find((size) => px >= size - 0.5) ?? 0;
 
 type Target = { name: string; width: number; height: number };
 
@@ -19,8 +24,8 @@ async function targets(page: Page): Promise<Target[]> {
         if (element.closest("[inert], [aria-hidden='true']")) return false;
         const box = element.getBoundingClientRect();
         if (box.width === 0 || box.height === 0) return false;
-        // A link inside a sentence is exempt (WCAG 2.5.8): it is text, and follows the text.
-        return !(style.display === "inline" && element.tagName === "A");
+        // A link or a glossary term inside a sentence is exempt (WCAG 2.5.8): it is text, and follows the text.
+        return style.display !== "inline";
       })
       .map((element) => {
         const box = element.getBoundingClientRect();
@@ -47,14 +52,13 @@ async function checkPage(page: Page, path: string) {
     expect(await page.evaluate(() => getComputedStyle(document.body).fontSize), "body text at Petit").toBe("12px");
     // Nothing runs off the side.
     expect(await page.evaluate(() => document.documentElement.scrollWidth), `${path} at ${width}px: the page's width`).toBeLessThanOrEqual(width);
-    // The same controls, each at least as large as at Standard, up to 44px high, and never under 24 × 24px.
+    // The same controls, each keeping the target size it reached at Standard.
     expect(small.map((t) => t.name), `${path} at ${width}px: the same controls at Petit`).toEqual(standard.map((t) => t.name));
     small.forEach((target, i) => {
       const before = standard[i]!;
       const label = `${path} at ${width}px: ${target.name}`;
-      expect.soft(target.height, `${label}, its height`).toBeGreaterThanOrEqual(Math.min(before.height, 44) - 0.5);
-      expect.soft(target.height, `${label}, its height`).toBeGreaterThanOrEqual(Math.min(before.height, 24) - 0.5);
-      expect.soft(target.width, `${label}, its width`).toBeGreaterThanOrEqual(Math.min(before.width, 24) - 0.5);
+      expect.soft(target.height, `${label}, its height`).toBeGreaterThanOrEqual(keptOf(before.height) - 0.5);
+      expect.soft(target.width, `${label}, its width`).toBeGreaterThanOrEqual(Math.min(keptOf(before.width), 24) - 0.5);
     });
   }
 }

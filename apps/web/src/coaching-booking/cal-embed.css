@@ -3,7 +3,7 @@
 .cal-embed {
   width: 100%;
   min-width: 0;
-  min-height: 37.5rem;
+  min-height: max(37.5rem, 600px);
 }
 
 /* The paid session's booking page scrolls in its own frame rather than widening the page. */

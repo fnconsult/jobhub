@@ -103,7 +103,7 @@
   }
 
   .landing-action {
-    min-height: 3.25rem;
+    min-height: max(3.25rem, 52px);
     padding: 0 1.75rem;
     font-size: var(--font-size-landing-body);
   }
@@ -239,7 +239,7 @@
     gap: var(--space-4);
     align-items: center;
     justify-content: space-between;
-    min-height: 3.25rem;
+    min-height: max(3.25rem, 52px);
     padding: 0 var(--space-6);
     border-bottom: 1px solid var(--color-border);
   }
@@ -249,7 +249,7 @@
     display: grid;
     gap: var(--space-4);
     align-content: start;
-    min-height: 23rem;
+    min-height: max(23rem, 368px);
     padding: var(--space-6) clamp(1rem, 3vw, 2.5rem) var(--space-8);
   }
 
@@ -317,7 +317,7 @@
     gap: var(--space-2);
     align-items: center;
     justify-content: space-between;
-    min-height: 2.75rem;
+    min-height: max(2.75rem, 44px);
     padding: 0 var(--space-2) 0 var(--space-4);
     margin-top: var(--space-2);
     color: var(--color-meta);
@@ -474,7 +474,7 @@
   .landing-browser__body {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 15rem;
-    min-height: 19rem;
+    min-height: max(19rem, 304px);
   }
 
   .landing-browser__page,
@@ -513,7 +513,7 @@
     display: grid;
     gap: var(--space-3);
     align-content: start;
-    min-height: 24rem;
+    min-height: max(24rem, 384px);
     padding: var(--space-8) var(--space-4) var(--space-4);
     text-align: start;
     background: var(--color-background);
@@ -759,7 +759,7 @@
     gap: var(--space-4);
     align-items: center;
     justify-content: space-between;
-    min-height: 3.75rem;
+    min-height: max(3.75rem, 60px);
     padding-block: var(--space-2);
     font-size: var(--font-size-lead);
     font-weight: 500;
@@ -904,7 +904,7 @@
   .landing-drop {
     display: grid;
     place-items: center;
-    min-height: 4.5rem;
+    min-height: max(4.5rem, 72px);
     padding: var(--space-3);
     color: var(--color-meta);
     text-align: center;

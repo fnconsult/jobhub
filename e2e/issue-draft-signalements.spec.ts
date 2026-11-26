@@ -74,9 +74,12 @@ class FakeGitHub {
     return `http://127.0.0.1:${GITHUB_PORT}`;
   }
   writes = () => this.calls.filter((call) => call.method === "POST" && /\/repos\/[^/]+\/[^/]+\/issues/.test(call.path));
-  close(number: number, commit: string) {
-    this.issues.set(number, { closedBy: commit });
+  /** Closes the issue as GitHub does when a pull request's merge closes it: its « closed » event has no commit. */
+  close(number: number, mergeCommit: string) {
+    this.issues.set(number, { closedBy: mergeCommit });
   }
+  /** The pull request whose merge closed the issue `number`. */
+  private pullOf = (number: number) => number + 100_000;
 
   private async handle(request: IncomingMessage, response: ServerResponse) {
     const chunks: Buffer[] = [];
@@ -92,7 +95,8 @@ class FakeGitHub {
       response.end(JSON.stringify(data));
     };
     const repo = `/repos/${REPOSITORY}`;
-    const issue = url.pathname.match(new RegExp(`^${repo}/issues/(\\d+)(/comments|/events)?$`));
+    const issue = url.pathname.match(new RegExp(`^${repo}/issues/(\\d+)(/comments|/timeline)?$`));
+    const pull = url.pathname.match(new RegExp(`^${repo}/pulls/(\\d+)$`));
     // Writes: only the write-only token.
     if (method === "POST" && url.pathname === `${repo}/issues`) {
       if (token !== ISSUES_TOKEN) return send(403, { message: "Resource not accessible by personal access token" });
@@ -113,7 +117,21 @@ class FakeGitHub {
         if (!known) return send(404, { message: "Not Found" });
         return send(200, known.closedBy ? { state: "closed", state_reason: "completed" } : { state: "open", state_reason: null });
       }
-      if (issue?.[2] === "/events") return send(200, [{ event: "closed", commit_id: this.issues.get(Number(issue[1]))?.closedBy ?? null }]);
+      if (issue?.[2] === "/timeline") {
+        const closedBy = this.issues.get(Number(issue[1]))?.closedBy;
+        if (!closedBy) return send(200, []);
+        const pullRequest = { number: this.pullOf(Number(issue[1])), pull_request: { merged_at: "2026-11-26T15:59:06Z" }, repository: { full_name: REPOSITORY } };
+        return send(200, [
+          { event: "cross-referenced", created_at: "2026-11-26T14:00:00Z", source: { type: "issue", issue: pullRequest } },
+          { event: "referenced", commit_id: closedBy, created_at: "2026-11-26T15:59:07Z" },
+          { event: "closed", commit_id: null, created_at: "2026-11-26T15:59:08Z", state_reason: null },
+        ]);
+      }
+      if (pull) {
+        const closed = [...this.issues].find(([number]) => this.pullOf(number) === Number(pull[1]));
+        if (!closed?.[1].closedBy) return send(404, { message: "Not Found" });
+        return send(200, { number: Number(pull[1]), merged_at: "2026-11-26T15:59:06Z", merge_commit_sha: closed[1].closedBy });
+      }
       const compare = url.pathname.match(new RegExp(`^${repo}/compare/([^.]+)\\.\\.\\.(.+)$`));
       if (compare) return send(200, this.carries.get(compare[2]!)?.includes(compare[1]!) ? { status: "ahead", behind_by: 0, ahead_by: 1 } : { status: "diverged", behind_by: 1, ahead_by: 1 });
       // Livraison's own reads: no environment, no ticket, no pull request.

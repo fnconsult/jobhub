@@ -23,7 +23,11 @@ export interface GitHubIssues {
   open(issue: { title: string; body: string; labels: readonly string[] }): Promise<{ number: number; url: string }>;
   /** Comments on the issue `number`; its number and the comment's page. */
   comment(number: number, body: string): Promise<{ number: number; url: string }>;
-  /** The commit that closed the issue `number` (its latest « closed » event's); null when it is open, not completed, or closed by hand. */
+  /**
+   * The commit that closed the issue `number`: its latest « closed » event's, or, when a pull request's merge closed it
+   * (GitHub's event then has no commit), that pull request's merge commit. Null when it is open, not completed, or
+   * closed by hand.
+   */
   closingCommit(number: number): Promise<string | null>;
   /** Whether `commit` is part of `deployed` (the same commit, or an ancestor). */
   contains(deployed: string, commit: string): Promise<boolean>;
@@ -40,6 +44,20 @@ export interface GitHubIssuesDeps {
   /** GITHUB_API_URL; GitHub's own by default. */
   apiUrl?: string;
 }
+
+/** An event of an issue's timeline, as far as `closingCommit` reads it. */
+interface TimelineEvent {
+  event: string;
+  created_at?: string;
+  commit_id?: string | null;
+  /** A « cross-referenced » event's: the issue or pull request that mentioned this one. */
+  source?: { issue?: { number: number; pull_request?: { merged_at: string | null } | null; repository?: { full_name: string } } };
+}
+
+/** The timeline's pages read at most (100 events each). */
+const TIMELINE_PAGES = 10;
+/** GitHub closes the issues a pull request closes within seconds of its merge; a close later than this is by hand. */
+const CLOSED_BY_MERGE_WITHIN_MS = 10 * 60_000;
 
 export function gitHubIssues(deps: GitHubIssuesDeps): GitHubIssues {
   const fetch = deps.fetch ?? globalThis.fetch;
@@ -84,8 +102,31 @@ export function gitHubIssues(deps: GitHubIssuesDeps): GitHubIssues {
     async closingCommit(number) {
       const issue = await call<{ state: string; state_reason?: string | null }>(deps.readToken(), `issues/${number}`);
       if (issue.state !== "closed" || (issue.state_reason && issue.state_reason !== "completed")) return null;
-      const events = await call<{ event: string; commit_id: string | null }[]>(deps.readToken(), `issues/${number}/events?per_page=100`);
-      return events.filter((event) => event.event === "closed").at(-1)?.commit_id ?? null;
+      const timeline: TimelineEvent[] = [];
+      for (let page = 1; page <= TIMELINE_PAGES; page++) {
+        const events = await call<TimelineEvent[]>(deps.readToken(), `issues/${number}/timeline?per_page=100&page=${page}`);
+        timeline.push(...events);
+        if (events.length < 100) break;
+      }
+      const closed = timeline.filter((event) => event.event === "closed").at(-1);
+      if (!closed) return null;
+      // Closed by a commit pushed to the default branch.
+      if (closed.commit_id) return closed.commit_id;
+      // Closed by a pull request's merge: GitHub's « closed » event has no commit then, and does not name the pull
+      // request. It is the one of this repository, mentioning the issue, merged just before it was closed.
+      const closedAt = Date.parse(closed.created_at ?? "");
+      if (Number.isNaN(closedAt)) return null;
+      const closer = timeline
+        .flatMap((event) => {
+          const source = event.event === "cross-referenced" ? event.source?.issue : undefined;
+          const mergedAt = Date.parse(source?.pull_request?.merged_at ?? "");
+          if (!source || source.repository?.full_name !== deps.repository || Number.isNaN(mergedAt)) return [];
+          return mergedAt <= closedAt && closedAt - mergedAt <= CLOSED_BY_MERGE_WITHIN_MS ? [{ number: source.number, mergedAt }] : [];
+        })
+        .sort((a, b) => b.mergedAt - a.mergedAt)[0];
+      if (!closer) return null;
+      const pull = await call<{ merge_commit_sha: string | null }>(deps.readToken(), `pulls/${closer.number}`);
+      return pull.merge_commit_sha ?? null;
     },
 
     async contains(deployed, commit) {

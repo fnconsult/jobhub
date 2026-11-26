@@ -7,6 +7,7 @@ import { settingHref } from "../platform-settings/parametres";
 import { routes } from "../routes";
 import { deliveryStatus, gitHubReader, openPullRequestStage, type DeliveryStatus } from "./index";
 import { caveatText, environmentName, headlineText, liveCheckText, shortSha, stageName } from "./texts";
+import type { SignalementsDigest } from "../signalements/digest";
 
 /** The Platform Setting naming who gets the daily delivery status email: comma-separated addresses; empty, nobody. */
 export const DELIVERY_STATUS_EMAIL_TO = "DELIVERY_STATUS_EMAIL_TO";
@@ -31,11 +32,32 @@ export function deliveryStatusRecipients(value: string | undefined): string[] {
 }
 
 /**
- * The daily delivery status email (Back Office › Livraison, ADR-0058): each environment and its live check, what is in
- * flight, each feature's headline, how many things it cannot vouch for, and a button to the page. In French, the team's
- * language; the footer says why it came and links to the setting that stops it.
+ * The « Signalements » section (#1141, ADR-0118), from Jobbbox's own figures: counts and issue links only, never a
+ * Candidate's text.
  */
-export function deliveryStatusEmail(status: DeliveryStatus, baseURL: string, locale: Locale = DEFAULT_LOCALE): Email {
+function signalementsSection(t: ReturnType<typeof createI18n>["t"], digest: SignalementsDigest, base: string, at: Intl.DateTimeFormat): EmailBlock[] {
+  const key = "admin.deliveryStatus.email.signalements";
+  const environment = digest.environment === "staging" || digest.environment === "production" ? environmentName(t, digest.environment) : digest.environment;
+  const types = (["bug", "idee", "question"] as const).map((type) => t(`${key}.types.${type}`, { count: digest.newByType[type] })).join(", ");
+  return [
+    t(`${key}.title`),
+    t(`${key}.new`, { environment, types }),
+    ...(digest.issues.length
+      ? digest.issues.map((issue): EmailBlock => ({ card: { title: `#${issue.number}`, details: [t(`${key}.issues.${issue.kind}`, { count: issue.signalements })], url: issue.url } }))
+      : [t(`${key}.issues.none`)]),
+    t(`${key}.readyWithDraft`, { count: digest.readyWithDraft }),
+    { link: { label: t(`${key}.open`), url: `${base}${routes.adminSignalements()}` } },
+    digest.triage.ran ? t(`${key}.triageRan`, { at: at.format(digest.triage.at) }) : t(`${key}.triageMissed`, { reason: t(`${key}.reasons.${digest.triage.reason}`) }),
+  ];
+}
+
+/**
+ * The daily delivery status email (Back Office › Livraison, ADR-0058): each environment and its live check, what is in
+ * flight, each feature's headline, how many things it cannot vouch for, the « Signalements » section when its figures
+ * are given (#1141), and a button to the page. In French, the team's language; the footer says why it came and links to
+ * the setting that stops it.
+ */
+export function deliveryStatusEmail(status: DeliveryStatus, baseURL: string, locale: Locale = DEFAULT_LOCALE, signalements?: SignalementsDigest): Email {
   const { t } = createI18n(locale);
   const base = baseURL.replace(/\/$/, "");
   const day = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "Europe/Paris" }).format(new Date(status.builtAt));
@@ -84,6 +106,7 @@ export function deliveryStatusEmail(status: DeliveryStatus, baseURL: string, loc
       t("admin.deliveryStatus.epics.title"),
       ...(featureCards.length ? featureCards : [t("admin.deliveryStatus.epics.none")]),
       ...(caveats.length ? [`${t("admin.deliveryStatus.caveats.title")} :\n${caveats.map((c) => `- ${caveatText(t, c)}`).join("\n")}`] : []),
+      ...(signalements ? signalementsSection(t, signalements, base, at) : []),
       { action: { label: t("admin.deliveryStatus.email.open"), url: `${base}${routes.adminDeliveryStatus}` } },
     ],
     footer: { reason: t("admin.deliveryStatus.email.reason"), link: { label: t("admin.deliveryStatus.email.settings"), url: `${base}${settingHref(DELIVERY_STATUS_EMAIL_TO)}` } },
@@ -97,6 +120,8 @@ export interface DeliveryStatusEmailsDeps {
   env: () => Record<string, string | undefined>;
   /** Where each call to GitHub is recorded, under the Tool `github`. */
   externalApis?: ExternalApiLog;
+  /** The « Signalements » section's figures (#1141), computed by Jobbbox; without it, or when it fails, the email goes without it. */
+  signalements?: () => Promise<SignalementsDigest>;
   /** Reads the status; GitHub's API by default (tests give their own). */
   read?: (token: string, repository: string) => Promise<DeliveryStatus>;
   now?: () => Date;
@@ -131,7 +156,11 @@ export function createDeliveryStatusEmails(deps: DeliveryStatusEmailsDeps) {
       const token = env.GITHUB_STATUS_TOKEN?.trim();
       if (!token) return { skipped: "missingToken" };
       const status = await read(token, env.GITHUB_STATUS_REPOSITORY?.trim() || DEFAULT_DELIVERY_REPOSITORY);
-      const email = renderEmail(deliveryStatusEmail(status, deps.baseURL));
+      const signalements = await deps.signalements?.().catch((error: unknown) => {
+        console.error(`[delivery-status] the « Signalements » section could not be computed: ${error instanceof Error ? error.message : String(error)}`);
+        return undefined;
+      });
+      const email = renderEmail(deliveryStatusEmail(status, deps.baseURL, DEFAULT_LOCALE, signalements));
       let sent = 0;
       let failed = 0;
       for (const to of recipients) {

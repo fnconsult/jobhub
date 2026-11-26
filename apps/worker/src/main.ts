@@ -33,6 +33,8 @@ import { createDeliveryStatusEmails, DEFAULT_DELIVERY_REPOSITORY } from "@jobhub
 import { createSignalements } from "@jobhub/web/signalements";
 import { gitHubIssues } from "@jobhub/web/signalements/github-issues";
 import { createReadyToClose } from "@jobhub/web/signalements/ready-to-close";
+import { signalementsDigest } from "@jobhub/web/signalements/digest";
+import { createAgentKeys } from "@jobhub/web/agent-keys";
 import { candidateIdentityOf } from "@jobhub/web/candidate-identity";
 import { createDiscoveryRuns } from "@jobhub/web/discovery-runs";
 import { createBilling } from "@jobhub/web/billing";
@@ -297,7 +299,15 @@ const jobs = createJobs({
     },
   },
   // Livraison's daily email (18:00 Paris) to DELIVERY_STATUS_EMAIL_TO, read with GITHUB_STATUS_TOKEN (Provider Secrets over env).
+  // Its « Signalements » section (#1141): Jobbbox's own figures, counts and issue links only.
   deliveryStatusEmails: createDeliveryStatusEmails({ mailer, baseURL, externalApis, env: () => ({ ...process.env, ...secretsWithSettings(secrets, platformSettings.resolver).current().env }),
+    signalements: () =>
+      signalementsDigest({
+        signalements: createSignalements(database, { version: currentRelease(process.env).commit?.slice(0, 7) ?? "dev" }),
+        agentKeys: createAgentKeys(database),
+        environment: currentRelease(process.env).environment,
+        issueUrl: (number) => `https://github.com/${process.env.GITHUB_STATUS_REPOSITORY?.trim() || DEFAULT_DELIVERY_REPOSITORY}/issues/${number}`,
+      }),
   }),
   // The notice email of each substantial Legal Text Version this build carries, from Production only (#547).
   legalTextNotices: createLegalTextNotices(database, { mailer, baseURL, production: sendsLegalTextNotices(process.env) }),

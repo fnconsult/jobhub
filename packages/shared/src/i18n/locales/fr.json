@@ -4393,7 +4393,37 @@
         "deployed": "Commit {{commit}} depuis {{ref}}, déployé le {{at}}",
         "open": "Ouvrir Livraison",
         "reason": "Vous recevez cet e-mail car votre adresse est dans « Destinataires de l'e-mail quotidien de Livraison » (Paramètres, onglet E-mail).",
-        "settings": "Changer les destinataires"
+        "settings": "Changer les destinataires",
+        "signalements": {
+          "title": "Signalements",
+          "new": "Nouveaux signalements en {{environment}} : {{types}}.",
+          "types": {
+            "bug_one": "{{count}} bug",
+            "bug_other": "{{count}} bugs",
+            "idee_one": "{{count}} idée",
+            "idee_other": "{{count}} idées",
+            "question_one": "{{count}} question",
+            "question_other": "{{count}} questions"
+          },
+          "issues": {
+            "opened_one": "Ouverte pour {{count}} signalement",
+            "opened_other": "Ouverte pour {{count}} signalements",
+            "commented_one": "Complétée par un doublon : {{count}} signalement",
+            "commented_other": "Complétée par des doublons : {{count}} signalements",
+            "none": "Aucune issue ouverte ni complétée."
+          },
+          "readyWithDraft_one": "Prêt à clore, brouillon à envoyer par Support : {{count}}",
+          "readyWithDraft_other": "Prêts à clore, brouillon à envoyer par Support : {{count}}",
+          "open": "Ouvrir les signalements",
+          "triageRan": "Dernier passage du tri : {{at}}.",
+          "triageMissed": "Le tri n'a pas eu lieu : {{reason}}.",
+          "reasons": {
+            "no_key": "aucune clé d'agent",
+            "key_expired": "clé échue",
+            "key_revoked": "clé révoquée",
+            "no_call": "aucun appel ce jour"
+          }
+        }
       }
     },
     "activity": {

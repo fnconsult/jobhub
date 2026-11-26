@@ -4393,7 +4393,37 @@
         "deployed": "Commit {{commit}} from {{ref}}, deployed on {{at}}",
         "open": "Open Delivery",
         "reason": "You receive this email because your address is in « Recipients of Delivery's daily email » (Settings, Email tab).",
-        "settings": "Change the recipients"
+        "settings": "Change the recipients",
+        "signalements": {
+          "title": "Signalements",
+          "new": "New Signalements in {{environment}}: {{types}}.",
+          "types": {
+            "bug_one": "{{count}} bug",
+            "bug_other": "{{count}} bugs",
+            "idee_one": "{{count}} idea",
+            "idee_other": "{{count}} ideas",
+            "question_one": "{{count}} question",
+            "question_other": "{{count}} questions"
+          },
+          "issues": {
+            "opened_one": "Opened for {{count}} Signalement",
+            "opened_other": "Opened for {{count}} Signalements",
+            "commented_one": "Completed with a duplicate: {{count}} Signalement",
+            "commented_other": "Completed with duplicates: {{count}} Signalements",
+            "none": "No issue opened or completed."
+          },
+          "readyWithDraft_one": "Ready to close, draft for Support to send: {{count}}",
+          "readyWithDraft_other": "Ready to close, draft for Support to send: {{count}}",
+          "open": "Open the Signalements",
+          "triageRan": "Last triage pass: {{at}}.",
+          "triageMissed": "The triage did not run: {{reason}}.",
+          "reasons": {
+            "no_key": "no Agent Key",
+            "key_expired": "key expired",
+            "key_revoked": "key revoked",
+            "no_call": "no call today"
+          }
+        }
       }
     },
     "activity": {

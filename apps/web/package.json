@@ -31,6 +31,8 @@
     "./signalements": "./src/signalements/index.ts",
     "./signalements/ready-to-close": "./src/signalements/ready-to-close.ts",
     "./signalements/github-issues": "./src/signalements/github-issues.ts",
+    "./signalements/digest": "./src/signalements/digest.ts",
+    "./agent-keys": "./src/agent-keys/index.ts",
     "./extension-events": "./src/extension-events/index.ts",
     "./consumption": "./src/consumption/index.ts",
     "./eu-ai-consent": "./src/eu-ai-consent/index.ts",

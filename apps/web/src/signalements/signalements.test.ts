@@ -335,6 +335,32 @@ describe.skipIf(!connectionString)("Signalements (#374, #283; needs Postgres: DA
       expect((await signalements.notifications(marie)).map((each) => each.signalementId)).toEqual([handled.id]);
     });
 
+    it("counts, for the Livraison email, the new ones by type, the issues linked since, and those « Prêt à clore » whose draft waits for Support", async () => {
+      now = new Date("2026-10-24T09:00:00Z");
+      const old = await sent();
+      await signalements.linkIssue(old.id, { number: 1100, kind: "opened" }, "key:triage-beta");
+      now = new Date("2026-10-25T09:00:00Z");
+      const bug = await sent();
+      const idee = await sent({ type: "idee" });
+      const other = await sent({ type: "idee" });
+      now = new Date("2026-10-25T10:00:00Z");
+      await signalements.linkIssue(bug.id, { number: 1201, kind: "opened" }, "key:triage-beta");
+      await signalements.linkIssue(idee.id, { number: 1201, kind: "commented" }, "key:triage-beta");
+      await signalements.linkIssue(other.id, { number: 1300, kind: "commented" }, "key:triage-beta");
+      await signalements.saveDraft(bug.id, DRAFT, { by: "key:triage-beta" });
+      await signalements.saveDraft(other.id, DRAFT, { by: "key:triage-beta" });
+      await signalements.markReadyToClose([1201, 1100]);
+
+      expect(await signalements.countsSince(new Date("2026-10-25T00:00:00Z"))).toEqual({
+        newByType: { bug: 1, idee: 2, question: 0 },
+        issues: [
+          { number: 1201, kind: "opened", signalements: 2 },
+          { number: 1300, kind: "commented", signalements: 1 },
+        ],
+        readyWithDraft: 1,
+      });
+    });
+
     it("gives the issues still to check against a deployed commit, once each until another commit is deployed", async () => {
       const first = await sent();
       const second = await sent();

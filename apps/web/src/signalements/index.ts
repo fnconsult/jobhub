@@ -142,6 +142,13 @@ export interface OwnSignalement extends Signalement {
   issueNumbers: number[];
 }
 
+/** What the Livraison email counts of the Signalements (#1141). */
+export interface SignalementCounts {
+  newByType: Record<SignalementType, number>;
+  issues: { number: number; kind: IssueLinkKind; signalements: number }[];
+  readyWithDraft: number;
+}
+
 /** What `saveDraft` and `sendDraft` refuse or answer. */
 export type SaveDraftResult = { ok: true; draft: SignalementDraft } | { ok: false; errors: FieldError[] } | { ok: false; refused: "already_handled" };
 
@@ -215,6 +222,12 @@ export interface Signalements {
   issuesToCheck(commit: string): Promise<number[]>;
   /** Records that `issues` were checked against the deployed `commit`. */
   markIssuesChecked(issues: readonly number[], commit: string): Promise<void>;
+  /**
+   * What the Livraison email's « Signalements » section counts (#1141): those sent since `since`, by type; the issues
+   * linked since, each opened (Jobbbox opened it for one of them) or commented (only completed with a duplicate), with how
+   * many Signalements; and how many are « Prêt à clore » with a draft waiting for Support. Numbers only, never a text.
+   */
+  countsSince(since: Date): Promise<SignalementCounts>;
   /** Those sent with the AI notice, of `statuses` (default: every one), oldest first (#1139). Changes nothing. */
   triageable(filter?: { statuses?: readonly SignalementStatus[] }): Promise<TriageableSignalement[]>;
   /** One sent with the AI notice; null for any other (#1139). */
@@ -618,6 +631,25 @@ export function createSignalements(database: Pool, deps: SignalementsDeps): Sign
     async markIssuesChecked(issues, commit) {
       if (issues.length === 0) return;
       await database.query(`UPDATE signalement_issue SET checked_commit = $2 WHERE issue_number = ANY($1::int[])`, [issues, commit]);
+    },
+
+    async countsSince(since) {
+      const [types, issues, ready] = await Promise.all([
+        database.query<{ type: SignalementType; n: number }>(`SELECT type, count(*)::int AS n FROM signalement WHERE created_at >= $1 GROUP BY type`, [since]),
+        database.query<{ issue_number: number; opened: boolean; n: number }>(
+          `SELECT issue_number, bool_or(kind = 'opened') AS opened, count(*)::int AS n FROM signalement_issue WHERE linked_at >= $1 GROUP BY issue_number ORDER BY issue_number`,
+          [since],
+        ),
+        database.query<{ n: number }>(
+          `SELECT count(*)::int AS n FROM signalement s JOIN signalement_draft d ON d.signalement_id = s.id WHERE s.ready_to_close_at IS NOT NULL AND s.status <> 'traite'`,
+        ),
+      ]);
+      const newByType = Object.fromEntries(SIGNALEMENT_TYPES.map((type) => [type, types.rows.find((row) => row.type === type)?.n ?? 0])) as Record<SignalementType, number>;
+      return {
+        newByType,
+        issues: issues.rows.map((row) => ({ number: row.issue_number, kind: row.opened ? ("opened" as const) : ("commented" as const), signalements: row.n })),
+        readyWithDraft: ready.rows[0]!.n,
+      };
     },
 
     async countToHandle() {

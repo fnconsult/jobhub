@@ -6,7 +6,7 @@ title: Signalements
 synonyms: [signalements, signalement, feedback, bug, idée, question à l'équipe, retour candidat, à traiter, nouveau, vu, traité, réponse de l'équipe, support]
 route: /admin/signalements
 ---
-Signalements (menu Candidats) liste les bugs, idées et questions que les candidats envoient depuis l'application, du plus ancien au plus récent. Le nombre « à traiter » s'affiche à côté du nom de la section pour qui peut les traiter. Les signalements sont lus par l'équipe seulement, jamais par une IA.
+Signalements (menu Candidats) liste les bugs, idées et questions que les candidats envoient depuis l'application, du plus ancien au plus récent. Le nombre « à traiter » s'affiche à côté du nom de la section pour qui peut les traiter. Les signalements envoyés avec la mention « Un outil d'IA peut lire votre message pour nous aider à le traiter. » sont aussi lus, anonymisés, par l'agent du tri des signalements, avec une clé d'agent (onglet « Clés d'agent » de Paramètres) ; les autres sont lus par l'équipe seulement. Un statut posé par l'agent s'affiche « vu par triage-beta », du nom de sa clé.
 
 Le type est « Bug », « Idée » ou « Question ». Une question arrive quand l'aide ou le coach IA n'a pas suffi au candidat : elle porte une copie de sa question et de la réponse du coach IA. Le statut est « Nouveau », « Vu » ou « Traité ». Filtrez avec « Filtrer par type » et « Filtrer par statut » (« À traiter » ou « Tous »).
 

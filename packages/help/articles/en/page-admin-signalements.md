@@ -6,7 +6,7 @@ title: Feedback (Signalements)
 synonyms: [feedback, signalements, signalement, bug, idea, question to the team, candidate feedback, to handle, new, seen, handled, team's reply, support]
 route: /admin/signalements
 ---
-Feedback (Candidates menu) lists the bugs, ideas and questions Candidates send from the app, oldest first. The number « to handle » shows next to the section's name for whoever can handle them. Feedback is read by the team only, never by an AI.
+Feedback (Candidates menu) lists the bugs, ideas and questions Candidates send from the app, oldest first. The number « to handle » shows next to the section's name for whoever can handle them. Feedback sent with the notice « An AI tool may read your message to help us handle it. » is also read, anonymised, by the feedback triage agent, with an agent key (« Agent keys » tab of Settings); the rest is read by the team only. A status set by the agent shows « seen by triage-beta », after its key's name.
 
 The type is « Bug », « Idea » or « Question ». A question arrives when the help or the AI Coach did not satisfy the Candidate: it carries a copy of their question and of the AI Coach's reply. The status is « New », « Seen » or « Handled ». Filter with « Filter by type » and « Filter by status » (« To handle » or « All »).
 

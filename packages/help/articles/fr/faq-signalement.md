@@ -9,6 +9,8 @@ Pour un problème ou une idée, faites un signalement : « Signaler un problème
 
 Pour poser une question à une personne, demandez d'abord à votre coach IA. Si sa réponse ne vous aide pas, répondez « Non » sous sa réponse : « Poser la question à l'équipe » envoie votre question et la réponse du coach à l'équipe Jobbbox, dans le même formulaire.
 
+Sous votre message, le formulaire le dit : « Un outil d'IA peut lire votre message pour nous aider à le traiter. » Cet outil aide l'équipe à trier les signalements : votre nom et votre e-mail sont retirés du message avant qu'il le lise, il ne reçoit ni votre offre ni rien de votre compte, et il ne vous répond jamais lui-même.
+
 L'équipe Jobbbox lit chaque signalement. Vous suivez son statut et la réponse de l'équipe dans Mon compte, rubrique Mes signalements.
 
 Il n'y a pas d'adresse e-mail de support : le signalement est le moyen de joindre une personne.

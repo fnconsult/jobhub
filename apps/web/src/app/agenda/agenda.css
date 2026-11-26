@@ -445,7 +445,7 @@
   }
 
   .agenda-week-day {
-    min-height: 10rem;
+    min-height: max(10rem, 160px);
     border-top: 0;
     border-left: 1px solid var(--color-border);
   }
@@ -506,7 +506,7 @@
   gap: var(--space-1);
   align-items: flex-start;
   width: 100%;
-  min-height: 4.5rem;
+  min-height: max(4.5rem, 72px);
   padding: var(--space-2);
   font: inherit;
   color: var(--color-text);
@@ -530,7 +530,7 @@
 .agenda-month-number {
   display: grid;
   place-items: center;
-  min-width: 1.75rem;
+  min-width: max(1.75rem, 28px);
   height: 1.75rem;
   font-variant-numeric: tabular-nums;
 }

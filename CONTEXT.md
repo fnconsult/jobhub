@@ -766,7 +766,7 @@ The language the Jobbbox interface is shown in. French by default. Independent o
 _Avoid_: Locale (in domain discussions), UI language
 
 **Text Size**:
-The Candidate's choice of how large all interface text is shown, on a four-step slider in Mon compte's Préférences: Petit, Standard, Moyen, Grand (16, 17, 18 and 20px body text). Petit sits on the body-text floor, so no step shrinks text below it. Remembered on that device; the pages read without signing in keep a select for it.
+The Candidate's choice of how large all interface text is shown, on a four-step slider in Mon compte's Préférences: Petit, Standard, Moyen, Grand (12, 16, 17 and 18px body text). Standard, the default, sits on the 16 px body-text floor; Petit alone, the Candidate's own choice, goes below it (ADR-0009, 2026-11-26). Whatever the step, controls keep their target size: only the text shrinks. Remembered on that device; the pages read without signing in keep a select for it.
 _Avoid_: Zoom, font setting
 
 **Sidebar**:
@@ -810,7 +810,7 @@ The one set of colours, type, spacing and components every Jobbbox surface is dr
 _Avoid_: Theme, style guide, UI kit
 
 **Density**:
-How tightly a surface of the Design System is set. Confort on the Candidate's pages, the extension and the emails, with the 16 px body-text floor and the Text Size. Compact in the Back Office, for Administrators, with smaller text and tighter rows. Never chosen by the person. A Density applies to the part of a page that declares it (the Back Office's whole page is Compact), while the Text Size still scales from the page's root.
+How tightly a surface of the Design System is set. Confort on the Candidate's pages, the extension and the emails, with the 16 px body-text floor at the default Text Size, which only Petit, chosen by the Candidate, goes below. Compact in the Back Office, for Administrators, with smaller text and tighter rows, and never under 12 px, at Petit too. Never chosen by the person. A Density applies to the part of a page that declares it (the Back Office's whole page is Compact), while the Text Size still scales from the page's root.
 _Avoid_: Compact mode, zoom
 
 **Email layout**:

@@ -54,6 +54,7 @@
 }
 
 .text-size-control select {
+  min-height: max(2.5rem, 40px);
   padding: var(--space-2) var(--space-3);
   background: var(--color-background);
   border: 1px solid var(--color-text-secondary);
@@ -431,7 +432,7 @@ textarea.input {
   display: flex;
   gap: var(--space-1);
   align-items: center;
-  min-height: 3.25rem;
+  min-height: max(3.25rem, 52px);
   padding: var(--space-1) var(--space-2);
   border-bottom: 1px solid var(--color-border);
 }
@@ -889,7 +890,7 @@ textarea.input {
 
 .coach-panel-composer textarea {
   width: 100%;
-  min-height: 3rem;
+  min-height: max(3rem, 48px);
   max-height: 12rem;
   padding: var(--space-1);
   font: inherit;
@@ -1695,8 +1696,8 @@ button.coach-panel-badge:hover {
   flex: none;
   align-items: center;
   justify-content: center;
-  min-width: 2.25rem;
-  min-height: 2.25rem;
+  min-width: max(2.25rem, 36px);
+  min-height: max(2.25rem, 36px);
   padding: 0;
   font: inherit;
   color: var(--color-text-secondary);
@@ -2283,7 +2284,7 @@ button.coach-panel-badge:hover {
 /* Recherches d'offres' « N » (#818): its offers à traiter, at the line's end; none at 0. */
 .sidebar-count {
   flex: none;
-  min-width: 1.5rem;
+  min-width: max(1.5rem, 24px);
   padding: 0 var(--space-2);
   margin-left: auto;
   font-weight: 600;
@@ -2859,7 +2860,7 @@ blockquote.signalement-text {
 .france-travail-mark {
   display: inline-flex;
   align-items: center;
-  min-height: 2rem;
+  min-height: max(2rem, 32px);
   padding: 0 var(--space-3);
   font-weight: 700;
   color: var(--color-text);
@@ -2977,7 +2978,8 @@ blockquote.signalement-text {
 :root {
   --sidebar-width: 16rem;
   --coach-width: clamp(27rem, 34vw, 36rem);
-  --control-height: 2.75rem;
+  /* The 44px target of the Candidate's pages (ADR-0009), which the « Petit » Text Size (12px) never shrinks. */
+  --control-height: max(2.75rem, 44px);
   --scrim: var(--color-scrim);
   --shadow-overlay: var(--shadow-pop);
   --shadow-menu: var(--shadow-pop);
@@ -3036,6 +3038,9 @@ blockquote.signalement-text {
   top: -10rem;
   left: var(--space-4);
   z-index: 70;
+  /* Its target at the Standard Text Size, which « Petit » does not shrink (ADR-0009, 2026-11-26). */
+  min-height: max(2.5rem, 40px);
+  box-sizing: border-box;
   padding: var(--space-2) var(--space-4);
   font-weight: 600;
   color: var(--color-on-accent);
@@ -3233,7 +3238,7 @@ html[data-sidebar="closed"] .sidebar-docked {
 
 /* What waits in a section (#376): the Signalements « à traiter », after its name, at the line's end. */
 .sidebar-count {
-  min-width: 1.5rem;
+  min-width: max(1.5rem, 24px);
   margin-left: auto;
   padding: 0 var(--space-2);
   font-size: var(--font-size-meta);
@@ -3291,7 +3296,8 @@ html[data-sidebar="closed"] .sidebar-docked {
   flex-direction: column;
   gap: var(--space-2);
   width: 100%;
-  min-height: var(--size-control);
+  /* The 44px target of the Candidate's pages, at every Text Size (ADR-0009). */
+  min-height: var(--control-height);
   padding: var(--space-2);
   color: var(--color-text);
   font: inherit;
@@ -3428,7 +3434,7 @@ html[data-sidebar="closed"] .sidebar-docked {
   display: flex;
   gap: var(--space-3);
   align-items: center;
-  min-height: 3.25rem;
+  min-height: max(3.25rem, 52px);
   padding: var(--space-2) var(--space-4) var(--space-2) var(--space-6);
   background: var(--color-background);
   border-bottom: 1px solid var(--color-border);
@@ -3843,6 +3849,8 @@ html[data-in-app] :is(.sidebar-docked, .sidebar-drawer, .topbar .menu-toggle, .t
 
 /* « Mon compte », a menu button reading as a sidebar link (AccountMenu). */
 .account-menu-button {
+  /* The 44px target of the Candidate's pages, at every Text Size (ADR-0009). */
+  min-height: var(--control-height);
   font: inherit;
   text-align: start;
   cursor: pointer;
@@ -4154,6 +4162,8 @@ html[data-in-app] :is(.sidebar-docked, .sidebar-drawer, .topbar .menu-toggle, .t
 
 /* A button that reads like the links beside it ("Modifier les critères" opens a dialog). */
 .link-action {
+  /* WCAG 2.5.8's 24px, which the « Petit » Text Size does not shrink (ADR-0009, 2026-11-26). */
+  min-height: 24px;
   padding: 0;
   color: var(--color-accent);
   text-decoration: underline;
@@ -4412,7 +4422,7 @@ html[data-in-app] :is(.sidebar-docked, .sidebar-drawer, .topbar .menu-toggle, .t
 
   .sections-nav .sidebar-link {
     justify-content: space-between;
-    min-height: 3.25rem;
+    min-height: max(3.25rem, 52px);
     border-bottom: 1px solid var(--color-border);
     border-radius: 0;
   }
@@ -4828,7 +4838,7 @@ html[data-in-app] :is(.sidebar-docked, .sidebar-drawer, .topbar .menu-toggle, .t
   display: inline-flex;
   gap: var(--space-2);
   align-items: center;
-  min-height: 2rem;
+  min-height: max(2rem, 32px);
   padding: 0 var(--space-3);
   white-space: nowrap;
   background: var(--color-surface);
@@ -5166,12 +5176,12 @@ details.why[open] {
 
 select.inline-edit {
   width: auto;
-  min-width: 12rem;
+  min-width: max(12rem, 192px);
   cursor: pointer;
 }
 
 textarea.inline-edit {
-  min-height: 5rem;
+  min-height: max(5rem, 80px);
   resize: vertical;
   field-sizing: content;
 }
@@ -6024,8 +6034,8 @@ textarea.title-edit {
   flex: none;
   align-items: center;
   justify-content: center;
-  min-width: 2.75rem;
-  min-height: 2.75rem;
+  min-width: max(2.75rem, 44px);
+  min-height: max(2.75rem, 44px);
   padding: 0;
 }
 
@@ -6041,8 +6051,8 @@ textarea.title-edit {
 }
 
 .ai-activity-live .ai-activity-stop {
-  min-width: 2.25rem;
-  min-height: 2.25rem;
+  min-width: max(2.25rem, 36px);
+  min-height: max(2.25rem, 36px);
 }
 
 .ai-activity-live {

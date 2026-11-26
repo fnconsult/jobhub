@@ -53,7 +53,7 @@
   .ds-site__nav > a {
     display: inline-flex;
     align-items: center;
-    min-height: 1.5rem;
+    min-height: max(1.5rem, 24px);
     color: var(--color-secondary);
     text-decoration: none;
   }
@@ -89,8 +89,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 1.5rem;
-    min-height: 1.5rem;
+    min-width: max(1.5rem, 24px);
+    min-height: max(1.5rem, 24px);
     padding: 0 var(--space-1);
     color: var(--color-secondary);
     text-decoration: none;
@@ -141,7 +141,7 @@
   .ds-site__foot-column a {
     display: inline-flex;
     align-items: center;
-    min-height: 1.5rem;
+    min-height: max(1.5rem, 24px);
     color: var(--color-secondary);
   }
 
@@ -247,7 +247,7 @@
     }
 
     .ds-site__nav > a {
-      min-height: 2.75rem;
+      min-height: max(2.75rem, 44px);
     }
 
     .ds-site__tools {

@@ -97,3 +97,20 @@ Asked by the product owner after reviewing #933 (« when empty show the 2 button
 - Both stay at least 44 px, the glyphs at least 3:1.
 
 The exception covers Send's icon, in the web conversation's box only. Every other function still needs a visible label.
+
+## Amendment: the Text Size one step down, and Petit under the floor (issue #1152, 2026-11-26)
+
+Decided by the product owner (François), 2026-11-26: the default text is made smaller by shifting the Text Size one step down. Body text at each step, before → after:
+
+| Step | Before | After |
+|---|---|---|
+| Petit | 16 px | **12 px** |
+| Standard (the default) | 17 px | **16 px** |
+| Moyen | 18 px | **17 px** |
+| Grand | 20 px | **18 px** |
+
+- **The 16 px floor is now the default's.** Standard and every step above keep Confort body text at 16 px at least, and the e2e text floors are checked at the default. The token audit (`auditDesignTokens`) holds every step but Petit to it.
+- **Petit alone goes below it**, as the Candidate's own choice on the slider of Préférences or the select of the public pages, never by default: 12 px body text, and metadata scaled with it (about 9.75 px). The token audit refuses a Petit under 12 px. The stored values (`small`, `standard`, `large`, `xlarge`) and the labels do not change: a device that had « Standard » now shows 16 px, and Moyen gives back the former default.
+- **The text shrinks, never the targets.** At every step, Design System controls keep their height at the Standard size (`--size-control: max(2.5rem, 40px)` in Confort, `max(2rem, 32px)` in Compact) and the Candidate's pages keep the 44 px target (`--control-height: max(2.75rem, 44px)`, now also on the Sidebar's account button and Usage Meter); a `min-height` or `min-width` set in rem is written `max(<rem>, <px at Standard>)`. WCAG 2.5.8's 24 × 24 px holds at Petit. `e2e/text-size-small.spec.ts` checks that every control keeps, at Petit, the target size it reached at Standard (44, 40 or 24 px), a link inside a sentence aside, and that nothing runs off the side.
+- **Known shortfall, accepted by the product owner.** 12 px body text is under the usual readability recommendations for a 40+ audience (the RGAA and WCAG guidance generally take 16 px as the comfortable body size; WCAG 1.4.4 is met by the browser's zoom and the larger steps, not by Petit). It is recorded here as the product owner's decision; the default stays on the floor.
+- **The Back Office (Compact) has a floor of 12 px**, decided by the product owner the same day (« plancher de 12 px dans le Back Office »): it still scales from the root as ADR-0053 says, 14 px body text at the default (it was 14.875 px), and every Compact size is `max(<rem>, 12px)`, so at Petit its body text and metadata stop at 12 px instead of 10.5 and 9.4 px. The other steps are unchanged. The token audit holds every Compact size to 12 px at the smallest Text Size, the CSS lint (`auditStylesheet` in Compact) refuses a size in rem that Petit would take under 12 px unless it is written `max(<rem>, 12px)`, and `e2e/design-system-tokens.spec.ts` reads the Back Office at Petit. The native app follows the system text size (amendment of 2026-11-04) and is not changed; only the name a Signalement gives the system's scale (`textSizeOf`) follows the new Petit.

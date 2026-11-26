@@ -1,6 +1,6 @@
 import type { Density, DesignTokens, Theme } from "./tokens";
 
-/** The smallest body and metadata text of each Density, in px at the « small » text size (ADR-0009 and its amendments). */
+/** The smallest body and metadata text of each Density, in px at the « standard » text size, the default (ADR-0009 and its amendments). */
 export const DENSITY_FLOORS: Record<Density, { body: number; meta: number }> = {
   confort: { body: 16, meta: 13 },
   compact: { body: 14, meta: 12.5 },
@@ -8,6 +8,13 @@ export const DENSITY_FLOORS: Record<Density, { body: number; meta: number }> = {
 export const MIN_BODY_TEXT_PX = DENSITY_FLOORS.confort.body;
 /** Metadata text may be smaller than body text, never below this (ADR-0009 amendment, #317). */
 export const MIN_META_TEXT_PX = DENSITY_FLOORS.confort.meta;
+/**
+ * The one Text Size step allowed under the body-text floor, and how far: « small », chosen by the Candidate, at 12px
+ * (ADR-0009, amendment of 2026-11-26). The default and every other step keep Confort body text at 16px at least.
+ */
+export const TEXT_SIZE_BELOW_FLOOR = { setting: "small", minPx: 12 } as const;
+/** No text of the Compact Density (the Back Office) under this, at any Text Size, « Petit » included (ADR-0009, 2026-11-26). */
+export const MIN_COMPACT_TEXT_PX = 12;
 export const AA_TEXT_CONTRAST = 4.5;
 export const AA_NON_TEXT_CONTRAST = 3;
 
@@ -57,7 +64,8 @@ export function contrastRatio(foreground: string, background: string): number {
  * colour on every surface, onAccent on the accent at rest and on hover and on danger, onInverse on the inverse surface (a
  * Toast), 3:1 for the graphics; and in each Density,
  * no type size below its body floor nor metadata below its metadata floor (Confort 16 / 13px, Compact 14 / 12.5px),
- * and no text-size setting that takes Confort body text under 16px. Returns an empty list when the tokens comply.
+ * and no text-size setting that takes Confort body text under 16px, but « small », the Candidate's own choice, never
+ * under 12px; and no Compact text under 12px at any Text Size. Returns an empty list when the tokens comply.
  */
 export function auditDesignTokens(tokens: DesignTokens): AccessibilityViolation[] {
   const violations: AccessibilityViolation[] = [];
@@ -95,13 +103,24 @@ export function auditDesignTokens(tokens: DesignTokens): AccessibilityViolation[
 
   for (const [setting, factor] of Object.entries(tokens.textSize)) {
     const px = tokens.density.confort.fontSize.body * factor;
-    if (px < MIN_BODY_TEXT_PX) {
+    const floor = setting === TEXT_SIZE_BELOW_FLOOR.setting ? TEXT_SIZE_BELOW_FLOOR.minPx : MIN_BODY_TEXT_PX;
+    if (px < floor) {
       violations.push({
         rule: "min-body-size",
         token: `textSize.${setting}`,
         density: "confort",
-        detail: `body text at "${setting}" is ${px}px, needs ${MIN_BODY_TEXT_PX}px`,
+        detail: `body text at "${setting}" is ${px}px, needs ${floor}px`,
       });
+    }
+  }
+
+  // The Back Office at the smallest Text Size: each Compact size, scaled, but never under the Density's floor in px.
+  const smallest = Math.min(...Object.values(tokens.textSize));
+  const compact = tokens.density.compact as DesignTokens["density"]["compact"] & { minFontSize?: number };
+  for (const [name, px] of [...Object.entries(compact.fontSize), ["metaFontSize", compact.metaFontSize] as const]) {
+    const shown = Math.max(px * smallest, compact.minFontSize ?? 0);
+    if (shown < MIN_COMPACT_TEXT_PX) {
+      violations.push({ rule: "min-body-size", token: name, density: "compact", detail: `${name} is ${shown}px in compact at the smallest Text Size, needs ${MIN_COMPACT_TEXT_PX}px` });
     }
   }
 

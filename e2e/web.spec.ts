@@ -54,34 +54,35 @@ test.describe("web app", () => {
     const select = page.getByLabel("Taille du texte");
 
     await expect(html).toHaveAttribute("data-text-size", "standard");
-    expect(await bodyFontSize()).toBe("17px");
+    expect(await bodyFontSize()).toBe("16px");
 
+    // Petit, the Candidate's own choice, is the one step under the 16px floor (#1152).
     await select.selectOption({ label: "Petit" });
     await expect(html).toHaveAttribute("data-text-size", "small");
-    expect(await bodyFontSize()).toBe("16px");
+    expect(await bodyFontSize()).toBe("12px");
 
     await select.selectOption({ label: "Moyen" });
     await expect(html).toHaveAttribute("data-text-size", "large");
-    expect(await bodyFontSize()).toBe("18px");
+    expect(await bodyFontSize()).toBe("17px");
 
     await select.selectOption({ label: "Grand" });
     await expect(html).toHaveAttribute("data-text-size", "xlarge");
-    expect(await bodyFontSize()).toBe("20px");
+    expect(await bodyFontSize()).toBe("18px");
     expect(await page.evaluate(() => localStorage.getItem("jobbbox.textSize"))).toBe("xlarge");
 
     // Still applied after a reload, and every text stays within the floor.
     await page.reload();
     await expect(html).toHaveAttribute("data-text-size", "xlarge");
     await expect(select).toHaveValue("xlarge");
-    expect(await bodyFontSize()).toBe("20px");
-    for (const t of await renderedTexts(page)) expect.soft(t.fontSizePx).toBeGreaterThanOrEqual(20);
+    expect(await bodyFontSize()).toBe("18px");
+    for (const t of await renderedTexts(page)) expect.soft(t.fontSizePx).toBeGreaterThanOrEqual(18);
   });
 
   test("ignores a stale text-size value in storage", async ({ page }) => {
     await page.addInitScript(() => localStorage.setItem("jobbbox.textSize", "gigantic"));
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("data-text-size", "standard");
-    expect(await page.evaluate(() => getComputedStyle(document.body).fontSize)).toBe("17px");
+    expect(await page.evaluate(() => getComputedStyle(document.body).fontSize)).toBe("16px");
   });
 });
 

@@ -22,13 +22,23 @@ describe("auditStylesheet", () => {
     ]);
   });
 
+  it("lets the root at « Petit » down to 12px, and no other Text Size step (ADR-0009, 2026-11-26)", () => {
+    const css = `html[data-text-size="small"] { font-size: 12px; } html[data-text-size="standard"] { font-size: 15px; } html[data-text-size="small"].x { font-size: 12px; }`;
+    expect(auditStylesheet(css).map((v) => v.selector)).toEqual(['html[data-text-size="standard"]', 'html[data-text-size="small"].x']);
+    expect(auditStylesheet(`html[data-text-size="small"] { font-size: 11px; }`)).toHaveLength(1);
+  });
+
   it("flags type below 14px on a Compact page, and lets 14px through (ADR-0009 Compact amendment)", () => {
-    const css = `.a { font-size: 13px; } .b { font-size: 0.78rem; } .c { font-size: 0.875rem; } .d { font-size: 14px; }`;
+    const css = `.a { font-size: 13px; } .b { font-size: 0.78rem; } .c { font-size: max(0.875rem, 12px); } .d { font-size: 14px; }`;
     expect(auditStylesheet(css, { density: "compact" }).map((v) => [v.rule, v.selector])).toEqual([
       ["min-body-size", ".a"],
       ["min-body-size", ".b"],
     ]);
-    expect(auditStylesheet(css).map((v) => v.selector)).toEqual([".a", ".b", ".c", ".d"]);
+  });
+
+  it("flags Compact type that « Petit » would take under 12px, unless it is written max(<rem>, 12px) (ADR-0009, 2026-11-26)", () => {
+    const css = `.a { font-size: 0.875rem; } .b { font-size: max(0.875rem, 12px); } .c { font-size: 1rem; } .d { font-size: max(0.875rem, 11px); }`;
+    expect(auditStylesheet(css, { density: "compact" }).map((v) => v.selector)).toEqual([".a", ".d"]);
   });
 
   it("accepts every audited text token, and the old names they alias until the components ticket", () => {

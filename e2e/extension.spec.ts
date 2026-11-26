@@ -94,7 +94,7 @@ test.describe("browser extension", () => {
     const page = await context.newPage();
     await page.goto(`chrome-extension://${unpackedExtensionId(extensionDir)}/sidepanel.html`);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    expect(await page.evaluate(() => getComputedStyle(document.body).fontSize)).toBe("17px");
+    expect(await page.evaluate(() => getComputedStyle(document.body).fontSize)).toBe("16px");
     expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).toBe("rgb(255, 255, 255)");
     for (const t of await renderedTexts(page)) {
       expect.soft(t.fontSizePx, `font size of "${t.text}"`).toBeGreaterThanOrEqual(16);
@@ -103,7 +103,7 @@ test.describe("browser extension", () => {
 
     // The shared stylesheet honours the text-size setting here too.
     await page.evaluate(() => (document.documentElement.dataset.textSize = "xlarge"));
-    expect(await page.evaluate(() => getComputedStyle(document.body).fontSize)).toBe("20px");
+    expect(await page.evaluate(() => getComputedStyle(document.body).fontSize)).toBe("18px");
   });
 
   test("the Side Panel's foot leads to the web app in the browser's English, under /en (#550)", async () => {

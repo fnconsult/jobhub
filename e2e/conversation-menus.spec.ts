@@ -267,7 +267,7 @@ test.describe("« Conversation au centre »: Recherches d'offres, Job Digests, A
     };
 
     await page.goto("/agenda");
-    // 16rem (Confort), at the default text size (Standard, a 17px root): 272 px.
+    // 16rem (Confort), at the default text size (Standard, a 16px root): 256 px.
     const rootPx = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
     expect((await page.locator(".sidebar-docked").boundingBox())?.width).toBe(16 * rootPx);
     await expect(sidebar(page).getByRole("button", { name: tr(texts.unfold, { menu: fr.sidebar.jobSearches }) })).toBeVisible();

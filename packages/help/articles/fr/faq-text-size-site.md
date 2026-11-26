@@ -5,7 +5,7 @@ topic: decouvrir
 title: Comment agrandir le texte du site ?
 synonyms: [taille du texte, police, agrandir, écriture, petit, gros caractères, zoom, lire, lisibilité, malvoyant]
 ---
-En haut de chaque page publique, la liste « Taille du texte » propose Petit, Standard, Moyen et Grand. Le texte de toute la page change aussitôt.
+En haut de chaque page publique, la liste « Taille du texte » propose Petit, Standard, Moyen et Grand. Le texte de toute la page change aussitôt. Standard est le réglage par défaut ; Moyen et Grand agrandissent le texte, Petit le réduit.
 
 Votre choix est gardé sur cet appareil, connecté ou non : une fois connecté, vous le retrouvez dans Mon compte, rubrique Préférences. Sur un autre ordinateur ou un autre téléphone, réglez-le à nouveau.
 

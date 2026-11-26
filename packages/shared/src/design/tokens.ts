@@ -59,11 +59,11 @@ export const designTokens = {
     card: themed("0 1px 2px rgb(20 20 40 / 4%)", "none"),
     pop: themed("0 12px 32px rgb(20 20 40 / 14%)", "0 12px 32px rgb(0 0 0 / 50%)"),
   },
-  /** One `rem` in px: the root font size at the « small » text size, which every type size below is relative to. */
+  /** One `rem` in px: the root font size at the « standard » text size, the default, which every type size below is relative to. */
   rootFontSize: 16,
   /**
    * The two Densities (ADR-0053): Confort on the Candidate side, the extension and the emails (ADR-0009's floor),
-   * Compact in the Back Office (ADR-0009's Compact amendment). Sizes are in px at the « small » text size and
+   * Compact in the Back Office (ADR-0009's Compact amendment). Sizes are in px at the « standard » text size and
    * rendered in rem, so the Text Size scales both.
    */
   density: {
@@ -78,6 +78,8 @@ export const designTokens = {
     compact: {
       fontSize: { body: 14, lead: 15, h3: 16, h2: 18, h1: 24 },
       metaFontSize: 12.5,
+      /** No text under 12px at any Text Size, « Petit » included (ADR-0009, 2026-11-26): every size is `max(<rem>, 12px)`. */
+      minFontSize: 12,
       lineHeight: 1.45,
       controlHeight: 32,
       rowPadding: 7,
@@ -91,15 +93,15 @@ export const designTokens = {
     sans: '"Inter Variable", "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif',
   },
   /**
-   * Multipliers applied to every type size by the Candidate's text-size
-   * setting, smallest first (the slider's order). "small" is the 16px floor;
-   * "large" and "xlarge" keep their keys so a remembered setting reads the same.
+   * Multipliers applied to every type size by the Candidate's text-size setting, smallest first (the slider's order):
+   * 12, 16, 17 and 18px body text (ADR-0009, amendment of 2026-11-26). "standard", the default, sits on the 16px floor;
+   * "small" is the one step below it, the Candidate's own choice. The keys stay, so a remembered setting reads the same.
    */
   textSize: {
-    small: 1,
-    standard: 1.0625,
-    large: 1.125,
-    xlarge: 1.25,
+    small: 0.75,
+    standard: 1,
+    large: 1.0625,
+    xlarge: 1.125,
   },
   /** Corners in px: controls are pills, cards 10px. */
   radius: { sm: 4, md: 6, card: 10, control: 999 },

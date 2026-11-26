@@ -43,7 +43,7 @@ async function openApplication(page: Page) {
 
 const handleOf = (page: Page) => page.getByRole("separator", { name: fr.fiche.resize });
 const widthOf = async (page: Page) => Math.round((await ficheOf(page).boundingBox())!.width);
-/** The root font size, which the Density and the Text Size set (17px in Confort): the Fiche's limits are in rem. */
+/** The root font size, which the Density and the Text Size set (16px in Confort at the default): the Fiche's limits are in rem. */
 const remOf = (page: Page) => page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
 const conversationWidth = async (page: Page) => Math.round((await page.locator("main").boundingBox())!.width);
 

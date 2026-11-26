@@ -48,19 +48,20 @@ describe("renderDesignCss", () => {
     expect(root).toContain("--radius-lg: var(--radius-card);");
   });
 
-  it("gives Confort by default: 16px body, 13px metadata, controls 2.5rem, all in rem", () => {
+  it("gives Confort by default: 16px body, 13px metadata, controls 2.5rem and never under 40px, all in rem", () => {
     expect(root).toContain("--font-size-body: 1rem;");
     expect(root).toContain("--font-size-meta: 0.8125rem;");
     expect(root).toContain("--font-size-h1: 2rem;");
-    expect(root).toContain("--size-control: 2.5rem;");
+    expect(root).toContain("--size-control: max(2.5rem, 40px);");
     expect(block(css, '[data-density="confort"]')).toContain("--font-size-body: 1rem;");
   });
 
-  it("gives Compact under [data-density=\"compact\"]: 14px body, 12.5px metadata, controls 2rem, tighter rows, still in rem", () => {
+  it("gives Compact under [data-density=\"compact\"]: 14px body, 12.5px metadata, controls 2rem and never under 32px, tighter rows, still in rem", () => {
     const compact = block(css, '[data-density="compact"]');
-    expect(compact).toContain("--font-size-body: 0.875rem;");
-    expect(compact).toContain("--font-size-meta: 0.78125rem;");
-    expect(compact).toContain("--size-control: 2rem;");
+    // Never under 12px, whatever the Text Size (ADR-0009, 2026-11-26).
+    expect(compact).toContain("--font-size-body: max(0.875rem, 12px);");
+    expect(compact).toContain("--font-size-meta: max(0.78125rem, 12px);");
+    expect(compact).toContain("--size-control: max(2rem, 32px);");
     expect(compact).toContain("--space-row: 0.4375rem;");
   });
 
@@ -69,10 +70,10 @@ describe("renderDesignCss", () => {
   });
 
   it("applies each text-size setting through a data attribute on the root element", () => {
-    expect(css).toMatch(/html\[data-text-size="small"\]\s*\{\s*font-size: 16px;/);
-    expect(css).toMatch(/html\[data-text-size="standard"\]\s*\{\s*font-size: 17px;/);
-    expect(css).toMatch(/html\[data-text-size="large"\]\s*\{\s*font-size: 18px;/);
-    expect(css).toMatch(/html\[data-text-size="xlarge"\]\s*\{\s*font-size: 20px;/);
+    expect(css).toMatch(/html\[data-text-size="small"\]\s*\{\s*font-size: 12px;/);
+    expect(css).toMatch(/html\[data-text-size="standard"\]\s*\{\s*font-size: 16px;/);
+    expect(css).toMatch(/html\[data-text-size="large"\]\s*\{\s*font-size: 17px;/);
+    expect(css).toMatch(/html\[data-text-size="xlarge"\]\s*\{\s*font-size: 18px;/);
   });
 
   it("sets body text in Inter, with the system stack as the fallback, in the body colour, never a grey", () => {

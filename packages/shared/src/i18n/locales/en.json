@@ -3925,7 +3925,11 @@
         "not_found": "This feedback does not exist.",
         "required": "Write the reply before saving it.",
         "too_long": "The reply is over 2,000 characters.",
-        "invalid": "This reply could not be read."
+        "invalid": "This reply could not be read.",
+        "draftSaved": "Draft saved.",
+        "draftSent": "Reply sent: the Signalement is handled.",
+        "draftRemoved": "Draft deleted.",
+        "no_draft": "This Signalement has no draft to send."
       },
       "journalFields": {
         "status": "Status",
@@ -3934,9 +3938,29 @@
       "replyStates": {
         "none": "None",
         "written": "Written",
-        "changed": "Changed"
+        "changed": "Changed",
+        "sent_draft": "Draft sent"
       },
-      "seenBy": "seen by {{name}}"
+      "seenBy": "seen by {{name}}",
+      "readyToClose": "Ready to close",
+      "draftWaiting": "draft to send",
+      "issuesTitle": "Issues",
+      "readyToCloseSince": "Ready to close since {{date}}: the fix is deployed in the environment this Signalement came from. Read the draft again, then send it.",
+      "issueKinds": {
+        "opened": "published by Jobbbox for {{key}}, on {{date}}",
+        "commented": "commented as a duplicate by Jobbbox for {{key}}, on {{date}}"
+      },
+      "issuesHelp": "Seen by the team only, never by the Candidate. The issue carries only the Signalement's id, never its text; deleting the Signalement removes the link and leaves the issue.",
+      "draftTitle": "Draft reply",
+      "draftProposedBy": "Draft proposed by {{key}} on {{date}}.",
+      "draftWritten": "Draft written on {{date}}.",
+      "draftEdited": "Edited on {{date}}.",
+      "draftHelp": "The Candidate receives only the version in {{language}}, signed « L'équipe Jobbbox », never with your name. Sending it marks the Signalement « Handled »: one notification for both.",
+      "draftSentVersion": "Version sent to the Candidate ({{language}})",
+      "draftTranslation": "Translation ({{language}})",
+      "sendDraft": "Send to the Candidate",
+      "saveDraft": "Save the draft",
+      "removeDraft": "Delete the draft"
     },
     "agentKeys": {
       "title": "Agent keys",

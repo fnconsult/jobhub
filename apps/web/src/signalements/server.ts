@@ -48,6 +48,11 @@ export function getGitHubIssues(): GitHubIssues {
   return issues;
 }
 
+/** The page of the issue `number` on Jobbbox's repository, for the Back Office (#1141). */
+export function issueUrl(number: number): string {
+  return `https://github.com/${process.env.GITHUB_STATUS_REPOSITORY?.trim() || DEFAULT_DELIVERY_REPOSITORY}/issues/${number}`;
+}
+
 /**
  * Signalement triage (#1139, #1141, ADR-0118): the Signalements sent with the AI notice, redacted with each Candidate's
  * identity; the issues it proposes, published by Jobbbox once checked, their blocks recorded as Guardrail Triggers.

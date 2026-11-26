@@ -275,6 +275,64 @@ describe.skipIf(!connectionString)("« Signalements » in the Back Office: Suppo
     });
   });
 
+  describe("the draft reply Signalement triage proposed (#1141)", () => {
+    const DRAFT = { fr: "Merci, c'est corrigé : la lettre s'enregistre de nouveau.", en: "Thank you, it is fixed: the letter saves again." };
+
+    async function proposed(language = "fr"): Promise<string> {
+      now = new Date("2026-10-21T09:00:00Z");
+      const done = await signalements.send(marie, { ...BUG, aiNotice: true }, { ...FROM_CHROME, interfaceLanguage: language });
+      if (!done.ok) throw new Error("fixture Signalement refused");
+      await signalements.saveDraft(done.signalement.id, DRAFT, { by: "key:triage-beta" });
+      return done.signalement.id;
+    }
+
+    it("is read by Support with its translations and who proposed it", async () => {
+      const id = await proposed("en");
+
+      expect((await triage.open(support, id))!.draft).toEqual({ ...DRAFT, proposedBy: "key:triage-beta", proposedAt: new Date("2026-10-21T09:00:00Z"), editedAt: null, forCandidate: DRAFT.en });
+    });
+
+    it("is edited or deleted by Support, neither recorded", async () => {
+      const id = await proposed();
+      now = new Date("2026-10-22T09:00:00Z");
+
+      expect(await triage.saveDraft(sophie, id, { ...DRAFT, fr: "Merci, c'est réparé." })).toMatchObject({ ok: true, draft: { fr: "Merci, c'est réparé.", proposedBy: "key:triage-beta", editedAt: now } });
+      expect(await triage.saveDraft(sophie, id, { fr: "", en: "x" })).toEqual({ ok: false, errors: [{ field: "fr", code: "required" }] });
+      expect(await triage.removeDraft(sophie, id)).toEqual({ ok: true });
+      expect((await triage.open(support, id))!.draft).toBeNull();
+      expect(await triage.removeDraft(sophie, id)).toEqual({ ok: false, error: "not_found" });
+      expect(await backOffice.journal()).toEqual([]);
+    });
+
+    it("is sent by Support in the Candidate's language, as edited, signed « L'équipe Jobbbox »: « traité » with it, one notification, recorded without its words", async () => {
+      const id = await proposed("en");
+      now = new Date("2026-10-23T09:00:00Z");
+
+      const done = await triage.sendDraft(sophie, id, { ...DRAFT, en: "Thank you: it is fixed." });
+
+      expect(done).toMatchObject({ ok: true, signalement: { status: "traite", reply: "Thank you: it is fixed.", statusChangedAt: now } });
+      expect((await triage.open(support, id))!).toMatchObject({ draft: null, statusChangedBy: null });
+      expect(await signalements.notifications(marie)).toEqual([{ signalementId: id, sentAt: "2026-10-21T09:00:00.000Z", replied: true }]);
+      const journal = await backOffice.journal();
+      expect(journal).toEqual([
+        expect.objectContaining({ section: "signalements", target: id, action: "updated", actor: { candidateId: sophie.id, email: sophie.email }, before: { status: "nouveau", reply: "none" }, after: { status: "traite", reply: "sent_draft" }, outcome: "succeeded" }),
+      ]);
+      expect(JSON.stringify(journal)).not.toMatch(/Thank you|Merci|fixed/);
+    });
+
+    it("cannot be sent without a draft, nor once « traité » (refused and recorded)", async () => {
+      const id = await proposed();
+      await triage.removeDraft(sophie, id);
+
+      expect(await triage.sendDraft(sophie, id)).toEqual({ ok: false, error: "no_draft" });
+      await signalements.saveDraft(id, DRAFT, { by: "key:triage-beta" });
+      await triage.changeStatus(sophie, id, "traite");
+      expect(await triage.sendDraft(sophie, id)).toEqual({ ok: false, error: "already_handled" });
+      expect((await backOffice.journal())[0]).toMatchObject({ target: id, action: "refused", failure: { reason: "already_handled", field: "reply" } });
+      expect(await triage.sendDraft(sophie, "00000000-0000-4000-8000-000000000000")).toEqual({ ok: false, error: "not_found" });
+    });
+  });
+
   it("keeps ids and statuses in the Back Office Audit, never the message's or the reply's words", async () => {
     const question = await sent(marie, QUESTION, "2026-10-21T09:00:00Z");
     await triage.changeStatus(sophie, question, "vu");

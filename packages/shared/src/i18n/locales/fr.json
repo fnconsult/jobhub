@@ -3925,7 +3925,11 @@
         "not_found": "Ce signalement n'existe pas.",
         "required": "Écrivez la réponse avant de l'enregistrer.",
         "too_long": "La réponse dépasse 2 000 caractères.",
-        "invalid": "Cette réponse n'a pas pu être lue."
+        "invalid": "Cette réponse n'a pas pu être lue.",
+        "draftSaved": "Brouillon enregistré.",
+        "draftSent": "Réponse envoyée : le signalement est traité.",
+        "draftRemoved": "Brouillon supprimé.",
+        "no_draft": "Ce signalement n'a pas de brouillon à envoyer."
       },
       "journalFields": {
         "status": "Statut",
@@ -3934,9 +3938,29 @@
       "replyStates": {
         "none": "Aucune",
         "written": "Écrite",
-        "changed": "Modifiée"
+        "changed": "Modifiée",
+        "sent_draft": "Brouillon envoyé"
       },
-      "seenBy": "vu par {{name}}"
+      "seenBy": "vu par {{name}}",
+      "readyToClose": "Prêt à clore",
+      "draftWaiting": "brouillon à envoyer",
+      "issuesTitle": "Issues",
+      "readyToCloseSince": "Prêt à clore depuis le {{date}} : le correctif est déployé dans l'environnement d'où vient ce signalement. Relisez le brouillon, puis envoyez-le.",
+      "issueKinds": {
+        "opened": "publiée par Jobbbox pour {{key}}, le {{date}}",
+        "commented": "commentée comme doublon par Jobbbox pour {{key}}, le {{date}}"
+      },
+      "issuesHelp": "Visibles par l'équipe seulement, jamais par le candidat. L'issue ne porte que l'identifiant du signalement, jamais son texte ; supprimer le signalement retire le lien et laisse l'issue.",
+      "draftTitle": "Brouillon de réponse",
+      "draftProposedBy": "Brouillon proposé par {{key}} le {{date}}.",
+      "draftWritten": "Brouillon écrit le {{date}}.",
+      "draftEdited": "Modifié le {{date}}.",
+      "draftHelp": "Le candidat ne reçoit que la version en {{language}}, signée « L'équipe Jobbbox », jamais avec votre nom. L'envoi marque le signalement « Traité » : une seule notification pour les deux.",
+      "draftSentVersion": "Version envoyée au candidat ({{language}})",
+      "draftTranslation": "Traduction ({{language}})",
+      "sendDraft": "Envoyer au candidat",
+      "saveDraft": "Enregistrer le brouillon",
+      "removeDraft": "Supprimer le brouillon"
     },
     "agentKeys": {
       "title": "Clés d'agent",

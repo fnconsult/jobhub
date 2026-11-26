@@ -184,7 +184,7 @@ export default async function JournalPage({ searchParams }: { searchParams: Prom
     }
     if (entrySection === "signalements") {
       if (field === "status" && isSignalementStatus(value)) return t(`admin.signalements.statuses.${value}`);
-      if (field === "reply" && (value === "none" || value === "written" || value === "changed")) return t(`admin.signalements.replyStates.${value}`);
+      if (field === "reply" && (value === "none" || value === "written" || value === "changed" || value === "sent_draft")) return t(`admin.signalements.replyStates.${value}`);
     }
     if (entrySection === "eval_cases" && field === "inViewKind" && EVAL_IN_VIEW_KINDS.includes(value as EvalInView["kind"])) return t(`admin.evals.cases.inViewKinds.${value as EvalInView["kind"]}`);
     if (value === null) return t(entrySection === "plan_quotas" ? "admin.journal.unlimited" : "admin.journal.empty");

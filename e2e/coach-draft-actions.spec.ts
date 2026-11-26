@@ -10,7 +10,8 @@ import { signInByEmail, startOwnServer, type OwnServer } from "./support/own-ser
 // « Poser la question à l'équipe »: the AI Coach could neither read the Follow-up waiting in « Propositions » nor propose
 // a new text for it, and wrote nothing. Now it reads the draft (`read_draft`), proposes its new text (`propose_draft_text`)
 // as a card under its reply; « Appliquer » changes the Follow-up in « Propositions », « Annuler » puts it back. And a turn
-// that ends with no text says what it could not do and where, never « Poser la question à l'équipe ». This spec runs on a
+// that ends with no text gets a Last turn, which answers the request; if that one writes nothing either, the Last net
+// answers with « Poser la question à l'équipe » (#1156, ADR-0119), never a generic text. This spec runs on a
 // server of its own with COACH_ACTIONS_ENABLED on; the AI Coach is faked inside it (fake-mistral.mjs): a message holding
 // `E2E_COACH_TOOL=<name>:<json>` has it call that Coach Action, one a round.
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
@@ -200,18 +201,24 @@ test.describe("the AI Coach reworks an Application's drafts: « Propositions »,
     await expect.poll(() => followUpBody(cardId), { timeout: 30_000 }).toBe(LONG);
   });
 
-  test("the Beta's turn: drafts read, then no text written → it says what it could not do and where, no « Poser la question à l'équipe »", async ({
-    browser,
-  }) => {
+  test("the Beta's turn: drafts read, then no text written → its Last turn answers the request, no generic text (#1156)", async ({ browser }) => {
     const { page } = await withFollowUp(browser);
 
     await ask(page, ASKED, [{ name: "read_draft", args: { document: "follow_up" } }], "E2E_COACH_SILENT");
     const reply = conversation(page).locator(".chat-candidate + .chat-coach").last();
-    await expect(reply).toContainText(fr.coachPanel.emptyReply.none, {
-      timeout: 30_000,
-    });
-    await expect(conversation(page).getByText(fr.coachPanel.emptyReply.none.split(".")[0]!)).toBeVisible();
+    // What the fake's Last turn answers (fake-mistral.mjs, LAST_TURN_REPLY).
+    await expect(reply).toContainText("Dites-moi ce que vous voulez garder, et je vous la proposerai.", { timeout: 30_000 });
+    await expect(reply).not.toContainText(fr.coachPanel.emptyReply.lastNet);
     await expect(conversation(page).getByRole("button", { name: fr.coachPanel.team.ask })).toHaveCount(0);
-    await expect(conversation(page).getByRole("link", { name: fr.coachPanel.team.ask })).toHaveCount(0);
+  });
+
+  test("no text twice: the Last net, with « Poser la question à l'équipe » at once (#1156, ADR-0119)", async ({ browser }) => {
+    const { page } = await withFollowUp(browser);
+
+    await ask(page, ASKED, [{ name: "read_draft", args: { document: "follow_up" } }], "E2E_COACH_SILENT_TWICE");
+    const reply = conversation(page).locator(".chat-candidate + .chat-coach").last();
+    await expect(reply).toContainText(fr.coachPanel.emptyReply.lastNet, { timeout: 30_000 });
+    await expect(conversation(page).getByText(fr.coachPanel.team.couldNotAnswer).first()).toBeVisible();
+    await expect(conversation(page).getByRole("button", { name: fr.coachPanel.team.ask })).toBeVisible();
   });
 });

@@ -331,7 +331,7 @@ test.describe("the AI Coach: which object, what it does not do and where to go, 
     expect(await versionsOf(profile.id)).toEqual([{ version: 1 }]);
   });
 
-  test("« Périmètre du coach » in Garde-fous: « signaler seulement » by default, check 4 blocks from launch; a reply holding the Master CV's identity is replaced, one that refuses without a reason goes through, flagged", async ({ browser }) => {
+  test("« Périmètre du coach » in Garde-fous: « signaler seulement » by default, checks 3 and 4 block from launch; a reply holding the Master CV's identity is replaced, one that refuses without a reason too (ADR-0119)", async ({ browser }) => {
     const { page, profile } = await candidate(browser);
 
     // Check 4: the Master CV's identity (its name, written by no one in the conversation), whatever the setting.
@@ -347,9 +347,9 @@ test.describe("the AI Coach: which object, what it does not do and where to go, 
     expect(own.reply).toBe("Votre nom, Christine Martin, puis votre titre.");
     expect(own.blocked.reply).toBe(false);
 
-    // Check 3, the default « signaler »: the reply goes through.
+    // Check 3 blocks whatever the setting (ADR-0119): written again once with the reason.
     const refusal = await ask(page, "Renomme mon profil.", { focus: { kind: "profile", id: profile.id }, say: "Ici, je ne peux pas renommer votre profil." });
-    expect(refusal.reply).toBe("Ici, je ne peux pas renommer votre profil.");
+    expect(refusal.reply).toBe(RECENTRED);
     expect(refusal.blocked.reply).toBe(false);
     // Check 1, the default: the reply goes through.
     const announced = await ask(page, "Ajoute SQL à mon CV de référence.", { focus: { kind: "profile", id: profile.id }, say: "C'est fait, j'ai ajouté SQL. E2E_SCOPE_CHANGE" });
@@ -364,20 +364,21 @@ test.describe("the AI Coach: which object, what it does not do and where to go, 
     const row = admin.getByRole("table", { name: guardrails.caption }).getByRole("row").filter({ hasText: guardrails.names.coach_scope });
     await expect(row).toContainText(guardrails.settings.flag);
     await expect(row).toContainText("modification annoncée sans carte");
-    await expect(row).toContainText("Le contrôle 4 bloque toujours");
+    await expect(row).toContainText("Les contrôles 3 et 4 bloquent toujours");
+    await expect(row).toContainText("hors sujet");
     const section = admin.locator("section#coach_scope");
     await expect(section.getByLabel(guardrails.settingLabel)).toHaveValue("flag");
     await expect(section.getByRole("group", { name: guardrails.editTitle.replace("{{language}}", guardrails.languages.fr) }).getByLabel(guardrails.text)).toHaveValue(DEFAULT_GUARDRAIL_MESSAGES.coach_scope.fr);
     const triggers = admin.getByRole("table", { name: guardrails.triggers.caption });
     await expect(triggers.getByRole("row").filter({ hasText: guardrails.names.coach_scope }).first()).toBeVisible();
 
-    // Set to block (as the Administrator), check 3 now blocks: the reply is written again once with the reason.
+    // Set to block (as the Administrator), check 1 now blocks too: the reply is written again once with the reason.
     await section.getByLabel(guardrails.settingLabel).selectOption("block");
     await section.getByRole("button", { name: guardrails.saveSetting }).click();
     await expect(admin.getByRole("main").getByRole("status")).toHaveText(guardrails.notices.settingSaved, { timeout: 60_000 });
-    const refusedAgain = await ask(page, "Renomme mon profil.", { focus: { kind: "profile", id: profile.id }, say: "Ici, je ne peux pas renommer votre profil." });
-    expect(refusedAgain.reply).toBe(RECENTRED);
-    expect(refusedAgain.blocked.reply).toBe(false);
+    const announcedAgain = await ask(page, "Ajoute SQL à mon CV de référence.", { focus: { kind: "profile", id: profile.id }, say: "C'est fait, j'ai ajouté SQL. E2E_SCOPE_CHANGE" });
+    expect(announcedAgain.reply).toBe(RECENTRED);
+    expect(announcedAgain.blocked.reply).toBe(false);
   });
 
   // Last: the tests of a serial describe after a failing one are skipped.

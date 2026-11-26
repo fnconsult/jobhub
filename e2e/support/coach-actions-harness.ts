@@ -70,6 +70,8 @@ export interface HarnessReply {
   outcome?: string;
   /** The Typed redirect the reply gives (ADR-0114), as the server built it. */
   redirect?: TypedRedirect;
+  /** « Poser la question à l'équipe » offered at once (#345): the AI Coach's mark, or the Last net (ADR-0119). */
+  couldNotAnswer?: boolean;
   /** The tools each reply of the scenario was offered (the first `coaching` request's). */
   /** The Tools AI Activity names for the reply, as its pane shows them (activityElement). */
   activityTools?: (string | null)[];
@@ -282,6 +284,7 @@ for (const each of scenario.replies ?? []) {
           reply: replied.reply,
           outcome: replied.outcome,
           ...(replied.redirect ? { redirect: replied.redirect } : {}),
+          couldNotAnswer: replied.couldNotAnswer === true,
           proposals: replied.proposals,
           steps: replied.provenance.steps,
           sites: replied.provenance.sites,

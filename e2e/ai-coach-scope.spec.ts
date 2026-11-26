@@ -226,10 +226,33 @@ test.describe("« Périmètre du coach », the Guardrail on the AI Coach's reply
     expect(triggersOf(r).filter((each) => each.action === "blocked")).toEqual([]);
   });
 
-  test("checks 1 to 3 default to « signaler »: a refusal goes through and is flagged", () => {
+  test("check 3 blocks whatever the setting (ADR-0119): under the default « signaler », a refusal with no reason is written again", () => {
     const r = run({ ...guarded, replies: [ask(`Renomme mon profil. ${say("Ici, je ne peux pas renommer votre profil.")}`, PROFILE)] });
-    expect(r.replies[0]).toMatchObject({ ok: true, outcome: "replied", reply: "Ici, je ne peux pas renommer votre profil." });
-    expect(triggersOf(r)).toContainEqual({ guardrail: "coach_scope", action: "flagged", check: "refusal_without_redirect" });
+    expect(r.replies[0]).toMatchObject({ ok: true, outcome: "replied", reply: RECENTRED });
+    expect(triggersOf(r)).toContainEqual({ guardrail: "coach_scope", action: "blocked", check: "refusal_without_redirect" });
+  });
+
+  test("check 5, « hors sujet »: found by the AI check, flagged under the default setting, written again once set to block", () => {
+    const flagged = run({ ...guarded, replies: [ask(`Trouve des contacts chez Exemple Industrie. ${say("Votre candidature est au stade de l'entretien. E2E_SCOPE_OFF_TOPIC")}`, PROFILE)] });
+    expect(flagged.replies[0]).toMatchObject({ ok: true, outcome: "replied", reply: "Votre candidature est au stade de l'entretien. E2E_SCOPE_OFF_TOPIC" });
+    expect(triggersOf(flagged)).toContainEqual({ guardrail: "coach_scope", action: "flagged", check: "off_topic" });
+
+    const blocked = run({ ...guarded, guardSettings: { coach_scope: "block" }, replies: [ask(`Trouve des contacts chez Exemple Industrie. ${say("Votre candidature est au stade de l'entretien. E2E_SCOPE_OFF_TOPIC")}`, PROFILE)] });
+    expect(blocked.replies[0]).toMatchObject({ ok: true, outcome: "replied", reply: RECENTRED });
+    expect(triggersOf(blocked)).toContainEqual({ guardrail: "coach_scope", action: "blocked", check: "off_topic" });
+  });
+
+  test("a reply with no text: its Last turn answers; no text twice, the Last net with « Poser la question à l'équipe », its turn flagged (ADR-0119)", () => {
+    const read = marker("read_application", { id: "a-airbus" });
+    const answered = run({ ...guarded, replies: [ask(`Retravaille la relance. ${read}\nE2E_COACH_SILENT`, PROFILE)] });
+    expect(answered.replies[0]).toMatchObject({ ok: true, outcome: "replied", couldNotAnswer: false, reply: expect.stringContaining("Dites-moi ce que vous voulez garder") });
+    expect(answered.offered.at(-1)).toBeNull();
+    expect(answered.systems.at(-1)).toContain("Dernier tour : ");
+
+    const silent = run({ ...guarded, replies: [ask(`Retravaille la relance. ${read}\nE2E_COACH_SILENT_TWICE`, PROFILE)] });
+    expect(silent.replies[0]).toMatchObject({ ok: true, outcome: "replied", couldNotAnswer: true, reply: "Je n'ai pas réussi à traiter votre demande. Reformulez-la, ou posez la question à l'équipe." });
+    expect(silent.replies[0]!.steps).toContainEqual(expect.objectContaining({ kind: "ai", task: "coaching", outcome: "warning" }));
+    expect(triggersOf(silent).filter((each) => each.action === "blocked")).toEqual([]);
   });
 
   test("check 4, the Master CV's identity or a Private Coach Note taken up in the reply: blocked from launch, whatever the setting, by a fixed rule", () => {

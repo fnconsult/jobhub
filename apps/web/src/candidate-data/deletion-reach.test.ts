@@ -162,6 +162,21 @@ describe.skipIf(!connectionString)("What deleting or exporting a Candidate reach
     expect(EXPORTED_TABLES).not.toHaveProperty("provider_secret");
   });
 
+  it("Agent Keys and their call log name no Candidate and no Administrator, so they stay out of the Data export (#1139, ADR-0118)", async () => {
+    const { rows } = await throwaway.pool.query<{ table: string; column: string }>(
+      `SELECT table_name AS table, column_name AS column FROM information_schema.columns
+        WHERE table_schema = current_schema() AND table_name IN ('agent_key', 'agent_key_call')`,
+    );
+
+    expect(new Set(rows.map((row) => row.table))).toEqual(new Set(["agent_key", "agent_key_call"]));
+    expect(rows.map((row) => row.column)).toContain("fingerprint");
+    expect(rows.map((row) => row.column).filter((column) => /candidate|user|account|email|value|message|body/.test(column))).toEqual([]);
+    for (const table of ["agent_key", "agent_key_call"]) {
+      expect([...tablesTiedToCandidate()]).not.toContain(table);
+      expect(EXPORTED_TABLES).not.toHaveProperty(table);
+    }
+  });
+
   it("AI Usage names no Candidate and holds no text, so it stays out of the data export and outlives the account; the AI Message Log does neither (#218)", async () => {
     const { rows } = await throwaway.pool.query<{ table: string; column: string }>(
       `SELECT table_name AS table, column_name AS column FROM information_schema.columns

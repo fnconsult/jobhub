@@ -129,9 +129,11 @@ export function bootSetup(hardwareId: HardwareId): string[][] {
         "sh",
         "-c",
         [
-          // Already French, which the system only is if it booted so (mobile-e2e.yml writes it before the first boot):
-          // no second boot, minutes long on the iPad.
+          // Already French, which the system only is if it booted so (ios-simulator-boot.ts writes it before each first
+          // boot): no second boot, minutes long on the iPad. A second boot left the first run after it failing (#1170):
+          // said, should it happen again.
           `if [ "$(${spawn} read -g AppleLocale 2>/dev/null)" = fr_FR ] && ${spawn} read -g AppleLanguages 2>/dev/null | grep -q fr-FR; then exit 0; fi`,
+          "echo '::warning::The simulator was not French: rebooted for its language, which slows its first run (#1170)'",
           `${spawn} write -g AppleLanguages -array fr-FR`,
           `${spawn} write -g AppleLocale -string fr_FR`,
           // The system reads them as it boots.

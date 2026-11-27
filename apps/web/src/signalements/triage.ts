@@ -3,20 +3,25 @@
  * changes through `/admin/api/signalements`, and nothing more.
  *
  * `createSignalementTriage({ signalements, identityOf, environment })` answers:
- *  - `queue` and `one`: only the Signalements sent with the AI notice, each with exactly TRIAGE_KEYS (type, message,
- *    date, status, environment, Version, browser or device, Interface Language, Text Size, the page's path with each id
- *    as `:id`, a Question's copy of the question and the coach's reply). Every text goes through Redaction first, the
- *    Preferred Name included: the Candidate's name, email, phone and address come out as « [NOM] », « [E-MAIL] »…
- *    Never the Candidate's email, name, Plan or id, the team's reply, nor any object of theirs;
+ *  - `queue` and `one`: only the Signalements sent with the AI notice, « traité » ones included until their purge, each
+ *    with exactly TRIAGE_KEYS (type, message, date, status, environment, Version, browser or device, Interface Language,
+ *    Text Size, the page's path with each id as `:id`, a Question's copy of the question and the coach's reply, and
+ *    what triage already did, #1173: the issue linked and the draft's signature and date, never its text). Every text
+ *    goes through Redaction first, the Preferred Name included: the Candidate's name, email, phone and address come out
+ *    as « [NOM] », « [E-MAIL] »… Never the Candidate's email, name, Plan or id, the team's reply, nor any object of theirs;
  *  - `markSeen`: « vu », and only « vu », signed `key:<name>` (statutMajPar), which the Back Office shows as
- *    « vu par triage-beta ». One already « vu » is left as it is; one « traité » is refused;
+ *    « vu par triage-beta ». One already « vu » is left as it is; one « traité » is refused. It answers SEEN_KEYS alone;
+ *  - for an id it cannot read, each says why (TRIAGE_MISSING_REASONS, #1173), never anything of the Candidate;
  *  - `proposeIssue` (#1141): Jobbbox publishes the issue the agent proposes, never the agent. Its text (title, summary,
  *    steps, expected behaviour, environment, Version, device), or `{ commentOn }` for a duplicate, goes through Redaction
  *    then the « Données du Candidate dans une issue » Guardrail (guardrails/issue), always on: a text blocked comes back
  *    with its reasons, nothing published, the Guardrail Trigger recorded. One that passes is published on GitHub with
- *    ISSUE_LABELS and the Signalement's id in its body (never its text), or commented on the issue named, and linked;
+ *    ISSUE_LABELS and the Signalement's id in its body (never its text), or commented on the issue named, and linked.
+ *    One already linked is refused (`already_linked`, naming its issue): a duplicate goes through `commentOn` on a new
+ *    Signalement. One « traité » still takes its issue or comment (#1173), so the link outlives Support's reply;
  *  - `proposeDraft` (#1141): a draft reply in French and in English, kept on the Signalement « proposé par <key> ».
- *    Support sends it, never the agent: the agent never sets « traité ».
+ *    Support sends it, never the agent: the agent never sets « traité ». It answers PROPOSED_DRAFT_KEYS alone, never
+ *    the draft's text.
  */
 import { redactIdentity, type CandidateIdentity } from "@jobhub/ai";
 import { agentSignature } from "../agent-keys/values";
@@ -25,7 +30,7 @@ import { candidateDataInIssue, everyName, type IssueBlockReason } from "../guard
 import { routePattern } from "../route-pattern";
 import type { FieldError } from "../validation";
 import { IssuesError, type GitHubIssues, type IssuesErrorReason } from "./github-issues";
-import type { Signalement, Signalements, SignalementStatus, TriageableSignalement } from "./index";
+import type { Signalement, Signalements, SignalementStatus, TriageableSignalement, TriageMissingReason } from "./index";
 
 /** The keys of every Signalement triage reads, in this order: the only ones, tested with `Object.keys`. */
 export const TRIAGE_KEYS = [
@@ -42,7 +47,29 @@ export const TRIAGE_KEYS = [
   "path",
   "attachedQuestion",
   "attachedCoachReply",
+  "issue",
+  "brouillon",
 ] as const;
+
+/** The keys `markSeen` answers, in this order (#1173): never the message, its context or a draft. */
+export const SEEN_KEYS = ["id", "statut", "statutMajPar"] as const;
+/** The keys `proposeDraft` answers, in this order (#1173), `brouillon` holding DRAFT_STATE_KEYS: never the draft's text. */
+export const PROPOSED_DRAFT_KEYS = ["id", "brouillon"] as const;
+export const DRAFT_STATE_KEYS = ["proposePar", "date"] as const;
+
+/** An issue linked to a Signalement, as triage reads it: its number and its page. */
+export interface LinkedIssue {
+  number: number;
+  url: string;
+}
+
+/** A draft reply waiting for Support, as triage reads it (#1173): who proposed it and when, never its text. */
+export interface DraftState {
+  /** The Agent Key that proposed it (`key:triage-beta`); null for one Support wrote. */
+  proposePar: string | null;
+  /** ISO. */
+  date: string;
+}
 
 export interface TriageSignalement {
   id: string;
@@ -65,9 +92,26 @@ export interface TriageSignalement {
   /** A Question's copy of the Candidate's question and the coach's reply, redacted; null for a Bug or an Idée. */
   attachedQuestion: string | null;
   attachedCoachReply: string | null;
+  /** The issue linked to it (the first, when there are several); null for none. */
+  issue: LinkedIssue | null;
+  /** The draft reply waiting for Support; null for none. */
+  brouillon: DraftState | null;
 }
 
-export type MarkSeenResult = { ok: true; signalement: TriageSignalement } | { ok: false; error: "not_found" | "already_handled" };
+/** An id triage cannot read, and why (#1173). */
+export type NotFound = { ok: false; error: "not_found"; reason: TriageMissingReason };
+
+export type OneResult = { ok: true; signalement: TriageSignalement } | NotFound;
+
+/** What `markSeen` answers: SEEN_KEYS. */
+export interface Seen {
+  id: string;
+  statut: SignalementStatus;
+  /** Who set it (`key:triage-beta`); null when the team did. */
+  statutMajPar: string | null;
+}
+
+export type MarkSeenResult = { ok: true; seen: Seen } | NotFound | { ok: false; error: "already_handled" };
 
 /** The labels of every issue Jobbbox publishes for Signalement triage. */
 export const ISSUE_LABELS = ["needs-triage", "signalement"] as const;
@@ -79,30 +123,27 @@ const REQUIRED_ISSUE_FIELDS: readonly IssueField[] = ["title", "summary"];
 
 export type ProposeIssueResult =
   | { ok: true; issue: { number: number; url: string; kind: "opened" | "commented" } }
-  | { ok: false; error: "not_found" | "already_handled" }
+  | NotFound
+  /** One issue per Signalement: the one it already has. */
+  | { ok: false; error: "already_linked"; issue: LinkedIssue }
   | { ok: false; error: "invalid"; errors: FieldError[] }
   /** The Guardrail's answer: why, and which fields; nothing was published. */
   | { ok: false; error: "blocked"; guardrail: "candidate_data_in_issue"; reasons: IssueBlockReason[]; fields: string[] }
   | { ok: false; error: "github"; reason: IssuesErrorReason };
 
-/** A draft as the agent reads it back. */
+/** What `proposeDraft` answers: PROPOSED_DRAFT_KEYS. */
 export interface ProposedDraft {
-  fr: string;
-  en: string;
-  proposedBy: string | null;
-  /** ISO. */
-  proposedAt: string;
-  /** The version the Candidate would receive, in their Interface Language. */
-  forCandidate: string;
+  id: string;
+  brouillon: DraftState;
 }
 
-export type ProposeDraftResult = { ok: true; draft: ProposedDraft } | { ok: false; error: "not_found" | "already_handled" } | { ok: false; error: "invalid"; errors: FieldError[] };
+export type ProposeDraftResult = { ok: true; proposed: ProposedDraft } | NotFound | { ok: false; error: "already_handled" } | { ok: false; error: "invalid"; errors: FieldError[] };
 
 export interface SignalementTriage {
   /** The queue, oldest first, of `statuses` (default: every one). */
   queue(filter?: { statuses?: readonly SignalementStatus[] }): Promise<TriageSignalement[]>;
-  /** One; null for one not sent with the AI notice, or none. */
-  one(id: string): Promise<TriageSignalement | null>;
+  /** One; why not for one not sent with the AI notice, gone, or none. */
+  one(id: string): Promise<OneResult>;
   /** Marks it « vu », signed by the Agent Key `keyName`. */
   markSeen(id: string, keyName: string): Promise<MarkSeenResult>;
   /** Publishes the issue, or the comment, the Agent Key `keyName` proposes (`proposal`, untrusted), once checked. */
@@ -112,13 +153,15 @@ export interface SignalementTriage {
 }
 
 export interface SignalementTriageDeps {
-  signalements: Pick<Signalements, "triageable" | "triageableOne" | "changeStatus" | "linkIssue" | "saveDraft">;
+  signalements: Pick<Signalements, "triageable" | "triageableOne" | "whyNotTriageable" | "changeStatus" | "linkIssue" | "saveDraft">;
   /** The Candidate's identity, taken out of every text (candidate-identity). A lookup that fails fails the call: nothing goes out unredacted. */
   identityOf: (candidateId: string) => Promise<CandidateIdentity | null>;
   /** Where this server runs (Release.environment). */
   environment: string;
   /** Where Jobbbox publishes the issue (GITHUB_ISSUES_TOKEN). */
   issues: Pick<GitHubIssues, "open" | "comment">;
+  /** The page of the issue `number` on Jobbbox's repository. */
+  issueUrl: (number: number) => string;
   /** Where a block of « Données du Candidate dans une issue » is recorded. A log that fails never fails the check. */
   triggers: GuardrailTriggerLog;
   now?: () => Date;
@@ -183,9 +226,15 @@ function commentBody(signalement: Signalement, environment: string, summary: str
   return [`Un autre signalement décrit ce problème : Signalement \`${signalement.id}\` (${context}).`, ...(summary ? ["", summary] : [])].join("\n");
 }
 
-export function createSignalementTriage({ signalements, identityOf, environment, issues, triggers, now = () => new Date() }: SignalementTriageDeps): SignalementTriage {
+export function createSignalementTriage({ signalements, identityOf, environment, issues, issueUrl, triggers, now = () => new Date() }: SignalementTriageDeps): SignalementTriage {
+  const linked = (number: number): LinkedIssue => ({ number, url: issueUrl(number) });
+  const draftState = (draft: { proposedBy: string | null; proposedAt: Date }): DraftState => ({ proposePar: draft.proposedBy, date: draft.proposedAt.toISOString() });
+
+  /** Why `id` is not one triage reads. */
+  const notFound = async (id: string): Promise<NotFound> => ({ ok: false, error: "not_found", reason: await signalements.whyNotTriageable(id) });
+
   /** Its fixed keys, each text redacted with its Candidate's identity, their Preferred Name taken out too. */
-  async function shown({ candidateId, signalement }: TriageableSignalement): Promise<TriageSignalement> {
+  async function shown({ candidateId, signalement, issueNumber, draft }: TriageableSignalement): Promise<TriageSignalement> {
     const identity = await identityOf(candidateId);
     const texts = [signalement.message, signalement.attachedQuestion ?? "", signalement.attachedCoachReply ?? ""];
     const [message, attachedQuestion, attachedCoachReply] = redactIdentity(texts, identity && everyName(identity)).texts;
@@ -203,6 +252,8 @@ export function createSignalementTriage({ signalements, identityOf, environment,
       path: routePattern(signalement.context.path, ":id"),
       attachedQuestion: signalement.attachedQuestion === null ? null : attachedQuestion!,
       attachedCoachReply: signalement.attachedCoachReply === null ? null : attachedCoachReply!,
+      issue: issueNumber === null ? null : linked(issueNumber),
+      brouillon: draft === null ? null : draftState(draft),
     };
   }
 
@@ -213,23 +264,24 @@ export function createSignalementTriage({ signalements, identityOf, environment,
 
     async one(id) {
       const found = await signalements.triageableOne(id);
-      return found ? shown(found) : null;
+      return found ? { ok: true, signalement: await shown(found) } : notFound(id);
     },
 
     async markSeen(id, keyName) {
       const found = await signalements.triageableOne(id);
-      if (!found) return { ok: false, error: "not_found" };
+      if (!found) return notFound(id);
       if (found.signalement.status === "traite") return { ok: false, error: "already_handled" };
-      if (found.signalement.status === "vu") return { ok: true, signalement: await shown(found) };
-      const changed = await signalements.changeStatus(id, "vu", undefined, agentSignature(keyName));
-      if (!changed || "refused" in changed) return { ok: false, error: "not_found" };
-      return { ok: true, signalement: await shown({ candidateId: found.candidateId, signalement: changed.after }) };
+      if (found.signalement.status === "vu") return { ok: true, seen: { id, statut: "vu", statutMajPar: found.statusChangedBy } };
+      const by = agentSignature(keyName);
+      const changed = await signalements.changeStatus(id, "vu", undefined, by);
+      if (!changed || "refused" in changed) return notFound(id);
+      return { ok: true, seen: { id, statut: changed.after.status, statutMajPar: by } };
     },
 
     async proposeIssue(id, keyName, sent) {
       const found = await signalements.triageableOne(id);
-      if (!found) return { ok: false, error: "not_found" };
-      if (found.signalement.status === "traite") return { ok: false, error: "already_handled" };
+      if (!found) return notFound(id);
+      if (found.issueNumber !== null) return { ok: false, error: "already_linked", issue: linked(found.issueNumber) };
       const proposal = proposalOf(sent);
       if (Array.isArray(proposal)) return { ok: false, error: "invalid", errors: proposal };
 
@@ -263,13 +315,10 @@ export function createSignalementTriage({ signalements, identityOf, environment,
 
     async proposeDraft(id, keyName, draft) {
       const found = await signalements.triageableOne(id);
-      if (!found) return { ok: false, error: "not_found" };
+      if (!found) return notFound(id);
       const saved = await signalements.saveDraft(id, draft, { by: agentSignature(keyName) });
-      if (!saved) return { ok: false, error: "not_found" };
-      if (saved.ok) {
-        const { fr, en, proposedBy, proposedAt, forCandidate } = saved.draft;
-        return { ok: true, draft: { fr, en, proposedBy, proposedAt: proposedAt.toISOString(), forCandidate } };
-      }
+      if (!saved) return notFound(id);
+      if (saved.ok) return { ok: true, proposed: { id, brouillon: draftState(saved.draft) } };
       return "refused" in saved ? { ok: false, error: saved.refused } : { ok: false, error: "invalid", errors: saved.errors };
     },
   };

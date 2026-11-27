@@ -63,6 +63,7 @@ export function getSignalementTriage(): SignalementTriage {
     identityOf: candidateIdentityOf(sharedPool()),
     environment: currentRelease().environment,
     issues: getGitHubIssues(),
+    issueUrl,
     triggers: getGuardrailStore().triggers,
   });
   return triage;

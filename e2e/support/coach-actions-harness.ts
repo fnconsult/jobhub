@@ -96,7 +96,7 @@ export interface HarnessResult {
   /** What a catalogue holding a Coach Action of a group no « Routes locales » Tool declares does when the AI Coach is offered it. */
   undeclared: { catalogue: string | null; offered: string | null };
   /** `proposed`: each proposal's Coach Action and what it prepared (in an Eval Run, its arguments). */
-  evals: { id: string; offered: string[] | null; proposals: number; proposed: { action: string; data: unknown }[]; reply: string | null; system: string }[];
+  evals: { id: string; offered: string[] | null; proposals: number; proposed: { action: string; data: unknown }[]; reply: string | null; system: string; redirect: TypedRedirect | null; toolResults: string[] }[];
 }
 
 const scenario = JSON.parse(process.argv[2] ?? "{}") as Scenario;
@@ -303,7 +303,7 @@ for (const each of scenario.evalCases ?? []) {
     ai,
     playbooks: { served: async () => ({ coreDigest: null, sources: null, playbooks: [] }) },
     context: async () => `${evalCase.context}\n\n${evalCase.inView ? evalCase.inView.text : ""}`,
-    coachActions: forEvalRun(scenario.shipped ? SHIPPED : CATALOG),
+    coachActions: forEvalRun(scenario.shipped ? SHIPPED : CATALOG, { coachSpaceV2: evalCase.coachSpaceV2 ?? false }),
     warn: () => {},
   });
   const text = each.scripted ? `${evalCase.message} E2E_COACH_TOOL=${each.scripted}` : evalCase.message;
@@ -315,6 +315,8 @@ for (const each of scenario.evalCases ?? []) {
     proposed: replied.ok ? (replied.proposals ?? []).map((proposal) => ({ action: proposal.action, data: proposal.data })) : [],
     reply: replied.ok ? replied.reply : null,
     system: systems[before] ?? "",
+    redirect: replied.ok ? (replied.redirect ?? null) : null,
+    toolResults: toolResults.slice(before).flat(),
   });
 }
 

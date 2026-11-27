@@ -220,14 +220,59 @@ describe.skipIf(!connectionString)("Signalements (#374, #283; needs Postgres: DA
       if (!before.ok || !first.ok || !second.ok) throw new Error("fixture Signalement refused");
       await signalements.changeStatus(second.signalement.id, "traite");
 
+      const untouched = { statusChangedBy: null, issueNumber: null, draft: null };
       expect(await signalements.triageable()).toEqual([
-        { candidateId: marie, signalement: first.signalement },
-        { candidateId: marie, signalement: { ...second.signalement, status: "traite", statusChangedAt: now } },
+        { candidateId: marie, signalement: first.signalement, ...untouched },
+        { candidateId: marie, signalement: { ...second.signalement, status: "traite", statusChangedAt: now }, ...untouched },
       ]);
       expect((await signalements.triageable({ statuses: ["nouveau"] })).map((each) => each.signalement.id)).toEqual([first.signalement.id]);
-      expect(await signalements.triageableOne(first.signalement.id)).toEqual({ candidateId: marie, signalement: first.signalement });
+      expect(await signalements.triageableOne(first.signalement.id)).toEqual({ candidateId: marie, signalement: first.signalement, ...untouched });
       expect(await signalements.triageableOne(before.signalement.id)).toBeNull();
       expect(await signalements.triageableOne("pas-un-id")).toBeNull();
+    });
+
+    it("gives what triage already did (#1173): who set the status, the first issue linked, the draft's signature and date, never its text", async () => {
+      const sent = await signalements.send(marie, bug({ aiNotice: true }), FROM_MARIE);
+      if (!sent.ok) throw new Error("fixture Signalement refused");
+      const id = sent.signalement.id;
+      await signalements.changeStatus(id, "vu", undefined, "key:triage-beta");
+      await signalements.linkIssue(id, { number: 1180, kind: "opened" }, "key:triage-beta");
+      now = new Date("2026-10-25T10:30:00Z");
+      await signalements.linkIssue(id, { number: 1175, kind: "commented" }, "key:triage-beta");
+      await signalements.saveDraft(id, { fr: "Merci, c'est noté.", en: "Thank you, noted." }, { by: "key:triage-beta" });
+
+      const [listed] = await signalements.triageable();
+      const one = await signalements.triageableOne(id);
+
+      expect(one).toEqual(listed);
+      expect(one).toMatchObject({ statusChangedBy: "key:triage-beta", issueNumber: 1180, draft: { proposedBy: "key:triage-beta", proposedAt: now } });
+      expect(Object.keys(one!.draft!)).toEqual(["proposedBy", "proposedAt"]);
+      expect(JSON.stringify(one)).not.toMatch(/c'est noté|noted/);
+    });
+
+    it("says why one is not triage's (#1173): deleted by the Candidate, purged once « traité », sent without the AI notice, or unknown", async () => {
+      const deleted = await signalements.send(marie, bug({ aiNotice: true }), FROM_MARIE);
+      const withoutNotice = await signalements.send(marie, bug(), FROM_MARIE);
+      const deletedWithoutNotice = await signalements.send(marie, bug(), FROM_MARIE);
+      if (!deleted.ok || !withoutNotice.ok || !deletedWithoutNotice.ok) throw new Error("fixture Signalement refused");
+      await signalements.remove(marie, deleted.signalement.id);
+      await signalements.remove(marie, deletedWithoutNotice.signalement.id);
+
+      expect(await signalements.whyNotTriageable(deleted.signalement.id)).toBe("deleted");
+      expect(await signalements.whyNotTriageable(withoutNotice.signalement.id)).toBe("no_ai_notice");
+      // One out of triage's scope leaves no trace: its id stays unknown.
+      expect(await signalements.whyNotTriageable(deletedWithoutNotice.signalement.id)).toBe("unknown");
+      expect(await signalements.whyNotTriageable("0b6c2f1e-9999-4999-8999-999999999999")).toBe("unknown");
+      expect(await signalements.whyNotTriageable("pas-un-id")).toBe("unknown");
+    });
+
+    it("keeps of a deleted one its id and when it was deleted, nothing of the Candidate; with the account too", async () => {
+      const sent = await signalements.send(marie, bug({ aiNotice: true }), FROM_MARIE);
+      if (!sent.ok) throw new Error("fixture Signalement refused");
+      await database.query(`DELETE FROM candidate WHERE id = $1`, [marie]);
+
+      expect(await signalements.whyNotTriageable(sent.signalement.id)).toBe("deleted");
+      expect((await database.query(`SELECT * FROM signalement_removed`)).rows).toEqual([{ id: sent.signalement.id, removed_at: expect.any(Date), reason: "deleted" }]);
     });
   });
 
@@ -478,6 +523,23 @@ describe.skipIf(!connectionString)("Signalements (#374, #283; needs Postgres: DA
       const kept = (await signalementsOf(database, marie)).map((signalement) => signalement.id);
       expect(kept).not.toContain(handledLongAgo);
       expect(kept.sort()).toEqual([nouveau, vu, handledLately].sort());
+    });
+
+    it("keeps of one purged, sent with the AI notice, its id and the purge's date, « treated » for triage (#1173); that trace goes 12 months later", async () => {
+      now = new Date("2024-01-10T08:00:00Z");
+      const result = await signalements.send(marie, bug({ aiNotice: true }), FROM_MARIE);
+      if (!result.ok) throw new Error("fixture Signalement refused");
+      now = new Date("2025-10-24T08:00:00Z");
+      await signalements.changeStatus(result.signalement.id, "traite");
+
+      expect(await purgeSignalements(database, new Date("2026-10-25T09:30:00Z"))).toBe(1);
+      expect(await signalements.whyNotTriageable(result.signalement.id)).toBe("treated");
+      expect((await database.query(`SELECT * FROM signalement_removed`)).rows).toEqual([{ id: result.signalement.id, removed_at: new Date("2026-10-25T09:30:00Z"), reason: "treated" }]);
+
+      await purgeSignalements(database, new Date("2027-10-25T09:29:00Z"));
+      expect(await signalements.whyNotTriageable(result.signalement.id)).toBe("treated");
+      await purgeSignalements(database, new Date("2027-10-25T09:30:00Z"));
+      expect(await signalements.whyNotTriageable(result.signalement.id)).toBe("unknown");
     });
   });
 

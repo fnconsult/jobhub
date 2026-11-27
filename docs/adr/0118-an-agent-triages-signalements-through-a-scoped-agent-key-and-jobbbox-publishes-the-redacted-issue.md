@@ -1,6 +1,6 @@
 # An agent triages Signalements through a scoped Agent Key, and Jobbbox publishes the redacted issue
 
-Status: proposed (2026-11-26, product owner; grilling #1138). Amends the *Signalement* entry of CONTEXT.md (« read by people only: never sent to an AI »). Follows the triage scheme of the Charabia project (`fnconsult/game-hub`, `docs/specs/triage-signalements-2026-10-01.md`). **Not used on Production data before the Legal Review** of its « Légal : » issue.
+Status: proposed (2026-11-26, product owner; grilling #1138). Amends the *Signalement* entry of CONTEXT.md (« read by people only: never sent to an AI »). Follows the triage scheme of the Charabia project (`fnconsult/game-hub`, `docs/specs/triage-signalements-2026-10-01.md`). **Not used on Production data before the Legal Review** of its « Légal : » issue. Amended 2026-11-27 (#1173).
 
 A Signalement (Bug, Idée, Question) stays in the Back Office. Support handles it by hand, and nothing brings it to the GitHub backlog. A confirmed bug reaches an issue only when the product owner copies it from a screenshot (#1128, #1130, #1131, #1133). The rule « read by people only » also keeps out the AI agents that deliver the backlog, so every Signalement waits for a person to read it, rewrite it and file it.
 
@@ -20,7 +20,7 @@ A Signalement (Bug, Idée, Question) stays in the Back Office. Support handles i
   - `POST /admin/api/signalements/:id/brouillon`;
   - `POST /admin/api/signalements/:id/issue`.
 
-  The answer has a fixed set of keys, tested with `Object.keys`: type, message, date, status, environment, Version, browser or device, Interface Language and Text Size. A page path comes with each id replaced by its type (`/candidatures/:id`). A Question also carries its copy of the question and the AI Coach's reply, in full. Never the Candidate's email, name, Plan or id, and never an object of theirs (an Application, a Profile, a CV). When an object is needed to reproduce a bug, the issue asks Support, who reads it in the Back Office.
+  The answer has a fixed set of keys, tested with `Object.keys`: type, message, date, status, environment, Version, browser or device, Interface Language and Text Size. Amended on 2026-11-27 (#1173): the keys also say what triage already did (the issue linked, the draft's signature and date), and an answer to a write holds none of the message; see the amendment below. A page path comes with each id replaced by its type (`/candidatures/:id`). A Question also carries its copy of the question and the AI Coach's reply, in full. Never the Candidate's email, name, Plan or id, and never an object of theirs (an Application, a Profile, a CV). When an object is needed to reproduce a bug, the issue asks Support, who reads it in the Back Office.
 - **Redaction first.** Every text the API returns goes through Redaction, as an AI call does. A status set by the agent is signed `key:<name>`, and the Back Office shows « vu par *triage-beta* ».
 - **Only Signalements sent with the AI notice.** The form says « Un outil d'IA peut lire votre message pour nous aider à le traiter. », and each Signalement keeps whether it was shown. The legal basis is legitimate interest. Signalements sent before the notice existed never reach the agent; Support keeps handling them by hand.
 - **The provider is Anthropic.** The agent runs in Claude Code sessions. Anthropic is a recipient in the privacy register, under its DPA and standard contractual clauses.
@@ -90,3 +90,21 @@ A Signalement (Bug, Idée, Question) stays in the Back Office. Support handles i
 - `docs/agents/issue-tracker.md` gains « Trier les signalements »: the calls, the rules (never a Candidate's text in `git`, never kept outside the session), and what to do with a refused key (stop and say so).
 - The help article of the Signalement form, the Back Office's « Signalements » and « Livraison » articles, and a Release Note fragment.
 - The Data export keeps a Signalement's status, reply and context. It gains the issue number, never which key or Administrator acted.
+
+## Amendment: what triage already did, minimal write answers and a 404 that says why (issue #1173, 2026-11-27)
+
+Two real triage passes on the Beta with `triage-beta` (2026-11-27) found three gaps. The writes repeated the Candidate's message in every answer, so each call added a copy of it to the agent's logs and transcripts. `GET` showed neither the issue already linked nor the draft already proposed, so a later pass could propose the issue again or replace the draft. And a 404 said nothing, so the agent could not tell a deleted Signalement from one out of scope. The product owner decided (comment of 2026-11-27 on #1173):
+
+- **The fixed keys gain what triage already did.** The queue and `GET …/:id` answer exactly these keys, in this order, tested with `Object.keys` (`TRIAGE_KEYS`): `id`, `type`, `message`, `sentAt`, `status`, `environment`, `version`, `device`, `interfaceLanguage`, `textSize`, `path`, `attachedQuestion`, `attachedCoachReply`, `issue` and `brouillon`.
+  - `issue` is `{ number, url }` of the issue linked (the first, when there are several), or `null`.
+  - `brouillon` is `{ proposePar, date }` of the draft reply waiting for Support, or `null`: who proposed it (`key:triage-beta`, or `null` for Support) and when, never its text.
+- **Minimal write answers.** No answer to a write repeats the message, its context or the draft: the agent reads them once, with `GET`.
+  - `POST …/statut` answers `{ id, statut, statutMajPar }` (`SEEN_KEYS`).
+  - `POST …/brouillon` answers `{ id, brouillon: { proposePar, date } }` (`PROPOSED_DRAFT_KEYS`).
+- **One issue per Signalement.** `POST …/issue` on a Signalement already linked answers 409 `already_linked`, with `{ number, url }` of its issue. A duplicate goes through `commentOn` on the new Signalement.
+- **A « traité » Signalement stays readable by the key, read-only, until its purge 12 months later.** `commentOn`, the link to the issue and « Prêt à clore » keep working after Support sends the reply. `POST …/issue` still links it; « vu » and a draft are refused (409 `already_handled`). The agent still sets « vu » only, never « traité ».
+- **A 404 that says why, never anything of the Candidate:** `{ error: "not_found", reason }`, the reason one of `deleted` (the Candidate deleted it, alone or with their account), `treated` (marked « traité », then purged), `no_ai_notice` (sent before the AI notice: out of scope, read by people only) or `unknown` (no such id, or one sent without the notice and since deleted).
+- **The trace of a Signalement gone.** So that `deleted` and `treated` can be told, a Signalement sent with the AI notice leaves, once gone, a row in `signalement_removed`: its id, when it went and why (`deleted`, written by a database trigger on every deletion, the account's included; `treated`, written by the nightly purge). Nothing of the Candidate, not even their id, nor any text. The trace is purged 12 months after it was written, by the same nightly job, and is not in the Data export, since it is linked to no Candidate. One sent without the notice leaves none. The Signalements entry of the privacy register says so.
+- **A 503 says the text was checked.** When `POST …/issue` cannot reach GitHub for want of its token, it answers 503 `{ error: "github", reason: "missing_token", checked: true }`: the text passed Redaction and the Guardrail, and nothing was published.
+
+`docs/agents/issue-tracker.md` (« Trier les signalements ») gives the agent these answers and what to do with each reason.

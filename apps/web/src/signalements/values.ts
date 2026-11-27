@@ -42,6 +42,21 @@ export const RETENTION_MONTHS = 12;
 export const ISSUE_LINK_KINDS = ["opened", "commented"] as const;
 export type IssueLinkKind = (typeof ISSUE_LINK_KINDS)[number];
 
+/**
+ * Why Signalement triage finds no Signalement by an id (#1173), saying nothing of the Candidate: `deleted` by them
+ * (alone or with their account), `treated` and purged RETENTION_MONTHS later, `no_ai_notice` (sent before the notice,
+ * out of triage's scope), or `unknown`. Only the first two leave a trace (REMOVAL_REASONS).
+ */
+export const TRIAGE_MISSING_REASONS = ["deleted", "treated", "no_ai_notice", "unknown"] as const;
+export type TriageMissingReason = (typeof TRIAGE_MISSING_REASONS)[number];
+
+/**
+ * What the trace of a Signalement sent with the AI notice says once it is gone (#1173): its id, when, and why; nothing
+ * of the Candidate. Kept RETENTION_MONTHS, then purged.
+ */
+export const REMOVAL_REASONS = ["deleted", "treated"] as const satisfies readonly TriageMissingReason[];
+export type RemovalReason = (typeof REMOVAL_REASONS)[number];
+
 /** The languages of a draft reply: the Candidate's own is one of them (their Interface Language), the other its translation. */
 export const DRAFT_LANGUAGES = ["fr", "en"] as const;
 export type DraftLanguage = (typeof DRAFT_LANGUAGES)[number];

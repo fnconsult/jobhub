@@ -84,12 +84,24 @@ the environment variable `JOBBBOX_AGENT_KEY`; the product owner creates it in Pa
 runs a triage on real data and never schedules one unless the product owner asks.
 
 - `GET /admin/api/signalements` (`?statut=nouveau`, `?statut=nouveau,vu`): the queue, only those sent with the AI
-  notice, redacted, each page path without its ids.
-- `GET /admin/api/signalements/:id`: one of them.
+  notice, redacted, each page path without its ids. A « traité » one stays in it, read-only, until its purge 12 months
+  later. Each also says what triage already did (#1173): `issue` (`{ "number", "url" }` of the issue linked, or `null`)
+  and `brouillon` (`{ "proposePar", "date" }` of the draft reply waiting for Support, never its text, or `null`). Read
+  them before proposing anything: an issue already linked is not proposed again, and a new draft replaces the last.
+- `GET /admin/api/signalements/:id`: one of them, with the same keys.
 - `POST /admin/api/signalements/:id/statut` with `{ "statut": "vu" }`: the only status an agent sets; the Back Office
-  shows « vu par <key> ».
+  shows « vu par <key> ». It answers `{ "id", "statut", "statutMajPar" }`, nothing else; a 409 `already_handled` for one
+  « traité ».
 - `POST /admin/api/signalements/:id/issue`: the issue Jobbbox publishes, never the agent (see below).
-- `POST /admin/api/signalements/:id/brouillon` with `{ "fr": "…", "en": "…" }`: the draft reply (below).
+- `POST /admin/api/signalements/:id/brouillon` with `{ "fr": "…", "en": "…" }`: the draft reply (below). It answers
+  `{ "id", "brouillon": { "proposePar", "date" } }`, never the draft's text; a 409 `already_handled` for one « traité ».
+
+No answer to a write repeats the message, its context or the draft: you read them once, with `GET`.
+
+A **404** on any of them says why, never anything of the Candidate: `{ "error": "not_found", "reason": … }` with
+`deleted` (the Candidate deleted it, alone or with their account), `treated` (marked « traité » and purged 12 months
+later), `no_ai_notice` (sent before the AI notice: out of triage's scope, read by people only) or `unknown` (no such id,
+or one out of scope that was deleted). Drop it from the run and say so; do not look for it another way.
 
 The procedure, one Signalement at a time:
 
@@ -112,7 +124,10 @@ The procedure, one Signalement at a time:
    email or phone, any email or phone, or six words in a row of their message), then publishes the issue on
    `fnconsult/jobhub` labelled `needs-triage` and `signalement`, with the Signalement's id, and links it. A **422**
    `{ "error": "blocked", "reasons", "fields" }` publishes nothing: write the fields named again, in other words, and
-   propose again. 201 answers `{ "issue": { "number", "url", "kind" } }`.
+   propose again. 201 answers `{ "issue": { "number", "url", "kind" } }`. One issue per Signalement: on one already
+   linked (its `issue` is not `null`), a **409** `{ "error": "already_linked", "issue": { "number", "url" } }` publishes
+   nothing. A Signalement « traité » still takes its issue or its `commentOn`, so a duplicate found after Support's
+   reply is still linked.
 5. **Propose the draft reply** (`POST …/brouillon`): in the Candidate's Interface Language (the queue's
    `interfaceLanguage`) and its translation, both given as `fr` and `en`, at most 2,000 characters each. Support reads it,
    edits it and sends it, signed « L'équipe Jobbbox ». For a Bug or an Idée with an issue, the reply goes once the fix is
@@ -124,7 +139,8 @@ or a comment (`scripts/hooks/no-secrets.mjs` refuses it). Never a Signalement's 
 test, and never kept outside the session: an issue is written in the agent's own words and carries the Signalement's
 id, never its message. A 401 (no key, or one revoked or expired) or 429 (rate limit) stops the triage: say so, and do
 not try another way in. A 503 on `…/issue` means Jobbbox has no token to write issues (GITHUB_ISSUES_TOKEN): say so and
-stop proposing issues; the drafts still go.
+stop proposing issues; the drafts still go. Its `"checked": true` says the text passed Redaction and the Guardrail:
+nothing was published, and the same text can be proposed again once the token is set.
 
 Outside `/admin/api/signalements/*` the key is ignored, never refused (#1172): a request that carries it is answered as
 if it carried none, anonymous or with the session of its cookie. So the network proxy of the Claude Code sessions can

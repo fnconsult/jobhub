@@ -16,7 +16,11 @@
  *    the Candidate's email and Plan and, for a status an Agent Key set, its signature (`key:triage-beta`); and how many
  *    are « à traiter » (TO_HANDLE_STATUSES);
  *  - `triageable` and `triageableOne`, what Signalement triage may read (#1139): only those sent with the AI notice,
- *    each with its Candidate's id, which signalements/triage uses for Redaction and never returns;
+ *    each with its Candidate's id, which signalements/triage uses for Redaction and never returns, and what triage
+ *    already did (#1173): who set its status, the first issue linked, its draft's signature and date, never its text;
+ *    and `whyNotTriageable`, why an id is none of them (TRIAGE_MISSING_REASONS): a Signalement sent with the AI notice
+ *    leaves, once deleted or purged, a trace of its id, when and why (`signalement_removed`), nothing of the Candidate,
+ *    purged RETENTION_MONTHS later;
  *  - `linkIssue`, `saveDraft`, `removeDraft`, `sendDraft`, `markReadyToClose`, `issuesToCheck` and `markIssuesChecked`,
  *    Signalement triage's follow-up (#1141, ADR-0118): the issue numbers Jobbbox published or commented for it, kept
  *    for the team (and in the Data export, by number alone); the draft reply an Agent Key proposed, in French and in
@@ -52,6 +56,8 @@ import {
   MESSAGE_MAX_LENGTH,
   MESSAGE_MIN_LENGTH,
   REPLY_MAX_LENGTH,
+  REMOVAL_REASONS,
+  type RemovalReason,
   RETENTION_MONTHS,
   SENDING_LIMIT,
   SENDING_WINDOW_HOURS,
@@ -60,6 +66,7 @@ import {
   TO_HANDLE_STATUSES,
   type SignalementStatus,
   type SignalementType,
+  type TriageMissingReason,
 } from "./values";
 import { utcBefore } from "../database/before";
 
@@ -156,6 +163,12 @@ export type SaveDraftResult = { ok: true; draft: SignalementDraft } | { ok: fals
 export interface TriageableSignalement {
   candidateId: string;
   signalement: Signalement;
+  /** Who set its status when an Agent Key did (`key:triage-beta`); null when the team did, or it is `nouveau` from the start. */
+  statusChangedBy: string | null;
+  /** The first issue linked to it (#1173); null for none. */
+  issueNumber: number | null;
+  /** Its draft reply's signature and date (#1173), never its text; null for none. */
+  draft: { proposedBy: string | null; proposedAt: Date } | null;
 }
 
 /** Which Signalements the team reads: of these types and statuses (default: every one). */
@@ -232,6 +245,8 @@ export interface Signalements {
   triageable(filter?: { statuses?: readonly SignalementStatus[] }): Promise<TriageableSignalement[]>;
   /** One sent with the AI notice; null for any other (#1139). */
   triageableOne(id: string): Promise<TriageableSignalement | null>;
+  /** Why `id` is not one `triageableOne` gives (#1173): from its trace once gone, else whether it exists without the AI notice. */
+  whyNotTriageable(id: string): Promise<TriageMissingReason>;
   /**
    * The Candidate's Signalement notifications not closed yet, newest first (#377): one for each of their Signalements
    * the team replied to or marked `traite` since the Candidate last closed its notification (one even when both
@@ -357,7 +372,27 @@ const sentFrom = (row: SentRow): SentSignalement => ({
   readyToCloseAt: row.ready_to_close_at,
 });
 
-const triageableFrom = (row: Row & { candidate_id: string }): TriageableSignalement => ({ candidateId: row.candidate_id, signalement: fromRow(row) });
+interface TriageableRow extends Row {
+  candidate_id: string;
+  status_changed_by: string | null;
+  issue_number: number | null;
+  draft_proposed_by: string | null;
+  draft_proposed_at: Date | null;
+}
+
+/** The columns of `signalement s` with what triage already did: its first issue, its draft's signature and date, never its text. */
+const TRIAGEABLE = `${prefixed("s")}, s.candidate_id, s.status_changed_by,
+  (SELECT i.issue_number FROM signalement_issue i WHERE i.signalement_id = s.id ORDER BY i.linked_at, i.issue_number LIMIT 1) AS issue_number,
+  d.proposed_by AS draft_proposed_by, d.proposed_at AS draft_proposed_at
+  FROM signalement s LEFT JOIN signalement_draft d ON d.signalement_id = s.id`;
+
+const triageableFrom = (row: TriageableRow): TriageableSignalement => ({
+  candidateId: row.candidate_id,
+  signalement: fromRow(row),
+  statusChangedBy: row.status_changed_by,
+  issueNumber: row.issue_number,
+  draft: row.draft_proposed_at === null ? null : { proposedBy: row.draft_proposed_by, proposedAt: row.draft_proposed_at },
+});
 
 const fromRow = (row: Row): Signalement => ({
   id: row.id,
@@ -537,17 +572,25 @@ export function createSignalements(database: Pool, deps: SignalementsDeps): Sign
     },
 
     async triageable({ statuses = SIGNALEMENT_STATUSES } = {}) {
-      const { rows } = await database.query<Row & { candidate_id: string }>(
-        `SELECT ${COLUMNS}, candidate_id FROM signalement WHERE ai_notice_shown AND status = ANY($1::text[]) ORDER BY created_at, id`,
-        [statuses],
-      );
+      const { rows } = await database.query<TriageableRow>(`SELECT ${TRIAGEABLE} WHERE s.ai_notice_shown AND s.status = ANY($1::text[]) ORDER BY s.created_at, s.id`, [statuses]);
       return rows.map(triageableFrom);
     },
 
     async triageableOne(id) {
       if (!UUID.test(id)) return null;
-      const { rows } = await database.query<Row & { candidate_id: string }>(`SELECT ${COLUMNS}, candidate_id FROM signalement WHERE ai_notice_shown AND id = $1`, [id]);
+      const { rows } = await database.query<TriageableRow>(`SELECT ${TRIAGEABLE} WHERE s.ai_notice_shown AND s.id = $1`, [id]);
       return rows[0] ? triageableFrom(rows[0]) : null;
+    },
+
+    async whyNotTriageable(id) {
+      if (!UUID.test(id)) return "unknown";
+      const { rows } = await database.query<{ removed: RemovalReason | null; notice: boolean | null }>(
+        `SELECT (SELECT reason FROM signalement_removed WHERE id = $1) AS removed, (SELECT ai_notice_shown FROM signalement WHERE id = $1) AS notice`,
+        [id],
+      );
+      const { removed, notice } = rows[0]!;
+      if (notice === false) return "no_ai_notice";
+      return notice === null && removed ? removed : "unknown";
     },
 
     async linkIssue(id, issue, by) {
@@ -672,13 +715,22 @@ export async function signalementsOf(database: Queryable, candidateId: string): 
   return rows.map((row) => ({ ...fromRow(row), issueNumbers: row.issue_numbers }));
 }
 
-/** Deletes the Signalements marked `traite` RETENTION_MONTHS ago or more at `now`; returns how many. Safe to run again. */
+/**
+ * Deletes the Signalements marked `traite` RETENTION_MONTHS ago or more at `now`, each sent with the AI notice leaving
+ * its trace as `treated` (#1173), and the traces left RETENTION_MONTHS ago or more; returns how many Signalements.
+ * Safe to run again.
+ */
 export async function purgeSignalements(database: Queryable, now: Date): Promise<number> {
-  const { rowCount } = await database.query(
-    `DELETE FROM signalement WHERE status = 'traite' AND status_changed_at <= ${utcBefore("$1", "make_interval(months => $2)")}`,
+  const before = utcBefore("$1", "make_interval(months => $2)");
+  const { rows } = await database.query<{ n: number }>(
+    `WITH gone AS (DELETE FROM signalement WHERE status = 'traite' AND status_changed_at <= ${before} RETURNING id, ai_notice_shown),
+       traced AS (INSERT INTO signalement_removed (id, removed_at, reason) SELECT id, $1, 'treated' FROM gone WHERE ai_notice_shown
+         ON CONFLICT (id) DO UPDATE SET removed_at = EXCLUDED.removed_at, reason = EXCLUDED.reason),
+       forgotten AS (DELETE FROM signalement_removed WHERE removed_at <= ${before})
+     SELECT count(*)::int AS n FROM gone`,
     [now, RETENTION_MONTHS],
   );
-  return rowCount ?? 0;
+  return rows[0]!.n;
 }
 
 const listed = (values: readonly string[]) => values.map((value) => `'${value}'`).join(", ");
@@ -744,5 +796,20 @@ export async function migrateSignalements(database: Pool): Promise<void> {
       proposed_at timestamptz NOT NULL,
       edited_at timestamptz
     );
+    -- The trace of a Signalement sent with the AI notice once it is gone (#1173): its id, when and why, nothing of the
+    -- Candidate, so Signalement triage is told why it is not found. Kept RETENTION_MONTHS (purgeSignalements). Deleted
+    -- by the Candidate, alone or with their account, it is 'deleted'; purgeSignalements writes 'treated' first.
+    CREATE TABLE IF NOT EXISTS signalement_removed (
+      id uuid PRIMARY KEY,
+      removed_at timestamptz NOT NULL,
+      reason text NOT NULL CHECK (reason IN (${listed(REMOVAL_REASONS)}))
+    );
+    CREATE INDEX IF NOT EXISTS signalement_removed_at_idx ON signalement_removed (removed_at);
+    CREATE OR REPLACE FUNCTION signalement_removal_trace() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+      INSERT INTO signalement_removed (id, removed_at, reason) VALUES (OLD.id, now(), 'deleted') ON CONFLICT (id) DO NOTHING;
+      RETURN OLD;
+    END $$;
+    DROP TRIGGER IF EXISTS signalement_removal_trace ON signalement;
+    CREATE TRIGGER signalement_removal_trace AFTER DELETE ON signalement FOR EACH ROW WHEN (OLD.ai_notice_shown) EXECUTE FUNCTION signalement_removal_trace();
   `);
 }

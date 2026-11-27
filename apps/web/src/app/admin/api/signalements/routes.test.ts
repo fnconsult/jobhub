@@ -80,6 +80,7 @@ describe.skipIf(!connectionString)("/admin/api/signalements: Signalement triage 
       identityOf: async () => ({ fullName: ["Marie Dupont"], givenName: ["Marie"], lastName: ["Dupont"], email: ["marie.dupont@example.fr"] }),
       environment: "staging",
       issues,
+      issueUrl: (number) => `https://github.com/fnconsult/jobhub/issues/${number}`,
       triggers: { record: (trigger) => void triggers.push(trigger) },
       now: () => now,
     });
@@ -118,10 +119,38 @@ describe.skipIf(!connectionString)("/admin/api/signalements: Signalement triage 
       path: "/candidatures/:id",
       attachedQuestion: null,
       attachedCoachReply: null,
+      issue: null,
+      brouillon: null,
     });
     expect(JSON.stringify(listed)).not.toContain(marie);
-    expect((await getOne(before)).status).toBe(404);
+    const outOfScope = await getOne(before);
+    expect(outOfScope.status).toBe(404);
+    expect(await outOfScope.json()).toEqual({ error: "not_found", reason: "no_ai_notice" });
     expect(Object.keys((await (await getOne(id)).json()).signalement)).toEqual([...TRIAGE_KEYS]);
+  });
+
+  it("answers a 404 that says why, never anything of the Candidate (#1173): deleted, sent without the AI notice, unknown", async () => {
+    const deleted = await sent({ type: "bug", message: "Un bug fictif, supprimé ensuite.", path: "/", textSize: "standard", aiNotice: true });
+    await signalements.remove(marie, deleted);
+    const unknown = "0b6c2f1e-9999-4999-8999-999999999999";
+
+    for (const answer of [await getOne(deleted), await post(deleted, { statut: "vu" }), await postIssue(deleted, { commentOn: 1188 }), await postDraft(deleted, { fr: "a", en: "b" })]) {
+      expect(answer.status).toBe(404);
+      expect(await answer.json()).toEqual({ error: "not_found", reason: "deleted" });
+    }
+    expect(await (await getOne(unknown)).json()).toEqual({ error: "not_found", reason: "unknown" });
+    expect(await (await getOne("pas-un-id")).json()).toEqual({ error: "not_found", reason: "unknown" });
+  });
+
+  it("keeps one « traité » readable by the key (#1173), « vu » refused on it", async () => {
+    const id = await sent({ type: "bug", message: "Un bug fictif pour le test.", path: "/", textSize: "standard", aiNotice: true });
+    await signalements.changeStatus(id, "traite");
+
+    const read = await getOne(id);
+    expect(read.status).toBe(200);
+    expect((await read.json()).signalement).toMatchObject({ id, status: "traite" });
+    expect((await getQueue("?statut=traite")).status).toBe(200);
+    expect(await (await post(id, { statut: "vu" })).json()).toEqual({ error: "already_handled" });
   });
 
   it("filters the queue by status, and refuses an unknown one", async () => {
@@ -141,7 +170,9 @@ describe.skipIf(!connectionString)("/admin/api/signalements: Signalement triage 
     expect((await post(id, { statut: "nouveau" })).status).toBe(400);
     const seen = await post(id, { statut: "vu" });
     expect(seen.status).toBe(200);
-    expect((await seen.json()).signalement.status).toBe("vu");
+    const answered = await seen.json();
+    expect(answered).toEqual({ id, statut: "vu", statutMajPar: "key:triage-beta" });
+    expect(Object.keys(answered)).toEqual(["id", "statut", "statutMajPar"]);
     expect(await signalements.one(id)).toMatchObject({ status: "vu", statusChangedBy: "key:triage-beta" });
 
     await signalements.reply(id, "Merci, c'est corrigé.");
@@ -209,17 +240,56 @@ describe.skipIf(!connectionString)("/admin/api/signalements: Signalement triage 
       expect((await signalements.one(id))!.issues).toEqual([]);
     });
 
-    it("comments on a duplicate; answers 404 for an issue GitHub does not have, 503 without the token, 400 for a text to fix", async () => {
+    it("comments on a duplicate; answers 404 for an issue GitHub does not have, 400 for a text to fix", async () => {
       const id = await sent({ type: "idee", message: "Une idée fictive pour le test.", path: "/", textSize: "standard", aiNotice: true });
+      const other = await sent({ type: "idee", message: "Une autre idée fictive pour le test.", path: "/", textSize: "standard", aiNotice: true });
 
       expect((await postIssue(id, { commentOn: 1188 })).status).toBe(201);
       expect(published[0]).toMatchObject({ kind: "commented", number: 1188, body: expect.stringContaining(id) });
-      expect((await postIssue(id, { title: "" })).status).toBe(400);
+      expect((await postIssue(other, { title: "" })).status).toBe(400);
       githubFailure = new IssuesError("not_found");
-      expect(await (await postIssue(id, { commentOn: 99999 })).json()).toEqual({ error: "issue_not_found" });
-      githubFailure = new IssuesError("missing_token");
-      expect((await postIssue(id, ISSUE)).status).toBe(503);
+      expect(await (await postIssue(other, { commentOn: 99999 })).json()).toEqual({ error: "issue_not_found" });
       expect((await signalements.one(id))!.issues.map((issue) => issue.number)).toEqual([1188]);
+      expect((await signalements.one(other))!.issues).toEqual([]);
+    });
+
+    it("answers 503 without the token, saying the text passed Redaction and the Guardrail (checked), publishing nothing", async () => {
+      const id = await sent({ type: "idee", message: "Une idée fictive pour le test.", path: "/", textSize: "standard", aiNotice: true });
+      githubFailure = new IssuesError("missing_token");
+
+      const response = await postIssue(id, ISSUE);
+
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({ error: "github", reason: "missing_token", checked: true });
+      expect((await postIssue(id, { ...ISSUE, steps: "Se connecter comme Marie Dupont." })).status).toBe(422);
+      expect((await signalements.one(id))!.issues).toEqual([]);
+    });
+
+    it("shows what triage did in GET (#1173): the issue and the draft's signature and date; a second issue is refused with 409 already_linked", async () => {
+      const id = await sent({ type: "bug", message: "Je clique sur valider mon profil et rien ne se passe du tout.", path: "/", textSize: "standard", aiNotice: true });
+      await postIssue(id, ISSUE);
+      await postDraft(id, { fr: "Merci, nous corrigeons.", en: "Thank you, we are fixing it." });
+
+      const { signalement } = await (await getOne(id)).json();
+      expect(signalement.issue).toEqual({ number: 1201, url: "https://github.com/fnconsult/jobhub/issues/1201" });
+      expect(signalement.brouillon).toEqual({ proposePar: "key:triage-beta", date: now.toISOString() });
+      expect(JSON.stringify(signalement)).not.toMatch(/nous corrigeons|we are fixing/);
+      expect((await (await getQueue()).json()).signalements[0]).toEqual(signalement);
+
+      const again = await postIssue(id, ISSUE);
+      expect(again.status).toBe(409);
+      expect(await again.json()).toEqual({ error: "already_linked", issue: { number: 1201, url: "https://github.com/fnconsult/jobhub/issues/1201" } });
+      expect((await postIssue(id, { commentOn: 1188 })).status).toBe(409);
+      expect(published).toHaveLength(1);
+    });
+
+    it("still links an issue to one « traité », so a duplicate's comment outlives Support's reply (#1173)", async () => {
+      const id = await sent({ type: "idee", message: "Une idée fictive pour le test.", path: "/", textSize: "standard", aiNotice: true });
+      await signalements.changeStatus(id, "traite");
+
+      expect((await postIssue(id, { commentOn: 1188 })).status).toBe(201);
+      expect((await postDraft(id, { fr: "a", en: "b" })).status).toBe(409);
+      expect((await (await getOne(id)).json()).signalement.issue).toEqual({ number: 1188, url: "https://github.com/fnconsult/jobhub/issues/1188" });
     });
 
     it("keeps the draft reply, signed by the key; the agent never sets « traité »", async () => {
@@ -228,7 +298,10 @@ describe.skipIf(!connectionString)("/admin/api/signalements: Signalement triage 
       const response = await postDraft(id, { fr: "Voici comment faire.", en: "Here is how." });
 
       expect(response.status).toBe(201);
-      expect((await response.json()).draft).toEqual({ fr: "Voici comment faire.", en: "Here is how.", proposedBy: "key:triage-beta", proposedAt: now.toISOString(), forCandidate: "Voici comment faire." });
+      const answered = await response.json();
+      expect(answered).toEqual({ id, brouillon: { proposePar: "key:triage-beta", date: now.toISOString() } });
+      expect(Object.keys(answered)).toEqual(["id", "brouillon"]);
+      expect(Object.keys(answered.brouillon)).toEqual(["proposePar", "date"]);
       expect(await signalements.one(id)).toMatchObject({ status: "nouveau", reply: null, draft: { proposedBy: "key:triage-beta" } });
       expect((await postDraft(id, { fr: "Seulement en français." })).status).toBe(400);
       expect((await postDraft("0b6c2f1e-9999-4999-8999-999999999999", { fr: "a", en: "b" })).status).toBe(404);

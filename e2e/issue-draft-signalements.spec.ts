@@ -283,6 +283,7 @@ const id = {} as Record<"bugA" | "bugB" | "bugC" | "bugD" | "idee" | "question" 
 const issue = {} as Record<"a" | "c" | "d", number>;
 
 const post = (path: string, data: unknown, token: string | null = key) => anonymous.post(`${own.origin}${path}`, { headers: token ? bearer(token) : {}, data });
+const get = (path: string, token: string | null = key) => anonymous.get(`${own.origin}${path}`, { headers: token ? bearer(token) : {} });
 const proposeIssue = (signalement: string, data: unknown) => post(`${API}/${signalement}/issue`, data);
 const proposeDraft = (signalement: string, data: unknown) => post(`${API}/${signalement}/brouillon`, data);
 const rowOf = async (signalement: string) => (await database.query("SELECT status, reply, ready_to_close_at FROM signalement WHERE id = $1", [signalement])).rows[0];
@@ -339,10 +340,45 @@ test("setup: an Agent Key, two Candidates (one in English) and the Signalements 
   });
 });
 
+test("a text that names the Candidate, quotes their message word for word, or holds an e-mail or a phone is blocked: 422 with the reason, nothing published, the Guardrail Trigger recorded", async () => {
+  const published = github.writes().length;
+  const before = await triggers();
+  const cases: { name: string; data: Record<string, unknown>; reasons: string[]; fields: string[] }[] = [
+    { name: "the Candidate's name", data: { ...CLEAN, title: `${camille.name} ne peut plus enregistrer sa lettre` }, reasons: ["identity"], fields: ["title"] },
+    { name: "a quote of their message", data: { ...CLEAN, summary: "La candidate écrit que la page devient toute blanche et qu'elle perd tout." }, reasons: ["verbatim_quote"], fields: ["summary"] },
+    { name: "their e-mail", data: { ...CLEAN, steps: `1. Se connecter avec ${camille.email}.\n2. Rédiger une lettre.` }, reasons: ["email"], fields: ["steps"] },
+    { name: "a phone", data: { ...CLEAN, steps: `1. Appeler le ${phone}.\n2. Rédiger une lettre.` }, reasons: ["phone"], fields: ["steps"] },
+    { name: "an e-mail and a phone in the steps", data: { ...CLEAN, steps: `Se connecter avec ${camille.email} (${phone}).` }, reasons: ["email", "phone"], fields: ["steps"] },
+    { name: "a duplicate's comment that quotes", data: { commentOn: 1, summary: "Elle dit : la page devient toute blanche et je perds mon texte." }, reasons: ["verbatim_quote"], fields: ["summary"] },
+  ];
+  for (const each of cases) {
+    const response = await proposeIssue(id.bugA, each.data);
+    expect(response.status(), each.name).toBe(422);
+    expect(await response.json(), each.name).toEqual({ error: "blocked", guardrail: "candidate_data_in_issue", reasons: each.reasons, fields: each.fields });
+  }
+  // Nothing went to GitHub, nothing was linked, and each block is a Guardrail Trigger (without any text).
+  expect(github.writes()).toHaveLength(published);
+  expect(await linksOf(id.bugA)).toEqual([]);
+  expect((await triggers()) - before).toBe(cases.length);
+  const dump = JSON.stringify((await database.query("SELECT * FROM guardrail_trigger WHERE guardrail = 'candidate_data_in_issue'")).rows);
+  for (const forbidden of [ref, camille.email, "Camille", phone, "toute blanche"]) expect(dump, forbidden).not.toContain(forbidden);
+
+  // The Guardrail's own words in English also quote: not a way round (case, accents and punctuation aside).
+  const loud = await proposeIssue(id.bugA, { ...CLEAN, summary: "LA PAGE, DEVIENT: toute blanche et je perds." });
+  expect(loud.status()).toBe(422);
+  expect((await loud.json()).reasons).toEqual(["verbatim_quote"]);
+});
+
 test("POST …/issue: the agent's own words, checked by Jobbbox, published on fnconsult/jobhub with the write-only token, labelled, carrying the Signalement's id and never its text", async () => {
   // Never without a key; never a read-only call (the key opens this route and nothing else).
   expect((await post(`${API}/${id.bugA}/issue`, CLEAN, null)).status()).toBe(401);
   expect((await post(`${API}/${id.bugA}/issue`, CLEAN, `jbx_agent_${"x".repeat(43)}`)).status()).toBe(401);
+  // A body that is not an issue, a Signalement that does not exist: nothing published.
+  expect((await proposeIssue(id.bugA, { summary: "Sans titre" })).status()).toBe(400);
+  expect((await proposeIssue(id.bugA, [])).status()).toBe(400);
+  const unknown = await proposeIssue("00000000-0000-4000-8000-000000000000", CLEAN);
+  expect(unknown.status()).toBe(404);
+  expect(await unknown.json()).toEqual({ error: "not_found", reason: "unknown" });
   expect(github.writes()).toHaveLength(0);
 
   const response = await proposeIssue(id.bugA, CLEAN);
@@ -369,40 +405,13 @@ test("POST …/issue: the agent's own words, checked by Jobbbox, published on fn
   expect(await linksOf(id.bugA)).toEqual([issue.a]);
   expect((await rowOf(id.bugA)).status).toBe("nouveau");
 
-  // A body that is not an issue, a Signalement that does not exist, one never sent with the AI notice.
-  expect((await proposeIssue(id.bugA, { summary: "Sans titre" })).status()).toBe(400);
-  expect((await proposeIssue(id.bugA, [])).status()).toBe(400);
-  expect((await proposeIssue("00000000-0000-4000-8000-000000000000", CLEAN)).status()).toBe(404);
+  // One issue per Signalement (#1173): a second, or a comment, is refused, naming the issue it has.
+  const again = await proposeIssue(id.bugA, CLEAN);
+  expect(again.status()).toBe(409);
+  expect(await again.json()).toEqual({ error: "already_linked", issue: { number: issue.a, url: issueLink(issue.a) } });
+  expect((await proposeIssue(id.bugA, { commentOn: 1 })).status()).toBe(409);
   expect(github.writes()).toHaveLength(1);
-});
 
-test("a text that names the Candidate, quotes their message word for word, or holds an e-mail or a phone is blocked: 422 with the reason, nothing published, the Guardrail Trigger recorded", async () => {
-  const published = github.writes().length;
-  const before = await triggers();
-  const cases: { name: string; data: Record<string, unknown>; reasons: string[]; fields: string[] }[] = [
-    { name: "the Candidate's name", data: { ...CLEAN, title: `${camille.name} ne peut plus enregistrer sa lettre` }, reasons: ["identity"], fields: ["title"] },
-    { name: "a quote of their message", data: { ...CLEAN, summary: "La candidate écrit que la page devient toute blanche et qu'elle perd tout." }, reasons: ["verbatim_quote"], fields: ["summary"] },
-    { name: "their e-mail", data: { ...CLEAN, steps: `1. Se connecter avec ${camille.email}.\n2. Rédiger une lettre.` }, reasons: ["email"], fields: ["steps"] },
-    { name: "a phone", data: { ...CLEAN, steps: `1. Appeler le ${phone}.\n2. Rédiger une lettre.` }, reasons: ["phone"], fields: ["steps"] },
-    { name: "an e-mail and a phone in the steps", data: { ...CLEAN, steps: `Se connecter avec ${camille.email} (${phone}).` }, reasons: ["email", "phone"], fields: ["steps"] },
-    { name: "a duplicate's comment that quotes", data: { commentOn: 1, summary: "Elle dit : la page devient toute blanche et je perds mon texte." }, reasons: ["verbatim_quote"], fields: ["summary"] },
-  ];
-  for (const each of cases) {
-    const response = await proposeIssue(id.bugA, each.data);
-    expect(response.status(), each.name).toBe(422);
-    expect(await response.json(), each.name).toEqual({ error: "blocked", guardrail: "candidate_data_in_issue", reasons: each.reasons, fields: each.fields });
-  }
-  // Nothing went to GitHub, nothing was linked, and each block is a Guardrail Trigger (without any text).
-  expect(github.writes()).toHaveLength(published);
-  expect(await linksOf(id.bugA)).toEqual([issue.a]);
-  expect((await triggers()) - before).toBe(cases.length);
-  const dump = JSON.stringify((await database.query("SELECT * FROM guardrail_trigger WHERE guardrail = 'candidate_data_in_issue'")).rows);
-  for (const forbidden of [ref, camille.email, "Camille", phone, "toute blanche"]) expect(dump, forbidden).not.toContain(forbidden);
-
-  // The Guardrail's own words in English also quote: not a way round (case, accents and punctuation aside).
-  const loud = await proposeIssue(id.bugA, { ...CLEAN, summary: "LA PAGE, DEVIENT: toute blanche et je perds." });
-  expect(loud.status()).toBe(422);
-  expect((await loud.json()).reasons).toEqual(["verbatim_quote"]);
   // Redaction's placeholders name no one: they go through.
   expect((await proposeIssue(id.bugC, { ...CLEAN, title: "Menu bloqué sur téléphone", summary: "[NOM] signale un menu bloqué ; contact [E-MAIL]." })).status()).toBe(201);
   const placeholder = github.writes().at(-1)!;
@@ -477,6 +486,11 @@ test("the link goes both ways: the issue's number is in the Back Office for the 
   expect(github.calls.length).toBe(calls);
   expect(github.issues.has(issue.d)).toBe(true);
   expect((await admin.goto(`/admin/signalements/${id.bugD}`))!.status()).toBe(404);
+  // The key is told why, never anything of the Candidate (#1173): only its id and when it went are kept.
+  const gone = await get(`${API}/${id.bugD}`);
+  expect(gone.status()).toBe(404);
+  expect(await gone.json()).toEqual({ error: "not_found", reason: "deleted" });
+  expect((await database.query("SELECT reason FROM signalement_removed WHERE id = $1", [id.bugD])).rows).toEqual([{ reason: "deleted" }]);
 });
 
 test("POST …/brouillon keeps the draft in the Candidate's language and its translation, « proposé par <key> »; the agent never sends it and never sets « traité »", async () => {
@@ -497,12 +511,17 @@ test("POST …/brouillon keeps the draft in the Candidate's language and its tra
 
   const french = await proposeDraft(id.idee, drafts.idee);
   expect(french.status(), await french.text()).toBe(201);
-  const body = (await french.json()).draft;
-  expect(body).toMatchObject({ fr: drafts.idee.fr, en: drafts.idee.en, proposedBy: "key:triage-beta", forCandidate: drafts.idee.fr });
-  expect(Number.isNaN(Date.parse(body.proposedAt))).toBe(false);
-  // A Candidate in English receives the English one.
+  // The answer: who proposed it and when, never its text (#1173).
+  const body = await french.json();
+  expect(Object.keys(body)).toEqual(["id", "brouillon"]);
+  expect(body).toEqual({ id: id.idee, brouillon: { proposePar: "key:triage-beta", date: expect.any(String) } });
+  expect(Number.isNaN(Date.parse(body.brouillon.date))).toBe(false);
+  expect((await database.query("SELECT fr, en, proposed_by FROM signalement_draft WHERE signalement_id = $1", [id.idee])).rows[0]).toEqual({ fr: drafts.idee.fr, en: drafts.idee.en, proposed_by: "key:triage-beta" });
+  // GET shows it the same way, so a later pass knows a draft waits.
+  expect((await (await get(`${API}/${id.idee}`)).json()).signalement.brouillon).toEqual(body.brouillon);
   const english = await proposeDraft(id.question, drafts.question);
-  expect((await english.json()).draft).toMatchObject({ proposedBy: "key:triage-beta", forCandidate: drafts.question.en });
+  expect(english.status()).toBe(201);
+  expect(JSON.stringify(await english.json())).not.toContain(drafts.question.en);
   for (const [name, draft] of [["bugA", drafts.bugA], ["question2", drafts.question2]] as const) expect((await proposeDraft(id[name], draft)).status(), name).toBe(201);
   // A new draft replaces the last one.
   const replaced = { fr: `Version remplacée. ${tag()}`, en: `Replaced version. ${tag()}` };
@@ -518,10 +537,10 @@ test("POST …/brouillon keeps the draft in the Candidate's language and its tra
   await expect(camille.page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect(notificationsOf(camille.page)).toHaveCount(0);
 
-  // A Signalement already « traité » takes no draft: 409.
+  // A Signalement already « traité » takes no draft: 409; it stays readable by the key (#1173).
   await database.query("UPDATE signalement SET status = 'traite' WHERE id = $1", [id.bugC]);
-  expect((await proposeDraft(id.bugC, drafts.idee)).status()).toBe(409);
-  expect((await proposeIssue(id.bugC, CLEAN)).status()).toBe(409);
+  expect(await (await proposeDraft(id.bugC, drafts.idee)).json()).toEqual({ error: "already_handled" });
+  expect((await (await get(`${API}/${id.bugC}`)).json()).signalement).toMatchObject({ status: "traite", issue: { number: issue.c }, brouillon: null });
   await database.query("UPDATE signalement SET status = 'nouveau' WHERE id = $1", [id.bugC]);
 });
 

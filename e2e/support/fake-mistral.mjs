@@ -172,7 +172,8 @@ globalThis.fetch = async (input, init) => {
           coach_scope_change: judged.includes("E2E_SCOPE_CHANGE"),
           coach_scope_content: judged.includes("E2E_SCOPE_CONTENT"),
           coach_scope_off_topic: judged.includes("E2E_SCOPE_OFF_TOPIC"),
-          coach_scope_refusal: judged.includes("E2E_SCOPE_REFUSAL"),
+          // Check 3 also finds the refusals with no reason of « Périmètre du coach »'s Eval Cases, played when a setting is saved.
+          coach_scope_refusal: judged.includes("E2E_SCOPE_REFUSAL") || /I can't rewrite them here|recherche précise de contacts|coordonnées exactes/.test(judged),
         };
     return completion(body, JSON.stringify(verdict));
   }

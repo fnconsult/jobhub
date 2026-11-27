@@ -154,7 +154,7 @@ test.describe("the AI Coach with Coach Actions, end to end on the fake provider 
       ],
     });
 
-    // Offered: the index and the nine reads (the Company Dossier, Enriched Contacts and Coach Reviews among them, #1098), the Agenda's
+    // Offered: the index and the ten reads (the Company Dossier, Enriched Contacts and Coach Reviews among them, #1098; the Plan, #1158), the Agenda's
     // proposals (#718), the Candidatures proposals (#716), then the Profil group's proposals (#719), the Recherches d'offres and Job
     // Digests proposals (#720), the Documents proposals (#721), the employer's side of an Application (#1098, ADR-0114), its drafts'
     // (ADR-0109) and its documents' versions (#1079), the Tailored CV reworked from the conversation (#1097, ADR-0113), a Profile In
@@ -171,6 +171,8 @@ test.describe("the AI Coach with Coach Actions, end to end on the fake provider 
       "read_company_dossier",
       "read_enriched_contacts",
       "read_coach_reviews",
+      // The Candidate's Plan and the week's Plan Quotas (#1158, ADR-0119).
+      "read_plan",
       "propose_interview",
       "propose_interview_change",
       "propose_interview_cancel",

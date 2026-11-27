@@ -19,7 +19,8 @@ import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
 import type { TargetCompanies } from "../target-companies";
 import type { OutreachChannel, TailoredDocuments } from "../tailored-documents";
 import { coachReviewsText, companyDossierText, enrichedContactsText, type ApplicationReadText } from "./application-reads";
-import { fitted, fittedLines, type CoachObjectReader, type IndexedObject, type ReadObject } from "./reads";
+import { planRead, type PlanSource } from "./plan";
+import { fitted, fittedLines, PLAN_READ_ID, type CoachObjectReader, type IndexedObject, type ReadObject } from "./reads";
 import { targetCompaniesRead } from "./target-companies";
 
 /** The domain modules the reads go through, each scoped to the Candidate. */
@@ -38,6 +39,8 @@ export interface CandidateObjectSources {
   coachReviews: Pick<HumanCoaches, "reviews">;
   /** A Profile's Target Companies (#1157), each with its Spontaneous Application's dossier and contacts; none: not found. */
   targetCompanies?: Pick<TargetCompanies, "onProfile">;
+  /** The Candidate's Plan and the week's Plan Quotas, as Mon abonnement reads them (#1158); none: not found. */
+  plan?: PlanSource;
   /** The Sectors' and Domains' labels; without them none is named. */
   industries?: () => Promise<IndustryReference>;
   now?: () => Date;
@@ -238,6 +241,8 @@ export function candidateObjects(sources: CandidateObjectSources): CoachObjectRe
           if (!sources.targetCompanies) return null;
           return targetCompaniesRead({ ...sources, targetCompanies: sources.targetCompanies })(candidateId, id, maxTokens);
         }
+        case "plan":
+          return sources.plan && id === PLAN_READ_ID ? planRead(sources.plan, sources.now)(candidateId, maxTokens) : null;
         default:
           return null;
       }

@@ -68,6 +68,8 @@ function shipped(): readonly CoachAction[] {
       coachReviews: { reviews: (candidateId, applicationId) => getHumanCoaches().reviews(candidateId, applicationId) },
       // A Profile's Target Companies (#1157), their dossier and contacts those of their Spontaneous Application.
       targetCompanies: { onProfile: (candidateId, profileId) => getTargetCompanies().onProfile(candidateId, profileId) },
+      // The Candidate's Plan and the week's Plan Quotas (#1158), as Mon abonnement reads them.
+      plan: getBilling(),
       industries: readIndustryReference,
     }),
     {

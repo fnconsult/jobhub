@@ -3,7 +3,8 @@
  * with the read scope of #654: active Profiles (Master CV without its Identity block, Search Criteria), Applications in full,
  * the Job Offers of their Job Searches, Job Digests and Applications with their Match Score, Job Searches, Job Digests, and
  * Tailored Documents as a summary only; and, by an Application's id (ADR-0114), its Company Dossier in full, its Enriched
- * Contacts' names and roles (never their details) and its Coach Reviews. Archived Profiles and their Applications are out of
+ * Contacts' names and roles (never their details) and its Coach Reviews; and the Candidate's Plan with the week's Plan
+ * Quotas (`read_plan`, #1158). Archived Profiles and their Applications are out of
  * reach; the Coach Memory and the Candidate summary are in the Coach context already. Private Coach Notes are never read.
  *
  *   readCoachActions(candidateObjects(sources))   // the shipped reads, over the domain modules the pages' routes use
@@ -33,7 +34,12 @@ export type ReadObjectType =
   | "enriched_contacts"
   | "coach_reviews"
   /** A Profile's Target Companies, by the Profile's id (#1157). */
-  | "target_companies";
+  | "target_companies"
+  /** The Candidate's Plan and the week's Plan Quotas (#1158): one per Candidate, by PLAN_READ_ID. */
+  | "plan";
+
+/** The one id the Candidate's Plan is read by (#1158): a Candidate has one Plan. */
+export const PLAN_READ_ID = "current";
 
 /** One line of the index: no content, only what tells the object apart. */
 export interface IndexedObject {
@@ -140,6 +146,22 @@ const readOne = (reader: CoachObjectReader, name: string, type: ReadObjectType, 
     run: async (args: { id: string }, call: CoachActionCall) => found(await reader.read(call.candidateId, type, args.id, call.maxTokens ?? Number.POSITIVE_INFINITY)),
   }) as unknown as CoachAction;
 
+/**
+ * The Candidate's Plan and the week's Plan Quotas, used and left, with their reset date (ADR-0119, #1158): what a question
+ * about their Plan or a quota is answered from. No argument: theirs only.
+ */
+const readPlan = (reader: CoachObjectReader): CoachAction =>
+  ({
+    name: "read_plan",
+    description:
+      "Lit l'offre (l'abonnement) du candidat et ses quotas de la semaine, comme sa page « Abonnement » les affiche : pour chacun, ce qu'il a utilisé, ce qui lui reste, et la date de leur remise à zéro. Sers-t'en pour toute question sur son offre, ses quotas ou ce qu'il lui reste (« combien de recherches me reste-t-il »).",
+    schema: z.object({}),
+    group: "profile",
+    kind: "read",
+    copiesText: false,
+    run: async (_args: Record<string, never>, call: CoachActionCall) => found(await reader.read(call.candidateId, "plan", PLAN_READ_ID, call.maxTokens ?? Number.POSITIVE_INFINITY)),
+  }) as unknown as CoachAction;
+
 /** The read Coach Actions, over `reader`. */
 export function readCoachActions(reader: CoachObjectReader): CoachAction[] {
   return [
@@ -207,5 +229,6 @@ export function readCoachActions(reader: CoachObjectReader): CoachAction[] {
       "documents",
       "Lit les avis des coachs humains sur les documents adaptés d'une candidature du candidat, par l'id de la candidature : l'auteur, la date, le document visé et le texte de chaque avis. Sers-t'en dans tes propositions ; tu ne proposes jamais de modifier ni de supprimer un avis.",
     ),
+    readPlan(reader),
   ];
 }

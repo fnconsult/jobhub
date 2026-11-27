@@ -71,6 +71,7 @@ describe("the devices the Maestro flows run on (#705)", () => {
           "sh",
           "-c",
           'if [ "$(xcrun simctl spawn maestro defaults read -g AppleLocale 2>/dev/null)" = fr_FR ] && xcrun simctl spawn maestro defaults read -g AppleLanguages 2>/dev/null | grep -q fr-FR; then exit 0; fi; ' +
+            "echo '::warning::The simulator was not French: rebooted for its language, which slows its first run (#1170)' && " +
             "xcrun simctl spawn maestro defaults write -g AppleLanguages -array fr-FR && " +
             "xcrun simctl spawn maestro defaults write -g AppleLocale -string fr_FR && " +
             "xcrun simctl shutdown maestro && xcrun simctl boot maestro && xcrun simctl bootstatus maestro -b",

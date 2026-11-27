@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { load } from "js-yaml";
-import { CI_HARDWARE, SIMULATOR } from "./devices";
+import { CI_HARDWARE } from "./devices";
 
 type Step = { name?: string; run?: string; uses?: string; with?: Record<string, unknown>; env?: Record<string, string> };
 type Job = { "runs-on": string; needs?: string | string[]; env?: Record<string, string>; strategy?: { matrix: { include: Record<string, string>[] } }; steps: Step[] };
@@ -45,8 +45,12 @@ describe("the mobile-e2e workflow (#705)", () => {
     expect(workflow.jobs["maestro-android"]!.needs).toBe("build-android");
   });
 
-  it("creates the iOS simulator under the name run.ts sets up", () => {
-    expect(runs("maestro-ios")).toContain(`xcrun simctl create ${SIMULATOR} "\${{ matrix.model }}"`);
+  // The simulator is made, French before each first boot, and booted by ios-simulator-boot.ts, under the name run.ts
+  // sets up: not by the workflow's own shell, which made it French on its first try only (#1170).
+  it("creates and boots the iOS simulator by ios-simulator-boot.ts, under the name run.ts sets up", () => {
+    expect(runs("maestro-ios")).toContain('npx tsx apps/mobile/maestro/ios-simulator-boot.ts "${{ matrix.model }}" "$runtime"');
+    expect(runs("maestro-ios")).not.toContain("simctl create");
+    expect(runs("maestro-ios")).not.toContain("GlobalPreferences");
   });
 
   // The iPad's reference captures are iPadOS 18's, which has Split View, for when Maestro can drive it (#904): iPadOS 26
@@ -55,7 +59,6 @@ describe("the mobile-e2e workflow (#705)", () => {
     const ipad = workflow.jobs["maestro-ios"]!.strategy!.matrix.include.find((entry) => entry.hardware === CI_HARDWARE.ipad.id)!;
     expect(ipad.ios).toMatch(/^18\./);
     expect(runs("maestro-ios")).toContain('xcodebuild -downloadPlatform iOS -buildVersion "${{ matrix.ios }}"');
-    expect(runs("maestro-ios")).toContain(`xcrun simctl create ${SIMULATOR} "\${{ matrix.model }}" $runtime`);
   });
 
   it("runs the flows by run.ts against the held stack, Maestro at a pinned version, its analytics off", () => {

@@ -10,7 +10,7 @@ import type { HarnessResult, Scenario } from "./support/coach-actions-harness";
 // provider is the suite's fake Mistral (support/fake-mistral.mjs): a message holding `E2E_COACH_TOOL=<name>:<json>` has the AI
 // Coach call that Coach Action, `E2E_COACH_SAY_AFTER=<text>` has it reply that text, and a reply holding `E2E_SCOPE_CHANGE` or
 // `E2E_SCOPE_CONTENT` is what the Guardrail's AI check finds a modification announced with no card, or a content written in
-// the reply. What the harness reports is what leaves the process: the system prompt, the tool results the model is given,
+// the reply, and `E2E_SCOPE_REFUSAL`, in a reply that says it cannot, a refusal with no reason nor alternative (check 3). What the harness reports is what leaves the process: the system prompt, the tool results the model is given,
 // and what the Candidate gets back (the reply, its cards, its Typed redirect, the Guardrail Triggers).
 
 const tsx = path.resolve("node_modules/.bin/tsx");
@@ -204,11 +204,16 @@ test.describe("« Périmètre du coach », the Guardrail on the AI Coach's reply
     expect(triggersOf(quoted)).toEqual([]);
   });
 
-  test("check 3, a refusal with no reason or no redirect: found by a fixed rule, even when the AI check is down; with a reason and a typed redirect, let through", () => {
-    // « E2E_GUARDRAIL_DOWN »: the model's checks are unavailable, the rule still finds it.
-    const refused = run({ ...guarded, guardSettings: { coach_scope: "block" }, replies: [ask(`Renomme mon profil. ${say("Ici, je ne peux pas renommer votre profil. E2E_GUARDRAIL_DOWN")}`, PROFILE)] });
+  test("check 3, a refusal with no reason or no redirect: judged by the AI check, its fixed rules only preselecting; the AI check down, flagged; with a reason and a typed redirect, let through", () => {
+    const refused = run({ ...guarded, guardSettings: { coach_scope: "block" }, replies: [ask(`Renomme mon profil. ${say("Ici, je ne peux pas renommer votre profil. E2E_SCOPE_REFUSAL")}`, PROFILE)] });
     expect(refused.replies[0]).toMatchObject({ ok: true, outcome: "replied", reply: RECENTRED });
     expect(triggersOf(refused)).toContainEqual({ guardrail: "coach_scope", action: "blocked", check: "refusal_without_redirect" });
+
+    // « E2E_GUARDRAIL_DOWN »: the model's checks are unavailable; the fixed rules never block on their own, check 3 flags.
+    const unjudged = run({ ...guarded, guardSettings: { coach_scope: "block" }, replies: [ask(`Renomme mon profil. ${say("Ici, je ne peux pas renommer votre profil. E2E_SCOPE_REFUSAL E2E_GUARDRAIL_DOWN")}`, PROFILE)] });
+    expect(unjudged.replies[0]).toMatchObject({ ok: true, outcome: "replied", reply: "Ici, je ne peux pas renommer votre profil. E2E_SCOPE_REFUSAL E2E_GUARDRAIL_DOWN" });
+    expect(triggersOf(unjudged)).toContainEqual({ guardrail: "coach_scope", action: "flagged", check: "refusal_without_redirect" });
+    expect(triggersOf(unjudged).filter((each) => each.action === "blocked")).toEqual([]);
 
     const explained = run({
       ...guarded,
@@ -227,7 +232,7 @@ test.describe("« Périmètre du coach », the Guardrail on the AI Coach's reply
   });
 
   test("check 3 blocks whatever the setting (ADR-0119): under the default « signaler », a refusal with no reason is written again", () => {
-    const r = run({ ...guarded, replies: [ask(`Renomme mon profil. ${say("Ici, je ne peux pas renommer votre profil.")}`, PROFILE)] });
+    const r = run({ ...guarded, replies: [ask(`Renomme mon profil. ${say("Ici, je ne peux pas renommer votre profil. E2E_SCOPE_REFUSAL")}`, PROFILE)] });
     expect(r.replies[0]).toMatchObject({ ok: true, outcome: "replied", reply: RECENTRED });
     expect(triggersOf(r)).toContainEqual({ guardrail: "coach_scope", action: "blocked", check: "refusal_without_redirect" });
   });

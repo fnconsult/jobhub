@@ -12,7 +12,8 @@ import { showSystemPrompt } from "./support/system-prompt";
 // (POST /api/coach), the conversation page and the Garde-fous page, on a server of this spec's own with COACH_ACTIONS_ENABLED
 // on; the AI Coach is faked inside it (fake-mistral.mjs): a message holding `E2E_COACH_TOOL=<name>:<json>` has it call that
 // Coach Action, `E2E_COACH_SAY_AFTER=<text>` (on a line of its own) has it write that text, and a reply holding `E2E_SCOPE_CHANGE`
-// or `E2E_SCOPE_CONTENT` is what the Guardrail's AI check finds a change announced with no card, or a content written in it.
+// or `E2E_SCOPE_CONTENT` is what the Guardrail's AI check finds a change announced with no card, or a content written in it, and
+// `E2E_SCOPE_REFUSAL`, in a reply that says it cannot, a refusal with no reason nor alternative (check 3).
 const fr = JSON.parse(readFileSync("packages/shared/src/i18n/locales/fr.json", "utf8"));
 const texts = fr.coachProposals;
 const redirects = fr.coachRedirects;
@@ -347,8 +348,8 @@ test.describe("the AI Coach: which object, what it does not do and where to go, 
     expect(own.reply).toBe("Votre nom, Christine Martin, puis votre titre.");
     expect(own.blocked.reply).toBe(false);
 
-    // Check 3 blocks whatever the setting (ADR-0119): written again once with the reason.
-    const refusal = await ask(page, "Renomme mon profil.", { focus: { kind: "profile", id: profile.id }, say: "Ici, je ne peux pas renommer votre profil." });
+    // Check 3 blocks whatever the setting (ADR-0119), the AI check finding the refusal: written again once with the reason.
+    const refusal = await ask(page, "Renomme mon profil.", { focus: { kind: "profile", id: profile.id }, say: "Ici, je ne peux pas renommer votre profil. E2E_SCOPE_REFUSAL" });
     expect(refusal.reply).toBe(RECENTRED);
     expect(refusal.blocked.reply).toBe(false);
     // Check 1, the default: the reply goes through.

@@ -68,8 +68,9 @@
 // makes them fail with a 503, so the checks are unavailable; "E2E_GUARDRAIL_ECHO", with a 400 whose body echoes the key, an email and a long text. "E2E_GUARDRAIL_DISTRESS" in a message is
 // distress, "E2E_GUARDRAIL_LEAK" / "E2E_GUARDRAIL_SECRET" in a reply a leak / a secret.
 // "E2E_SCOPE_CHANGE" / "E2E_SCOPE_CONTENT" in a reply: a modification announced with no card / a content written in the reply (« Périmètre du coach », #1096);
-// "E2E_SCOPE_OFF_TOPIC" in a reply: a reply that does not answer the request (« hors sujet », #1156). The output check reads the
-// reply alone, never the Candidate's request given beside it (<demande>).
+// "E2E_SCOPE_OFF_TOPIC" in a reply: a reply that does not answer the request (« hors sujet », #1156); "E2E_SCOPE_REFUSAL", asked
+// of a reply that says it cannot: a refusal with no reason nor alternative (check 3, the model's to judge, #1156). The output
+// check reads the reply alone, never what is given beside it (<demande>, <accompagne>).
 // A message holding "E2E_COACH_SAY=<text>" (to the end of the line) has the AI Coach or the Back Office
 // Assistant reply that text; written again (told its reply was blocked) it replies a clean text, unless the
 // message also holds "E2E_STUBBORN" ("[at]", "[sp]", "[dash]" in the text become "@", a space and "-", so a reply can hold
@@ -166,11 +167,12 @@ globalThis.fetch = async (input, init) => {
           harmful_advice: judged.includes("E2E_GUARDRAIL_ADVICE"),
           personal_data_leak: judged.includes("E2E_GUARDRAIL_LEAK"),
           secret_disclosure: judged.includes("E2E_GUARDRAIL_SECRET"),
-          // « Périmètre du coach »'s checks 1, 2 and 5 (#1096, ADR-0114, ADR-0119): a modification announced with no card, a
-          // content written in the reply, a reply that does not answer the request.
+          // « Périmètre du coach »'s checks 1, 2, 5 and 3 (#1096, ADR-0114, ADR-0119): a modification announced with no card, a
+          // content written in the reply, a reply that does not answer the request, a refusal with no reason nor alternative.
           coach_scope_change: judged.includes("E2E_SCOPE_CHANGE"),
           coach_scope_content: judged.includes("E2E_SCOPE_CONTENT"),
           coach_scope_off_topic: judged.includes("E2E_SCOPE_OFF_TOPIC"),
+          coach_scope_refusal: judged.includes("E2E_SCOPE_REFUSAL"),
         };
     return completion(body, JSON.stringify(verdict));
   }

@@ -1,3 +1,4 @@
+import { createI18n } from "@jobhub/shared/i18n";
 import { describe, expect, it } from "vitest";
 import { createRedirects, REDIRECT_OF_ACTION, REDIRECT_TARGETS, redirectLine, redirectTableText, type RedirectSources } from "./redirects";
 
@@ -149,6 +150,11 @@ describe("typed redirects (ADR-0114)", () => {
     on = false;
     expect(await redirects.to("human_coach", { candidateId: "marie", language: "fr" })).toBeNull();
     expect(redirects.unavailable("human_coach")).toMatch(/^Le renvoi human_coach n'est pas disponible.*en une phrase/);
+    // Off is the former page (ADR-0107), still in the menu, where the Candidate books a session too: the sentence says where,
+    // never that Jobbbox offers no Human Coach.
+    expect(redirects.unavailable("human_coach")).toContain(`depuis « ${createI18n("fr").t("account.humanCoaches")} », dans le menu`);
+    expect(redirects.unavailable("human_coach")).toMatch(/réserve lui-même une séance/);
+    expect(redirects.unavailable("human_coach")).not.toMatch(/ne propose pas|pas encore/);
     // Off by default, as the setting is.
     expect(await createRedirects(sources()).to("human_coach", { candidateId: "marie", language: "fr" })).toBeNull();
     // Every other row is open whatever the setting.

@@ -411,7 +411,7 @@ describe("a reply with no text never reaches the Candidate empty (#784)", () => 
     expect(system).toMatch(/tu ne l'inventes jamais : .*\[sans-reponse\]/);
     expect(system).toMatch(/Quand un quota est atteint.* propose le changement d'offre avec le renvoi plan/);
     expect(system).toMatch(/Tu ne paies, ne réserves et n'achètes jamais rien.*« achète-moi une séance ».*se refuse en une phrase.*renvoi typé/);
-    expect(system).toMatch(/un coach humain \(« je veux parler à un vrai coach »\).*renvoi human_coach.*n'est pas disponible.*une phrase, sans renvoi/);
+    expect(system).toMatch(/un coach humain \(« je veux parler à un vrai coach »\).*renvoi human_coach.*n'est pas disponible.*une phrase, sans renvoi, ce que l'outil te répond/);
     // The row is in the table the AI Coach is told.
     expect(system).toMatch(/- human_coach : parler à un coach humain/);
   });

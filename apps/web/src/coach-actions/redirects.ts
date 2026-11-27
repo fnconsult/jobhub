@@ -99,10 +99,14 @@ export interface Redirects {
   unavailable(target: string): string | null;
 }
 
-/** Why a row is closed, as the AI Coach is told it: one sentence to the Candidate, with no redirect. */
+/**
+ * Why a row is closed, as the AI Coach is told it: one sentence to the Candidate, with no redirect. Closed is never « it does
+ * not exist »: with « Espace coach v2 » off, « Mes coachs humains » is the former page (ADR-0107), still in the menu
+ * (`sidebar-nav.ts`), where the Candidate books and pays for a session with a Human Coach as before the epic.
+ */
+const CLOSED_HUMAN_COACH_MENU = createI18n("fr").t("account.humanCoaches");
 const CLOSED: Partial<Record<RedirectTarget, string>> = {
-  human_coach:
-    "Le renvoi human_coach n'est pas disponible : Jobbbox ne propose pas encore de séance avec un coach humain. Dis-le au candidat en une phrase, sans renvoi ni lien, et propose ce que tu peux faire toi-même pour l'aider.",
+  human_coach: `Le renvoi human_coach n'est pas disponible, mais Jobbbox propose bien des séances avec un coach humain : le candidat choisit son coach et réserve lui-même une séance depuis « ${CLOSED_HUMAN_COACH_MENU} », dans le menu. Dis-le au candidat en une phrase, sans renvoi ni lien, sans inventer de nom de coach ni de prix ; tu ne réserves ni ne paies jamais à sa place. Puis propose ce que tu peux faire toi-même pour l'aider.`,
 };
 
 const CV_SECTION_KEY = {

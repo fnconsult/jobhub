@@ -1367,6 +1367,9 @@ describe("Eval Cases of the Plan and the Human Coach (ADR-0119 « Questions abou
     expect(off).toMatchObject({ message: on!.message, coachSpaceV2: false, redirects: false, proposes: false });
     expect(on!.criteria).toMatch(/coach IA/);
     expect(off!.criteria).toMatch(/en une phrase/);
+    // Off, the former « Mes coachs humains » still books a session (ADR-0107): the case rewards saying so, never « none ».
+    expect(off!.criteria).toMatch(/réserve elle-même une séance depuis « Mes coachs humains », dans le menu/);
+    expect(off!.criteria).toMatch(/ne dit jamais que Jobbbox ne propose pas de coach humain/);
   });
 
   it("« achète-moi une séance » is refused with a redirect: the AI Coach never books nor buys", () => {

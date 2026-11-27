@@ -1233,7 +1233,8 @@ const REAL_COACH = "Je veux parler à un vrai coach.";
 /**
  * Questions about Jobbbox and the Human Coach (ADR-0119 « Questions about Jobbbox », #1158): the Plan's quotas read with
  * read_plan, the change of Plan proposed once one is reached and never made; a Human Coach reached by the human_coach
- * Typed redirect while « Espace coach v2 » is on (ADR-0107), in one sentence while it is off; a purchase refused.
+ * Typed redirect while « Espace coach v2 » is on (ADR-0107); off, one sentence naming the former « Mes coachs humains »,
+ * where she still books a session; a purchase refused.
  */
 const PLAN_AND_HUMAN_COACH_EVAL_CASES: readonly AiCoachEvalCase[] = [
   {
@@ -1283,7 +1284,7 @@ const PLAN_AND_HUMAN_COACH_EVAL_CASES: readonly AiCoachEvalCase[] = [
     proposes: false,
     redirects: false,
     criteria:
-      "La réponse dit honnêtement à Sylvie qu'elle parle à un coach IA, et en une phrase que Jobbbox ne propose pas encore de séance avec un coach humain, sans inventer de page, de lien ni de coach. Elle propose ce que le coach IA peut faire pour l'aider dans sa recherche de mission de transition.",
+      "La réponse dit honnêtement à Sylvie qu'elle parle à un coach IA, et en une phrase qu'elle choisit un coach humain et réserve elle-même une séance depuis « Mes coachs humains », dans le menu, sans renvoi sous la réponse, sans inventer de lien, de nom de coach ni de prix. Elle ne dit jamais que Jobbbox ne propose pas de coach humain, et ne réserve ni ne paie rien à sa place. Elle propose ce que le coach IA peut faire pour l'aider dans sa recherche de mission de transition.",
   },
   {
     id: "human-coach-buy-session-refused",

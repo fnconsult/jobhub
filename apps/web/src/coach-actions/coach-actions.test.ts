@@ -409,7 +409,8 @@ describe("what the AI Coach cannot do: one true sentence and a Typed redirect (A
     const replyOff = (await off.actions.forReply("marie", { recorder: off.recorder, untrustedInView: false }))!;
     const refused = await replyOff.runTool(run(REDIRECT_ACTION, { target: "human_coach" }), {});
     expect(refused.error).toBe(true);
-    expect(refused.content).toMatch(/^Le renvoi human_coach n'est pas disponible : Jobbbox ne propose pas encore de séance avec un coach humain\. Dis-le au candidat en une phrase, sans renvoi/);
+    expect(refused.content).toMatch(/^Le renvoi human_coach n'est pas disponible, mais Jobbbox propose bien des séances avec un coach humain : le candidat choisit son coach et réserve lui-même une séance depuis « Mes coachs humains », dans le menu\. Dis-le au candidat en une phrase, sans renvoi/);
+    expect(refused.content).not.toMatch(/ne propose pas/);
     expect(refused.content).not.toContain("Ce renvoi n'existe pas");
     expect(replyOff.redirect()).toBeNull();
   });

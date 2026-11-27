@@ -130,6 +130,9 @@ test.describe("the AI Coach, the Plan and the Human Coach (#1158)", () => {
     expect(played!.redirect).toBeNull();
     expect(played!.toolResults.join("\n")).toContain("Le renvoi human_coach n'est pas disponible");
     expect(played!.toolResults.join("\n")).toContain("en une phrase");
+    // Off is the former « Mes coachs humains », still in the menu, where she books a session (ADR-0107): never « none ».
+    expect(played!.toolResults.join("\n")).toContain(`réserve lui-même une séance depuis « ${fr.account.humanCoaches} », dans le menu`);
+    expect(played!.toolResults.join("\n")).not.toContain("ne propose pas");
   });
 
   test("« je veux parler à un vrai coach », live: « Espace coach v2 » on gives the redirect; switched off, one sentence and none", async ({ browser }) => {
@@ -141,7 +144,7 @@ test.describe("the AI Coach, the Plan and the Human Coach (#1158)", () => {
     expect(on.redirect).toMatchObject({ page: fr.coachRedirects.pages.humanCoaches, href: "/coachs" });
 
     await setCoachSpaceV2(false);
-    const off = await ask(page, "Je veux parler à un vrai coach.", [redirect], "Je suis un coach IA ; Jobbbox ne propose pas encore de séance avec un coach humain.");
+    const off = await ask(page, "Je veux parler à un vrai coach.", [redirect], "Je suis un coach IA ; vous réservez une séance avec un coach humain depuis « Mes coachs humains », dans le menu.");
     expect(off.redirect).toBeUndefined();
     expect(off.reply).not.toContain("/coachs");
   });

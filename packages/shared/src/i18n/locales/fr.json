@@ -7490,7 +7490,8 @@
       "applications": "Mes candidatures",
       "account": "Mon compte",
       "coach": "Coach",
-      "subscription": "Abonnement"
+      "subscription": "Abonnement",
+      "humanCoaches": "Mes coachs humains"
     },
     "sections": {
       "searchCriteria": "Critères de recherche",
@@ -7510,7 +7511,8 @@
       "plan": "Changer d'offre",
       "coach_memory": "Mémoire du coach",
       "coach_conversation_delete": "Supprimer la conversation",
-      "account_delete": "Supprimer mon compte"
+      "account_delete": "Supprimer mon compte",
+      "human_coach": "Réserver une séance"
     },
     "label": "Où le faire vous-même"
   },

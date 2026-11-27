@@ -12,6 +12,9 @@
  *
  * `REDIRECT_TABLE` is kept in step with map #1084: a row leaves it once a Coach Action does what it stands for (#1094).
  * `REDIRECT_OF_ACTION` gives the row a refused Coach Action sends to (not offered, or narrowed by what was read).
+ *
+ * A row may be closed by a Platform Setting: `human_coach` (#1158) opens with « Espace coach v2 » (ADR-0107), read at each
+ * call; closed, `to` gives null and `unavailable` what the AI Coach says instead, in one sentence (ADR-0119).
  */
 import { createI18n } from "@jobhub/shared/i18n";
 import type { Applications } from "../applications";
@@ -25,9 +28,9 @@ export { readTypedRedirect, redirectLine, typedRedirectSchema, type TypedRedirec
 
 /**
  * What a row's object is about: a Profile, an Application, the AI Coach's own (« Coach » in the menu), the Candidate's
- * account, or their Plan (« Abonnement »).
+ * account, their Plan (« Abonnement »), or their Human Coaches (« Mes coachs humains »).
  */
-type RedirectScope = "profile" | "application" | "coach" | "account" | "plan" | "none";
+type RedirectScope = "profile" | "application" | "coach" | "account" | "plan" | "human_coach" | "none";
 
 /**
  * The redirect table: one row per object the Candidate changes themselves, with no Coach Action (ADR-0114).
@@ -51,6 +54,7 @@ export const REDIRECT_TABLE = {
   coach_conversation_delete: { scope: "coach", what: "supprimer une conversation (ses actions « … » à côté de son nom, sous « Coach » dans le menu) ou en effacer les messages (« Effacer la conversation »)" },
   account_delete: { scope: "account", what: "supprimer son compte ou ses données" },
   plan: { scope: "plan", what: "changer d'offre pour ce que la sienne n'inclut pas (les contacts enrichis de l'offre Premium) : tu ne changes jamais d'offre ni ne paies à sa place" },
+  human_coach: { scope: "human_coach", what: "parler à un coach humain, choisir son coach et réserver une séance : tu ne réserves ni ne paies jamais à sa place" },
 } as const satisfies Record<string, { scope: RedirectScope; what: string }>;
 
 export type RedirectTarget = keyof typeof REDIRECT_TABLE;
@@ -82,10 +86,24 @@ export interface RedirectCall {
   section?: (typeof MASTER_CV_EDIT_SECTIONS)[number];
 }
 
-export interface Redirects {
-  /** The Typed redirect of `target`, for `call.candidateId`; null for a row no one has (an unknown target). */
-  to(target: string, call: RedirectCall): Promise<TypedRedirect | null>;
+/** The Platform Settings a row opens with, read at each call. */
+export interface RedirectSettings {
+  /** « Espace coach v2 » (ADR-0107): the `human_coach` row. Default: off, as the setting is. */
+  coachSpaceV2?: () => boolean;
 }
+
+export interface Redirects {
+  /** The Typed redirect of `target`, for `call.candidateId`; null for a row no one has (an unknown target) or closed now. */
+  to(target: string, call: RedirectCall): Promise<TypedRedirect | null>;
+  /** What the AI Coach is told of a row closed now by its Platform Setting, in French; null for an open row or an unknown one. */
+  unavailable(target: string): string | null;
+}
+
+/** Why a row is closed, as the AI Coach is told it: one sentence to the Candidate, with no redirect. */
+const CLOSED: Partial<Record<RedirectTarget, string>> = {
+  human_coach:
+    "Le renvoi human_coach n'est pas disponible : Jobbbox ne propose pas encore de séance avec un coach humain. Dis-le au candidat en une phrase, sans renvoi ni lien, et propose ce que tu peux faire toi-même pour l'aider.",
+};
 
 const CV_SECTION_KEY = {
   headline: "cvReview.headline",
@@ -98,7 +116,10 @@ const CV_SECTION_KEY = {
 
 export const isRedirectTarget = (value: unknown): value is RedirectTarget => typeof value === "string" && Object.hasOwn(REDIRECT_TABLE, value);
 
-export function createRedirects(sources: RedirectSources | null): Redirects {
+export function createRedirects(sources: RedirectSources | null, settings: RedirectSettings = {}): Redirects {
+  /** Whether `target` is closed now by its Platform Setting. */
+  const closed = (target: RedirectTarget) => target === "human_coach" && !(settings.coachSpaceV2?.() ?? false);
+
   /** The Candidate's active Profile `id`; null for an Archived Profile, another's or an unknown id. */
   const activeProfile = async (candidateId: string, id: string | undefined) => {
     if (!id || !sources) return null;
@@ -120,8 +141,9 @@ export function createRedirects(sources: RedirectSources | null): Redirects {
   }
 
   return {
+    unavailable: (target) => (isRedirectTarget(target) && closed(target) ? (CLOSED[target] ?? null) : null),
     async to(target, call) {
-      if (!isRedirectTarget(target)) return null;
+      if (!isRedirectTarget(target) || closed(target)) return null;
       const { t } = createI18n(call.language);
       const object = t(`coachRedirects.objects.${target}`);
       const { scope } = REDIRECT_TABLE[target];
@@ -130,6 +152,8 @@ export function createRedirects(sources: RedirectSources | null): Redirects {
       if (scope === "coach") return { page: t("coachRedirects.pages.coach"), section: null, object, href: target === "coach_memory" ? routes.coachMemory : routes.home };
       if (scope === "account") return { page: t("coachRedirects.pages.account"), section: t("coachRedirects.sections.data"), object, href: routes.accountData };
       if (scope === "plan") return { page: t("coachRedirects.pages.subscription"), section: null, object, href: routes.subscription };
+      // Their Human Coaches' page, where they choose one and book (ADR-0107 on): the AI Coach never books nor pays.
+      if (scope === "human_coach") return { page: t("coachRedirects.pages.humanCoaches"), section: null, object, href: routes.coaching };
       if (scope === "application") {
         const found = await application(call.candidateId, call.applicationId ?? (call.inView?.kind === "application" ? call.inView.id : undefined));
         // A Target Company's dossier with no Spontaneous Application yet (#1157): its Profile's Entreprises cibles.

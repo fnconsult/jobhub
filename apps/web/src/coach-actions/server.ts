@@ -6,6 +6,7 @@ import { getCoachMemory } from "@/coach-memory/server";
 import { exchangesOn, getExchanges } from "@/exchanges/server";
 import { getCompanyDossiers } from "@/company-dossiers/server";
 import { getEnrichedContacts } from "@/enriched-contacts/server";
+import { coachSpaceV2On } from "@/coach-space-v2/server";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { getFollowUps } from "@/follow-ups/server";
 import { getJobDigests } from "@/job-digests/server";
@@ -136,8 +137,9 @@ export function getCoachActions(): CoachActions {
     catalog: coachActionsInUse(),
     settings: async () => coachActionsSettings(getPlatformSettingsResolver().current()),
     externalApis: getExternalApiLog(),
-    // Typed redirects (ADR-0114), named after the Candidate's own Profiles and Applications.
-    redirects: createRedirects({ profiles: getProfiles(), applications: getApplications() }),
+    // Typed redirects (ADR-0114), named after the Candidate's own Profiles and Applications; a Human Coach's while
+    // « Espace coach v2 » is on (ADR-0107, #1158), read at each reply.
+    redirects: createRedirects({ profiles: getProfiles(), applications: getApplications() }, { coachSpaceV2: coachSpaceV2On }),
   });
   return instance;
 }

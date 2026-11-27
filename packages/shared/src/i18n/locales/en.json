@@ -7490,7 +7490,8 @@
       "applications": "My applications",
       "account": "My account",
       "coach": "Coach",
-      "subscription": "Subscription"
+      "subscription": "Subscription",
+      "humanCoaches": "My human coaches"
     },
     "sections": {
       "searchCriteria": "Search criteria",
@@ -7510,7 +7511,8 @@
       "plan": "Change plan",
       "coach_memory": "Coach memory",
       "coach_conversation_delete": "Delete the conversation",
-      "account_delete": "Delete my account"
+      "account_delete": "Delete my account",
+      "human_coach": "Book a session"
     },
     "label": "Where to do it yourself"
   },

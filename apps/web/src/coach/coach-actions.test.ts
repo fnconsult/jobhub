@@ -401,6 +401,21 @@ describe("a reply with no text never reaches the Candidate empty (#784)", () => 
     expect(system).toMatch(/sans l'offre ou sans service de contacts.*une phrase et le renvoi typé.*jamais une carte/);
   });
 
+  it("is told that questions about Jobbbox are answered from the Help and read_plan, else [sans-reponse]; that a quota reached gets the change of Plan proposed, never paid; and how a Human Coach is reached (ADR-0119, #1158)", async () => {
+    const { coach, coachCalls } = setUp({ turns: [{ text: "Voici." }] });
+
+    await ask(coach, "Combien de recherches me reste-t-il ?");
+
+    const system = coachCalls()[0]!.system ?? "";
+    expect(system).toMatch(/Une question sur Jobbbox .* se répond d'après l'Aide de Jobbbox .* read_plan/);
+    expect(system).toMatch(/tu ne l'inventes jamais : .*\[sans-reponse\]/);
+    expect(system).toMatch(/Quand un quota est atteint.* propose le changement d'offre avec le renvoi plan/);
+    expect(system).toMatch(/Tu ne paies, ne réserves et n'achètes jamais rien.*« achète-moi une séance ».*se refuse en une phrase.*renvoi typé/);
+    expect(system).toMatch(/un coach humain \(« je veux parler à un vrai coach »\).*renvoi human_coach.*n'est pas disponible.*une phrase, sans renvoi/);
+    // The row is in the table the AI Coach is told.
+    expect(system).toMatch(/- human_coach : parler à un coach humain/);
+  });
+
   it("gives the Typed redirect the model asked for with the reply the Candidate sees, the link built by the server (ADR-0114)", async () => {
     const { coach } = setUp({ turns: [{ toolCalls: [{ name: "redirect", arguments: { target: "profile_create" } }] }, { text: "Un profil se crée depuis sa page : je vous y accompagne." }] });
 

@@ -6,6 +6,12 @@
  * attachments (CONTEXT.md, Received offer email). The text the HTML hides from its reader is kept between
  * HIDDEN_TEXT_OPEN and HIDDEN_TEXT_CLOSE, for the email Guardrail (#446).
  *
+ * A message the Candidate forwards as an attachment (`message/rfc822`: Apple Mail's and iCloud's « Transférer en tant
+ * que pièce jointe », #1193) is the email to read, not an attachment: its text follows theirs, under a forward's
+ * header block (FORWARDED_MESSAGE_MARK, its From, Date and Subject), as an inline forward writes it. The original
+ * sender, `forwardedFrom`, is that message's From, else the first forwarded header block in the text (Apple Mail's
+ * « Début du message réexpédié : » or « Begin forwarded message: », Gmail's, Outlook's).
+ *
  *   const email = await readInboundEmail(request); // null: not an email with a sender
  */
 import { createHash } from "node:crypto";
@@ -37,7 +43,19 @@ export interface InboundEmail {
   subject: string;
   /** The Message-IDs its In-Reply-To and References name (#1099: to find an Exchange's thread), never kept. */
   threadIds: string[];
+  /**
+   * The address of the message it forwards, in lower case: the From of a message forwarded as an attachment, else the
+   * first forwarded header block of its text; null when it forwards none that names an address. Written by whoever
+   * forwarded it: never authenticated.
+   */
+  forwardedFrom: string | null;
 }
+
+/** The line that opens a message forwarded as an attachment, in the text kept. */
+export const FORWARDED_MESSAGE_MARK = "---------- Message transféré ----------";
+
+/** How many messages forwarded as attachments are read: an alert is one. */
+const MAX_FORWARDED_MESSAGES = 3;
 
 /** An anchor's words followed by its link, so the reading keeps where each offer is; other links (mailto:, tracking images) go. */
 function withLinks(html: string): string {
@@ -107,14 +125,71 @@ function threadIdsOf(...headers: (string | undefined)[]): string[] {
   return [...new Set(headers.flatMap((header) => header?.match(/<[^<>\s]+>/g) ?? []))];
 }
 
+/** A header line of a forward's header block: its name (De, From, Objet, Subject…) and its value. */
+const HEADER_LINE = /^\*{0,2}(de|from|exp[ée]diteur|objet|subject|date|envoy[ée]|sent|à|to|cc|répondre à|reply-to)\s*:\*{0,2}\s*(.*)$/i;
+const SENDER_HEADERS = new Set(["de", "from", "expéditeur", "expediteur"]);
+const ADDRESS = /[a-z0-9._%+'-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+/i;
+
+/**
+ * The address the first forwarded header block of a text names as its sender: a « De : » or « From: » line with an
+ * address, next to another header line (Objet, Subject, Date, Envoyé, Sent, À, To) among its neighbours. Null when none.
+ */
+export function forwardedSenderOf(text: string): string | null {
+  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+  for (const [index, line] of lines.entries()) {
+    const header = HEADER_LINE.exec(line);
+    if (!header || !SENDER_HEADERS.has(header[1]!.toLowerCase())) continue;
+    const address = ADDRESS.exec(header[2]!)?.[0];
+    if (!address) continue;
+    const neighbours = [...lines.slice(Math.max(0, index - 4), index), ...lines.slice(index + 1, index + 5)];
+    if (neighbours.some((other) => { const name = HEADER_LINE.exec(other)?.[1]?.toLowerCase(); return name !== undefined && !SENDER_HEADERS.has(name); })) {
+      return address.toLowerCase();
+    }
+  }
+  return null;
+}
+
+type ParsedEmail = Awaited<ReturnType<typeof PostalMime.parse>>;
+
+/** The messages forwarded as attachments (`message/rfc822`), parsed; one that does not read, or names no sender, is skipped. */
+async function forwardedMessagesOf(message: ParsedEmail): Promise<ParsedEmail[]> {
+  const attached = message.attachments.filter((attachment) => attachment.mimeType.toLowerCase() === "message/rfc822" && attachment.content instanceof ArrayBuffer);
+  const parsed = await Promise.all(
+    attached.slice(0, MAX_FORWARDED_MESSAGES).map((attachment) =>
+      PostalMime.parse(attachment.content as ArrayBuffer, { attachmentEncoding: "arraybuffer", forceRfc822Attachments: true }).catch(() => null),
+    ),
+  );
+  return parsed.filter((forwarded): forwarded is ParsedEmail => Boolean(forwarded?.from?.address));
+}
+
+/** A forwarded message as an inline forward writes it: its header block, then its text. */
+function forwardedTextOf(forwarded: ParsedEmail): string {
+  const sender = forwarded.from!;
+  const from = sender.name ? `${sender.name} <${sender.address}>` : `<${sender.address}>`;
+  return [
+    FORWARDED_MESSAGE_MARK,
+    `De : ${from}`,
+    ...(forwarded.date ? [`Date : ${forwarded.date}`] : []),
+    `Objet : ${forwarded.subject?.trim() ?? ""}`,
+    "",
+    inboundTextOf({ html: forwarded.html, text: forwarded.text }),
+  ].join("\n");
+}
+
 /** One email as the MTA posts it (raw message, envelope and stamp in headers); null when its message names no sender. */
 export async function readInboundEmail(request: Request): Promise<InboundEmail | null> {
   const raw = new Uint8Array(await request.arrayBuffer());
   if (raw.byteLength === 0) return null;
-  const message = await PostalMime.parse(raw, { attachmentEncoding: "arraybuffer" }).catch(() => null);
+  // A message forwarded as an attachment stays an attachment here, whatever its disposition, to be read below.
+  const message = await PostalMime.parse(raw, { attachmentEncoding: "arraybuffer", forceRfc822Attachments: true }).catch(() => null);
   const from = message?.from?.address?.trim().toLowerCase();
   if (!message || !from) return null;
-  const text = inboundTextOf({ html: message.html, text: message.text });
+  const forwarded = await forwardedMessagesOf(message);
+  const text = [inboundTextOf({ html: message.html, text: message.text }), ...forwarded.map(forwardedTextOf)]
+    .filter(Boolean)
+    .join("\n\n")
+    .slice(0, MAX_TEXT_CHARACTERS);
+  const forwardedFrom = forwarded[0]?.from?.address?.trim().toLowerCase() || forwardedSenderOf(text);
   const envelope = addressesOf(request.headers.get(ENVELOPE_TO_HEADER));
   const messageId =
     message.messageId?.trim() || `<${createHash("sha256").update(`${from}\n${message.date ?? ""}\n${message.subject ?? ""}\n${text}`, "utf8").digest("hex")}@email-intake>`;
@@ -127,5 +202,6 @@ export async function readInboundEmail(request: Request): Promise<InboundEmail |
     text,
     subject: message.subject?.trim() ?? "",
     threadIds: threadIdsOf(message.inReplyTo, message.references),
+    forwardedFrom: forwardedFrom && forwardedFrom !== from ? forwardedFrom : null,
   };
 }

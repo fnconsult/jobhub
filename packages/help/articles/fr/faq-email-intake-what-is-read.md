@@ -7,7 +7,7 @@ synonyms: [email, e-mail, mail, lire mes mails, lecture, boîte mail, messagerie
 ---
 Jobbbox ne lit jamais votre messagerie : il n'y a pas accès. Il ne lit que les e-mails qui arrivent à votre adresse de transfert, et seulement s'ils viennent d'un expéditeur d'alertes qu'il reconnaît (« Reconnus par Jobbbox », ou « Ajoutés par vous ») ou de l'une de vos propres adresses, celles de « Vos adresses d'envoi ». Les autres sont ignorés sans être lus.
 
-Seul le texte de l'e-mail est lu, jamais ses pièces jointes ni ses images. Il n'est pas gardé une fois lu : au plus 72 heures, chiffré, s'il faut le relire. Seules les offres trouvées sont gardées. D'un e-mail ignoré, Jobbbox ne garde que la raison, le domaine de l'expéditeur et la date, jamais le contenu.
+Seul le texte de l'e-mail est lu, jamais ses pièces jointes ni ses images. Une seule exception : une alerte que vous transférez en pièce jointe, depuis Mail ou iCloud Mail par exemple, est lue comme un transfert ordinaire, son texte seulement. Il n'est pas gardé une fois lu : au plus 72 heures, chiffré, s'il faut le relire. Seules les offres trouvées sont gardées. D'un e-mail ignoré, Jobbbox ne garde que la raison, le domaine de l'expéditeur et la date, jamais le contenu.
 
 Chaque e-mail est lu par un modèle d'IA hébergé dans l'Union européenne, quel que soit votre choix dans la rubrique « IA européenne » de Mon compte.
 

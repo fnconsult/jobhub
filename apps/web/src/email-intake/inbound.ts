@@ -23,7 +23,8 @@
  * Candidate, is no Received offer email: it waits as an Exchange for the « Contenu piégé dans un email » Guardrail, a
  * job on EXCHANGE_CHECK_QUEUE for the worker. One that matches nothing keeps the path above.
  * One email delivered twice (its Message-ID) is received once. A failure answers 5xx and keeps nothing of the email:
- * the MTA then answers its sender with a temporary failure (4xx), and the sender delivers it again. Rows keep the outcome, the sender's domain and the dates; the text goes at most
+ * the MTA then answers its sender with a temporary failure (4xx), and the sender delivers it again. Rows keep the outcome, the sender's domain (for
+ * an email the Candidate forwarded by hand, the domain of the message it forwards when it names one, #1193) and the dates; the text goes at most
  * 72 hours after it arrived, the row 12 months after (`purgeReceivedOfferEmails`, nightly in the worker). Each row also
  * gets its row of Activité › Emails reçus, naming no Candidate (activity.ts, #449), and the first email past the cap of
  * the day a Linked mailbox event for the Journal.
@@ -214,8 +215,9 @@ export function createEmailIntakeInbound(database: Pool, options: EmailIntakeInb
         if (outcome === "over_daily_cap" && day.overCap === 0) await recordLinkedMailboxEvent(client, "daily_cap_reached", receivedAt);
       }
       const id = randomUUID();
-      const sender = domainOf(email.from);
       const manualForward = standing === "own_address";
+      // Forwarded by hand (#1193): the domain of the message it forwards (the job board's), when it names one; else theirs.
+      const sender = domainOf(manualForward && email.forwardedFrom ? email.forwardedFrom : email.from);
       const activityId = await recordReceivedEmail(client, { receivedAt, senderDomain: sender, manualForward, outcome });
       const sealed: SealedSecret | null = outcome === "awaiting_reading" || outcome === "forwarding_confirmation" ? cipher.seal(email.text, placeOf(id)) : null;
       await client.query(

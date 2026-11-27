@@ -13,7 +13,7 @@ Your job alerts (job boards, careers sites) and recruiters' messages can reach J
 3. Read what is read and what is kept, then click « Switch on and continue ». The date you switched it on is recorded.
 4. Click « Copy the address »: it is your forwarding address, yours alone.
 5. With Gmail, on a computer, add this forwarding address in Gmail's settings, as the guide shows. Jobbbox receives Gmail's confirmation code and shows it to you: enter it in Gmail, or click « Confirm with Gmail's link ». Then create the Gmail filter that forwards only your alerts to this address, never all your mail.
-6. With Outlook.com or iCloud Mail, on a computer, create the rule the guide describes, which forwards only your alerts to this address. With Orange and other mailboxes, forward your alerts by hand, from one of « Your sending addresses ».
+6. With Outlook.com or iCloud Mail, on a computer, create the rule the guide describes, which forwards only your alerts to this address. With Orange and other mailboxes, forward your alerts by hand, from one of « Your sending addresses ». From Mail on a Mac, iPhone or iPad, or from iCloud Mail, an alert forwarded in the body of the message or as an attachment is read the same way: Jobbbox finds the job site that sent it.
 7. Wait for your next alert, or forward one by hand: « First email received on … » confirms forwarding works. It can take a few minutes, sometimes longer.
 8. Open the Job searches page: the job offers from your emails arrive in « Received by email », under the profile they match best, or in « Unclassified » when no profile reaches 60.
 

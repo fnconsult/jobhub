@@ -27,6 +27,8 @@ export interface InboundTestEmail {
    * the message itself carried, which anyone can write.
    */
   authentication: string[];
+  /** A message it forwards as an attachment (`message/rfc822`), raw, and that part's disposition. */
+  attachedMessage: { raw: string; disposition: "attachment" | "inline" | null } | null;
 }
 
 let sequence = 0;
@@ -54,6 +56,7 @@ export function inboundEmail(options: {
   messageId?: string;
   sentAt?: string;
   inReplyTo?: string;
+  attachedMessage?: InboundTestEmail["attachedMessage"];
 }): InboundTestEmail {
   sequence += 1;
   const authentication = options.authentication ?? authenticationResults(options.from.split("@")[1]!);
@@ -69,6 +72,7 @@ export function inboundEmail(options: {
     text: options.text === undefined ? null : options.text,
     inReplyTo: options.inReplyTo ?? null,
     authentication: Array.isArray(authentication) ? authentication : [authentication],
+    attachedMessage: options.attachedMessage ?? null,
   };
 }
 
@@ -108,6 +112,15 @@ export function mimeOf(email: InboundTestEmail): string {
     ...alternative,
     "--mixed-boundary",
     ...attachment,
+    ...(email.attachedMessage
+      ? [
+          "--mixed-boundary",
+          "Content-Type: message/rfc822; name=\"alerte.eml\"",
+          ...(email.attachedMessage.disposition ? [`Content-Disposition: ${email.attachedMessage.disposition}; filename="alerte.eml"`] : []),
+          "",
+          email.attachedMessage.raw,
+        ]
+      : []),
     "--mixed-boundary--",
     "",
   ].join("\r\n");
@@ -192,4 +205,71 @@ export function recruiterEmail(to: string, options: { from?: string; messageId?:
     ...(options.authentication ? { authentication: options.authentication } : {}),
   });
   return { ...email, fromName: "Jane Recruiter" };
+}
+
+/** The Candidate's own address at iCloud, from which they forward by hand (fictional). */
+export const ICLOUD_ADDRESS = "marie.exemple@icloud.example";
+
+/** The job board an alert forwarded from iCloud comes from (fictional). */
+export const ALERT_SENDER = "offres@alertes.example-jobs.test";
+
+/** The HTML of an alert as its job board sends it: a hidden preheader, offers each with its link. */
+const ALERT_BODY = `<div style="display:none;max-height:0">2 nouvelles offres pour vous</div>
+  <h1>2 nouvelles offres pour « Contrôleur de gestion »</h1>
+  <table><tr><td><a href="https://www.example-jobs.test/offre/2001?utm_source=alerte">Contrôleur de gestion H/F</a><p>Société Fictive &#8211; Nantes (44)</p></td></tr>
+  <tr><td><a href="https://www.example-jobs.test/offre/2002?utm_source=alerte">Responsable contrôle de gestion</a><p>Exemple Industrie &#8211; Rennes (35)</p></td></tr></table>`;
+
+/**
+ * An alert the Candidate forwarded by hand from Apple Mail (Mac, iPhone) or iCloud Mail, inline (#1193): Apple Mail's
+ * HTML, its forward in a `<blockquote type="cite">` under « Début du message réexpédié : » (fr) or « Begin forwarded
+ * message: » (en), each header in bold, then the alert's own HTML, head and all. Written from Apple Mail's structure,
+ * never from a real email.
+ */
+export function appleMailForward(to: string, locale: "fr" | "en", options: { from?: string; messageId?: string } = {}): InboundTestEmail {
+  const from = options.from ?? ICLOUD_ADDRESS;
+  const words =
+    locale === "fr"
+      ? { begin: "Début du message réexpédié :", from: "De", subject: "Objet", date: "Date", to: "À", sent: "26 novembre 2026 à 18:00:00 UTC+1", signature: "Envoyé de mon iPhone" }
+      : { begin: "Begin forwarded message:", from: "From", subject: "Subject", date: "Date", to: "To", sent: "November 26, 2026 at 6:00:00 PM GMT+1", signature: "Sent from my iPhone" };
+  const header = (name: string, value: string) =>
+    `<div style="margin-top: 0px; margin-right: 0px; margin-bottom: 0px; margin-left: 0px;"><span style="font-family: -webkit-system-font, Helvetica Neue, Helvetica, sans-serif; color:rgba(0, 0, 0, 1.0);"><b>${name}: </b></span><span style="font-family: -webkit-system-font, Helvetica Neue, Helvetica, sans-serif;">${value}<br></span></div>`;
+  const html = `<html><head><meta http-equiv="content-type" content="text/html; charset=utf-8"></head><body style="overflow-wrap: break-word; -webkit-nbsp-mode: space; line-break: after-white-space;"><br id="lineBreakAtBeginningOfMessage"><div>${words.signature}<br><blockquote type="cite"><div>${words.begin}</div><br class="Apple-interchange-newline">${header(words.from, `Alertes Emploi &lt;${ALERT_SENDER}&gt;`)}${header(words.subject, "<b>2 nouvelles offres pour « Contrôleur de gestion »</b>")}${header(words.date, words.sent)}${header(words.to, `&lt;${from}&gt;`)}<br><div><meta charset="utf-8"><title>Vos alertes</title><style>td { font-family: Arial; }</style>${ALERT_BODY}</div></blockquote></div></body></html>`;
+  const text = `${words.signature}\n\n${words.begin}\n\n${words.from}: Alertes Emploi <${ALERT_SENDER}>\n${words.subject}: 2 nouvelles offres pour « Contrôleur de gestion »\n${words.date}: ${words.sent}\n${words.to}: <${from}>\n\nContrôleur de gestion H/F`;
+  return inboundEmail({
+    from,
+    to,
+    headerTo: to,
+    subject: `${locale === "fr" ? "Tr" : "Fwd"}: 2 nouvelles offres pour « Contrôleur de gestion »`,
+    sentAt: "Thu, 26 Nov 2026 18:00:04 +0100",
+    html,
+    text,
+    authentication: authenticationResults(from.split("@")[1]!),
+    ...(options.messageId ? { messageId: options.messageId } : {}),
+  });
+}
+
+/**
+ * An alert the Candidate forwarded as an attachment from Apple Mail or iCloud Mail (« Transférer en tant que pièce
+ * jointe », #1193): their message says nothing, the alert is a `message/rfc822` part, as `disposition` writes it.
+ */
+export function appleMailAttachmentForward(to: string, options: { from?: string; disposition?: "attachment" | "inline" | null; messageId?: string } = {}): InboundTestEmail {
+  const from = options.from ?? ICLOUD_ADDRESS;
+  const raw = [
+    `From: ${encodedWord("Alertes Emploi")} <${ALERT_SENDER}>`,
+    `To: <${ICLOUD_ADDRESS}>`,
+    `Subject: ${encodedWord("2 nouvelles offres pour « Contrôleur de gestion »")}`,
+    "Date: Thu, 26 Nov 2026 18:00:00 +0100",
+    "Message-ID: <alerte-2001@alertes.example-jobs.test>",
+    "MIME-Version: 1.0",
+    ...textPart("html", `<html><head><style>td { font-family: Arial; }</style></head><body>${ALERT_BODY}</body></html>`),
+  ].join("\r\n");
+  return inboundEmail({
+    from,
+    to,
+    subject: "Fwd: 2 nouvelles offres pour « Contrôleur de gestion »",
+    text: "",
+    authentication: authenticationResults(from.split("@")[1]!),
+    attachedMessage: { raw, disposition: options.disposition === undefined ? "attachment" : options.disposition },
+    ...(options.messageId ? { messageId: options.messageId } : {}),
+  });
 }

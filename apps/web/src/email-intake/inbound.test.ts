@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { connectionString, signInWithMagicLink, startTestAuth, type TestAuth } from "../auth/test-support";
 import { createAesGcmCipher, type SecretCipher } from "../provider-secrets/cipher";
 import type { Arrival, IncomingEmail } from "../exchanges";
-import { alertEmail, authenticationResults, inboundEmail, inboundRequest, recruiterEmail, unknownSenderEmail, type InboundTestEmail } from "./fixtures/inbound-emails";
+import { alertEmail, appleMailAttachmentForward, appleMailForward, authenticationResults, inboundEmail, inboundRequest, recruiterEmail, unknownSenderEmail, type InboundTestEmail } from "./fixtures/inbound-emails";
 import { createEmailIntake, emailIntakeOf, migrateEmailIntake, type EmailIntake } from "./index";
 import { createCandidateSenders } from "./candidate-senders";
 import { createEmailIntakeInbound, EMAIL_INTAKE_READ_QUEUE, EXCHANGE_CHECK_QUEUE, inIpRanges, MAX_MESSAGE_BYTES, purgeReceivedOfferEmails, receivedTextOf, type EmailIntakeInbound, type InboundSettings } from "./inbound";
@@ -221,6 +221,21 @@ describe.skipIf(!connectionString)("Email intake: the emails its MTA posts (need
       const kept = emails.find(({ outcome }) => outcome === "forwarding_confirmation")!;
       expect(await receivedTextOf(database, cipher, kept.id)).toBe("Code de confirmation : 123456789");
       expect(sent).toHaveLength(1);
+    });
+
+    it("reads an alert forwarded by hand from Apple Mail or iCloud Mail under its job board's domain, inline or as an attachment (#1193)", async () => {
+      const from = "marie.dupont@example.fr";
+
+      await deliver(appleMailForward(address, "fr", { from }), appleMailForward(address, "en", { from }), appleMailAttachmentForward(address, { from }));
+
+      const emails = await received();
+      expect(emails.map(({ outcome, senderDomain }) => [outcome, senderDomain])).toEqual([
+        ["awaiting_reading", "alertes.example-jobs.test"],
+        ["awaiting_reading", "alertes.example-jobs.test"],
+        ["awaiting_reading", "alertes.example-jobs.test"],
+      ]);
+      for (const email of emails) expect(await receivedTextOf(database, cipher, email.id)).toContain("Contrôleur de gestion H/F <https://www.example-jobs.test/offre/2001?utm_source=alerte>");
+      expect(sent).toHaveLength(3);
     });
 
     it("discards unread an email to an unknown, replaced or switched-off address: 200, no row", async () => {

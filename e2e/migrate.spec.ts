@@ -178,6 +178,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "signalement", // issue #374: the Candidate's Signalements (Bug / Idée / Question)
         "signalement_draft", // issue #1141: the draft reply an Agent Key proposed, fr and en, until Support sends or deletes it
         "signalement_issue", // issue #1141: the GitHub issues a Signalement is linked to, by number; no Candidate
+        "signalement_removed", // issue #1173: a deleted or purged Signalement's id, when and why; no Candidate, no FK
         "tailored_cv", // issue #18: Tailored CV proposals and saved Tailored CVs
         "tailored_document", // issue #19: Cover Letters and Outreach Messages
         "tailored_document_version", // issue #1079: the versions of the Tailored CV, Cover Letter and Outreach Message

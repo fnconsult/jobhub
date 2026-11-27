@@ -242,6 +242,10 @@ test.beforeAll(async ({ browser }) => {
     STRIPE_PRICE_COACHING_SESSION: "price_coaching_session",
     STRIPE_PRICE_COACHING_SESSION_PREMIUM: "price_coaching_session_premium",
     STRIPE_API_URL: process.env.E2E_STRIPE_URL,
+    // The Guardrails' AI checks on the suite's fake Mistral: saving a setting plays the Eval Cases, and « Périmètre du
+    // coach »'s check 3 is the model's to judge (ADR-0119), so a server with no model could save none.
+    MISTRAL_API_KEY: "e2e-mistral-key",
+    NODE_OPTIONS: `--import=${path.resolve("e2e/support/fake-mistral.mjs")}`,
   });
   database = new Pool({ connectionString: own.databaseUrl });
   anonymous = await playwrightRequest.newContext();

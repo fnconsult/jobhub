@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { alertEmail, inboundEmail, inboundRequest, unknownSenderEmail, type InboundTestEmail } from "./fixtures/inbound-emails";
+import { ALERT_SENDER, alertEmail, appleMailAttachmentForward, appleMailForward, inboundEmail, inboundRequest, unknownSenderEmail, type InboundTestEmail } from "./fixtures/inbound-emails";
 import { HIDDEN_TEXT_CLOSE, HIDDEN_TEXT_OPEN } from "../guardrails/email";
-import { MAX_TEXT_CHARACTERS, readInboundEmail } from "./inbound-email";
+import { FORWARDED_MESSAGE_MARK, MAX_TEXT_CHARACTERS, forwardedSenderOf, readInboundEmail } from "./inbound-email";
 
 const TO = "k7d2m4q9x3b5n8ta@alertes.jobbbox.test";
 
@@ -98,5 +98,55 @@ describe("an email Email intake's MTA posts, as Email intake reads it", () => {
 
     expect(await posted("")).toBeNull();
     expect(await posted("Subject: no sender\r\n\r\nHello")).toBeNull();
+  });
+
+  describe("an alert the Candidate forwarded from Apple Mail or iCloud Mail (#1193)", () => {
+    it.each(["fr", "en"] as const)("inline (%s): keeps the forwarded alert's offers with their links, and names its sender", async (locale) => {
+      const email = await read(appleMailForward(TO, locale));
+
+      expect(email!.text).toContain(locale === "fr" ? "Début du message réexpédié :" : "Begin forwarded message:");
+      expect(email!.text).toContain(`${locale === "fr" ? "De" : "From"}: Alertes Emploi <${ALERT_SENDER}>`);
+      expect(email!.text).toContain("Contrôleur de gestion H/F <https://www.example-jobs.test/offre/2001?utm_source=alerte>");
+      expect(email!.text).toContain("Responsable contrôle de gestion <https://www.example-jobs.test/offre/2002?utm_source=alerte>");
+      expect(email!.text).not.toContain("font-family");
+      expect(email!.forwardedFrom).toBe(ALERT_SENDER);
+    });
+
+    it.each(["attachment", "inline", null] as const)("as an attachment (disposition %s): reads the attached alert as the email, under a forward's header block", async (disposition) => {
+      const email = await read(appleMailAttachmentForward(TO, { disposition }));
+
+      expect(email!.text).toContain(FORWARDED_MESSAGE_MARK);
+      expect(email!.text).toContain(`De : Alertes Emploi <${ALERT_SENDER}>`);
+      expect(email!.text).toContain("Objet : 2 nouvelles offres pour « Contrôleur de gestion »");
+      expect(email!.text).toContain("Contrôleur de gestion H/F <https://www.example-jobs.test/offre/2001?utm_source=alerte>");
+      expect(email!.text).toContain("Responsable contrôle de gestion <https://www.example-jobs.test/offre/2002?utm_source=alerte>");
+      expect(email!.text.match(/Contrôleur de gestion H\/F/g)).toHaveLength(1);
+      expect(email!.text).not.toContain("font-family");
+      expect(email!.forwardedFrom).toBe(ALERT_SENDER);
+      // The Candidate's own message stays the email's: its sender, its Message-ID.
+      expect(email!.from).toBe("marie.exemple@icloud.example");
+    });
+
+    it("names no forwarded sender for an email that forwards nothing", async () => {
+      expect((await read(alertEmail(TO)))!.forwardedFrom).toBeNull();
+      expect((await read(unknownSenderEmail(TO)))!.forwardedFrom).toBeNull();
+    });
+  });
+});
+
+describe("the sender a forwarded header block names", () => {
+  it.each([
+    ["Apple Mail (fr)", "Envoyé de mon iPhone\n\nDébut du message réexpédié :\n\nDe: Alertes <a@jobs.example.test>\n\nObjet: 3 offres\n\nDate: 26 novembre 2026 à 18:00:00 UTC+1"],
+    ["Apple Mail (en)", "Begin forwarded message:\n\nFrom: Alertes <a@jobs.example.test>\nSubject: 3 offers\nDate: November 26, 2026"],
+    ["Gmail", "---------- Forwarded message ---------\nDe : Alertes <A@Jobs.Example.Test>\nDate: jeu. 26 nov. 2026 à 18:00\nSubject: 3 offres\nTo: <me@example.test>"],
+    ["Outlook", "________________________________\nDe : a@jobs.example.test\nEnvoyé : jeudi 26 novembre 2026 18:00\nÀ : me@example.test\nObjet : 3 offres"],
+  ])("%s", (_, text) => {
+    expect(forwardedSenderOf(text)).toBe("a@jobs.example.test");
+  });
+
+  it("is none for a lone « De : » line or one with no address", () => {
+    expect(forwardedSenderOf("De : a@jobs.example.test\n\nBonjour, voici une offre.")).toBeNull();
+    expect(forwardedSenderOf("De: Alertes\nObjet: 3 offres")).toBeNull();
+    expect(forwardedSenderOf("")).toBeNull();
   });
 });

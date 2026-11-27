@@ -20,7 +20,7 @@
  *  5. deduplication, before the Candidate sees anything: an offer already there for them (a Job Search, a Job Digest,
  *     an earlier email, an Application) is « déjà vue »; any other is stored, shared from an alert, private to the
  *     Candidate from a recruiter's message (ADR-0049), with its Provenance: steps 1–5 and the sender's domain as a site
- *     (never for an email the Candidate forwarded by hand: that domain is theirs).
+ *     (never for an email the Candidate forwarded by hand: that domain is theirs, or one their forward writes).
  * A try that fails leaves the email awaiting, its text kept, and throws, for the job runner to try again; the
  * MAX_READING_TRIES-th, or one past the text's 72 hours, records it « échec ». Each AI call is in AI Usage under its task.
  */

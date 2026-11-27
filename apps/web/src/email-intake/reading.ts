@@ -44,9 +44,9 @@ export type ReadEmailOffer =
 export interface EmailToRead {
   id: string;
   candidateId: string;
-  /** The From address's domain. */
+  /** The From address's domain; for a manual forward, the domain of the message it forwards when it names one (#1193). */
   senderDomain: string;
-  /** Forwarded by the Candidate by hand from one of their own addresses: its sender's domain is theirs. */
+  /** Forwarded by the Candidate by hand from one of their own addresses: its sender's domain is theirs, or written by them. */
   manualForward: boolean;
   receivedAt: Date;
   /** When the email says it was sent; null when it says none. */

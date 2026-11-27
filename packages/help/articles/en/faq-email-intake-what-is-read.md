@@ -7,7 +7,7 @@ synonyms: [email, mail, read my emails, reading, mailbox, inbox, attachments, pr
 ---
 Jobbbox never reads your mailbox: it has no access to it. It reads only the emails that arrive at your forwarding address, and only if they come from an alert sender it recognises (« Recognised by Jobbbox », or « Added by you ») or from one of your own addresses, those in « Your sending addresses ». The others are ignored unread.
 
-Only the email's text is read, never its attachments or images. It is not kept once read: at most 72 hours, encrypted, if it must be read again. Only the job offers found are kept. Of an ignored email, Jobbbox keeps only the reason, the sender's domain and the date, never the content.
+Only the email's text is read, never its attachments or images. One exception: an alert you forward as an attachment, from Mail or iCloud Mail for instance, is read like an ordinary forward, its text only. It is not kept once read: at most 72 hours, encrypted, if it must be read again. Only the job offers found are kept. Of an ignored email, Jobbbox keeps only the reason, the sender's domain and the date, never the content.
 
 Each email is read by an AI model hosted in the European Union, whatever you chose in the « European AI » section of My account.
 

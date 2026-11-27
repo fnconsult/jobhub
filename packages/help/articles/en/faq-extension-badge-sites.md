@@ -7,7 +7,7 @@ synonyms: [badge, button, analyse this offer, supported sites, job sites, linked
 ---
 The extension adds the « Analyse this offer » button to a job offer's page when it recognises it. It recognises the main job sites, including LinkedIn, Indeed, Welcome to the Jungle, Apec, France Travail, HelloWork, Cadremploi and Glassdoor, and the job pages of many employers' recruiting tools (Lever, Greenhouse, Teamtailor, SmartRecruiters, Workday, Workable, Recruitee…). The Jobbbox team keeps this list up to date without you having to update the extension; on a site it has just added, the button only shows once the « Detect job offers on every site » box is ticked.
 
-The button shows when a job offer is open, not on a plain list of results: click the offer to open it.
+The button shows when a job offer is open, not on a plain list of results: click the offer to open it. In LinkedIn's job search, the offer open beside the list is enough: the extension reads the offer shown, not the list.
 
 On an employer's career site, tick « Detect job offers on every site », at the bottom of the extension's panel. Your browser asks for your permission; pages are still read in this browser only.
 

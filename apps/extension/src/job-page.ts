@@ -43,6 +43,8 @@ export interface JobPage {
  */
 export const KNOWN_POSTING_PAGES: readonly RegExp[] = [
   /^https:\/\/([a-z]+\.)?linkedin\.com\/jobs\/view\//,
+  // LinkedIn's search view and collections, the posting open in the detail pane beside the results.
+  /^https:\/\/([a-z]+\.)?linkedin\.com\/jobs\/(search|collections)\/.*[?&]currentJobId=\d+/,
   /^https:\/\/([a-z]+\.)?indeed\.[a-z.]+\/(viewjob|rc\/clk|m\/viewjob)\b/,
   /^https:\/\/([a-z]+\.)?indeed\.[a-z.]+\/.*[?&]vjk=/,
   /^https:\/\/www\.welcometothejungle\.com\/[a-z-]+\/companies\/[^/]+\/jobs\/[^/?#]+/,
@@ -259,7 +261,7 @@ function requiredExperienceYears(posting: Json): number | undefined {
 }
 
 function fromJobPosting(posting: Json, page: PageSnapshot): CapturedJobOffer | null {
-  const title = textOf(posting.title) ?? textOf(posting.name);
+  const title = postingTitle(textOf(posting.title) ?? textOf(posting.name));
   const description = typeof posting.description === "string" ? htmlToText(posting.description) : "";
   const content = description || tidy(page.text);
   if (!title || !content) return null;
@@ -281,15 +283,42 @@ function fromJobPosting(posting: Json, page: PageSnapshot): CapturedJobOffer | n
   return jobOffer;
 }
 
+/** LinkedIn's search view shows a posting by its id (`currentJobId`): the Job Offer keeps the posting's own address. */
+const LINKEDIN_RESULTS = /^(https:\/\/([a-z]+\.)?linkedin\.com)\/jobs\/(search|collections)\/.*[?&]currentJobId=(\d+)/;
+
+function postingUrl(url: string): string {
+  const results = LINKEDIN_RESULTS.exec(url);
+  return results ? `${results[1]}/jobs/view/${results[4]}/` : url;
+}
+
 function source(page: PageSnapshot): CapturedJobOffer["source"] {
+  const url = postingUrl(page.url);
   const name = page.siteName?.trim();
-  return name ? { url: page.url, name: clip(name, MAX.text) } : { url: page.url };
+  return name ? { url, name: clip(name, MAX.text) } : { url };
+}
+
+/**
+ * Titles of a captcha's or a bot check's page, never a posting's: a frame of one, or a page that stands in for
+ * the posting while a site checks the browser, has nothing to capture (LinkedIn's « reCAPTCHA », 2026-11-27).
+ */
+const NOT_A_POSTING_TITLE: readonly RegExp[] = [
+  /^(re|h)?captcha\b/i,
+  /^(just a moment|un instant|one moment, please)\b/i,
+  /^attention required!?(\s*\|\s*cloudflare)?$/i,
+  /^(security check|security verification|verify you are human|are you a robot\??|access denied)$/i,
+  /^(v[ée]rification de s[ée]curit[ée]|v[ée]rification en cours|êtes-vous un robot\s?\??|acc[èe]s refus[ée])$/i,
+];
+
+/** A heading or title that may name a posting: not empty, not a captcha's or bot check's. */
+function postingTitle(text: string | undefined): string | undefined {
+  const title = text?.trim();
+  return title && !NOT_A_POSTING_TITLE.some((pattern) => pattern.test(title.replace(/[.…]+$/, ""))) ? title : undefined;
 }
 
 /** The page as it reads: its heading (or title) and its text. */
 function fromPageText(page: PageSnapshot): CapturedJobOffer | null {
   const content = tidy(page.text);
-  const title = page.heading?.trim() || page.title.trim();
+  const title = postingTitle(page.heading) ?? postingTitle(page.title);
   if (!content || !title) return null;
   return { source: source(page), title: clip(tidy(title), MAX.title), content: clip(content, MAX.content) };
 }

@@ -72,3 +72,47 @@ describe("the page a tab shows, for the Side Panel's posting in view", () => {
     expect(choosePage([{ frameId: 0, page: null }])).toBeNull();
   });
 });
+
+// LinkedIn's search view (2026-11-27): the posting in its detail pane, and a hidden reCAPTCHA frame whose page, never
+// laid out, read as the text of its scripts, far more than the posting's.
+describe("never a third party's frame", () => {
+  const linkedIn: FrameRead = {
+    frameId: 0,
+    page: {
+      detected: true,
+      shown: true,
+      jobOffer: jobOffer("https://www.linkedin.com/jobs/view/4100000001/", "Responsable des opérations solutions", "Vous structurez les opérations de l'équipe solutions."),
+    },
+  };
+  const captcha = (url: string, overrides: Partial<NonNullable<FrameRead["page"]>> = {}): FrameRead => ({
+    frameId: 4,
+    page: { detected: false, shown: true, jobOffer: jobOffer(url, "Offre", "x".repeat(40_000)), ...overrides },
+  });
+
+  it("never takes a frame that is not shown (display: none), whatever text it holds", () => {
+    const hidden = captcha("https://www.linkedin.com/fixture/challenge", { shown: false });
+    expect(chooseFrame([{ ...linkedIn, page: { ...linkedIn.page!, detected: false } }, hidden])).toBe(linkedIn.page?.jobOffer);
+    expect(chooseFrame([hidden])).toBeNull();
+  });
+
+  it.each([
+    "https://www.google.com/recaptcha/enterprise/anchor?ar=1&k=fixture",
+    "https://www.recaptcha.net/recaptcha/api2/bframe?k=fixture",
+    "https://newassets.hcaptcha.com/captcha/v1/fixture/static/hcaptcha.html",
+    "https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/b/turnstile/fixture",
+    "https://googleads.g.doubleclick.net/pagead/ads?client=fixture",
+    "https://tpc.googlesyndication.com/safeframe/1-0-40/html/container.html",
+    "https://s.amazon-adsystem.com/iu3?fixture",
+  ])("never takes a captcha's or an ad network's frame, shown or not, over the page: %s", (url) => {
+    const frame = captcha(url);
+    expect(chooseFrame([{ ...linkedIn, page: { ...linkedIn.page!, detected: false } }, frame])).toBe(linkedIn.page?.jobOffer);
+    expect(chooseFrame([frame])).toBeNull();
+    // ...even should it publish a JobPosting.
+    expect(chooseFrame([captcha(url, { detected: true })])).toBeNull();
+  });
+
+  it("still takes a job site's posting in its iframe (gestmax.fr, #187), shown", () => {
+    expect(chooseFrame([shell, postingFrame])).toBe(postingFrame.page?.jobOffer);
+    expect(chooseFrame([shell, { ...postingFrame, page: { ...postingFrame.page!, shown: true } }])).toBe(postingFrame.page?.jobOffer);
+  });
+});

@@ -9,10 +9,9 @@ import { createDraft, keepChecked, keepFile, keepSelected } from "../../src/pane
 import { readCandidateSession } from "../../src/candidate-session";
 import { createErrorReports, pageDomainOf } from "../../src/error-reports";
 import { createExtensionUpdate, UPDATE_STORAGE_KEY, updateHref, type UpdateRequired } from "../../src/extension-update";
-import { choosePage } from "../../src/frame-choice";
+import { choosePage, type FrameRead } from "../../src/frame-choice";
 import { createGuestSession } from "../../src/guest-session";
 import { GUEST_TERMS_LINKS, guestTermsToAccept, sentenceParts, SIDE_PANEL_LINKS, siteHref, siteLanguage, versionDay, type CguVersion } from "../../src/guest-terms";
-import type { JobPage } from "../../src/job-page";
 import { panelLogo } from "../../src/panel-logo";
 import { createJobbboxApi, type ProfileOption, type ScoreAgainst, type UpgradePrompt } from "../../src/jobbbox-api";
 import { describeMatchScore, describeRescore, type MatchScoreView } from "../../src/match-score-view";
@@ -275,7 +274,7 @@ async function readTab(tabId: number): Promise<PageInView | null> {
   try {
     // A frame that cannot be read (another site's ad, say) is left out; should it fail the whole read, the page alone.
     const injections = await read(true).catch(() => read(false));
-    return choosePage(injections.map(({ frameId, result }) => ({ frameId, page: (result as JobPage | null | undefined) ?? null })));
+    return choosePage(injections.map(({ frameId, result }) => ({ frameId, page: (result as FrameRead["page"] | undefined) ?? null })));
   } catch {
     return null; // Browser pages, extension stores and the like cannot be read.
   }

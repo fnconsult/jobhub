@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { readJobPage } from "./job-page";
-import { postingHeading, snapshotPage } from "./page-snapshot";
+import { pageShown, pageText, postingHeading, snapshotPage } from "./page-snapshot";
 
 // jsdom lays nothing out, so it has no innerText: the text as it stands is enough here.
 if (!("innerText" in HTMLElement.prototype)) Object.defineProperty(HTMLElement.prototype, "innerText", { get(this: HTMLElement) { return this.textContent; } });
@@ -44,5 +44,52 @@ describe("the posting's heading, never the site's slogan", () => {
     const read = readJobPage(snapshotPage(document));
     expect(read.detected).toBe(true);
     expect(read.jobOffer?.title).toBe(TITLE);
+  });
+});
+
+// LinkedIn's search view, as its markup reads (an invented posting): the list of results, then the open posting's detail pane.
+function linkedInSearchView(): Document {
+  const results = Array.from({ length: 8 }, (_, i) => `<li><a class="job-card-list__title" href="/jobs/view/41000000${10 + i}/">Poste fictif ${i}</a><span>Entreprise fictive ${i}</span></li>`).join("");
+  document.documentElement.innerHTML = `<head><title>(3) Responsable des opérations solutions | Société Fictive | LinkedIn</title></head><body>
+    <header class="global-nav"><nav><a href="/feed/">Accueil</a></nav></header>
+    <main id="main" class="scaffold-layout__main">
+      <div class="scaffold-layout__list"><h1 class="visually-hidden">Résultats de recherche</h1><ul>${results}</ul></div>
+      <div class="scaffold-layout__detail jobs-search__job-details"><div class="jobs-search__job-details--container">
+        <div class="job-details-jobs-unified-top-card__company-name"><a href="/company/fictive/">Société Fictive</a></div>
+        <div class="job-details-jobs-unified-top-card__job-title"><h1><a href="/jobs/view/4100000001/">Responsable des opérations solutions</a></h1></div>
+        <div>Lyon (Hybride)</div><button>Enregistrer</button><button>Postuler</button>
+        <div id="job-details"><h2>À propos de l'offre d'emploi</h2><p>Vous structurez les opérations de l'équipe solutions.</p></div>
+      </div></div>
+    </main>`;
+  return document;
+}
+
+describe("LinkedIn's search view: the posting open in its detail pane", () => {
+  it("reads the posting's heading and text from the detail pane, not the list of results", () => {
+    const snapshot = snapshotPage(linkedInSearchView());
+    expect(snapshot.heading).toBe("Responsable des opérations solutions");
+    expect(snapshot.text).toContain("Vous structurez les opérations de l'équipe solutions.");
+    expect(snapshot.text).toContain("Société Fictive");
+    expect(snapshot.text).not.toContain("Poste fictif");
+  });
+});
+
+describe("a frame's page that is not shown", () => {
+  /** A reCAPTCHA frame's page as it reads: two lines of text and a long inline script. */
+  function captchaPage(): Document {
+    document.documentElement.innerHTML = `<head><title>reCAPTCHA</title></head><body><div>Je ne suis pas un robot</div><script>recaptcha.anchor.Main.init("${"x".repeat(5000)}");</script><style>.x{}</style><noscript>Activez JavaScript</noscript><div>Confidentialité - Conditions</div></body>`;
+    return document;
+  }
+
+  it("says whether the page is shown: a frame in display: none has no size", () => {
+    captchaPage();
+    expect(pageShown(window)).toBe(true);
+    expect(pageShown({ innerWidth: 0, innerHeight: 0 })).toBe(false);
+    expect(pageShown({ innerWidth: 300, innerHeight: 0 })).toBe(false);
+  });
+
+  it("never reads the text of its scripts and styles, which a page not laid out gives as its own", () => {
+    const body = captchaPage().body;
+    expect(pageText(body, false)).toBe("Je ne suis pas un robot\nConfidentialité - Conditions");
   });
 });

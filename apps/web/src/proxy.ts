@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { agentKeyRefusal } from "@/agent-keys/http";
+import { withoutAgentKeyOutOfScope } from "@/agent-keys/http";
 import { apiVersionRefusal, UPGRADE_REQUIRED } from "@/api-version";
 import { contentSecurityPolicy } from "@/help-media";
 import { currentCoachSpaceV2, currentHelpMediaOrigin } from "@/help-media/origin";
@@ -18,13 +18,14 @@ import { pendingSessionAnswer } from "@/two-step-verification/proxy-gate";
  * Every request but Next's static files:
  * - during maintenance (#542), answers 503 to whatever does not stay open (see maintenance), read from the Platform
  *   Settings' per-process cache, never from the database;
- * - answers 403 to a request carrying an Agent Key (#1139, ADR-0118) anywhere but its scopes' routes: a key never opens a
- *   Back Office page nor any other route, before any of them runs (see agent-keys/http);
  * - answers `426 Upgrade Required` to an extension whose API Version is no longer served (#564, see api-version);
  * - redirects for good (308) the addresses of Légal that moved (#546): « IA dans Jobbbox », #470's Legal Documents
  *   and `?version=` (see legalRedirect);
  * - inside the Jobbbox app's WebView (#689), sends an Order page back to the page it was chosen on: nothing is bought
  *   in the app (see native-app/in-app);
+ * - passes a request carrying an Agent Key (#1139, ADR-0118) on without it anywhere but its scopes' routes (#1172), as if
+ *   it carried none: a key is ignored there, never refused, and never opens a Back Office page nor any other route
+ *   (see agent-keys/http);
  * - passes the path asked on as REQUEST_PATH_HEADER, so sign-in can bring a signed-out visitor back to it;
  * - serves a public page under `/en` (#545) in English, with the same French slug: `/en/legal/cgu` is `/legal/cgu`,
  *   its language passed on as VISITOR_LOCALE_HEADER (a signed-in Candidate's Interface Language comes first, #501);
@@ -44,8 +45,6 @@ export async function proxy(request: NextRequest) {
     const maintenance = currentMaintenance();
     if (maintenance) return maintenanceResponse(maintenance, pathname, new Date());
   }
-  const agentKeyOutOfScope = agentKeyRefusal(pathname, request.headers);
-  if (agentKeyOutOfScope) return withCommonHeaders(new NextResponse(agentKeyOutOfScope.body, agentKeyOutOfScope));
   const outdated = apiVersionRefusal(pathname, request.headers, currentExtensionStorePage);
   if (outdated) return withCommonHeaders(NextResponse.json(outdated, { status: UPGRADE_REQUIRED, headers: { "Cache-Control": "no-store" } }));
   const moved = legalRedirect(prefixed.pathname, request.nextUrl.searchParams);
@@ -54,7 +53,7 @@ export async function proxy(request: NextRequest) {
   if (inApp) return withCommonHeaders(NextResponse.redirect(new URL(inApp, request.url), 303));
   const pending = await pendingSessionAnswer(request);
   if (pending) return withCommonHeaders(pending);
-  const headers = new Headers(request.headers);
+  const headers = new Headers(withoutAgentKeyOutOfScope(pathname, request.headers));
   for (const header of [LOCALE_HEADER, VISITOR_LOCALE_HEADER, URL_LOCALE_HEADER]) headers.delete(header);
   headers.set(REQUEST_PATH_HEADER, `${pathname}${search}`);
   const { rewrite, chosen, visitor, url } = urlLocale(pathname, request.nextUrl.searchParams.get("lang"));

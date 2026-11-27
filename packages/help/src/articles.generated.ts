@@ -2985,7 +2985,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "Une note sur 100 qui dit à quel point un CV correspond à une offre : compétences, expérience, lieu, type de contrat et salaire.\n\nLe détail montre, critère par critère, ce qui correspond et ce qui manque. Un critère dont l'offre ou vos critères ne disent rien ne compte pas ; si trop peu de critères ont pu être comparés, le score est dit partiel.\n\nIl est calculé avec le CV de référence du profil, et avec votre CV adapté si vous en avez un."
+      "body": "Une note sur 100 qui dit à quel point un CV correspond à une offre : compétences, expérience, lieu, type de contrat et salaire.\n\nLe détail montre, critère par critère, ce qui correspond et ce qui manque. Un critère dont l'offre ou vos critères ne disent rien ne compte pas ; si trop peu de critères ont pu être comparés, le score est dit partiel.\n\nPour les compétences, Jobbbox cherche chacune dans une même rubrique de votre CV (titre, résumé, une expérience, une compétence ou une langue), en français ou en anglais, sans tenir compte des mots qui disent un niveau (courant, solide expérience…), ni de l'ordre des mots. Une compétence décrite en une phrase compte dès que la rubrique en reprend les deux tiers des mots.\n\nIl est calculé avec le CV de référence du profil, et avec votre CV adapté si vous en avez un."
     },
     {
       "id": "glossary-admin-human-validated",
@@ -8353,7 +8353,7 @@ export const ARTICLES: Record<HelpLocale, readonly HelpArticle[]> = {
       "route": null,
       "motion": null,
       "microAnimations": [],
-      "body": "A score out of 100 that says how well a CV fits a job offer: skills, experience, location, contract type and salary.\n\nThe breakdown shows, criterion by criterion, what matches and what is missing. A criterion the job offer or your criteria say nothing about does not count; when too few criteria could be compared, the score is called partial.\n\nIt is worked out with the profile's Master CV, and with your Tailored CV if you have one."
+      "body": "A score out of 100 that says how well a CV fits a job offer: skills, experience, location, contract type and salary.\n\nThe breakdown shows, criterion by criterion, what matches and what is missing. A criterion the job offer or your criteria say nothing about does not count; when too few criteria could be compared, the score is called partial.\n\nFor skills, Jobbbox looks for each one in a single section of your CV (headline, summary, one experience, one skill or one language), in French or in English, leaving out words that say a level (fluent, strong experience…) and the order of the words. A skill described in a phrase counts as soon as the section uses two thirds of its words.\n\nIt is worked out with the profile's Master CV, and with your Tailored CV if you have one."
     },
     {
       "id": "glossary-preferred-name",

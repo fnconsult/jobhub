@@ -74,6 +74,38 @@ describe("LinkedIn's search view: the posting open in its detail pane", () => {
   });
 });
 
+/**
+ * LinkedIn's search view as the Beta saw it (2026-11-27, an invented posting): neither an <h1> for the posting nor
+ * the detail pane's classes the extension knew, the description folded behind « … plus ».
+ */
+function linkedInSearchViewWithoutHeading(): Document {
+  document.documentElement.innerHTML = `<head><title>(3) Head of Solution Operations | Fictional AI | LinkedIn</title></head><body>
+    <header class="global-nav"><nav><a href="/feed/">Accueil</a></nav></header>
+    <main id="main">
+      <div class="jobs-list"><ul><li><a href="/jobs/view/4100000010/">Poste fictif</a></li></ul></div>
+      <div class="jobs-detail"><a href="/company/fictional-ai/">Fictional AI</a>
+        <p class="t-24">Head of Solution Operations</p><p>Paris (Hybride) · Temps plein</p>
+        <div id="job-details"><h2>À propos de l'offre d'emploi</h2><p>You will build and scale the operations of our solutions team.</p>
+          <span>Fluent English…</span><button>plus</button></div>
+      </div>
+    </main>`;
+  return document;
+}
+
+describe("LinkedIn's search view when the posting has no heading (#1188)", () => {
+  it("names the posting from the page's title without « | <employer> | LinkedIn »", () => {
+    const read = readJobPage(snapshotPage(linkedInSearchViewWithoutHeading()));
+    expect(read.jobOffer?.title).toBe("Head of Solution Operations");
+    expect(read.jobOffer?.content).toContain("You will build and scale the operations of our solutions team.");
+  });
+
+  it("names it from LinkedIn's top card, whether or not its title is an <h1>", () => {
+    linkedInSearchViewWithoutHeading();
+    document.querySelector(".t-24")!.classList.add("job-details-jobs-unified-top-card__job-title");
+    expect(postingHeading(document)).toBe("Head of Solution Operations");
+  });
+});
+
 describe("a frame's page that is not shown", () => {
   /** A reCAPTCHA frame's page as it reads: two lines of text and a long inline script. */
   function captchaPage(): Document {

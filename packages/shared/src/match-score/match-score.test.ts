@@ -139,6 +139,95 @@ describe("Match Score", () => {
       // Skills 40 + seniority 20 + location 15 + salary partial 5 + contract type 15 (was 55 with skills a mismatch).
       expect(result.score).toBe(95);
     });
+
+    it("leaves out a skill's qualifiers and reads its words in any order: « Fluent English », « Internal tools »", () => {
+      expect(coverage("Fluent English", "Anglais")).toBe("match");
+      expect(coverage("Solide expérience du contrôle de gestion", "Contrôle de gestion")).toBe("match");
+      expect(coverage("Internal tools", "Outils internes")).toBe("match");
+      expect(coverage("Dashboards and data", "Tableaux de bord et données")).toBe("match");
+    });
+
+    it("reads a language the CV lists as a skill it shows (#1188)", () => {
+      const withEnglish: CvContent = { ...cv, headline: "", summary: "", experience: [], skills: [], languages: [{ name: "Anglais", level: "courant" }] };
+      expect(scoreMatch({ cv: withEnglish, jobOffer: { ...offer, skills: ["Fluent English"] } }).breakdown.skills.status).toBe("match");
+    });
+
+    it("covers a skill an AI read as a description when one field of the CV holds two thirds of its words (#1188)", () => {
+      expect(coverage("Leading fast-growing teams", "Direction d'une équipe en forte croissance")).toBe("match");
+      expect(coverage("Scaling processes and systems", "Industrialisation des processus")).toBe("match");
+      // One word in three is not enough, nor are words spread over two fields.
+      expect(coverage("Scaling processes and systems", "Processus qualité")).toBe("mismatch");
+      const spread = { ...cv, headline: "", summary: "", experience: [], skills: ["Industrialisation", "Processus"] };
+      expect(scoreMatch({ cv: spread, jobOffer: { ...offer, skills: ["Scaling processes and systems"] } }).breakdown.skills.status).toBe("mismatch");
+    });
+
+    describe("an English Job Offer whose skills an AI read in its language, against a French CV that fits it (#1188)", () => {
+      // Invented: a Head of BU / Professional Services, and a Head of Solution Operations posting, both fictional.
+      const headOfBu: CvContent = {
+        fullName: "Camille Exemple",
+        headline: "Head of BU / Professional Services",
+        email: "camille@example.org",
+        phone: "",
+        location: "Paris",
+        summary: "Direction d'une business unit de services professionnels en forte croissance : delivery, staffing, industrialisation des processus et des outils internes.",
+        experience: [
+          {
+            title: "Head of BU Professional Services",
+            employer: "Conseil Fictif",
+            location: "Paris",
+            period: "2018 – aujourd'hui",
+            description:
+              "Direction de 120 consultants, pilotage de la capacité et du staffing, tableaux de bord et données de pilotage, automatisation des workflows avec des agents IA et des LLM, relation avec les comités de direction (C-level).",
+          },
+          {
+            title: "Directeur des opérations",
+            employer: "Services Fictifs",
+            location: "Paris",
+            period: "2010 – 2018",
+            description: "Industrialisation des processus et des systèmes, RevOps, réussite client, initiatives transverses avec les parties prenantes.",
+          },
+        ],
+        education: [],
+        skills: ["Management d'équipe", "Opérations", "Delivery", "IA générative"],
+        languages: [{ name: "Anglais", level: "courant" }],
+      };
+      // As the AI reads them (#1133): in the offer's language, a few words each. Neither years, nor salary, nor a
+      // criterion the Search Criteria name: the skills are all the Match Score compares, as on the Beta (2026-11-27).
+      const solutionOperations: JobOfferDetails = {
+        title: "Head of Solution Operations",
+        content: "Fictional AI company. You will build and scale the operations of our solutions team.",
+        location: "Paris (Hybrid)",
+        skills: [
+          "Leading fast-growing teams",
+          "Scaling processes and systems",
+          "Capacity planning and staffing",
+          "Cross-functional initiatives",
+          "Stakeholder management",
+          "Operations / RevOps",
+          "Internal tools",
+          "AI automations and workflows",
+          "Agents and LLMs",
+          "Dashboards and data",
+          "Customer success",
+          "C-level exposure",
+          "Fluent English",
+        ],
+      };
+      const noPreference: SearchCriteria = { targetRole: "Head of Operations", locations: [], contractTypes: [], remoteWorkOptions: [], sectors: [], subsectors: [], domains: [] };
+
+      it("scores it as a fit, where every skill was missing and the score 0 / 100", () => {
+        const { score, breakdown } = scoreMatch({ cv: headOfBu, jobOffer: solutionOperations, searchCriteria: noPreference, today: new Date("2026-11-27") });
+        expect(breakdown.skills.covered).toEqual(expect.arrayContaining(["Leading fast-growing teams", "Internal tools", "Customer success", "C-level exposure", "Fluent English"]));
+        expect(breakdown.skills.missing.length).toBeLessThanOrEqual(3);
+        expect(score).toBeGreaterThanOrEqual(75);
+      });
+
+      it("still scores a CV that does not fit it low", () => {
+        // The Directrice financière's CV: none of these skills.
+        const { score } = scoreMatch({ cv, jobOffer: solutionOperations, searchCriteria: noPreference, today: new Date("2026-11-27") });
+        expect(score).toBeLessThanOrEqual(15);
+      });
+    });
   });
 
   describe("seniority", () => {

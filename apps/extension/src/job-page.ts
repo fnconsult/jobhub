@@ -315,10 +315,26 @@ function postingTitle(text: string | undefined): string | undefined {
   return title && !NOT_A_POSTING_TITLE.some((pattern) => pattern.test(title.replace(/[.…]+$/, ""))) ? title : undefined;
 }
 
+/** Job boards whose name ends their pages' titles (« … | LinkedIn »), when the page gives no og:site_name. */
+const BOARD_NAMES = /^(linkedin|indeed|glassdoor|welcome to the jungle|hellowork|apec|cadremploi|france travail)(\.[a-z.]+)?$/i;
+
+/**
+ * The job title a page's title gives: without the count of notifications a site puts before it (« (3) »), nor the
+ * site's name after it. LinkedIn's reads « <title> | <employer> | LinkedIn »: the employer goes too (#1188).
+ */
+export function pageTitleJobTitle(title: string, siteName?: string): string {
+  const parts = title.replace(/^\s*\(\d+\+?\)\s*/, "").split(/\s+\|\s+/).map((part) => part.trim());
+  const last = parts.at(-1) ?? "";
+  const site = siteName?.trim().toLowerCase();
+  if (parts.length < 2 || !(BOARD_NAMES.test(last) || (site && last.toLowerCase() === site))) return parts.join(" | ");
+  if (/^linkedin$/i.test(last)) return parts[0]!;
+  return parts.slice(0, -1).join(" | ");
+}
+
 /** The page as it reads: its heading (or title) and its text. */
 function fromPageText(page: PageSnapshot): CapturedJobOffer | null {
   const content = tidy(page.text);
-  const title = postingTitle(page.heading) ?? postingTitle(page.title);
+  const title = postingTitle(page.heading) ?? postingTitle(pageTitleJobTitle(page.title, page.siteName));
   if (!content || !title) return null;
   return { source: source(page), title: clip(tidy(title), MAX.title), content: clip(content, MAX.content) };
 }

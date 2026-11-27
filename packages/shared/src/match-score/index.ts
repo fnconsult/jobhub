@@ -132,7 +132,47 @@ const SYNONYMS: readonly (readonly string[])[] = [
   ["e-commerce", "ecommerce", "commerce en ligne"],
   ["anglais", "english"],
   ["français", "french"],
+  // The words of a skill an AI reads in an English Job Offer, kept in its language (#1133), and of a French CV (#1188).
+  ["équipe", "team"],
+  ["croissance", "growth", "growing", "scale-up"],
+  ["processus", "process", "processes"],
+  ["outil", "tool", "tooling"],
+  ["donnée", "data"],
+  ["client", "customer", "clientèle"],
+  ["réussite client", "succès client", "customer success"],
+  ["automatisation", "automation", "automatiser", "automate"],
+  ["tableau de bord", "tableaux de bord", "dashboard"],
+  ["partie prenante", "stakeholder"],
+  ["opérations", "operations", "ops"],
+  ["industrialisation", "industrialiser", "scaling", "industrialization"],
+  ["direction", "diriger", "leading", "leadership"],
+  ["transverse", "transversal", "cross-functional", "cross functional"],
+  ["interne", "internal"],
+  ["flux de travail", "workflow"],
+  ["capacité", "capacity"],
+  ["comité de direction", "comex", "codir", "direction générale", "C-level", "executive", "dirigeant"],
+  ["services professionnels", "professional services"],
+  ["conseil", "consulting"],
+  ["livraison", "delivery"],
+  ["avant-vente", "presales", "pre-sales"],
+  ["système", "system"],
+  ["initiative", "chantier"],
 ];
+
+/**
+ * Words that say how well, or how long, a skill is held, not which skill: « Fluent English » is English,
+ * « Solide expérience du pilotage » is pilotage. Left out of a Job Offer's skill before it is looked for (#1188).
+ */
+const QUALIFIERS = new Set(
+  [
+    "fluent", "fluency", "courant", "native", "bilingual", "bilingue", "excellent", "excellente", "strong", "solid", "solide", "proven", "good",
+    "great", "bon", "bonne", "deep", "fort", "forte", "fast", "rapid", "rapide", "demonstrated", "confirmed", "confirme", "confirmee", "avere",
+    "averee", "reconnu", "reconnue", "experience", "experienced", "experimente", "expertise", "expert", "knowledge", "connaissance", "maitrise",
+    "mastery", "understanding", "familiarity", "ability", "aptitude", "skill", "competence", "background", "track", "record", "exposure",
+    "exposition", "with", "avec", "to", "on", "sur", "for", "pour", "dans", "within", "un", "une", "an", "our", "your", "nos", "vos", "votre",
+    "very", "highly", "tres", "high", "level", "niveau", "minimum", "year", "annee", "least", "at",
+  ].map((word) => singular(word)),
+);
 
 /** Small words that do not change what a skill means: "gestion de la chaîne" is "gestion chaîne". */
 const SMALL_WORDS = new Set(["a", "au", "aux", "d", "de", "des", "du", "en", "et", "l", "la", "le", "les", "and", "for", "in", "of", "the"]);
@@ -218,13 +258,35 @@ function cvFields(cv: CvContent): SkillText[] {
     ...cv.skills,
     ...cv.experience.flatMap((job) => [job.title, job.description]),
     ...cv.education.map((item) => item.degree),
+    // « Anglais courant »: a language the CV lists is a skill it shows (#1188).
+    ...cv.languages.map((language) => `${language.name} ${language.level}`),
   ].map(skillText);
 }
 
-/** The CV shows a skill when one of its fields holds the skill's words, as written or through a synonym. */
+/** A skill of this many words or more, once its qualifiers are left out, is a description rather than a name (#1188). */
+const DESCRIBED_SKILL_WORDS = 3;
+
+/** The share of a described skill's words one field of the CV must hold for the skill to be shown. */
+const DESCRIBED_SKILL_SHARE = 2 / 3;
+
+/**
+ * The CV shows a skill when one of its fields holds the skill's words, as written or through a synonym, its
+ * qualifiers left out (« Fluent English » is shown by « Anglais courant »), and in any order (« Internal tools » by
+ * « outils internes »). A skill an AI read as a description (« Leading fast-growing teams », three words or more)
+ * is shown by a field holding two thirds of its words: no CV writes it word for word, least of all in another
+ * language (#1188).
+ */
 function shows(fields: SkillText[], skill: string): boolean {
   const wanted = skillText(skill);
-  return fields.some((field) => contains(field.plain, wanted.plain) || contains(field.canonical, wanted.canonical));
+  const named = wanted.canonical.filter((word) => !QUALIFIERS.has(word));
+  const words = named.length > 0 ? named : wanted.canonical;
+  if (fields.some((field) => contains(field.plain, wanted.plain) || contains(field.canonical, wanted.canonical) || contains(field.canonical, words))) {
+    return true;
+  }
+  const distinct = [...new Set(words)];
+  if (distinct.length < 2) return false;
+  const needed = distinct.length < DESCRIBED_SKILL_WORDS ? distinct.length : Math.ceil(distinct.length * DESCRIBED_SKILL_SHARE);
+  return fields.some((field) => distinct.filter((word) => field.canonical.includes(word)).length >= needed);
 }
 
 function scoreSkills(cv: CvContent, jobOffer: JobOfferDetails): SkillsBreakdown {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MatchPattern } from "wxt/utils/match-patterns";
-import { isKnownPostingPage, JOB_SITES, readJobPage, type PageSnapshot } from "./job-page";
+import { isKnownPostingPage, JOB_SITES, pageTitleJobTitle, readJobPage, type PageSnapshot } from "./job-page";
 
 /** A page as the content script sees it. */
 function page(overrides: Partial<PageSnapshot> = {}): PageSnapshot {
@@ -155,6 +155,17 @@ describe("reading a job page", () => {
 
     expect(read.jobOffer?.title).toBe("DAF – Lyon");
     expect(read.jobOffer?.content).toHaveLength(100_000);
+  });
+
+  it("takes from a page's title the job title alone: not LinkedIn's employer and name, nor a count of notifications (#1188)", () => {
+    const linkedIn = page({ url: "https://www.linkedin.com/jobs/search/?currentJobId=4012345678", heading: "", title: "(3) Responsable des opérations solutions | Société Fictive | LinkedIn" });
+    expect(readJobPage(linkedIn).jobOffer?.title).toBe("Responsable des opérations solutions");
+    expect(pageTitleJobTitle("Head of Solution Operations | Fictional AI | LinkedIn")).toBe("Head of Solution Operations");
+    // A site's own name, as its og:site_name gives it, or a job board's, ends the title; nothing else is cut.
+    expect(pageTitleJobTitle("Chef de projet | Indeed.com")).toBe("Chef de projet");
+    expect(pageTitleJobTitle("Contrôleur de gestion | Example Industrie", "Example Industrie")).toBe("Contrôleur de gestion");
+    expect(pageTitleJobTitle("Senior Program Director – Delivery Management | Avanade Careers")).toBe("Senior Program Director – Delivery Management | Avanade Careers");
+    expect(pageTitleJobTitle("DAF – Lyon")).toBe("DAF – Lyon");
   });
 
   it("has nothing to capture on an empty page", () => {

@@ -8,6 +8,8 @@ const MAIN = "main, [role='main'], article";
  * heading and text are read there, not among the results'.
  */
 const POSTING_PANE = ".jobs-search__job-details, .scaffold-layout__detail";
+/** The posting's title in LinkedIn's top card, in the detail pane of its search view or on a posting's own page. */
+const TOP_CARD_TITLE = ".job-details-jobs-unified-top-card__job-title, .jobs-unified-top-card__job-title";
 
 /** A `<header>` of the page itself (not one inside `<main>` or `<article>`, which heads the posting) is the site's banner. */
 function inBanner(element: Element): boolean {
@@ -21,6 +23,9 @@ function inBanner(element: Element): boolean {
  * Empty when the only headings are the banner's: the job page's title is then read instead (#1128).
  */
 export function postingHeading(document: Document): string {
+  // LinkedIn's top card names the posting even where its title is not an <h1> (#1188).
+  const topCard = document.querySelector(TOP_CARD_TITLE)?.textContent?.replace(/\s+/g, " ").trim();
+  if (topCard) return topCard;
   const pane = document.querySelector(POSTING_PANE);
   const headings = [...(pane ?? document).querySelectorAll("h1")].filter((heading) => (heading.textContent ?? "").trim() !== "" && !inBanner(heading));
   const heading = headings.find((candidate) => candidate.closest(MAIN)) ?? headings[0];

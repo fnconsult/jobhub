@@ -16,8 +16,12 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TRIES = 2;
 
 export type BootTools = {
-  /** Runs `command`: whether it ended well, and what it wrote. */
-  run: (command: string[]) => { ok: boolean; output: string };
+  /**
+   * Runs `command`: whether it ended well, what it wrote on stdout, and all it wrote (stdout then stderr). What a
+   * command answers is on its stdout alone: `simctl create` with no runtime named writes its UDID there, then « No
+   * runtime specified, using 'iOS 26.5 …' » on stderr (runs 45892292896, 45892306325).
+   */
+  run: (command: string[]) => { ok: boolean; stdout: string; output: string };
   pause: (seconds: number) => void;
   warn: (message: string) => void;
 };
@@ -25,9 +29,11 @@ export type BootTools = {
 const system: BootTools = {
   run(command) {
     const result = spawnSync(command[0]!, command.slice(1), { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 });
-    const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
-    process.stdout.write(output);
-    return { ok: result.status === 0, output };
+    const stdout = result.stdout ?? "";
+    const stderr = result.stderr ?? "";
+    process.stdout.write(stdout);
+    process.stderr.write(stderr);
+    return { ok: result.status === 0, stdout, output: `${stdout}${stderr}` };
   },
   pause(seconds) { spawnSync("sleep", [String(seconds)]); },
   warn(message) { console.log(`::warning::${message}`); },
@@ -50,7 +56,7 @@ function setFrench(udid: string, home: string, tools: BootTools) {
 export function bootIOSSimulator({ model, runtime, home }: { model: string; runtime: string; home: string }, tools: BootTools = system): string {
   for (let attempt = 1; ; attempt++) {
     const created = tools.run(["xcrun", "simctl", "create", SIMULATOR, model, ...(runtime ? [runtime] : [])]);
-    const udid = created.output.trim().split("\n").at(-1)!.trim();
+    const udid = created.stdout.trim();
     if (!created.ok || !UUID.test(udid)) throw new Error(`The simulator ${model} could not be created`);
     setFrench(udid, home, tools);
 

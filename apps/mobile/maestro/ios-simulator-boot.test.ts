@@ -2,6 +2,7 @@ import { bootIOSSimulator, type BootTools } from "./ios-simulator-boot";
 import { SIMULATOR } from "./devices";
 
 const HOME = "/Users/runner";
+const NO_RUNTIME = "No runtime specified, using 'iOS 26.5 (26.5 - 23F77) - com.apple.CoreSimulator.SimRuntime.iOS-26-5'\n";
 const UDIDS = ["59408972-45B1-4431-B3E4-EE671C2F92D0", "A145228F-085F-4DC8-93D9-C3729C6E1315", "0826802C-5153-4562-90A2-99A48CD1ED8E"];
 
 type Boot = "booted" | "migration failed" | "failed";
@@ -21,30 +22,34 @@ function mac(boots: Boot[], { plutilFails = false } = {}) {
     run(command) {
       const [tool, ...args] = command;
       events.push(command.join(" "));
-      if (tool === "mkdir") return { ok: true, output: "" };
+      if (tool === "mkdir") return { ok: true, stdout: "", output: "" };
       if (tool === "plutil") {
-        if (plutilFails) return { ok: false, output: "plutil: permission denied" };
+        if (plutilFails) return { ok: false, stdout: "", output: "plutil: permission denied" };
         const path = args.at(-1)!;
         if (args[0] === "-create") prefs.set(path, {});
         else if (args[1] === "AppleLanguages") prefs.get(path)!.AppleLanguages = JSON.parse(args[3]!) as string[];
         else if (args[1] === "AppleLocale") prefs.get(path)!.AppleLocale = args[3];
-        return { ok: true, output: "" };
+        return { ok: true, stdout: "", output: "" };
       }
       const [, verb] = args;
       if (verb === "create") {
         created.push(UDIDS[created.length]!);
-        return { ok: true, output: `${current()}\n` };
+        // As on the macOS runner (runs 45892292896, 45892306325): with no runtime named, `simctl create` prints the
+        // UDID on stdout, then Xcode's choice of runtime on stderr.
+        const notice = args.length === 4 ? NO_RUNTIME : "";
+        return { ok: true, stdout: `${current()}\n`, output: `${current()}\n${notice}` };
       }
       const outcome = boots[booted.length - (verb === "bootstatus" ? 1 : 0)] ?? "booted";
       if (verb === "boot") {
         const seen = prefs.get(`${HOME}/Library/Developer/CoreSimulator/Devices/${current()}/data/Library/Preferences/.GlobalPreferences.plist`);
         booted.push({ udid: current(), languages: seen?.AppleLanguages, locale: seen?.AppleLocale });
-        return { ok: outcome !== "failed", output: "" };
+        return { ok: outcome !== "failed", stdout: "", output: "" };
       }
       if (verb === "bootstatus") {
-        return { ok: true, output: outcome === "migration failed" ? "\tWaiting on Data Migration\n\tData Migration Failed\n" : "\tWaiting on System App\n\tFinished\n" };
+        const output = outcome === "migration failed" ? "\tWaiting on Data Migration\n\tData Migration Failed\n" : "\tWaiting on System App\n\tFinished\n";
+        return { ok: true, stdout: output, output };
       }
-      return { ok: true, output: "" };
+      return { ok: true, stdout: "", output: "" };
     },
     pause: (seconds) => void events.push(`pause ${seconds}`),
     warn: (message) => void warnings.push(message),
@@ -61,6 +66,15 @@ describe("the iOS simulator's first boot in CI (#1170)", () => {
     expect(booted).toEqual([{ udid: UDIDS[0], ...french }]);
     expect(events[0]).toBe(`xcrun simctl create ${SIMULATOR} iPhone SE (3rd generation)`);
     expect(events.slice(-2)).toEqual([`xcrun simctl boot ${SIMULATOR}`, `xcrun simctl bootstatus ${SIMULATOR} -b`]);
+  });
+
+  // Runs 45892292896 and 45892306325: the iPhone SE, on Xcode's own runtime, got « No runtime specified, using 'iOS
+  // 26.5 …' » on stderr after its UDID, which was then read as the UDID: « The simulator … could not be created ».
+  it("reads the UDID from what `simctl create` prints on stdout, not from Xcode's notice on stderr when no runtime is named", () => {
+    const { tools, booted, events } = mac(["booted"]);
+    expect(bootIOSSimulator({ model: "iPhone SE (3rd generation)", runtime: "", home: HOME }, tools)).toBe(UDIDS[0]);
+    expect(events).toContain(`plutil -create binary1 ${HOME}/Library/Developer/CoreSimulator/Devices/${UDIDS[0]}/data/Library/Preferences/.GlobalPreferences.plist`);
+    expect(booted).toEqual([{ udid: UDIDS[0], ...french }]);
   });
 
   it("creates it on the runtime the matrix names", () => {

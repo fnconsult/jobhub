@@ -44,7 +44,10 @@ echo "xcrun $*" >> ${log}
 read created boots < ${state}
 case "$2" in
   create) idx=$created; echo $((created+1)) $boots > ${state}
-    case $idx in 0) echo ${UDIDS[0]};; 1) echo ${UDIDS[1]};; *) echo ${UDIDS[2]};; esac ;;
+    case $idx in 0) echo ${UDIDS[0]};; 1) echo ${UDIDS[1]};; *) echo ${UDIDS[2]};; esac
+    # As on the macOS runner (runs 45892292896, 45892306325): no runtime named, Xcode's choice on stderr, after the UDID.
+    [ $# -eq 4 ] && echo "No runtime specified, using 'iOS 26.5 (26.5 - 23F77) - com.apple.CoreSimulator.SimRuntime.iOS-26-5'" >&2
+    exit 0 ;;
   boot) udid=$(ls ${home}/Library/Developer/CoreSimulator/Devices 2>/dev/null | tail -n +$created | head -1)
     prefs="${home}/Library/Developer/CoreSimulator/Devices/$(ls -t ${home}/Library/Developer/CoreSimulator/Devices | head -1)/data/Library/Preferences/.GlobalPreferences.plist"
     echo "BOOT $(cat "$prefs" 2>/dev/null)" >> ${log}
@@ -110,10 +113,15 @@ describe("ios-simulator-boot.ts as the macOS runner runs it (#1170)", () => {
     expect(r.stderr).toContain("did not boot, twice");
   });
 
-  it("omits the runtime when none is named (Xcode's own)", () => {
-    const r = runCli(["booted"], ["iPad Pro 13-inch (M4)", ""]);
+  // Runs 45892292896 and 45892306325: the iPhone SE job, with no runtime, read Xcode's notice on stderr as its UDID.
+  it("omits the runtime when none is named (Xcode's own), and boots it French despite Xcode's notice on stderr", () => {
+    const r = runCli(["booted"], ["iPhone SE (3rd generation)", ""]);
+    expect(r.stderr).toContain("No runtime specified");
     expect(r.status).toBe(0);
-    expect(r.creates).toEqual([`xcrun simctl create ${SIMULATOR} iPad Pro 13-inch (M4)`]);
+    expect(r.creates).toEqual([`xcrun simctl create ${SIMULATOR} iPhone SE (3rd generation)`]);
+    expect(r.lines).toContain(`plutil -create binary1 ${join(dir, "home")}/Library/Developer/CoreSimulator/Devices/${UDIDS[0]}/data/Library/Preferences/.GlobalPreferences.plist`);
+    expect(r.boots).toHaveLength(1);
+    expect(r.boots[0]).toMatch(FRENCH);
   });
 
   it("refuses to run without a model", () => {

@@ -1,6 +1,6 @@
 # The AI Coach reworks an Application's drafts as a card with the new text, even with untrusted text In view
 
-Status: accepted (2026-11-18, product owner). Amends ADR-0077. Amended by ADR-0113: the exemption from the narrowing also covers the Tailored CV and the Master CV, under the « Reprend les mots de l'offre » mark; and by ADR-0114: an Interview's note is proposed the same way.
+Status: accepted (2026-11-18, product owner). Amends ADR-0077. Amended by ADR-0113: the exemption from the narrowing also covers the Tailored CV and the Master CV, under the « Reprend les mots de l'offre » mark; and by ADR-0114: an Interview's note is proposed the same way. Amended by ADR-0119: a reply left with no text gets one more turn with no tools; only the last net offers « Poser la question à l'équipe ».
 
 On the Beta, a Candidate on an Application asked the AI Coach « Retravaille la proposition de relance de façon plus concise ». Twice the reply was « Je n'ai pas réussi à vous répondre cette fois », then « Votre coach IA n'a pas cette réponse… Poser la question à l'équipe », and the Follow-up in « Propositions » stayed as it was. The product owner reported it as recurring: the AI Coach never changes nor creates what an Application's Sections hold.
 

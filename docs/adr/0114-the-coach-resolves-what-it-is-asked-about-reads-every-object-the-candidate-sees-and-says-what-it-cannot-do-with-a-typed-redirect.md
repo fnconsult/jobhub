@@ -1,6 +1,6 @@
 # The AI Coach resolves what it is asked about, reads every object the Candidate sees, and says what it cannot do with a typed redirect
 
-Status: accepted (2026-11-23, product owner; grillings #1087 and #1088 under map #1084, from research #1085). Amends ADR-0077 and ADR-0109.
+Status: accepted (2026-11-23, product owner; grillings #1087 and #1088 under map #1084, from research #1085). Amends ADR-0077 and ADR-0109. Amended by ADR-0119: an « I cannot » restates the request and may offer a card or « Poser la question à l'équipe »; the Guardrail's refusal check blocks and a « hors sujet » check is added.
 
 On the Benchling Application, the AI Coach read « the skills » as the Job Offer's. It answered « I can't rewrite them here » and sent the Candidate to « CV de référence » with no link. Research #1085 found more gaps of the same kind:
 - The Company Dossier, Enriched Contacts and Coach Reviews are never read.

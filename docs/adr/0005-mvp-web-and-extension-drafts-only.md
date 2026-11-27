@@ -5,3 +5,7 @@ The MVP ships a responsive web app (PWA) and a Chrome extension. Native iOS/Andr
 ## Amended by ADR-0076 (2026-11-04)
 
 The native apps start: one Expo app for iOS, iPadOS and Android, phones and tablets, for Candidates and Human Coaches, as a companion to the web app on the same API and the same session. The PWA itself is not pursued. Drafts only still holds: the app sends no Outreach Message or Follow-up either.
+
+## Amended by ADR-0119 (2026-11-26)
+
+Drafts only no longer holds. On the Candidate's click on a card, Jobbbox sends an email from a jobbbox.ai address in their name, with their sign-in email in copy and as Reply-To. The extension submits an online application form in their browser. Jobbbox still never reaches the Candidate's mailbox (ADR-0050).

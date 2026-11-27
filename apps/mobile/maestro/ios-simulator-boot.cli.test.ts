@@ -57,7 +57,7 @@ case "$2" in
 esac`);
   const result = spawnSync(TSX, [CLI, ...args], {
     encoding: "utf8",
-    env: { PATH: `${bin}:${dirname(process.execPath)}:/usr/bin:/bin`, HOME: home } as NodeJS.ProcessEnv,
+    env: { PATH: `${bin}:${dirname(process.execPath)}:/usr/bin:/bin`, HOME: home } as unknown as NodeJS.ProcessEnv,
   });
   const lines = existsSync(log) ? readFileSync(log, "utf8").split("\n").filter(Boolean) : [];
   return { ...result, lines, boots: lines.filter((l) => l.startsWith("BOOT")), creates: lines.filter((l) => l.startsWith("xcrun simctl create")) };

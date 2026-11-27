@@ -87,6 +87,9 @@ describe("reading a job page", () => {
 
   it.each([
     "https://www.linkedin.com/jobs/view/4012345678/",
+    // LinkedIn's search view and its collections, with the posting open in the detail pane.
+    "https://www.linkedin.com/jobs/search/?currentJobId=4012345678&keywords=operations&geoId=105015875",
+    "https://www.linkedin.com/jobs/collections/recommended/?currentJobId=4012345678",
     "https://fr.indeed.com/viewjob?jk=0123abcd",
     "https://uk.indeed.com/viewjob?jk=0123abcd",
     "https://www.indeed.co.uk/viewjob?jk=0123abcd",
@@ -140,7 +143,7 @@ describe("reading a job page", () => {
     }
   });
 
-  it.each(["https://www.linkedin.com/feed/", "https://fr.indeed.com/jobs?q=daf&l=Lyon", "https://www.lemonde.fr/economie/"])(
+  it.each(["https://www.linkedin.com/feed/", "https://www.linkedin.com/jobs/search/?keywords=operations", "https://fr.indeed.com/jobs?q=daf&l=Lyon", "https://www.lemonde.fr/economie/"])(
     "does not detect a job posting on a page that is not one: %s",
     (url) => {
       expect(readJobPage(page({ url })).detected).toBe(false);
@@ -156,5 +159,32 @@ describe("reading a job page", () => {
 
   it("has nothing to capture on an empty page", () => {
     expect(readJobPage(page({ heading: "", title: "", text: "  " })).jobOffer).toBeNull();
+  });
+
+  it.each(["reCAPTCHA", "recaptcha", "hCaptcha", "Just a moment...", "Un instant…", "Attention Required! | Cloudflare", "Security check", "Vérification de sécurité"])(
+    "never takes a captcha's or a bot check's title for a posting's: %s",
+    (title) => {
+      // Neither as the heading nor as the page's title: a page that has only that has nothing to capture.
+      expect(readJobPage(page({ heading: title, title: "Directeur administratif et financier H/F" })).jobOffer?.title).toBe("Directeur administratif et financier H/F");
+      expect(readJobPage(page({ heading: "", title })).jobOffer).toBeNull();
+      expect(readJobPage(page({ heading: title, title })).jobOffer).toBeNull();
+    },
+  );
+
+  it("keeps a posting whose title merely mentions a check (« Responsable sécurité, vérification de conformité »)", () => {
+    const title = "Responsable sécurité – vérification de conformité H/F";
+    expect(readJobPage(page({ heading: title })).jobOffer?.title).toBe(title);
+  });
+
+  it("gives a posting opened in LinkedIn's search view the posting's own address", () => {
+    const url = "https://www.linkedin.com/jobs/search/?currentJobId=4012345678&keywords=operations";
+    expect(readJobPage(page({ url })).jobOffer?.source.url).toBe("https://www.linkedin.com/jobs/view/4012345678/");
+    expect(readJobPage(page({ url: "https://www.linkedin.com/jobs/collections/recommended/?currentJobId=4012345678" })).jobOffer?.source.url).toBe(
+      "https://www.linkedin.com/jobs/view/4012345678/",
+    );
+    // Its own page keeps its address.
+    expect(readJobPage(page({ url: "https://www.linkedin.com/jobs/view/4012345678/?refId=abc" })).jobOffer?.source.url).toBe(
+      "https://www.linkedin.com/jobs/view/4012345678/?refId=abc",
+    );
   });
 });

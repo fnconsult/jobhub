@@ -7,7 +7,7 @@ synonyms: [badge, bouton, analyser cette offre, sites reconnus, sites d'offres, 
 ---
 L'extension ajoute le bouton « Analyser cette offre » sur la page d'une offre d'emploi, quand elle la reconnaît. Elle reconnaît les principaux sites d'offres, dont LinkedIn, Indeed, Welcome to the Jungle, l'Apec, France Travail, HelloWork, Cadremploi et Glassdoor, et les pages d'offres de nombreux outils de recrutement des employeurs (Lever, Greenhouse, Teamtailor, SmartRecruiters, Workday, Workable, Recruitee…). L'équipe Jobbbox tient cette liste à jour sans que vous ayez à mettre l'extension à jour ; sur un site qu'elle vient d'ajouter, le bouton n'apparaît qu'une fois cochée la case « Détecter les offres sur tous les sites ».
 
-Le bouton apparaît quand une offre est ouverte, pas sur une simple liste de résultats : cliquez sur l'offre pour l'ouvrir.
+Le bouton apparaît quand une offre est ouverte, pas sur une simple liste de résultats : cliquez sur l'offre pour l'ouvrir. Dans la recherche d'emploi LinkedIn, l'offre ouverte à côté de la liste suffit : l'extension lit l'offre affichée, pas la liste.
 
 Sur le site carrière d'un employeur, cochez « Détecter les offres sur tous les sites », en bas du panneau de l'extension. Votre navigateur vous demande l'autorisation ; les pages restent lues dans ce navigateur uniquement.
 

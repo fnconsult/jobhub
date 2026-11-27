@@ -269,6 +269,25 @@ test.describe("Guest Capture and Match Score", () => {
   // A posting's address whose page has nothing to read yet (a single-page app still loading).
   const emptyPostingUrl = "https://www.welcometothejungle.com/fr/companies/seb/jobs/empty";
   const articleUrl = "https://www.welcometothejungle.com/fr/articles/bien-negocier-son-salaire";
+  // LinkedIn's search view, invented: the results, the posting open in the detail pane, and a hidden reCAPTCHA frame whose
+  // page, never laid out, reads as the text of its long script (2026-11-27). Served locally: LinkedIn is never fetched.
+  const linkedInSearchUrl = "https://www.linkedin.com/jobs/search/?currentJobId=4100000001&keywords=operations";
+  const linkedInCaptchaUrl = "https://www.linkedin.com/e2e-fixture/recaptcha/anchor";
+  const linkedInResults = Array.from({ length: 10 }, (_, i) => `<li><a href="/jobs/view/41000000${10 + i}/">Poste fictif ${i}</a> · Entreprise fictive ${i}</li>`).join("");
+  const linkedInSearchHtml = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>(3) Responsable des opérations solutions | Société Fictive | LinkedIn</title></head><body>
+    <header><nav><a href="/feed/">Accueil</a></nav></header>
+    <main id="main" class="scaffold-layout__main">
+      <div class="scaffold-layout__list"><ul>${linkedInResults}</ul></div>
+      <div class="scaffold-layout__detail jobs-search__job-details"><div class="jobs-search__job-details--container">
+        <div><a href="/company/fictive/">Société Fictive</a></div>
+        <div class="job-details-jobs-unified-top-card__job-title"><h1><a href="/jobs/view/4100000001/">Responsable des opérations solutions</a></h1></div>
+        <div>Lyon (Hybride)</div><button>Enregistrer</button><button>Postuler</button>
+        <div id="job-details"><h2>À propos de l'offre d'emploi</h2><p>Vous structurez les opérations de l'équipe solutions et pilotez ses outils.</p></div>
+      </div></div>
+    </main>
+    <iframe src="${linkedInCaptchaUrl}" style="display: none"></iframe>
+  </body></html>`;
+  const linkedInCaptchaHtml = `<!doctype html><html><head><meta charset="utf-8"><title>reCAPTCHA</title></head><body><div>Je ne suis pas un robot</div><script>window.fixture = "${"x".repeat(40_000)}";</script></body></html>`;
   const cvFile = { name: "CV Marie Dupont.pdf", mimeType: "application/pdf", buffer: Buffer.from(pdfCv(MARIE_DUPONT_CV)) };
   let context: BrowserContext;
 
@@ -285,6 +304,8 @@ test.describe("Guest Capture and Match Score", () => {
     await context.route(postingUrl, (route) => route.fulfill({ contentType: "text/html", body: jobPageHtml(posting) }));
     await context.route(articleUrl, (route) => route.fulfill({ contentType: "text/html", body: jobPageHtml(null) }));
     await context.route(emptyPostingUrl, (route) => route.fulfill({ contentType: "text/html", body: "<!doctype html><html><head></head><body></body></html>" }));
+    await context.route(linkedInSearchUrl, (route) => route.fulfill({ contentType: "text/html; charset=utf-8", body: linkedInSearchHtml }));
+    await context.route(linkedInCaptchaUrl, (route) => route.fulfill({ contentType: "text/html; charset=utf-8", body: linkedInCaptchaHtml }));
     for (const url of Object.keys(boardPages)) {
       await context.route(url, (route) => route.fulfill({ contentType: "text/html", body: boardPageHtml }));
     }
@@ -841,6 +862,25 @@ test.describe("Guest Capture and Match Score", () => {
     await expect(analysis.getByRole("heading", { level: 2, name: "Directeur administratif et financier H/F" })).toBeVisible();
     await expect(analysis.getByText(fr.detected)).toBeVisible();
     await expect(analysis.getByRole("button", { name: fr.badge })).toHaveCount(0);
+    await analysis.getByRole("button", { name: fr.analysis.forget }).click();
+    await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
+  });
+
+  test("on LinkedIn's search view, reads the posting open in the detail pane, never the hidden reCAPTCHA frame beside it", async () => {
+    const analysis = await openPanel();
+    const jobPage = await context.newPage();
+    await jobPage.goto(linkedInSearchUrl);
+    await expect(jobPage.frames()).toHaveLength(2);
+    await jobPage.bringToFront();
+    await expect(analysis.getByText(fr.detected)).toBeVisible();
+    await expect(analysis.getByText("Responsable des opérations solutions", { exact: true })).toBeVisible();
+    await expect(analysis.getByText("reCAPTCHA")).toHaveCount(0);
+    // The badge shows on the posting, and analysing it from the panel takes the posting's own address.
+    await expect(jobPage.getByRole("button", { name: fr.badgeLabel })).toBeVisible();
+    await analysis.getByRole("button", { name: fr.badge }).click();
+    await expect(analysis.getByRole("heading", { level: 2, name: "Responsable des opérations solutions" })).toBeVisible();
+    const stored = (await storedGuestSession()).guestSession as unknown as { jobOffer: { title: string; source: { url: string } } };
+    expect(stored.jobOffer).toMatchObject({ title: "Responsable des opérations solutions", source: { url: "https://www.linkedin.com/jobs/view/4100000001/" } });
     await analysis.getByRole("button", { name: fr.analysis.forget }).click();
     await expect(analysis.getByText(fr.analysis.forgotten)).toBeVisible();
   });

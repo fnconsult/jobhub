@@ -10,6 +10,7 @@ import type { CompanyDossierState } from "../company-dossiers";
 import type { EnrichedContactsResult, EnrichedContactsState } from "../enriched-contacts";
 import type { AddTargetCompanyResult, TargetCompanyOnProfile } from "../target-companies";
 import { candidateObjects, type CandidateObjectSources } from "./candidate-objects";
+import { fictionalObjects } from "./fictional-objects";
 import { createCoachActions, REDIRECT_ACTION, type CoachAction, type CoachActionCall, type ProposalCall, type ProposedChange } from "./index";
 import { createRedirects } from "./redirects";
 import { TARGET_COMPANY_ACTIONS, targetCompanyCoachActions, type TargetCompanyActionSources } from "./target-companies";
@@ -201,6 +202,14 @@ describe("the Target Companies' Coach Actions (ADR-0119 D1, #1157)", () => {
       const text = (await run(actions, TARGET_COMPANY_ACTIONS.read, { profileId: "p-daf" })) as { data: string };
 
       expect(text.data).toMatch(/candidature spontanée \(id a-beta\) · dossier entreprise non constitué · recherche de contacts indisponible/);
+    });
+
+    it("reads an Eval Case's fictional Target Companies by the Profile's id, on no one's domain (ADR-0023)", async () => {
+      const objects = fictionalObjects([{ type: "target_companies", id: "p-data", title: "Entreprises cibles", status: "2", text: "Entreprises cibles du profil « Data » (id p-data)." }]);
+      const action = actionOf(targetCompanyCoachActions(objects, { ...world().sources, profiles: { list: async () => [] } }), TARGET_COMPANY_ACTIONS.read);
+
+      expect(await action.run(action.schema.parse({ profileId: "p-data" }), call("eval"))).toMatchObject({ ok: true, data: "Entreprises cibles du profil « Data » (id p-data).", untrusted: true });
+      expect(objects.readIds()).toEqual(["p-data", "target_companies:p-data"]);
     });
 
     it("reads the Profile In view or the only active one; says when there is none; finds nothing for an Archived Profile or another Candidate's", async () => {

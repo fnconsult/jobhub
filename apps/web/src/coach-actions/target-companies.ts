@@ -194,9 +194,14 @@ export function targetCompanyCoachActions(reader: CoachObjectReader, sources: Ta
     kind: "read",
     copiesText: false,
     async run({ profileId }, call) {
-      const profile = await profileOf(profileId, call);
-      if (!isProfile(profile)) return profile;
-      const found = await reader.read(call.candidateId, "target_companies", profile.id, call.maxTokens ?? Number.POSITIVE_INFINITY);
+      // The Profile named or In view is the reader's to scope (an Eval Case's fictional objects have no domain behind them).
+      let wanted = profileId ?? (call.inView?.kind === "profile" ? call.inView.id : undefined);
+      if (!wanted) {
+        const profile = await profileOf(undefined, call);
+        if (!isProfile(profile)) return profile;
+        wanted = profile.id;
+      }
+      const found = await reader.read(call.candidateId, "target_companies", wanted, call.maxTokens ?? Number.POSITIVE_INFINITY);
       return found ? { ok: true, data: found.text, pages: found.pages, untrusted: found.untrusted, ...(found.seen ? { seen: [found.seen] } : {}) } : NOT_FOUND;
     },
   });

@@ -1128,6 +1128,86 @@ const INES_OBJECTS: readonly FictionalObject[] = [
   },
 ];
 
+const TARGET_COMPANIES_HEAD =
+  "Entreprises cibles du profil « Data » (id p-data-lyon), celles que le candidat a ajoutées d'abord. Le dossier entreprise et les contacts d'une entreprise cible sont ceux de sa candidature spontanée.";
+const TISSERANDS = "- entreprise cible (id t-tisserands) Tisserands du Rhône · La Bonne Boite, potentiel d'embauche 71/100 · Villeurbanne · aucune candidature spontanée : aucun dossier entreprise";
+const INDUSTRIE = {
+  no_dossier: "- entreprise cible (id t-industrie) Exemple Industrie · ajoutée par le candidat · Lyon · aucune candidature spontanée : aucun dossier entreprise",
+  dossier: "- entreprise cible (id t-industrie) Exemple Industrie · ajoutée par le candidat · Lyon · candidature spontanée (id a-industrie) · dossier entreprise constitué le 2026-11-12 · aucune personne trouvée",
+};
+
+/**
+ * Inès's objects with the Target Companies of her Profile « Data » (#1157), as read_target_companies tells them: Exemple
+ * Industrie not among them, or added, its dossier not built or built.
+ */
+const inesWithTargets = (industrie: "absent" | keyof typeof INDUSTRIE): readonly FictionalObject[] => [
+  ...INES_OBJECTS,
+  {
+    type: "target_companies",
+    id: "p-data-lyon",
+    title: "Entreprises cibles du profil « Data »",
+    status: industrie === "absent" ? "1 entreprise cible" : "2 entreprises cibles",
+    text: [TARGET_COMPANIES_HEAD, ...(industrie === "absent" ? [] : [INDUSTRIE[industrie]]), TISSERANDS].join("\n"),
+  },
+];
+
+/** The request seen on the Beta (#1146), for a company with no Application there. */
+const CONTACTS_AT_INDUSTRIE = "Trouve-moi des contacts chez Exemple Industrie, à Lyon.";
+
+/**
+ * A company outside the Candidate's Applications (ADR-0119 D1, #1157): through the Target Companies of her Profile, a card
+ * each time, never a redirect to their page. Added when it is not one; its dossier built first, then its contacts searched.
+ */
+const TARGET_COMPANY_EVAL_CASES: readonly AiCoachEvalCase[] = [
+  {
+    id: "target-company-contacts-add",
+    title: "Des contacts chez une entreprise sans candidature ni entreprise cible : la carte « Ajouter en entreprise cible » (ADR-0119, #1157)",
+    context: INES,
+    message: CONTACTS_AT_INDUSTRIE,
+    inView: null,
+    objects: inesWithTargets("absent"),
+    criteria: `La réponse dit qu'Inès n'a aucune candidature chez Exemple Industrie et propose de l'ajouter aux entreprises cibles de son profil « Data », pour en constituer ensuite le dossier entreprise et y chercher des contacts. Elle ne la renvoie pas vers la page des entreprises cibles pour le faire elle-même, ne nomme ni n'invente aucune personne d'Exemple Industrie et ne donne aucune coordonnée. ${PROPOSED_NOT_DONE}`,
+    proposes: true,
+    proposal: { action: "propose_target_company", arguments: { name: "Exemple Industrie" } },
+  },
+  {
+    id: "target-company-contacts-search",
+    title: "Des contacts chez une entreprise cible au dossier constitué : la recherche de contacts proposée (ADR-0119, #1157)",
+    context: INES,
+    message: CONTACTS_AT_INDUSTRIE,
+    inView: null,
+    objects: inesWithTargets("dossier"),
+    reads: ["target_companies:p-data-lyon"],
+    criteria: `La réponse propose de rechercher des contacts chez Exemple Industrie, une entreprise cible de son profil « Data » dont le dossier entreprise est constitué : les personnes qui occupent ses fonctions à contacter, sans leurs coordonnées. Elle ne nomme ni n'invente aucune personne et ne donne aucune coordonnée. ${PROPOSED_NOT_DONE}`,
+    proposes: true,
+    proposal: { action: "propose_target_contact_search", arguments: { targetCompanyId: "t-industrie" } },
+  },
+  {
+    id: "target-company-contacts-dossier-first",
+    title: "Des contacts chez une entreprise cible sans dossier : son dossier entreprise proposé d'abord (ADR-0119, #1157)",
+    context: INES,
+    message: CONTACTS_AT_INDUSTRIE,
+    inView: null,
+    objects: inesWithTargets("no_dossier"),
+    reads: ["target_companies:p-data-lyon"],
+    criteria: `La réponse dit que les contacts d'Exemple Industrie se cherchent à partir de son dossier entreprise, qui n'est pas encore constitué, et propose de le constituer d'abord ; elle dit qu'ensuite la recherche de contacts pourra être proposée. Elle ne nomme ni n'invente aucune personne et ne donne aucune coordonnée. ${PROPOSED_NOT_DONE}`,
+    proposes: true,
+    proposal: { action: "propose_target_company_dossier", arguments: { targetCompanyId: "t-industrie" } },
+  },
+  {
+    id: "target-company-spontaneous-application",
+    title: "Postuler sans offre chez une entreprise cible : la candidature spontanée proposée (ADR-0119, #1157)",
+    context: INES,
+    message: "Je voudrais envoyer une candidature spontanée chez Exemple Industrie.",
+    inView: null,
+    objects: inesWithTargets("no_dossier"),
+    reads: ["target_companies:p-data-lyon"],
+    criteria: `La réponse propose de préparer une candidature spontanée chez Exemple Industrie pour le poste de son profil « Data », où se préparent son dossier entreprise, ses contacts et ses documents. Elle n'écrit aucune lettre dans sa réponse. ${PROPOSED_NOT_DONE}`,
+    proposes: true,
+    proposal: { action: "propose_spontaneous_application", arguments: { targetCompanyId: "t-industrie" } },
+  },
+];
+
 /**
  * When the AI Coach cannot (ADR-0119, #1156): never a generic text, never a refusal with no reason. The case seen on the Beta
  * (#1146: contacts asked at a company outside the Applications), a request unrelated to work, a person's personal details.
@@ -2180,4 +2260,5 @@ export const AI_COACH_EVAL_CASES: readonly AiCoachEvalCase[] = [
   ...COACH_REACH_EVAL_CASES,
   ...COACH_TAILORED_CV_EVAL_CASES,
   ...COACH_WHEN_IT_CANNOT_EVAL_CASES,
+  ...TARGET_COMPANY_EVAL_CASES,
 ];

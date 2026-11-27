@@ -21,7 +21,7 @@ const PORT_OFFSET = 1139;
 const PREFIX = "jbx_agent_";
 const API = "/admin/api/signalements";
 /** The keys of what the queue and `:id` render, in this order (apps/web/src/signalements/triage.ts, TRIAGE_KEYS). */
-const EXPECTED_KEYS = ["id", "type", "message", "sentAt", "status", "environment", "version", "device", "interfaceLanguage", "textSize", "path", "attachedQuestion", "attachedCoachReply"];
+const EXPECTED_KEYS = ["id", "type", "message", "sentAt", "status", "environment", "version", "device", "interfaceLanguage", "textSize", "path", "attachedQuestion", "attachedCoachReply", "issue", "brouillon"];
 
 let own: OwnServer;
 let database: Pool;
@@ -239,11 +239,13 @@ test("the queue renders exactly its fixed keys, redacted, the path without ids, 
   for (const each of body.signalements) expect(Object.keys(each)).toEqual(EXPECTED_KEYS);
   // The Signalement sent before the notice is never rendered, queue or one.
   expect(body.signalements.map((each: { id: string }) => each.id)).not.toContain(ids.before);
-  expect((await get(key, `${API}/${ids.before}`)).status()).toBe(404);
+  const outOfScope = await get(key, `${API}/${ids.before}`);
+  expect(outOfScope.status()).toBe(404);
+  expect(await outOfScope.json()).toEqual({ error: "not_found", reason: "no_ai_notice" });
 
   const bug = ours.find((each) => each.type === "bug")!;
   const question = ours.find((each) => each.type === "question")!;
-  expect(bug).toMatchObject({ id: ids.bug, status: "nouveau", environment: "e2e", interfaceLanguage: "fr", textSize: "large", attachedQuestion: null, attachedCoachReply: null });
+  expect(bug).toMatchObject({ id: ids.bug, status: "nouveau", environment: "e2e", interfaceLanguage: "fr", textSize: "large", attachedQuestion: null, attachedCoachReply: null, issue: null, brouillon: null });
   expect(typeof bug.version).toBe("string");
   expect(Number.isNaN(Date.parse(bug.sentAt as string))).toBe(false);
   // Redaction: the Candidate's name and email come out as [NOM] and [E-MAIL].
@@ -267,7 +269,9 @@ test("the queue renders exactly its fixed keys, redacted, the path without ids, 
   expect(Object.keys(oneBody)).toEqual(["signalement"]);
   expect(Object.keys(oneBody.signalement)).toEqual(EXPECTED_KEYS);
   expect(oneBody.signalement).toEqual(question);
-  expect((await get(key, `${API}/00000000-0000-4000-8000-000000000000`)).status()).toBe(404);
+  const unknown = await get(key, `${API}/00000000-0000-4000-8000-000000000000`);
+  expect(unknown.status()).toBe(404);
+  expect(await unknown.json()).toEqual({ error: "not_found", reason: "unknown" });
 
   // Filtered by status.
   const withStatus = async (status: string) => ((await (await get(key, `${API}?statut=${status}`)).json()).signalements as { id: string }[]).map((each) => each.id);
@@ -286,9 +290,10 @@ test("the key only changes a status to « vu », signed key:triage-beta, which t
 
   const done = await post({ statut: "vu" });
   expect(done.status()).toBe(200);
-  const answered = (await done.json()).signalement;
-  expect(answered.status).toBe("vu");
-  expect(Object.keys(answered)).toEqual(EXPECTED_KEYS);
+  // Its id, status and signature alone, never the message (#1173).
+  const answered = await done.json();
+  expect(answered).toEqual({ id: ids.bug, statut: "vu", statutMajPar: "key:triage-beta" });
+  expect(Object.keys(answered)).toEqual(["id", "statut", "statutMajPar"]);
   expect((await database.query("SELECT status, status_changed_by FROM signalement WHERE id = $1", [ids.bug])).rows[0]).toMatchObject({ status: "vu", status_changed_by: "key:triage-beta" });
 
   await admin.goto(`/admin/signalements/${ids.bug}`);

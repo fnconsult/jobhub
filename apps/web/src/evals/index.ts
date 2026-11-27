@@ -457,7 +457,9 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
       const guardrails = createGuardrails({ ai, config: deps.guardrails, triggers: { record: (trigger) => void (trigger.action !== "unavailable" && triggered.push(trigger.guardrail)) } });
       // The shipped reads over the case's fictional objects (#714); a catalogue given in their place reads nothing.
       const objects = fictionalObjects(each.objects ?? []);
-      const coachActions = deps.coachActions ? forEvalRun(deps.coachActions) : forEvalRun(shippedCoachActions(objects), { readsPlayed: true });
+      // « Espace coach v2 » as the case sets it (#1158): it opens the human_coach Typed redirect.
+      const coachSpaceV2 = each.coachSpaceV2 ?? false;
+      const coachActions = deps.coachActions ? forEvalRun(deps.coachActions, { coachSpaceV2 }) : forEvalRun(shippedCoachActions(objects), { readsPlayed: true, coachSpaceV2 });
       const coach = createCoach({
         ai,
         playbooks: { served: async () => served },

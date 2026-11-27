@@ -88,7 +88,10 @@ The research for #1146 found the causes:
   For what it never does (a person's private details, an invented experience, a request unrelated to work), it says so and offers what it can do instead.
 - **The last net.** If that turn writes nothing either, the reply is « Je n'ai pas réussi à traiter votre demande. Reformulez-la, ou posez la question à l'équipe », with « Poser la question à l'équipe ». It is flagged in the Activity.
 - **The « Périmètre du coach » Guardrail.**
-  - Its check 3 (a refusal with no reason or no redirect) now blocks.
+  - Its check 3 (a refusal with no reason or no redirect) now blocks, and it is judged by the AI check (refines ADR-0114, where it was a fixed rule):
+    - it is asked in the same call as checks 1, 2 and 5, so there is no extra AI call;
+    - the fixed rules only pick which replies go to it and never block on their own;
+    - when the AI does not answer, check 3 flags instead of blocking.
   - A fifth check, « hors sujet », flags a reply that does not answer the request.
 
 ## Considered Options

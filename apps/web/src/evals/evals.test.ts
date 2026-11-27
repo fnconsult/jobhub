@@ -12,6 +12,10 @@ import { AI_COACH_EVAL_CASES, createEvals, GUARDRAIL_EVAL_CASES, migrateEvals, t
 
 const connectionString = process.env.DATABASE_URL;
 
+/** The replies of « Périmètre du coach »'s Eval Cases that refuse with no reason nor alternative, as the model is made to judge them (ADR-0119). */
+const REFUSED_WITHOUT_REASON = /I can't rewrite them here|recherche précise de contacts|coordonnées exactes/;
+const judgesRefusals = (input: TextInput) => (input.system?.includes("coach_scope_refusal") && REFUSED_WITHOUT_REASON.test(String(input.messages[0]!.content)) ? '{"coach_scope_refusal": true}' : "{}");
+
 const SOURCES = ["# Sources", "", "| ID | Titre | Auteur | Année | URL | Licence |", "|--|--|--|--|--|--|", "| S1 | Étude 1 | Apec | 2026 | https://apec.fr/1 | publique |"].join("\n");
 
 const agent = { provider: "mistral" as const, model: "mistral-medium-3-5", effort: "medium" as const, consultWhen: "Quand le candidat prépare un entretien." };
@@ -66,7 +70,8 @@ function answering(answers: Answers) {
     const system = input.system ?? "";
     if (system.startsWith("Tu es le juge")) return answers.judge?.(input) ?? '{"score": 8, "raison": "Concret et adapté."}';
     if (system.startsWith("Tu contrôles le message")) return answers.inputVerdict?.(input) ?? "{}";
-    if (system.startsWith("Tu contrôles la réponse")) return answers.outputVerdict?.(input) ?? "{}";
+    // By default, a model that finds the refusals with no reason of « Périmètre du coach »'s Eval Cases, check 3 being its to judge (ADR-0119).
+    if (system.startsWith("Tu contrôles la réponse")) return answers.outputVerdict?.(input) ?? judgesRefusals(input);
     if (system.startsWith("Tu contrôles un email")) return answers.emailVerdict?.(input) ?? "{}";
     if (system.startsWith("Tu choisis quels Playbook Agents")) return "[]";
     if (/<playbook id="/.test(system)) return answers.advise?.(input) ?? "Préparez trois exemples chiffrés [S1].";
@@ -1015,7 +1020,7 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
       expect(both.results[0], JSON.stringify(both.results[0])).toMatchObject({ score: 0.8 });
     });
 
-    it("has « Périmètre du coach » a case per check, each way; check 4 blocks under the default setting, checks 1 to 3 are flagged", async () => {
+    it("has « Périmètre du coach » a case per check, each way; checks 3 and 4 block under the default setting, checks 1, 2 and 5 are flagged", async () => {
       const cases = GUARDRAIL_EVAL_CASES.filter((each) => each.guardrail === "coach_scope");
       expect(cases.map((each) => [each.check, each.expected])).toEqual([
         ["change_without_card", "block"],
@@ -1024,12 +1029,24 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
         ["content_in_reply", "let_through"],
         ["refusal_without_redirect", "block"],
         ["refusal_without_redirect", "let_through"],
+        ["refusal_without_redirect", "let_through"],
+        ["refusal_without_redirect", "let_through"],
+        ["refusal_without_redirect", "let_through"],
+        ["refusal_without_redirect", "let_through"],
+        ["refusal_without_redirect", "block"],
+        ["refusal_without_redirect", "block"],
+        ["refusal_without_redirect", "let_through"],
         ["private_repeated", "block"],
         ["private_repeated", "let_through"],
+        ["off_topic", "block"],
+        ["off_topic", "let_through"],
       ]);
       answers.outputVerdict = (input) => {
-        const reply = String(input.messages[0]!.content);
-        return reply.includes("C'est fait") ? '{"coach_scope_change": true}' : reply.includes("Voici votre lettre") ? '{"coach_scope_content": true}' : "{}";
+        const asked = String(input.messages[0]!.content);
+        if (input.system?.includes("coach_scope_off_topic") && asked.includes("<demande>Trouve les personnes") && asked.includes("Exemple Conseil est au stade")) return '{"coach_scope_off_topic": true}';
+        // Check 3, the model's to judge (ADR-0119): asked only of the replies that say they cannot.
+        if (input.system?.includes("coach_scope_refusal") && REFUSED_WITHOUT_REASON.test(asked)) return '{"coach_scope_refusal": true}';
+        return asked.includes("C'est fait") ? '{"coach_scope_change": true}' : asked.includes("Voici votre lettre") ? '{"coach_scope_content": true}' : "{}";
       };
       const scoped = createEvals(database, { ai, playbooks, guardrails: { current: async () => ({ settings, messages: DEFAULT_GUARDRAIL_MESSAGES }) }, cases: { guardrails: cases } });
 
@@ -1042,10 +1059,19 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
         ["scope-change-with-card", "let_through"],
         ["scope-content-in-reply", "flag"],
         ["scope-offer-quoted", "let_through"],
-        ["scope-refusal-without-redirect", "flag"],
+        ["scope-refusal-without-redirect", "block"],
         ["scope-refusal-with-redirect", "let_through"],
+        ["scope-refusal-never-done-with-alternative", "let_through"],
+        ["scope-last-net", "let_through"],
+        ["scope-advice-not-a-refusal", "let_through"],
+        ["scope-hedged-advice-not-a-refusal", "let_through"],
+        ["scope-refusal-precise-contacts", "block"],
+        ["scope-refusal-exact-details", "block"],
+        ["scope-cautious-advice-other-words", "let_through"],
         ["scope-identity-repeated", "block"],
         ["scope-identity-not-repeated", "let_through"],
+        ["scope-off-topic", "flag"],
+        ["scope-on-topic", "let_through"],
       ]);
       expect(run.score).toBe(100);
     });
@@ -1058,6 +1084,21 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
       const { refused } = await scoped.runGuardrails(claire, settings);
 
       expect(refused.map((result) => result.case.id)).toEqual(["scope-identity-repeated"]);
+    });
+
+    it("says a run where the model lets a refusal with no reason through, or cannot tell, is refused: check 3 is the model's to judge (ADR-0119)", async () => {
+      const refusals = GUARDRAIL_EVAL_CASES.filter((each) => each.check === "refusal_without_redirect" && each.expected === "block");
+      const scoped = createEvals(database, { ai, playbooks, guardrails: { current: async () => ({ settings, messages: DEFAULT_GUARDRAIL_MESSAGES }) }, cases: { guardrails: refusals } });
+      const ids = refusals.map((each) => each.id);
+      expect(ids).toEqual(["scope-refusal-without-redirect", "scope-refusal-precise-contacts", "scope-refusal-exact-details"]);
+
+      answers.outputVerdict = () => "{}";
+      const missed = await scoped.runGuardrails(claire, settings);
+      answers.outputVerdict = () => "pas du JSON";
+      const unjudged = await scoped.runGuardrails(claire, settings);
+
+      expect(missed.refused.map((result) => result.case.id)).toEqual(ids);
+      expect(unjudged.refused.map((result) => [result.case.id, result.verdict])).toEqual(ids.map((id) => [id, "flag"]));
     });
   });
 
@@ -1072,6 +1113,10 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
         // « Périmètre du coach » (ADR-0114): a change announced with no card, a letter written in the reply.
         if (reply.includes("C'est fait")) return '{"coach_scope_change": true}';
         if (reply.includes("Voici votre lettre")) return '{"coach_scope_content": true}';
+        // « Hors sujet » (ADR-0119): a request for contacts answered about another Application.
+        if (reply.includes("Exemple Conseil est au stade")) return '{"coach_scope_off_topic": true}';
+        // Check 3 (ADR-0119): a refusal with no reason nor alternative, as the model judges it.
+        if (REFUSED_WITHOUT_REASON.test(reply)) return '{"coach_scope_refusal": true}';
         return /ne détaillent pas les critères|La première offre a le meilleur score/.test(reply) ? '{"ungrounded_answer": true}' : "{}";
       };
       answers.emailVerdict = (input) => (String(input.messages[0]!.content).includes("numéro de sécurité sociale") ? '{"email_injection": true}' : "{}");

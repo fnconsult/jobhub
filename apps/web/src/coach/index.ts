@@ -49,11 +49,17 @@
  * the reply's Provenance; what a read gives back goes through the input Guardrail first; the changes proposed come with
  * the reply (`proposals`), for the Candidate to apply. Off, the call is sent with no tools and the reply is as before.
  *
+ * A reply written with no text (ADR-0119, #1156): its proposal is said to be under it, or why it could not be prepared
+ * (emptyReplyText); with neither, one more `coaching` call, its Last turn, with no tools, is told to answer the request
+ * (LAST_TURN_RULE) from what the reads gave back. Never a generic text: if that turn writes nothing either, or fails, the
+ * Last net answers, with « Poser la question à l'équipe », the turn recorded with the warning `coach_reply_empty` (its step
+ * flagged in the Activity).
+ *
  * Eval Runs (ADR-0023, #231) play the whole reply the same way, with two differences given at construction:
  * `context`, a fictional Coach context told as is in place of a Candidate's workspace, and `consult`, the
  * Coaching Playbook whose Playbook Agent the reply always consults first, besides those chosen.
  */
-import { costInEur, createProvenanceRecorder, type AiLayer, type AiWarning, type GenerateResult, type ProviderId } from "@jobhub/ai";
+import { costInEur, createProvenanceRecorder, type AiLayer, type AiWarning, type GenerateResult, type ProviderId, type ToolRunRecord } from "@jobhub/ai";
 import { article, type HelpSettings } from "@jobhub/help";
 import { createI18n } from "@jobhub/shared/i18n";
 import { DEFAULT_COACH_CONTEXT_LIMITS, failureOf, type CoachContextLimits, type FailureReason, type JobOffer, type Provenance, type ProvenanceEvent } from "@jobhub/shared";
@@ -63,7 +69,7 @@ import { inViewReason, REDIRECT_ACTION, untrustedInView, type CoachActions, type
 import { redirectTableText } from "../coach-actions/redirects";
 import { CORE_DIGEST, type CoachingPlaybooks, type ServedKnowledge } from "../coaching-playbooks";
 import * as z from "zod";
-import { readReplyMarks, REPLY_MARKS_RULE } from "./reply-marks";
+import { NOT_ANSWERED_MARK, readReplyMarks, REPLY_MARKS_RULE } from "./reply-marks";
 import { asData, COACH_FOCUS_KINDS, coachContext, DATA_RULE, estimateTokens, type CoachFocus, type CoachSources } from "./context";
 import { approvesTheRest } from "../profiles/master-cv-proposal";
 import { MAX_MESSAGE_LENGTH, recentConversation, type ContextSplit } from "./conversation";
@@ -112,7 +118,7 @@ export type CoachReplyOutcome = GuardedReply["outcome"];
  * `aboutJobbbox`: the AI Coach marked the Candidate's message as asking how to use Jobbbox (#344), not for job-search advice;
  * false (or absent) when it wrote no reply (a blocked message, distress, a Job Offer link) or did not say.
  * `couldNotAnswer`: the AI Coach marked the Candidate's question as one it could not answer (#345), so the Coach Panel offers
- * the team at once; false (or absent) when it answered, wrote no reply, or did not say.
+ * the team at once, as it does with the Last net (ADR-0119); false (or absent) when it answered, wrote no reply, or did not say.
  * `stopped`: the Candidate stopped it (#328), `messagePassed` saying whether the Candidate's message had gone through the input
  * Guardrails by then (the reply was being written): a message that had not must never reach the AI Coach later.
  * `contextTokens`: the estimate (estimateTokens) of the context the reply was written from, its system text and the messages
@@ -141,11 +147,12 @@ export interface CoachReplyCalls {
 /** The AI Usage ids of `call`: each of its Turns' with tools, else its own. */
 const callIdsOf = (call: GenerateResult): string[] => (call.turns ? call.turns.flatMap((turn) => (turn.callId ? [turn.callId] : [])) : call.callId ? [call.callId] : []);
 
-/** The calls of a reply (#790), from all its calls and the reply written (none when the AI Coach wrote none). */
-function replyCalls(calls: GenerateResult[], written: GenerateResult | undefined): CoachReplyCalls | undefined {
-  if (!written) return undefined;
-  const tools = [...new Set((written.tools?.runs ?? []).filter((run) => run.ran).map((run) => run.name))];
-  return { ids: calls.flatMap(callIdsOf), turns: callIdsOf(written), rounds: written.tools?.rounds ?? 0, tools };
+/** The calls of a reply (#790), from all its calls and those of the reply written, its Last turn after (none when the AI Coach wrote none). */
+function replyCalls(calls: GenerateResult[], written: readonly GenerateResult[]): CoachReplyCalls | undefined {
+  const [first] = written;
+  if (!first) return undefined;
+  const tools = [...new Set(written.flatMap((call) => call.tools?.runs ?? []).filter((run) => run.ran).map((run) => run.name))];
+  return { ids: calls.flatMap(callIdsOf), turns: written.flatMap(callIdsOf), rounds: first.tools?.rounds ?? 0, tools };
 }
 
 export type CoachReply =
@@ -302,9 +309,29 @@ export const COACH_ACTIONS_RULES = `Coach Actions :
 - Sur une candidature, tu lis chaque entretien en entier, passés compris (read_application) : pour noter ce qu'il en dit (« note les questions qu'on m'a posées »), propose la note complète de l'entretien avec propose_interview_change, jamais dans ta réponse. Tu lis aussi son dossier entreprise (read_company_dossier), que tu cites en donnant sa source sans jamais en écrire le contenu, ses contacts enrichis (read_enriched_contacts : nom et fonction, jamais leurs coordonnées) et les avis de ses coachs humains (read_coach_reviews), dont tu tiens compte dans tes propositions sans jamais proposer de les modifier ni de les supprimer.
 - L'offre ne change pas, mais la candidature porte son propre intitulé, pour le candidat seul : quand il demande de renommer sa candidature, sa conversation ou l'intitulé de l'offre (« change le titre de cette offre en… »), ou qu'un intitulé enregistré n'est pas celui du poste (un slogan, le nom du site), propose-le avec propose_application_title. Ne dis jamais que l'offre est en lecture seule sans le proposer.
 - Ce que le candidat fait lui-même dans Jobbbox, tu le proposes avec un outil ou tu l'y renvoies avec un renvoi typé : ne l'envoie jamais vers « l'équipe Jobbbox » ni le support pour cela, et ne dis jamais que tu ne sais pas s'il peut le faire.
-- Quand aucun outil ne fait ce que le candidat demande, dis-lui pourquoi en une phrase, la vraie raison, jamais « ici je ne peux pas », et donne le renvoi typé avec l'outil ${REDIRECT_ACTION} : le serveur affiche sous ta réponse le lien vers la page, la rubrique et l'objet où il le fait lui-même. N'écris jamais de lien ni d'adresse toi-même. La table des renvois (target), une ligne par objet sans outil :
+- Tout « je ne peux pas » reprend la demande du candidat, en donne la vraie raison en une phrase (aucune candidature chez cette entreprise, son abonnement, un service indisponible, ou une chose que tu ne fais jamais), jamais « ici je ne peux pas », et propose une alternative concrète : une carte avec l'outil prévu, le renvoi typé avec l'outil ${REDIRECT_ACTION}, ou « Poser la question à l'équipe » (la ligne ${NOT_ANSWERED_MARK}). Pour ce que tu ne fais jamais (les coordonnées personnelles d'une personne, une expérience inventée, une demande sans rapport avec l'emploi), dis-le et propose ce que tu peux faire à la place.
+- Quand aucun outil ne fait ce que le candidat demande, donne le renvoi typé avec l'outil ${REDIRECT_ACTION} : le serveur affiche sous ta réponse le lien vers la page, la rubrique et l'objet où il le fait lui-même. N'écris jamais de lien ni d'adresse toi-même. La table des renvois (target), une ligne par objet sans outil :
 ${redirectTableText()}
 - Ne termine jamais ta réponse sans texte.`;
+
+/**
+ * What the AI Coach is told on its Last turn (ADR-0119, #1156), when the reply it wrote had no text and nothing to say of a
+ * proposal: answer the request, in text only, from what it read.
+ */
+export const LAST_TURN_RULE = `Dernier tour : ta réponse précédente n'avait aucun texte, et tu n'as plus d'outil. Réponds maintenant à la demande du candidat, en texte seulement, en la reprenant :
+- ce que tu as trouvé ou fait (les lectures ci-dessous, s'il y en a) ;
+- ce que tu ne peux pas faire et pourquoi, la vraie raison ;
+- ce que tu proposes à la place : ce qu'il peut te demander ensuite, la page où il le fait lui-même, ou « Poser la question à l'équipe » (la ligne ${NOT_ANSWERED_MARK}).
+Ne dis jamais que tu as modifié quoi que ce soit, et ne termine jamais ta réponse sans texte.`;
+
+/** How much of what the reads gave back the Last turn is told, in characters: about the Coach Actions' reads cap. */
+const LAST_TURN_READS_MAX_CHARS = 16_000;
+
+/** What the reply's Coach Actions gave back, each by its name, for its Last turn: data it cannot close, within LAST_TURN_READS_MAX_CHARS. */
+function readsText(runs: readonly ToolRunRecord[]): string {
+  const read = runs.map((run) => `${run.name} : ${run.result.content}`).join("\n").slice(0, LAST_TURN_READS_MAX_CHARS);
+  return read ? asData(read, "lectures") : "";
+}
 
 /**
  * Told when untrusted text is In view (#713): the Coach Actions that copy text are not offered. It gives the true reason
@@ -338,17 +365,19 @@ const MASTER_CV_PROPOSAL = "propose_master_cv_changes";
 /**
  * What a reply says when the model wrote no text (#784, ADR-0077), in the Candidate's language: that the change it proposes is
  * under it, to review and apply; or that the change could not be prepared (a Master CV one: only what the CV already says,
- * the Candidate adds a skill themselves in its section); or that it could not prepare an answer, with where the Candidate
- * makes the change themselves, « Poser la question à l'équipe » not offered (ADR-0109: only the model's own mark offers it).
+ * the Candidate adds a skill themselves in its section). Null when it neither proposed nor was refused anything: never a
+ * generic text, its Last turn answers the request (ADR-0119).
  */
-export function emptyReplyText(language: GuardrailLanguage, proposals: readonly CoachProposal[], declined: readonly string[]): { text: string; couldNotAnswer: boolean } {
+export function emptyReplyText(language: GuardrailLanguage, proposals: readonly CoachProposal[], declined: readonly string[]): string | null {
   const { t } = createI18n(language);
-  if (proposals.length > 0) return { text: t("coachPanel.emptyReply.proposed"), couldNotAnswer: false };
-  if (declined.includes(MASTER_CV_PROPOSAL)) return { text: t("coachPanel.emptyReply.masterCvNotProposed"), couldNotAnswer: false };
-  if (declined.length > 0) return { text: t("coachPanel.emptyReply.notProposed"), couldNotAnswer: false };
-  // Not a question it cannot answer (#345), but a request it found no way to carry out (ADR-0109): said, with where to do it.
-  return { text: t("coachPanel.emptyReply.none"), couldNotAnswer: false };
+  if (proposals.length > 0) return t("coachPanel.emptyReply.proposed");
+  if (declined.includes(MASTER_CV_PROPOSAL)) return t("coachPanel.emptyReply.masterCvNotProposed");
+  if (declined.length > 0) return t("coachPanel.emptyReply.notProposed");
+  return null;
 }
+
+/** The warning a Last turn that wrote no text either is recorded with (ADR-0119): its step flagged in the Activity. */
+const LAST_TURN_EMPTY: AiWarning = { reason: "coach_reply_empty", detail: "the AI Coach wrote no text on its last turn either: the last net answered" };
 
 /** The set reply to a Job Offer link, in the Candidate's language: nothing in it comes from the page. */
 function jobOfferLinkReply(result: JobOfferLinkResult, language: GuardrailLanguage): string {
@@ -397,6 +426,7 @@ export function createCoach(deps: CoachDeps): Coach {
       const parsed = inputSchema.safeParse(input);
       if (!parsed.success) return { ok: false, error: "invalid" };
       const { signal, onEvent } = options;
+      const language = options.language ?? "fr";
       const limits = options.limits ?? DEFAULT_COACH_CONTEXT_LIMITS;
       /** The ceiling of the context, in estimated jetons: none when unlimited. */
       const maxTokens = limits.coachContextTokens ?? Number.POSITIVE_INFINITY;
@@ -469,7 +499,9 @@ export function createCoach(deps: CoachDeps): Coach {
           };
         };
         let prepared: Awaited<ReturnType<typeof prepare>> | undefined;
+        // Every call that wrote a reply, its Last turns too, for the cost; `latest`, those of the latest reply written.
         const written: GenerateResult[] = [];
+        let latest: GenerateResult[] = [];
         // What the latest reply written said of itself (#344, #345): its last lines, taken out before the Guardrails and the Candidate see them.
         let marks = { aboutJobbbox: false, couldNotAnswer: false };
         // What a Coach Action read, checked by the input Guardrail (#713): those checks count in the cost.
@@ -530,20 +562,51 @@ export function createCoach(deps: CoachDeps): Coach {
             redirect = offered.redirect();
           }
           written.push(result);
+          latest = [result];
           const { text, ...read } = readReplyMarks(result.text);
           marks = read;
-          const scope = await scopeOf(offered !== null, read.couldNotAnswer);
-          if (text.trim()) return { text, secrets: prepared.secrets, scope };
-          // No text at all (#784): the model ended on its tool calls, or wrote only the hidden lines. Never an empty reply,
-          // and never « Poser la question à l'équipe » for it (ADR-0109): only the model's own mark offers that.
-          const empty = emptyReplyText(options.language ?? "fr", proposals ?? [], declined);
-          marks = { ...read, couldNotAnswer: read.couldNotAnswer && empty.couldNotAnswer };
-          return { text: empty.text, secrets: prepared.secrets, scope };
+          if (text.trim()) return { text, secrets: prepared.secrets, scope: await scopeOf(offered !== null, read.couldNotAnswer) };
+          // No text at all (#784): the model ended on its tool calls, or wrote only the hidden lines. Never an empty reply.
+          // Its proposal, or the one refused, says it all.
+          const empty = emptyReplyText(language, proposals ?? [], declined);
+          if (empty !== null) {
+            marks = { ...read, couldNotAnswer: false };
+            return { text: empty, secrets: prepared.secrets, scope: await scopeOf(offered !== null, false) };
+          }
+          // Else its Last turn answers the request (ADR-0119, #1156), with no tools, from what its reads gave back.
+          const last = await lastTurn(system, result.tools?.runs ?? []);
+          const answered = last ? readReplyMarks(last.text) : null;
+          if (answered?.text) {
+            marks = { aboutJobbbox: answered.aboutJobbbox, couldNotAnswer: answered.couldNotAnswer };
+            return { text: answered.text, secrets: prepared.secrets, scope: await scopeOf(offered !== null, answered.couldNotAnswer) };
+          }
+          // The Last net: said with « Poser la question à l'équipe », its way on; the turn is flagged in the Activity.
+          marks = { aboutJobbbox: answered?.aboutJobbbox ?? read.aboutJobbbox, couldNotAnswer: true };
+          return { text: createI18n(language).t("coachPanel.emptyReply.lastNet"), secrets: prepared.secrets, scope: await scopeOf(offered !== null, true) };
         };
-        const latest = messages.at(-1)!.content;
-        const language = options.language ?? "fr";
+        /** The Last turn (ADR-0119): the reply's own system text, told to answer, with what its reads gave back; null when it failed. */
+        const lastTurn = async (system: string, runs: readonly ToolRunRecord[]): Promise<GenerateResult | null> => {
+          try {
+            const call = await recorder.ai.generate({
+              task: "coaching",
+              candidateId,
+              system: [system, LAST_TURN_RULE, readsText(runs)].filter(Boolean).join("\n\n"),
+              containsIdentity: false,
+              prompt: messages,
+              unusable: (reply) => (readReplyMarks(reply).text ? null : LAST_TURN_EMPTY),
+            });
+            written.push(call);
+            latest.push(call);
+            return call;
+          } catch (error) {
+            if (signal?.aborted) throw error;
+            warn("The AI Coach's last turn failed: the last net answered", { error: error instanceof Error ? error.name : "unknown" });
+            return null;
+          }
+        };
+        const asked = messages.at(-1)!.content;
         // A link in the latest message is read once, after the Guardrails let the message through, even when its reply is checked twice.
-        const link = deps.jobOfferLinks ? findJobOfferLink(latest) : null;
+        const link = deps.jobOfferLinks ? findJobOfferLink(asked) : null;
         let linked: JobOfferLinkResult | undefined;
         const answerLink = async (url: string) => {
           linked ??= await deps.jobOfferLinks!.read(candidateId, url, recorder);
@@ -558,7 +621,7 @@ export function createCoach(deps: CoachDeps): Coach {
               candidateId,
               language,
               ai: recorder.ai,
-              message: latest,
+              message: asked,
               ...(signal ? { signal } : {}),
               written: messages.filter((message) => message.role === "user").map((message) => message.content),
               reply,
@@ -596,8 +659,8 @@ export function createCoach(deps: CoachDeps): Coach {
           couldNotAnswer: !link && guarded.outcome === "replied" && marks.couldNotAnswer,
           contextTokens: prepared ? estimateTokens(prepared.system) + prepared.split.messages : null,
           contextSplit: prepared?.split ?? null,
-          callId: written.at(-1)?.callId ?? null,
-          ...(written.length > 0 ? { calls: replyCalls(calls, written.at(-1)) } : {}),
+          callId: latest.at(-1)?.callId ?? null,
+          ...(latest.length > 0 ? { calls: replyCalls(calls, latest) } : {}),
           // Only with the reply the Candidate sees: a blocked one proposes nothing.
           ...(proposals ? { proposals: guarded.outcome === "replied" ? proposals : [] } : {}),
           ...(redirect && guarded.outcome === "replied" ? { redirect } : {}),

@@ -15,7 +15,9 @@
 
 const YES = "[jobbbox:oui]";
 const NO = "[jobbbox:non]";
-const NOT_ANSWERED = "[sans-reponse]";
+/** The line that offers « Poser la question à l'équipe » (#345). */
+export const NOT_ANSWERED_MARK = "[sans-reponse]";
+const NOT_ANSWERED = NOT_ANSWERED_MARK;
 
 export const REPLY_MARKS_RULE = `Classement de la question : termine toujours ta réponse par une dernière ligne, seule, que le candidat ne verra pas : ${YES} si son dernier message demande comment utiliser Jobbbox (une page, un bouton, un terme de l'application, ses quotas, son compte, son abonnement, ses données), ${NO} sinon (un conseil sur sa recherche d'emploi, son CV, une candidature, un entretien).
 Question sans réponse : si tu ne peux pas répondre à sa question (l'information te manque, ou seule l'équipe Jobbbox peut y répondre : son compte, un paiement, un problème technique ; jamais une chose que le candidat fait lui-même dans Jobbbox), ajoute juste avant cette dernière ligne une ligne seule, que le candidat ne verra pas : ${NOT_ANSWERED}. Ne l'ajoute jamais quand tu as répondu.`;

@@ -67,7 +67,10 @@
 // reply holding "E2E_GUARDRAIL_ADVICE", nothing else; a message holding "E2E_GUARDRAIL_DOWN"
 // makes them fail with a 503, so the checks are unavailable; "E2E_GUARDRAIL_ECHO", with a 400 whose body echoes the key, an email and a long text. "E2E_GUARDRAIL_DISTRESS" in a message is
 // distress, "E2E_GUARDRAIL_LEAK" / "E2E_GUARDRAIL_SECRET" in a reply a leak / a secret.
-// "E2E_SCOPE_CHANGE" / "E2E_SCOPE_CONTENT" in a reply: a modification announced with no card / a content written in the reply (« Périmètre du coach », #1096).
+// "E2E_SCOPE_CHANGE" / "E2E_SCOPE_CONTENT" in a reply: a modification announced with no card / a content written in the reply (« Périmètre du coach », #1096);
+// "E2E_SCOPE_OFF_TOPIC" in a reply: a reply that does not answer the request (« hors sujet », #1156); "E2E_SCOPE_REFUSAL", asked
+// of a reply that says it cannot: a refusal with no reason nor alternative (check 3, the model's to judge, #1156). The output
+// check reads the reply alone, never what is given beside it (<demande>, <accompagne>).
 // A message holding "E2E_COACH_SAY=<text>" (to the end of the line) has the AI Coach or the Back Office
 // Assistant reply that text; written again (told its reply was blocked) it replies a clean text, unless the
 // message also holds "E2E_STUBBORN" ("[at]", "[sp]", "[dash]" in the text become "@", a space and "-", so a reply can hold
@@ -79,7 +82,8 @@
 // it, "Error: …"). Several markers (#788): each tool in turn, one a round, then the last one's result, which
 // "E2E_COACH_SLOW=<ms>" delays as it delays a reply. Asked for text only (tool_choice "none") before any call, it answers as
 // without the marker. With "E2E_COACH_SILENT" in the message too, its answer once the result came back holds no text but the
-// hidden mark line, "[jobbbox:non]", as Claude answered on the Beta (#784).
+// hidden mark line, "[jobbbox:non]", as Claude answered on the Beta (#784). Its Last turn then (#1156, ADR-0119: no tools, its
+// system text holding « Dernier tour : ») answers LAST_TURN_REPLY, or, with "E2E_COACH_SILENT_TWICE", nothing again.
 // "E2E_COACH_SLOW=<ms>" has the AI Coach's reply (not the Guardrails' checks) take that long, so the Coach Panel shows its
 // steps live; aborted meanwhile (the Candidate's Stop, #328), it rejects with the signal's reason, as fetch does.
 //
@@ -119,6 +123,9 @@ const realFetch = globalThis.fetch;
 /** Calls so far per scripted Tailored CV id (E2E_CV_REPLIES). */
 const scriptedCalls = new Map();
 
+/** What the AI Coach's Last turn answers a silent reply (#1156): the request taken up, why, and what instead. */
+const LAST_TURN_REPLY = "Je n'ai pas pu préparer de version plus concise de cette relance : sa lecture ne m'a pas suffi. Dites-moi ce que vous voulez garder, et je vous la proposerai.";
+
 globalThis.fetch = async (input, init) => {
   const url = input instanceof Request ? input.url : String(input);
   if (!url.startsWith("https://api.eu.mistral.ai/")) return realFetch(input, init);
@@ -135,6 +142,7 @@ globalThis.fetch = async (input, init) => {
 
   let content = "fake reply";
   const system = String(body.messages?.find((message) => message.role === "system")?.content ?? "");
+  if (system.includes("Dernier tour : ") && prompt.includes("E2E_COACH_SILENT")) return completion(body, prompt.includes("E2E_COACH_SILENT_TWICE") ? "[jobbbox:non]" : `${LAST_TURN_REPLY}\n[jobbbox:non]`);
   if (system.startsWith("Tu contrôles le message") || system.startsWith("Tu contrôles la réponse") || system.startsWith("Tu contrôles des données")) {
     if (prompt.includes("E2E_GUARDRAIL_DOWN")) return new Response("upstream unavailable", { status: 503 });
     // Only the per-reason count test (#262) asks for this, so its rate_limited count grows by its own calls alone.
@@ -149,17 +157,23 @@ globalThis.fetch = async (input, init) => {
     if (prompt.includes("E2E_GUARDRAIL_GARBLED")) return completion(body, "this is not a verdict");
     // A provider refusing with an error that echoes the key, an email address and a long text (#259: stored scrubbed, redacted and cut).
     if (prompt.includes("E2E_GUARDRAIL_ECHO")) return new Response(`invalid key e2e-mistral-key for contact echo.person@example.fr ${"padding text ".repeat(80)}END_OF_ECHO`, { status: 400 });
+    // The reply alone: never the Candidate's request the output check is given beside it for « hors sujet ».
+    const judged = /<reponse>([\s\S]*)<\/reponse>/.exec(prompt)?.[1] ?? prompt;
     const verdict = system.startsWith("Tu contrôles le message")
       ? { prompt_injection: prompt.includes("E2E_GUARDRAIL_INJECTION"), distress: prompt.includes("E2E_GUARDRAIL_DISTRESS") }
       : system.startsWith("Tu contrôles des données")
         ? { prompt_injection: prompt.includes("E2E_GUARDRAIL_INJECTION") }
       : {
-          harmful_advice: prompt.includes("E2E_GUARDRAIL_ADVICE"),
-          personal_data_leak: prompt.includes("E2E_GUARDRAIL_LEAK"),
-          secret_disclosure: prompt.includes("E2E_GUARDRAIL_SECRET"),
-          // « Périmètre du coach »'s checks 1 and 2 (#1096, ADR-0114): a modification announced with no card, a content written in the reply.
-          coach_scope_change: prompt.includes("E2E_SCOPE_CHANGE"),
-          coach_scope_content: prompt.includes("E2E_SCOPE_CONTENT"),
+          harmful_advice: judged.includes("E2E_GUARDRAIL_ADVICE"),
+          personal_data_leak: judged.includes("E2E_GUARDRAIL_LEAK"),
+          secret_disclosure: judged.includes("E2E_GUARDRAIL_SECRET"),
+          // « Périmètre du coach »'s checks 1, 2, 5 and 3 (#1096, ADR-0114, ADR-0119): a modification announced with no card, a
+          // content written in the reply, a reply that does not answer the request, a refusal with no reason nor alternative.
+          coach_scope_change: judged.includes("E2E_SCOPE_CHANGE"),
+          coach_scope_content: judged.includes("E2E_SCOPE_CONTENT"),
+          coach_scope_off_topic: judged.includes("E2E_SCOPE_OFF_TOPIC"),
+          // Check 3 also finds the refusals with no reason of « Périmètre du coach »'s Eval Cases, played when a setting is saved.
+          coach_scope_refusal: judged.includes("E2E_SCOPE_REFUSAL") || /I can't rewrite them here|recherche précise de contacts|coordonnées exactes/.test(judged),
         };
     return completion(body, JSON.stringify(verdict));
   }

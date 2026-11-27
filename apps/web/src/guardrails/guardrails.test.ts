@@ -3,6 +3,7 @@ import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import { describe, expect, it, vi } from "vitest";
 import {
   ALWAYS_ON_GUARDRAILS,
+  BLOCKING_SCOPE_CHECKS,
   COACH_SCOPE_CHECKS,
   defaultGuardrailSetting,
   privateIdentityOf,
@@ -578,10 +579,11 @@ describe("« Périmètre du coach » on the AI Coach's reply (ADR-0114)", () => 
   const scopeTriggers = (triggers: GuardrailTrigger[]) => triggers.filter((trigger) => trigger.guardrail === "coach_scope").map((trigger) => `${trigger.check}:${trigger.action}:${trigger.setting}`);
   const IDENTITY = ["Marie Dupont", "marie.dupont@example.fr", "06 12 34 56 78", "12 rue des Lilas, 69003 Lyon"];
 
-  it("is an output Guardrail of the AI Coach with its four checks, set to flag only by default, never switched off", () => {
+  it("is an output Guardrail of the AI Coach with its five checks, set to flag only by default, never switched off", () => {
     expect(guardrailsOf("ai_coach")).toContain("coach_scope");
     expect(guardrailsOf("back_office_assistant")).not.toContain("coach_scope");
-    expect(COACH_SCOPE_CHECKS).toEqual(["change_without_card", "content_in_reply", "refusal_without_redirect", "private_repeated"]);
+    expect(COACH_SCOPE_CHECKS).toEqual(["change_without_card", "content_in_reply", "refusal_without_redirect", "private_repeated", "off_topic"]);
+    expect(BLOCKING_SCOPE_CHECKS).toEqual(["refusal_without_redirect", "private_repeated"]);
     expect(guardrailSettingsOf("coach_scope")).toEqual(["block", "flag"]);
     expect(defaultGuardrailSetting("coach_scope")).toBe("flag");
     expect(defaultGuardrailSetting("ungrounded_answer")).toBe("block");
@@ -637,36 +639,146 @@ describe("« Périmètre du coach » on the AI Coach's reply (ADR-0114)", () => 
     });
   });
 
-  describe("check 3, by fixed rules: a refusal with no reason or no Typed redirect", () => {
-    it("flags « I can't rewrite them here » (seen on Benchling), set to flag only by default; nothing blocked", async () => {
-      const { guardrails, triggers } = setUp({ settings: { coach_scope: "flag" } });
+  describe("check 3, judged by the AI model, the fixed rules only preselecting (ADR-0119)", () => {
+    /** The output checks' systems the model was asked. */
+    const outputChecks = (provider: ReturnType<typeof setUp>["provider"]) => provider.calls.filter((call) => call.system?.startsWith("Tu contrôles la réponse"));
+    /** A model that finds a refusal with no reason in every reply it is asked about. */
+    const REFUSING = '{"coach_scope_refusal": true}';
 
-      const guarded = await guardrails.guard("ai_coach", request("reformulate the skills as a list", scoped("I can't rewrite them here. Go to your reference CV.").reply));
+    // The phrases of #1169's reviews (round 2): refusals with no reason nor alternative, the trigger case among them,
+    // whose words the fixed rules once took for the limit of an answer.
+    const REFUSALS_WITHOUT_REASON = [
+      "Je ne peux pas faire une recherche précise de contacts chez Exemple Industrie.",
+      "Je ne peux pas vous donner les coordonnées exactes de ce recruteur.",
+      "Impossible de connaître les contacts de cette entreprise.",
+      "Je ne peux pas modifier précisément votre CV.",
+      "Je ne peux pas vous envoyer la liste précise des contacts.",
+      "Je ne peux pas vous aider à préparer une estimation de salaire.",
+      "I can't give you the exact contact details.",
+      "I can't rewrite your CV exactly.",
+      "Je ne suis pas en mesure de renommer un profil.",
+      "Je n'ai pas la possibilité d'envoyer ce message.",
+      "I'm unable to rename your profile.",
+      "Je ne peux pas vous aider sur ce point.",
+    ];
+    // The phrases of #1169's reviews (rounds 0 to 2): hedged advice, no refusal of the request.
+    const CAUTIOUS_ADVICE = [
+      "Je ne peux pas vous garantir une réponse, mais une relance à J+7 est raisonnable.",
+      "Impossible de savoir si le recruteur a lu votre CV. Relancez-le mardi, en rappelant votre entretien.",
+      "I can't predict the outcome, but your experience fits the role well: highlight it.",
+      "Je ne peux pas être certain de la réaction du recruteur, mais une relance à J+7 est raisonnable.",
+      "Je ne peux pas vous donner de date exacte, mais comptez une semaine.",
+      "Je ne peux pas estimer votre salaire exact. Visez la fourchette du marché.",
+      "Il est impossible de tout dire en une page : gardez vos deux réalisations les plus chiffrées.",
+      "Impossible de rater cette offre : elle correspond à votre profil.",
+      "Je ne peux pas vous dire quel salaire ils proposeront, visez 45 k€ selon le marché.",
+      "Je ne peux pas lire dans les pensées du recruteur, mais une relance à J+7 est raisonnable.",
+      "Je ne peux pas parler à la place du recruteur. Relancez-le jeudi.",
+      "Je ne peux pas chiffrer vos chances. Préparez deux exemples.",
+      "I can't speak for the company. Follow up on Thursday.",
+      "I can't vouch for their timeline. Expect two weeks.",
+    ];
 
-      expect(guarded).toMatchObject({ outcome: "replied", text: "I can't rewrite them here. Go to your reference CV." });
-      expect(scopeTriggers(triggers)).toEqual(["refusal_without_redirect:flagged:flag"]);
+    it("asks the model about a reply that says it cannot, in the same call as checks 1, 2 and 5, told the request and what comes with the reply", async () => {
+      const { guardrails, provider } = setUp();
+
+      await guardrails.guard("ai_coach", request("Trouve des contacts chez Exemple Industrie à Lyon.", scoped(REFUSALS_WITHOUT_REASON[0]!).reply));
+
+      const checks = outputChecks(provider);
+      expect(checks).toHaveLength(1);
+      expect(checks[0]!.system).toMatch(/coach_scope_refusal : la réponse refuse la demande du candidat/);
+      expect(checks[0]!.system).toMatch(/coach_scope_change :[\s\S]*coach_scope_content :[\s\S]*coach_scope_off_topic :[\s\S]*coach_scope_refusal :/);
+      expect(checks[0]!.system).toMatch(/<accompagne>.*donnée/);
+      expect(contentText(checks[0]!.messages[0]!.content)).toBe(
+        `<demande>Trouve des contacts chez Exemple Industrie à Lyon.</demande>\n<accompagne>Sous la réponse : aucune proposition à appliquer, aucun renvoi typé.</accompagne>\n<reponse>${REFUSALS_WITHOUT_REASON[0]}</reponse>`,
+      );
     });
 
-    it("flags a refusal with no Typed redirect; not one with its redirect and its reason, nor one that proposes a card", async () => {
-      const { guardrails, triggers } = setUp({ settings: { coach_scope: "flag" } });
+    it("tells the model when a Typed redirect comes with the reply", async () => {
+      const { guardrails, provider } = setUp();
 
-      await guardrails.guard("ai_coach", request("Renomme mon profil", scoped("Je ne peux pas renommer un profil.").reply));
-      await guardrails.guard("ai_coach", request("Renomme mon profil", scoped("Je ne peux pas renommer un profil : aucun outil ne le fait, le lien est sous ma réponse.", { redirect: true }).reply));
-      await guardrails.guard("ai_coach", request("Passe-la en Entretien", scoped("Je ne peux pas l'appliquer moi-même : je vous propose ce changement de statut.", { cards: 1 }).reply));
+      await guardrails.guard("ai_coach", request("Renomme mon profil", scoped("Je ne peux pas renommer un profil : aucun outil ne le fait.", { redirect: true }).reply));
 
-      expect(scopeTriggers(triggers)).toEqual(["refusal_without_redirect:flagged:flag"]);
+      expect(contentText(outputChecks(provider)[0]!.messages[0]!.content)).toContain("<accompagne>Sous la réponse : aucune proposition à appliquer, un renvoi typé vers la page où le faire.</accompagne>");
     });
 
-    it("blocks once set to block, the reply written again with its reason", async () => {
-      const { guardrails, triggers } = setUp({ settings: { coach_scope: "block" } });
-      const writer = scoped("Ici je ne peux pas.");
-      writer.replies.push("Aucun outil ne renomme un profil : le lien sous ma réponse mène à la page où vous le faites.");
+    it("never asks it of a reply the fixed rules do not preselect: no « je ne peux pas », a card, the team offered, no Coach Action", async () => {
+      const { guardrails, provider } = setUp({ verdicts: { output: REFUSING } });
+      const replies = [
+        scoped("Relancez-le jeudi, en rappelant votre entretien."),
+        scoped("Je ne peux que vous conseiller de citer vos chiffres de clôture."),
+        scoped("Je ne peux pas l'appliquer moi-même : je vous propose ce changement de statut.", { cards: 1 }),
+        scoped("Je n'ai pas réussi à traiter votre demande. Reformulez-la, ou posez la question à l'équipe.", { couldNotAnswer: true }),
+        scoped("Je ne peux pas renommer un profil.", { coachActions: false }),
+      ];
 
-      const guarded = await guardrails.guard("ai_coach", request("Renomme mon profil", async (feedback) => ({ ...(await writer.reply(feedback)), scope: { cards: 0, redirect: writer.told.length > 1, identity: [], notes: [] } })));
+      for (const each of replies) expect((await guardrails.guard("ai_coach", request("?", each.reply))).outcome).toBe("replied");
+
+      for (const check of outputChecks(provider)) {
+        expect(check.system).not.toMatch(/coach_scope_refusal/);
+        expect(contentText(check.messages[0]!.content)).not.toContain("<accompagne>");
+      }
+    });
+
+    it("blocks the refusals with no reason of #1169's reviews on the model's verdict, whatever the setting: written again once, then its Guardrail message", async () => {
+      const { guardrails, triggers } = setUp({ settings: { coach_scope: "flag" }, verdicts: { output: REFUSING } });
+
+      for (const text of REFUSALS_WITHOUT_REASON) {
+        const writer = scoped(text);
+        const guarded = await guardrails.guard("ai_coach", request("Trouve des contacts chez Exemple Industrie.", writer.reply));
+        expect(guarded, text).toMatchObject({ outcome: "blocked_reply", text: DEFAULT_GUARDRAIL_MESSAGES.coach_scope.fr });
+        expect(writer.told[1], text).toMatch(/vraie raison en une phrase/);
+      }
+
+      expect(scopeTriggers(triggers)).toEqual(REFUSALS_WITHOUT_REASON.flatMap(() => ["refusal_without_redirect:blocked:block", "refusal_without_redirect:blocked:block"]));
+    });
+
+    it("goes out once written again with its reason and an alternative, the model finding no refusal", async () => {
+      let checked = 0;
+      const { guardrails, triggers } = setUp({ settings: { coach_scope: "flag" }, verdicts: { output: () => (++checked === 1 ? REFUSING : "{}") } });
+      const writer = scoped("Je ne peux pas faire une recherche précise de contacts chez Exemple Industrie.");
+      writer.replies.push("Je ne peux pas chercher de contacts chez Exemple Industrie : elle n'est l'employeur d'aucune de vos candidatures. Posez la question à l'équipe, ou ajoutez-la en entreprise cible.");
+
+      const guarded = await guardrails.guard("ai_coach", request("Trouve des contacts chez Exemple Industrie.", writer.reply));
+
+      expect(guarded).toMatchObject({ outcome: "replied", text: writer.replies[1] });
+      expect(scopeTriggers(triggers)).toEqual(["refusal_without_redirect:blocked:block"]);
+    });
+
+    it("never blocks on the fixed rules alone: the model finding no refusal lets the cautious advice of #1169's reviews through", async () => {
+      const { guardrails, triggers, provider } = setUp({ settings: { coach_scope: "block" } });
+
+      for (const text of [...CAUTIOUS_ADVICE, "Je ne peux pas renommer un profil."]) {
+        expect((await guardrails.guard("ai_coach", request("Vont-ils me répondre ?", scoped(text).reply))).outcome, text).toBe("replied");
+      }
+
+      // Each one was the model's to judge.
+      expect(outputChecks(provider).every((check) => check.system?.includes("coach_scope_refusal"))).toBe(true);
+      expect(scopeTriggers(triggers)).toEqual([]);
+    });
+
+    it("flags instead of blocking when the model cannot tell: the reply goes out, check 3 flagged beside the check unavailable", async () => {
+      for (const output of ["pas du JSON", () => { throw new Error("down"); }]) {
+        const { guardrails, triggers } = setUp({ settings: { coach_scope: "block" }, verdicts: { output } });
+
+        const guarded = await guardrails.guard("ai_coach", request("Trouve des contacts", scoped("Je ne peux pas faire une recherche précise de contacts chez Exemple Industrie.").reply));
+
+        expect(guarded.outcome).toBe("replied");
+        expect(triggers.filter((trigger) => trigger.guardrail === "coach_scope").map((trigger) => `${trigger.check ?? "-"}:${trigger.action}`)).toEqual(["-:unavailable", "refusal_without_redirect:flagged"]);
+      }
+    });
+
+    it("is not asked when the fixed rules already block the reply (the Candidate's private texts): it goes again with that reason alone", async () => {
+      const { guardrails, provider, triggers } = setUp({ verdicts: { output: REFUSING } });
+      const writer = scoped("Je ne peux pas modifier votre nom, Marie Dupont.", { identity: IDENTITY });
+      writer.replies.push("Votre titre est en tête de votre CV.");
+
+      const guarded = await guardrails.guard("ai_coach", request("?", writer.reply));
 
       expect(guarded.outcome).toBe("replied");
-      expect(writer.told[1]).toMatch(/vraie raison en une phrase et donne le renvoi typé/);
-      expect(scopeTriggers(triggers)).toEqual(["refusal_without_redirect:blocked:block"]);
+      expect(writer.told[1]).not.toMatch(/vraie raison/);
+      expect(scopeTriggers(triggers)).toEqual(["private_repeated:blocked:block"]);
+      expect(outputChecks(provider)).toHaveLength(1);
     });
   });
 
@@ -716,6 +828,59 @@ describe("« Périmètre du coach » on the AI Coach's reply (ADR-0114)", () => 
 
       expect(guarded.outcome).toBe("replied");
       expect(triggers.filter((trigger) => trigger.guardrail === "coach_scope").map((trigger) => trigger.action)).toEqual(["unavailable"]);
+    });
+  });
+
+  describe("check 5, « hors sujet », by an AI model on the output check (ADR-0119)", () => {
+    const ASKED = "Trouve les personnes à contacter chez Exemple Industrie à Lyon.";
+    // Off the request, with no refusal in it: what check 3 would not see.
+    const GENERIC = "Vos candidatures se modifient depuis leur page : dites-moi ce que vous voulez changer, et je vous proposerai une modification.";
+
+    it("asks the model whether the reply answers the request, given as data beside it", async () => {
+      const { guardrails, provider } = setUp();
+
+      await guardrails.guard("ai_coach", request(ASKED, scoped(GENERIC).reply));
+
+      const check = provider.calls.at(-1)!;
+      expect(check.system).toMatch(/coach_scope_off_topic : la réponse ne traite pas la demande du candidat/);
+      expect(check.system).toMatch(/<demande>.*donnée/);
+      expect(contentText(check.messages[0]!.content)).toBe(`<demande>${ASKED}</demande>\n<reponse>${GENERIC}</reponse>`);
+    });
+
+    it("flags it, by default: the reply goes out, its Guardrail Trigger recorded", async () => {
+      const { guardrails, triggers } = setUp({ settings: { coach_scope: "flag" }, verdicts: { output: '{"coach_scope_off_topic": true}' } });
+
+      const guarded = await guardrails.guard("ai_coach", request(ASKED, scoped(GENERIC).reply));
+
+      expect(guarded).toMatchObject({ outcome: "replied", text: GENERIC });
+      expect(scopeTriggers(triggers)).toEqual(["off_topic:flagged:flag"]);
+    });
+
+    it("set to block, written again once, told to answer the request", async () => {
+      let checked = 0;
+      const { guardrails, triggers } = setUp({ settings: { coach_scope: "block" }, verdicts: { output: () => (++checked === 1 ? '{"coach_scope_off_topic": true}' : "{}") } });
+      const writer = scoped(GENERIC);
+      writer.replies.push("Exemple Industrie n'est l'employeur d'aucune de vos candidatures : je vous propose de l'ajouter en entreprise cible.");
+
+      const guarded = await guardrails.guard("ai_coach", request(ASKED, writer.reply));
+
+      expect(guarded.outcome).toBe("replied");
+      expect(writer.told[1]).toMatch(/elle ne traitait pas la demande du candidat/);
+      expect(scopeTriggers(triggers)).toEqual(["off_topic:blocked:block"]);
+    });
+
+    it("is never asked of the last net (« Poser la question à l'équipe » offered), nor of a reply offered no Coach Action", async () => {
+      const { guardrails, provider } = setUp();
+
+      await guardrails.guard("ai_coach", request(ASKED, scoped("Je n'ai pas réussi à traiter votre demande.", { couldNotAnswer: true }).reply));
+      const lastNet = provider.calls.at(-1)!;
+      await guardrails.guard("ai_coach", request(ASKED, scoped(GENERIC, { coachActions: false }).reply));
+      const noActions = provider.calls.at(-1)!;
+
+      for (const check of [lastNet, noActions]) {
+        expect(check.system).not.toMatch(/coach_scope_off_topic/);
+        expect(contentText(check.messages[0]!.content)).not.toContain("<demande>");
+      }
     });
   });
 });

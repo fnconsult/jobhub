@@ -10,7 +10,10 @@ import * as z from "zod";
 import { COACH_ACTION_READS_MAX_TOKENS, createCoachActions, defineCoachAction, type CoachAction, type CoachActionsSettings } from "../coach-actions";
 import { createGuardrails, DEFAULT_GUARDRAIL_MESSAGES, GUARDRAIL_IDS, type GuardrailId, type GuardrailSetting, type GuardrailTrigger } from "../guardrails";
 import { PROFILE_ACTIONS } from "../coach-actions/profile";
-import { createCoach, emptyReplyText, type CoachContextSource, type CoachFocus } from "./index";
+import { resources } from "@jobhub/shared/i18n";
+import { createCoach, emptyReplyText, LAST_TURN_RULE, type CoachContextSource, type CoachFocus } from "./index";
+
+const { fr, en } = { fr: resources.fr.translation, en: resources.en.translation };
 
 const APPLICATIONS: Record<string, { id: string; title: string; status: string; posting: string }[]> = {
   marie: [{ id: "a1", title: "DAF H/F", status: "interview", posting: "Rattaché au DG, vous pilotez la clôture mensuelle." }],
@@ -292,23 +295,68 @@ describe("a reply with no text never reaches the Candidate empty (#784)", () => 
     expect(replied.reply).toMatch(/^Je n'ai pas pu préparer cette modification telle quelle\./);
   });
 
-  it("no tool, no text: it says what it could not do and where the Candidate does it, never « Poser la question à l'équipe » (ADR-0109)", async () => {
-    const { coach } = setUp({ turns: [{ text: "" }] });
+  it("no tool, no text: one more turn, with no tools, told to answer the request; its text is the reply (#1156, ADR-0119)", async () => {
+    const answered = "Je n'ai trouvé aucune candidature chez Exemple Industrie : je ne peux donc pas lire ses contacts. Je vous propose de l'ajouter en entreprise cible de votre profil.";
+    const { coach, coachCalls, usage } = setUp({ turns: [{ text: "" }, { text: `${answered}\n[jobbbox:non]` }] });
 
-    const replied = await ask(coach);
+    const replied = await ask(coach, "Trouve les personnes à contacter chez Exemple Industrie à Lyon.");
 
-    expect(replied).toMatchObject({ ok: true, couldNotAnswer: false });
+    expect(replied).toMatchObject({ ok: true, reply: answered, couldNotAnswer: false });
+    const [first, last] = coachCalls();
+    expect(coachCalls()).toHaveLength(2);
+    expect(first).toHaveProperty("tools");
+    expect(last).not.toHaveProperty("tools");
+    expect(last!.system).toContain(LAST_TURN_RULE);
+    expect(last!.system).toMatch(/ce que tu as trouvé ou fait.*ce que tu ne peux pas faire et pourquoi.*ce que tu proposes à la place/s);
+    // Answered: nothing flagged.
+    expect(usage.entries.filter((entry) => entry.task === "coaching").map((entry) => entry.outcome)).toEqual(["ok", "ok"]);
     if (!replied.ok) throw new Error("no reply");
-    expect(replied.reply).toMatch(/^Je n'ai pas pu préparer de réponse à cette demande\./);
-    expect(replied.reply).toContain("depuis la page concernée");
+    // Both turns count in the reply's calls (#790).
+    expect(replied.calls?.turns).toHaveLength(2);
   });
 
-  it("reads its drafts, then writes nothing but its hidden lines (as on the Beta): no « Poser la question à l'équipe » either", async () => {
-    const { coach } = setUp({ turns: [{ toolCalls: [{ name: "lire_candidature", arguments: { id: "a1" } }] }, { text: "[jobbbox:non]" }] });
+  it("its reads made, no text: the last turn is told, as data, what they gave back", async () => {
+    const { coach, coachCalls } = setUp({ turns: [{ toolCalls: [{ name: "lire_candidature", arguments: { id: "a1" } }] }, { text: "[jobbbox:non]" }, { text: "Votre candidature a1 est au stade de l'entretien." }] });
 
     const replied = await ask(coach, "Retravaille la proposition de relance de façon plus concise.");
 
-    expect(replied).toMatchObject({ ok: true, couldNotAnswer: false, proposals: [] });
+    expect(replied).toMatchObject({ ok: true, reply: "Votre candidature a1 est au stade de l'entretien.", couldNotAnswer: false, proposals: [] });
+    const last = coachCalls().at(-1)!;
+    expect(last).not.toHaveProperty("tools");
+    expect(last.system).toMatch(/<lectures>[\s\S]*lire_candidature[\s\S]*Rattaché au DG[\s\S]*<\/lectures>/);
+    if (!replied.ok) throw new Error("no reply");
+    expect(replied.calls).toMatchObject({ rounds: 1, tools: ["lire_candidature"] });
+  });
+
+  it("no text twice: the last net, with « Poser la question à l'équipe », its last turn flagged in the Activity (ADR-0119)", async () => {
+    const { coach, usage } = setUp({ turns: [{ toolCalls: [{ name: "lire_candidature", arguments: { id: "a1" } }] }, { text: "[jobbbox:non]" }] });
+
+    const replied = await ask(coach, "Trouve les personnes à contacter chez Exemple Industrie à Lyon.");
+
+    expect(replied).toMatchObject({ ok: true, reply: "Je n'ai pas réussi à traiter votre demande. Reformulez-la, ou posez la question à l'équipe.", couldNotAnswer: true });
+    if (!replied.ok) throw new Error("no reply");
+    expect(replied.provenance.steps.filter((step) => step.outcome === "warning")).toEqual([expect.objectContaining({ kind: "ai", task: "coaching", outcome: "warning" })]);
+    expect(usage.entries.filter((entry) => entry.task === "coaching").at(-1)).toMatchObject({ outcome: "warning", reason: "coach_reply_empty" });
+  });
+
+  it("the last net in English, and through the Guardrails: never blocked as a refusal (check 3)", async () => {
+    const { coach, triggers } = setUp({ turns: [{ text: "" }], guarded: true });
+
+    const replied = await coach.reply("marie", { messages: [{ from: "candidate", text: "Find me contacts at Exemple Industrie." }] }, { language: "en" });
+
+    expect(replied).toMatchObject({ ok: true, outcome: "replied", reply: "I couldn't handle your request. Rephrase it, or ask the team.", couldNotAnswer: true });
+    // The fake answers the checks with no verdict either: none blocked nor flagged.
+    expect(triggers.filter((trigger) => trigger.action !== "unavailable")).toEqual([]);
+  });
+
+  it("its last turn failing: the last net too, the failed step in the Activity", async () => {
+    const { coach } = setUp({ turns: [{ text: "" }, { fail: new Error("down") }] });
+
+    const replied = await ask(coach);
+
+    expect(replied).toMatchObject({ ok: true, couldNotAnswer: true, reply: expect.stringMatching(/^Je n'ai pas réussi à traiter votre demande\./) });
+    if (!replied.ok) throw new Error("no reply");
+    expect(replied.provenance.steps.map((step) => step.outcome)).toContain("failed");
   });
 
   it("told it to draft or rework a document, it learns read_draft and propose_draft_text, and to name the page for what it cannot do", async () => {
@@ -436,10 +484,14 @@ describe("where a Declared Fact is looked for (ADR-0113)", () => {
 
 describe("emptyReplyText (#784)", () => {
   it("a Master CV proposal declined: says what the Master CV takes, and where the Candidate adds a skill themselves", () => {
-    const { text, couldNotAnswer } = emptyReplyText("fr", [], [PROFILE_ACTIONS.masterCv]);
-    expect(couldNotAnswer).toBe(false);
-    expect(text).toContain("section « CV de référence »");
-    expect(emptyReplyText("en", [], [PROFILE_ACTIONS.masterCv]).text).toContain("« Master CV » section");
+    expect(emptyReplyText("fr", [], [PROFILE_ACTIONS.masterCv])).toContain("section « CV de référence »");
+    expect(emptyReplyText("en", [], [PROFILE_ACTIONS.masterCv])).toContain("« Master CV » section");
+  });
+
+  it("nothing proposed nor declined: no generic text, the last turn answers (#1156)", () => {
+    expect(emptyReplyText("fr", [], [])).toBeNull();
+    expect(fr.coachPanel.emptyReply).not.toHaveProperty("none");
+    expect(en.coachPanel.emptyReply).not.toHaveProperty("none");
   });
 });
 

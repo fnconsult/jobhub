@@ -1653,7 +1653,7 @@
       "proposed": "I propose this change below: review it, then apply or ignore it. Nothing changes without you.",
       "masterCvNotProposed": "I couldn't prepare this change. I only propose what your Master CV already says, never an item, skill or figure it doesn't hold. To add skills or tools, write them yourself in the « Master CV » section of your profile, then save a new version.",
       "notProposed": "I couldn't prepare this change as asked. Tell me precisely what you want to change, or make it from the page concerned.",
-      "none": "I could not prepare an answer to this request. What I cannot change myself is changed from the page concerned (the application and its sections, your profile): tell me exactly what you want to change, and I will propose what I can."
+      "lastNet": "I couldn't handle your request. Rephrase it, or ask the team."
     },
     "jobOfferLink": {
       "read": "I read this job offer and added it to Jobbbox. It is to be processed: open it to see its Match Score and follow it with one of your profiles.",
@@ -3744,7 +3744,7 @@
         "distress": "A Candidate who expresses serious distress: they get the 3114 message. No one is alerted.",
         "email_injection": "An email Email intake receives that tries to give instructions to the AI reading it, or to obtain the Candidate's contact details: an unauthenticated sender, an email too long, hidden text carrying instructions, known injection patterns, then a check by a model (redacted). Blocked, it is not read, gives no job offer and is set aside by a guardrail. Whatever this setting, a reading that gives an email address, phone number or person's name taken from the email, a link absent from the email or more than 30 offers is always set aside.",
         "ungrounded_answer": "An AI Coach reply that ranks job offers or says whether an offer, an application or a piece of advice suits the candidate without citing their skills, experience or criteria, or that claims not to have the reasons for a score or their CV. Blocked, it is written again once; if it still is, the message below is shown.",
-        "coach_scope": "An AI Coach reply that goes beyond what it can do: (1) a change announced with no card (“done”); (2) a CV, a letter, a message, a note or a reply to an email written in the reply instead of a card; (3) a refusal with no reason or no redirect to the page where to do it; (4) the reference CV's identity or a coach's private note repeated in the reply. Checks 3 and 4 use fixed rules, checks 1 and 2 an AI model (anonymised). Check 4 always blocks; checks 1 to 3 follow this setting, “flag only” by default. When blocked, the reply is written again once with the reason; if it still is, the message below is shown.",
+        "coach_scope": "An AI Coach reply that goes beyond what it can do: (1) a change announced with no card (“done”); (2) a CV, a letter, a message, a note or a reply to an email written in the reply instead of a card; (3) a refusal with no reason or no alternative (a card, a redirect to the page where to do it, “Ask the team” or what the coach does instead); (4) the reference CV's identity or a coach's private note repeated in the reply; (5) off topic: a reply that does not answer the candidate's request. Check 4 uses fixed rules, checks 1, 2, 3 and 5 an AI model (anonymised), to which check 3 only submits a reply that says it cannot. Checks 3 and 4 always block, check 3 only flags when the model does not answer; checks 1, 2 and 5 follow this setting, “flag only” by default. When blocked, the reply is written again once with the reason; if it still is, the message below is shown.",
         "candidate_data_in_issue": "An issue, or a comment, that the Signalement triage agent proposes and Jobbbox publishes on the public GitHub repository: the Candidate's identity, email or phone, or a word-for-word quote of their message. Fixed rules, after redaction: nothing is published, and the agent gets the reason to write its text again. This guardrail can never be switched off."
       },
       "languages": {
@@ -5905,6 +5905,7 @@
     "summary_changes_unusable": "Rewritten summary not understood: the summary stays as it was",
     "match_score_text_unread": "Job Offer text unread: Match Score from its structured data only",
     "match_score_too_slow": "Job Offer reading too slow: Match Score from its structured data only",
+    "coach_reply_empty": "The coach wrote nothing, even on its last turn: the last net answered",
     "test_failed": "Connection test failed",
     "test_expired": "Test sign-in expired",
     "not_tested": "Enabled without a passed test sign-in",

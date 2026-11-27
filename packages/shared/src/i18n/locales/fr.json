@@ -7329,7 +7329,10 @@
       "dossierEmployer": "Employeur du dossier entreprise",
       "employerName": "Nom de l'entreprise ou SIREN",
       "contactSearch": "Recherche de contacts",
-      "enrichedContact": "Contact enrichi"
+      "enrichedContact": "Contact enrichi",
+      "targetCompany": "Entreprise cible",
+      "targetCompanyDossier": "Dossier entreprise de {{company}}",
+      "spontaneousApplication": "Candidature spontanée"
     },
     "interview": {
       "none": "Aucun",
@@ -7369,7 +7372,12 @@
       "noPeople": "Aucune personne trouvée",
       "peopleAt": "Les personnes qui occupent les fonctions à contacter chez {{employer}}, sans leurs coordonnées",
       "personFound": "{{person}} : trouvé, sans coordonnées",
-      "personRevealed": "Ses coordonnées, à lire dans Contacts"
+      "personRevealed": "Ses coordonnées, à lire dans Contacts",
+      "notTargetCompany": "Pas dans les entreprises cibles du profil « {{profile}} »",
+      "targetCompanyAdded": "{{company}}, ajoutée aux entreprises cibles du profil « {{profile}} »",
+      "registeredCompany": "{{name}} (SIREN {{siren}})",
+      "noSpontaneousApplication": "Aucune candidature spontanée",
+      "spontaneousApplicationPrepared": "Préparée chez {{company}}, pour le poste du profil : son dossier entreprise, ses contacts et ses documents"
     },
     "quota": {
       "jobSearch": "1 recherche sur {{limit}} cette semaine : il vous en restera {{left}}",
@@ -7481,7 +7489,8 @@
       "application": "Candidature {{name}}",
       "applications": "Mes candidatures",
       "account": "Mon compte",
-      "coach": "Coach"
+      "coach": "Coach",
+      "subscription": "Abonnement"
     },
     "sections": {
       "searchCriteria": "Critères de recherche",
@@ -7497,6 +7506,8 @@
       "search_criteria": "Vos critères",
       "job_offer_unpublished": "Signaler que l'offre n'est plus publiée",
       "interview_delete": "Supprimer l'entretien",
+      "company_dossier": "Dossier entreprise",
+      "plan": "Changer d'offre",
       "coach_memory": "Mémoire du coach",
       "coach_conversation_delete": "Supprimer la conversation",
       "account_delete": "Supprimer mon compte"

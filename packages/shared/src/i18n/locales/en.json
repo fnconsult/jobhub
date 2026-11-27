@@ -7329,7 +7329,10 @@
       "dossierEmployer": "Company dossier's employer",
       "employerName": "Company name or SIREN",
       "contactSearch": "Contact search",
-      "enrichedContact": "Enriched contact"
+      "enrichedContact": "Enriched contact",
+      "targetCompany": "Target company",
+      "targetCompanyDossier": "Company dossier of {{company}}",
+      "spontaneousApplication": "Spontaneous application"
     },
     "interview": {
       "none": "None",
@@ -7369,7 +7372,12 @@
       "noPeople": "Nobody found",
       "peopleAt": "The people holding the roles to contact at {{employer}}, without their details",
       "personFound": "{{person}}: found, no details",
-      "personRevealed": "Their details, to read in Contacts"
+      "personRevealed": "Their details, to read in Contacts",
+      "notTargetCompany": "Not among the target companies of the profile “{{profile}}”",
+      "targetCompanyAdded": "{{company}}, added to the target companies of the profile “{{profile}}”",
+      "registeredCompany": "{{name}} (SIREN {{siren}})",
+      "noSpontaneousApplication": "No spontaneous application",
+      "spontaneousApplicationPrepared": "Prepared at {{company}}, for the profile's job: its company dossier, its contacts and its documents"
     },
     "quota": {
       "jobSearch": "1 search of {{limit}} this week: {{left}} left after it",
@@ -7481,7 +7489,8 @@
       "application": "Application {{name}}",
       "applications": "My applications",
       "account": "My account",
-      "coach": "Coach"
+      "coach": "Coach",
+      "subscription": "Subscription"
     },
     "sections": {
       "searchCriteria": "Search criteria",
@@ -7497,6 +7506,8 @@
       "search_criteria": "Your criteria",
       "job_offer_unpublished": "Report that the offer is no longer published",
       "interview_delete": "Delete the interview",
+      "company_dossier": "Company dossier",
+      "plan": "Change plan",
       "coach_memory": "Coach memory",
       "coach_conversation_delete": "Delete the conversation",
       "account_delete": "Delete my account"

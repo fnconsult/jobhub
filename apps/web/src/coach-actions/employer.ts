@@ -80,8 +80,11 @@ function employerOf(state: CompanyDossierState): { name: string; presumed: boole
   return null;
 }
 
-/** The Enriched Contacts' Plan Quota as a card says it: the search (not counted) or a reveal (one counted), or the Upgrade prompt without room. */
-async function contactQuota(sources: EmployerActionSources, t: Translate, call: CoachActionCall, counted: boolean): Promise<{ label: string; prompt?: UpgradePrompt }> {
+/**
+ * The Enriched Contacts' Plan Quota as a card says it: the search (not counted) or a reveal (one counted), or the Upgrade
+ * prompt without room. A Target Company's contact search says it the same way (./target-companies).
+ */
+export async function contactQuota(sources: Pick<EmployerActionSources, "enrichedContactQuota">, t: Translate, call: CoachActionCall, counted: boolean): Promise<{ label: string; prompt?: UpgradePrompt }> {
   const { used, limit, refusal } = await sources.enrichedContactQuota(call.candidateId);
   if (refusal) return { label: t(limit === 0 ? "coachProposals.quota.contactsNotIncluded" : "coachProposals.quota.contactsNone", { limit }), prompt: upgradePrompt(refusal, call.language) };
   if (limit === null) return { label: t(counted ? "coachProposals.quota.contactRevealUnlimited" : "coachProposals.quota.contactSearchUnlimited") };

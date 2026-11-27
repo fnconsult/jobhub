@@ -24,6 +24,7 @@ import { createExchanges, migrateExchanges, sealExchangeContent } from "../excha
 import { createAesGcmCipher } from "../provider-secrets/cipher";
 import { migrateJobSearches } from "../job-searches";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
+import { createTargetCompanies, migrateTargetCompanies } from "../target-companies";
 import { shippedCoachActions, type CoachActionDomain } from "./catalog";
 import { createCoachActions, type CoachAction, type CoachActionsForReply } from "./index";
 import type { CoachObjectReader } from "./reads";
@@ -51,6 +52,9 @@ interface World {
   appliedId: string;
   interviewId: string;
   newOfferId: string;
+  /** A Target Company of the Profile DAF with no Spontaneous Application yet, and one with it (#1157). */
+  targetId: string;
+  preparedTargetId: string;
 }
 
 /** Each proposing Coach Action's arguments, as a reply would send them: each must make a proposal. */
@@ -89,6 +93,10 @@ const CALLS: Record<string, (world: World) => Record<string, unknown>> = {
   propose_dossier_employer: (w) => ({ applicationId: w.applicationId, employer: "Acme Industrie SAS" }),
   propose_contact_search: (w) => ({ applicationId: w.applicationId }),
   propose_contact_reveal: (w) => ({ applicationId: w.applicationId, contactId: "c-found" }),
+  propose_target_company: (w) => ({ profileId: w.daf, name: "Globex Robotics" }),
+  propose_target_company_dossier: (w) => ({ profileId: w.daf, targetCompanyId: w.targetId }),
+  propose_target_contact_search: (w) => ({ profileId: w.daf, targetCompanyId: w.preparedTargetId }),
+  propose_spontaneous_application: (w) => ({ profileId: w.daf, targetCompanyId: w.targetId }),
 };
 
 const RECORDER = { step: <T>(_step: unknown, run: () => Promise<T>) => run(), site: () => {} };
@@ -136,7 +144,7 @@ describe.skipIf(!connectionString)("a Coach Action never writes: only the Candid
   beforeEach(async () => {
     testAuth = await startTestAuth();
     database = testAuth.auth.options.database as Pool;
-    for (const migrate of [migrateProfiles, migrateJobOffers, migrateApplications, migrateJobSearches, migrateJobDigests, migrateActionCards, migrateFollowUps, migrateCoachMemory, migrateCoachConversations, migrateActionCardsInThread, migrateCompanyDossiers, migrateEnrichedContacts, migrateExchanges]) {
+    for (const migrate of [migrateProfiles, migrateJobOffers, migrateApplications, migrateJobSearches, migrateJobDigests, migrateActionCards, migrateFollowUps, migrateCoachMemory, migrateCoachConversations, migrateActionCardsInThread, migrateCompanyDossiers, migrateEnrichedContacts, migrateExchanges, migrateTargetCompanies]) {
       await migrate(database);
     }
     profiles = createProfiles(database);
@@ -169,6 +177,12 @@ describe.skipIf(!connectionString)("a Coach Action never writes: only the Candid
     const applied = await applications.save(marie, { jobOfferId: await offer(3, "Contrôleuse de gestion"), profileId: daf });
     if (!applied.ok) throw new Error("fixture Application refused");
     await applications.change(marie, applied.application.id, { status: "applied" });
+    // Two companies added to the Profile DAF's Target Companies (#1157), the second one's Spontaneous Application prepared.
+    const targetCompanies = createTargetCompanies(database, { register: { search: async () => ({ companies: [], soleTraderNamed: false }) }, jobOffers, applications });
+    const target = await targetCompanies.add(marie, daf, "Tisserands du Rhône");
+    const preparedTarget = await targetCompanies.add(marie, daf, "Exemple Industrie");
+    if (!target.ok || !preparedTarget.ok) throw new Error("fixture Target Company refused");
+    if (!(await targetCompanies.prepareSpontaneousApplication(marie, daf, preparedTarget.company.id)).ok) throw new Error("fixture Spontaneous Application refused");
     world = {
       daf,
       consultant,
@@ -177,6 +191,8 @@ describe.skipIf(!connectionString)("a Coach Action never writes: only the Candid
       appliedId: applied.application.id,
       interviewId: added.interviewId,
       newOfferId: await offer(2, "Directrice financière de transition"),
+      targetId: target.company.id,
+      preparedTargetId: preparedTarget.company.id,
     };
 
     // The modules without a table here, in memory: their writes are spies, which proposing must never call.
@@ -278,7 +294,9 @@ describe.skipIf(!connectionString)("a Coach Action never writes: only the Candid
         find: write() as never,
         reveal: write() as never,
         contact: async () => null,
+        availability: () => ({ enabled: true, searchable: true }),
       },
+      targetCompanies,
       enrichedContactQuota: async () => ({ used: 0, limit: 5, refusal: null }),
     };
     // Its sender, subject and text sealed, as the inbound route keeps them.

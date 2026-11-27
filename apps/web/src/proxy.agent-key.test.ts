@@ -1,4 +1,4 @@
-import { NextRequest, type NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { describe, expect, it } from "vitest";
 import { BACK_OFFICE_PAGES } from "./admin/back-office-nav";
 import { proxy } from "./proxy";
@@ -7,13 +7,13 @@ const KEY = `jbx_agent_${"a".repeat(43)}`;
 const asked = (path: string, headers: Record<string, string> = {}) => proxy(new NextRequest(`https://app.jobbbox.example${path}`, { headers: { accept: "text/html", ...headers } }));
 
 /** The request headers the proxy passes on to the page or route (Next's middleware override), by name. */
-function forwarded(response: NextResponse): Map<string, string | null> {
+function forwarded(response: Response): Map<string, string | null> {
   const names = response.headers.get("x-middleware-override-headers")?.split(",") ?? [];
   return new Map(names.map((name) => [name, response.headers.get(`x-middleware-request-${name}`)]));
 }
 
 /** What the proxy answers, apart from the request headers it passes on. */
-const answer = (response: NextResponse) => ({
+const answer = (response: Response) => ({
   status: response.status,
   location: response.headers.get("location"),
   rewrite: response.headers.get("x-middleware-rewrite"),

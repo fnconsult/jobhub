@@ -26,6 +26,9 @@ export const agentSignature = (name: string): string => `key:${name}`;
 /** The key's name a signature holds; null for anything else. */
 export const signatureName = (signature: string | null): string | null => (signature?.startsWith("key:") ? signature.slice(4) : null);
 
-/** What happened to one call of a known key. */
+/**
+ * What happened to one call of a known key in its scope. `out_of_scope` is no longer logged (#1172: outside its scope a
+ * key is ignored, not refused); it stays for the calls logged before, which the journal still shows.
+ */
 export const AGENT_KEY_OUTCOMES = ["allowed", "revoked", "expired", "out_of_scope", "rate_limited"] as const;
 export type AgentKeyOutcome = (typeof AGENT_KEY_OUTCOMES)[number];

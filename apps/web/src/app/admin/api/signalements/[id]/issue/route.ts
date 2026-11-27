@@ -9,7 +9,7 @@ import { getSignalementTriage } from "@/signalements/server";
  * its body), and the issue is linked to the Signalement.
  * Body: { title, summary, steps?, expected?, environment?, version?, device? }, in the agent's own words, never quoting
  * the Candidate; or { commentOn: <issue number>, summary? } for a duplicate: a comment with the new Signalement's id.
- * 201 { issue: { number, url, kind } } · 400 { error: "invalid", errors } · 401 · 403 · 404 { error: "not_found" | "issue_not_found" }
+ * 201 { issue: { number, url, kind } } · 400 { error: "invalid", errors } · 401 · 404 { error: "not_found" | "issue_not_found" }
  * · 409 { error: "already_handled" } · 422 { error: "blocked", guardrail, reasons, fields }: nothing published, write it again
  * · 429 · 502 { error: "github", reason } · 503 { error: "github", reason: "missing_token" }
  */

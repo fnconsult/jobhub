@@ -7,7 +7,7 @@ import { getSignalementTriage } from "@/signalements/server";
  * `key:<name>` (statutMajPar): the Back Office shows « vu par triage-beta ». Only « vu »: the agent never sets
  * « traité ». One already « vu » is left as it is.
  * Body: { statut: "vu" }.
- * 200 { signalement } · 400 { error: "only_vu" } · 401 · 403 · 404 · 409 { error: "already_handled" } · 429
+ * 200 { signalement } · 400 { error: "only_vu" } · 401 · 404 · 409 { error: "already_handled" } · 429
  */
 export async function POST(request: Request, { params }: RouteContext<"/admin/api/signalements/[id]/statut">) {
   const call = await agentCall(request, "signalements", getAgentKeys());

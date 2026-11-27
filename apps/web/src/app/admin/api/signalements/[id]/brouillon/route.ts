@@ -7,7 +7,7 @@ import { getSignalementTriage } from "@/signalements/server";
  * only: in French and in English, one of them the Candidate's Interface Language, kept « proposé par <key> » until
  * Support edits, sends or deletes it. The agent never sends it, and never sets « traité ». A new draft replaces the last.
  * Body: { fr, en }, each at most 2,000 characters.
- * 201 { draft: { fr, en, proposedBy, proposedAt, forCandidate } } · 400 { error: "invalid", errors } · 401 · 403 · 404
+ * 201 { draft: { fr, en, proposedBy, proposedAt, forCandidate } } · 400 { error: "invalid", errors } · 401 · 404
  * · 409 { error: "already_handled" } · 429
  */
 export async function POST(request: Request, { params }: RouteContext<"/admin/api/signalements/[id]/brouillon">) {

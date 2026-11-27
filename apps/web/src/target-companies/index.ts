@@ -10,6 +10,7 @@
  *   await targets.notACompany(profileId, ids, now);                 // the register says they are not companies: not picked again
  *   await targets.careersSites(["siren:552100554"]);                // Map: company key → careers site URL
  *   await targets.keepCareersSite("siren:552100554", url, now);     // found once, kept for every Profile
+ *   await targets.resolve("Acme Industrie");                        // { ok, name, companyKey, siren }: what `add` would keep, nothing written
  *   await targets.add(candidateId, profileId, "Acme Industrie");    // the Candidate's own, resolved in the company register
  *   await targets.setAside(candidateId, profileId, id);             // for good: La Bonne Boite never brings it back
  *   await targets.onProfile(candidateId, profileId);                // as the Profile's page shows them (#409), with the Job Offers found there
@@ -104,6 +105,12 @@ export interface TargetCompanyStore {
  */
 export type AddTargetCompanyResult = { ok: true; company: TargetCompany } | { ok: false; error: "invalid" | "exists" | "not_a_company" };
 
+/**
+ * The company a name stands for, as `add` would keep it (#1157): the register's name and SIREN when it lists it, else the
+ * name given, tidied (`siren` null). `invalid`: an empty name; `not_a_company`: the register lists it as a sole trader's.
+ */
+export type ResolvedTargetCompany = { ok: true; name: string; companyKey: string; siren: string | null } | { ok: false; error: "invalid" | "not_a_company" };
+
 /** A Target Company as the Candidate sees it on the Profile's page (« Entreprises cibles », #409). */
 export interface TargetCompanyOnProfile extends TargetCompany {
   /** The Job Offers the Profile's Job Searches found there (their employer is the company, by name), newest first. */
@@ -136,6 +143,11 @@ export interface TargetCompanies extends TargetCompanyStore {
    * already one of its Target Companies (set aside included).
    */
   add(candidateId: string, profileId: string, name: string): Promise<AddTargetCompanyResult>;
+  /**
+   * The company `name` would be added as, read in the company register, nothing written (#1157: what the AI Coach's card
+   * proposes to add). The register unreachable: the name given, as `add` keeps it then.
+   */
+  resolve(name: string): Promise<ResolvedTargetCompany>;
   /** The Candidate sets one of the Profile's Target Companies aside, for good. False when there is no such one of theirs. */
   setAside(candidateId: string, profileId: string, id: string): Promise<boolean>;
 }
@@ -252,6 +264,22 @@ export function createTargetCompanies(database: Pick<Pool, "query" | "connect">,
     } catch {
       return null;
     }
+  }
+
+  /** A name as kept: its spaces collapsed, within MAX_NAME_LENGTH; empty when nothing tells a company. */
+  const tidied = (name: string) => {
+    const typed = name.replace(/\s+/g, " ").trim().slice(0, MAX_NAME_LENGTH);
+    return nameKey(typed) ? typed : "";
+  };
+
+  async function resolve(name: string): Promise<ResolvedTargetCompany> {
+    const typed = tidied(name);
+    if (!typed) return { ok: false, error: "invalid" };
+    const found = await registered(typed);
+    if (found === "sole_trader") return { ok: false, error: "not_a_company" };
+    return found
+      ? { ok: true, name: found.name, companyKey: companyKeyOf({ siren: found.siren, name: found.name }), siren: found.siren }
+      : { ok: true, name: typed, companyKey: companyKeyOf({ name: typed }), siren: null };
   }
 
   /**
@@ -402,12 +430,13 @@ export function createTargetCompanies(database: Pick<Pool, "query" | "connect">,
       );
     },
 
+    resolve,
+
     async add(candidateId, profileId, name) {
-      const typed = name.replace(/\s+/g, " ").trim().slice(0, MAX_NAME_LENGTH);
-      if (!typed || !nameKey(typed) || !(await owns(candidateId, profileId))) return { ok: false, error: "invalid" };
-      const found = await registered(typed);
-      if (found === "sole_trader") return { ok: false, error: "not_a_company" };
-      const company = found ? { name: found.name, key: companyKeyOf({ siren: found.siren, name: found.name }) } : { name: typed, key: companyKeyOf({ name: typed }) };
+      if (!tidied(name) || !(await owns(candidateId, profileId))) return { ok: false, error: "invalid" };
+      const resolved = await resolve(name);
+      if (!resolved.ok) return resolved;
+      const company = { name: resolved.name, key: resolved.companyKey };
       const { rows } = await database.query<Row>(
         `INSERT INTO target_company (profile_id, candidate_id, company_key, name, origin, added_at)
          VALUES ($1, $2, $3, $4, 'candidate', $5)

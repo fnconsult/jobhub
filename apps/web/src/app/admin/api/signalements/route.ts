@@ -8,7 +8,7 @@ import { getSignalementTriage } from "@/signalements/server";
  * jbx_agent_…`), never a session. Only the Signalements sent with the AI notice, oldest first, each with the fixed keys
  * of TRIAGE_KEYS, redacted, the page's path without ids; never the Candidate's email, name, Plan or id.
  * `?statut=nouveau` (or several, `?statut=nouveau,vu`): of those statuses only; every one without it.
- * 200 { signalements } · 400 { error: "invalid_status" } · 401 · 403 · 429
+ * 200 { signalements } · 400 { error: "invalid_status" } · 401 · 429
  */
 export async function GET(request: Request) {
   const call = await agentCall(request, "signalements", getAgentKeys());

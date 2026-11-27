@@ -88,11 +88,32 @@ describe.skipIf(!connectionString)("Agent Keys (#1139, ADR-0118; needs Postgres:
       expect((await keys.calls(key.id)).map((call) => call.outcome)).toEqual(["expired", "allowed"]);
     });
 
-    it("answers 403 to a key outside its scope", async () => {
-      const { key, value } = await created();
+    it("ignores a key outside its scope (#1172): answered as a call without one, neither logged nor dated, valid, revoked or expired alike", async () => {
+      const { key, value } = await created({ name: "triage-beta", scope: "signalements", days: 1 });
+      const elsewhere = { method: "GET", path: "/admin/api/livraison" };
 
-      expect(await keys.authorize(value, "livraison", READ_QUEUE)).toEqual({ ok: false, status: 403, reason: "out_of_scope" });
-      expect((await keys.calls(key.id))[0]!.outcome).toBe("out_of_scope");
+      expect(await keys.authorize(value, "livraison", elsewhere)).toEqual({ ok: false, status: 401, reason: "out_of_scope" });
+      expect((await keys.list())[0]!.lastUsedAt).toBeNull();
+      expect(await keys.calls(key.id)).toEqual([]);
+
+      // In its scope it is let through and counted; out of it, still nothing, before and after it expires or is revoked.
+      expect((await keys.authorize(value, "signalements", READ_QUEUE)).ok).toBe(true);
+      const lastUsed = (await keys.list())[0]!.lastUsedAt;
+      now = new Date("2026-11-26T10:00:00Z");
+      expect(await keys.authorize(value, "livraison", elsewhere)).toEqual({ ok: false, status: 401, reason: "out_of_scope" });
+      now = new Date("2026-11-27T09:00:00Z");
+      expect(await keys.authorize(value, "livraison", elsewhere)).toEqual({ ok: false, status: 401, reason: "out_of_scope" });
+      await keys.revoke(key.id);
+      expect(await keys.authorize(value, "livraison", elsewhere)).toEqual({ ok: false, status: 401, reason: "out_of_scope" });
+      expect((await keys.list())[0]!.lastUsedAt).toEqual(lastUsed);
+      expect((await keys.calls(key.id)).map((call) => call.outcome)).toEqual(["allowed"]);
+    });
+
+    it("never counts a call outside its scope against its rate limit", async () => {
+      const { value } = await created();
+      for (let call = 0; call < AGENT_KEY_RATE_LIMIT.calls * 2; call++) await keys.authorize(value, "livraison", READ_QUEUE);
+
+      expect((await keys.authorize(value, "signalements", READ_QUEUE)).ok).toBe(true);
     });
 
     it(`answers 429 past ${AGENT_KEY_RATE_LIMIT.calls} calls in ${AGENT_KEY_RATE_LIMIT.seconds} seconds`, async () => {

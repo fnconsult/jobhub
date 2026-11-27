@@ -8,7 +8,8 @@
  *  - `revoke`, `list` and `calls`: what Paramètres › « Clés d'agent » shows and does, a key's last use and the log of its
  *    latest AGENT_KEY_LOG_SIZE calls;
  *  - `authorize`: every call of the API, read afresh from the database: 401 without a key, with an unknown, revoked or
- *    expired one; 403 outside its scope; 429 past AGENT_KEY_RATE_LIMIT. Each call of a known key is logged with its
+ *    expired one; 429 past AGENT_KEY_RATE_LIMIT. Outside its scope, the key is ignored (#1172): 401 as without one,
+ *    revoked or expired alike, and nothing of it counted. Each call of a known key in its scope is logged with its
  *    outcome, and a call let through dates its last use.
  *
  * A key belongs to its environment, not to whoever created it: it names no Administrator and no Candidate. Who created
@@ -45,8 +46,8 @@ export type CreateResult = { ok: true; key: AgentKey; /** Shown once, never kept
 
 export type Authorization =
   | { ok: true; key: AgentKey }
-  | { ok: false; status: 401; reason: "missing" | "unknown" | "revoked" | "expired" }
-  | { ok: false; status: 403; reason: "out_of_scope" }
+  /** `out_of_scope`: a key ignored outside its scope, answered as a call without one (#1172). */
+  | { ok: false; status: 401; reason: "missing" | "unknown" | "revoked" | "expired" | "out_of_scope" }
   | { ok: false; status: 429; reason: "rate_limited" };
 
 export interface AgentKeys {
@@ -58,7 +59,7 @@ export interface AgentKeys {
   list(): Promise<AgentKey[]>;
   /** Its latest calls, newest first. */
   calls(id: string): Promise<AgentKeyCall[]>;
-  /** Whether `value` (the request's key, null without one) may make this call in `scope`; logs it for a known key. */
+  /** Whether `value` (the request's key, null without one) may make this call in `scope`; logs it for a known key of `scope`. */
   authorize(value: string | null, scope: string, call: { method: string; path: string }): Promise<Authorization>;
 }
 
@@ -160,15 +161,15 @@ export function createAgentKeys(database: Pool, deps: AgentKeysDeps = {}): Agent
         const { rows } = await client.query<Row>(`SELECT ${COLUMNS} FROM agent_key WHERE fingerprint = $1 FOR UPDATE`, [fingerprintOf(value)]);
         if (!rows[0]) return { ok: false, status: 401, reason: "unknown" } as const;
         const key = fromRow(rows[0]);
+        // Outside its scope the key is ignored, whatever its state: not logged, not dated, not counted by the rate limit.
+        if (key.scope !== scope) return { ok: false, status: 401, reason: "out_of_scope" } as const;
         const refusal: Exclude<Authorization, { ok: true }> | null = key.revokedAt
           ? { ok: false, status: 401, reason: "revoked" }
           : key.expiresAt.getTime() <= at.getTime()
             ? { ok: false, status: 401, reason: "expired" }
-            : key.scope !== scope
-              ? { ok: false, status: 403, reason: "out_of_scope" }
-              : (await recentAllowed(client, key.id, at)) >= AGENT_KEY_RATE_LIMIT.calls
-                ? { ok: false, status: 429, reason: "rate_limited" }
-                : null;
+            : (await recentAllowed(client, key.id, at)) >= AGENT_KEY_RATE_LIMIT.calls
+              ? { ok: false, status: 429, reason: "rate_limited" }
+              : null;
         await client.query(`INSERT INTO agent_key_call (agent_key_id, at, method, path, outcome) VALUES ($1, $2, $3, $4, $5)`, [
           key.id,
           at,

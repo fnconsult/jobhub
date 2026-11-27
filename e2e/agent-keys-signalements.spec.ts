@@ -302,23 +302,39 @@ test("the key only changes a status to « vu », signed key:triage-beta, which t
   expect((await database.query("SELECT status FROM signalement WHERE id = $1", [ids.question])).rows[0].status).toBe("traite");
 });
 
-test("403 outside its scope: the key opens no page of the Back Office and no other route, and never sets a session", async () => {
-  const outside = ["/admin", "/admin/signalements", `/admin/signalements/${ids.bug}`, "/admin/parametres", keysTab, "/admin/api", "/admin/api/signalementsx", "/admin/api/other", "/api/signalements", "/compte", "/api/health"];
+/** What the key's own log says of it: how many calls, and its last use. */
+const counted = async (name: string) =>
+  (await database.query("SELECT (SELECT count(*)::int FROM agent_key_call WHERE agent_key_id = k.id) AS calls, k.last_used_at FROM agent_key k WHERE name = $1", [name])).rows[0] as { calls: number; last_used_at: Date | null };
+
+/** The public route and page a key outside its scope must leave as they are (#1172). */
+const PUBLIC = ["/api/health", "/", "/legal/cgu"];
+
+test("outside its scope the key is ignored, never refused (#1172): every route answers as without it, no Back Office page opens through it, nothing is counted", async () => {
+  const before = await counted("triage-beta");
+  const outside = ["/admin", "/admin/signalements", `/admin/signalements/${ids.bug}`, "/admin/parametres", keysTab, "/admin/api", "/admin/api/signalementsx", "/admin/api/other", "/api/signalements", "/compte", ...PUBLIC];
   for (const path of outside) {
-    const response = await get(key, path);
-    expect(response.status(), path).toBe(403);
-    expect(response.headers()["content-type"], path).toContain("application/json");
-    expect(response.headers()["set-cookie"], path).toBeUndefined();
-    expect(await response.text(), path).not.toContain("<html");
+    const [withKey, without] = [await get(key, path), await get(null, path)];
+    expect(withKey.status(), path).toBe(without.status());
+    expect(withKey.headers()["location"], path).toBe(without.headers()["location"]);
+    expect(Boolean(withKey.headers()["set-cookie"]), path).toBe(Boolean(without.headers()["set-cookie"]));
+    expect(await withKey.text(), path).not.toContain("out_of_scope");
   }
-  expect((await anonymous.post(`${own.origin}/api/signalements`, { headers: { ...bearer(key), origin: own.origin }, data: { type: "idee", message: "Un message de dix caractères au moins" } })).status()).toBe(403);
-  // Even beside an Administrator's session: no page opens through the key.
+  // A public route and a public page answer as usual.
+  expect((await get(key, "/api/health")).status()).toBe(200);
+  for (const page of ["/", "/legal/cgu"]) expect((await get(key, page)).status(), page).toBeLessThan(400);
+  // A Back Office page is never opened by the key: an anonymous caller is sent to sign in.
+  for (const path of ["/admin/signalements", "/admin/parametres"]) expect((await get(key, path)).status(), path).toBeGreaterThanOrEqual(300);
+  const posted = (headers: Record<string, string>) =>
+    anonymous.post(`${own.origin}/api/signalements`, { headers: { ...headers, origin: own.origin }, data: { type: "idee", message: "Un message de dix caractères au moins" } });
+  expect((await posted(bearer(key))).status()).toBe((await posted({})).status());
+  // Beside an Administrator's session, the page answers as to that session alone.
   for (const path of ["/admin/signalements", "/admin/parametres"]) {
-    const response = await admin.request.get(`${own.origin}${path}`, { headers: bearer(key), maxRedirects: 0 });
-    expect(response.status(), path).toBe(403);
-    expect(await response.text()).not.toContain("<html");
+    const [withKey, without] = [await admin.request.get(`${own.origin}${path}`, { headers: bearer(key), maxRedirects: 0 }), await admin.request.get(`${own.origin}${path}`, { maxRedirects: 0 })];
+    expect(withKey.status(), path).toBe(without.status());
   }
-  // On its own routes, a call sets no cookie either.
+  // Neither its last use nor its journal count a call outside its scope.
+  expect(await counted("triage-beta")).toEqual(before);
+  // On its own routes, a call sets no cookie.
   expect((await get(key, API)).headers()["set-cookie"]).toBeUndefined();
 });
 
@@ -372,6 +388,10 @@ test("an expired key is refused, read afresh from the database at each call", as
   await database.query("UPDATE agent_key SET expires_at = now() - interval '1 minute' WHERE name = 'expiring-key'");
   expect((await get(expiring, API)).status()).toBe(401);
   expect((await get(expiring, `${API}/${ids.bug}`)).status()).toBe(401);
+  // Outside its scope, an expired key changes nothing (#1172): answered as without it, not counted.
+  const expired = await counted("expiring-key");
+  for (const path of PUBLIC) expect((await get(expiring, path)).status(), path).toBe((await get(null, path)).status());
+  expect(await counted("expiring-key")).toEqual(expired);
   await admin.goto(keysTab);
   await expect(admin.locator("[data-agent-key='expiring-key']")).toContainText(keysText.states.expired);
   // Still valid for the next one: the same server, no cache.
@@ -388,6 +408,10 @@ test("a revoked key is refused at once, and the revocation is in the Back Office
   expect(admin.url()).not.toContain(PREFIX);
   for (const path of [API, `${API}/${ids.bug}`]) expect((await get(key, path)).status(), path).toBe(401);
   expect((await anonymous.post(`${own.origin}${API}/${ids.bug}/statut`, { headers: bearer(key), data: { statut: "vu" } })).status()).toBe(401);
+  // Outside its scope, a revoked key changes nothing (#1172): answered as without it, not counted.
+  const revoked = await counted("triage-beta");
+  for (const path of PUBLIC) expect((await get(key, path)).status(), path).toBe((await get(null, path)).status());
+  expect(await counted("triage-beta")).toEqual(revoked);
   // Its calls are still in its journal, refused as « révoquée ».
   await admin.getByRole("link", { name: tr(keysText.journal.openLabel, { name: "triage-beta" }) }).click();
   await expect(admin.locator("[data-agent-key-journal]")).toContainText(keysText.outcomes.revoked);

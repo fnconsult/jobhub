@@ -122,6 +122,14 @@ The procedure, one Signalement at a time:
 Each call sends `Authorization: Bearer $JOBBBOX_AGENT_KEY`: never the key's value in a command, a file, `git`, an issue
 or a comment (`scripts/hooks/no-secrets.mjs` refuses it). Never a Signalement's text in `git`, an issue, a comment or a
 test, and never kept outside the session: an issue is written in the agent's own words and carries the Signalement's
-id, never its message. A 401 (no key, or one revoked or expired), 403 (out of scope) or 429 (rate limit) stops the
-triage: say so, and do not try another way in. A 503 on `…/issue` means Jobbbox has no token to write issues
-(GITHUB_ISSUES_TOKEN): say so and stop proposing issues; the drafts still go.
+id, never its message. A 401 (no key, or one revoked or expired) or 429 (rate limit) stops the triage: say so, and do
+not try another way in. A 503 on `…/issue` means Jobbbox has no token to write issues (GITHUB_ISSUES_TOKEN): say so and
+stop proposing issues; the drafts still go.
+
+Outside `/admin/api/signalements/*` the key is ignored, never refused (#1172): a request that carries it is answered as
+if it carried none, anonymous or with the session of its cookie. So the network proxy of the Claude Code sessions can
+send it with every request to `staging.jobbbox.ai`: `/api/health` (the last check of `/deploy-staging`) and the Beta's
+public pages answer as usual, and a Bug is reproduced (step 2) in the same session, signed in with your own test account.
+The key opens nothing there: a Back Office page answers as to an anonymous visitor (sent to sign in), a protected route
+401, whatever the key's state, revoked or expired included. Only the calls in its scope are counted, in its last use and
+in the journal of its 50 latest calls.

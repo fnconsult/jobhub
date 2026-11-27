@@ -194,6 +194,12 @@ test.describe("the AI Coach with Coach Actions, end to end on the fake provider 
       "propose_dossier_employer",
       "propose_contact_search",
       "propose_contact_reveal",
+      // The Target Companies of a Profile, for a company outside the Applications (#1157, ADR-0119).
+      "read_target_companies",
+      "propose_target_company",
+      "propose_target_company_dossier",
+      "propose_target_contact_search",
+      "propose_spontaneous_application",
       "read_draft",
       "propose_draft_text",
       "read_document_versions",

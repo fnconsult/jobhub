@@ -87,6 +87,40 @@ describe("webSearchableName: a Target Company's name goes to the web search only
   });
 });
 
+describe("resolve: the company a name would be added as, without adding it (#1157)", () => {
+  /** No database: resolving reads only the company register. */
+  const noDatabase = {} as Pool;
+
+  it("gives the register's name and SIREN when it lists the company, else the name given, tidied", async () => {
+    expect(await createTargetCompanies(noDatabase, { register: register([{ siren: "552100554", name: "ACME INDUSTRIE" }]) }).resolve(" acme ")).toEqual({
+      ok: true,
+      name: "ACME INDUSTRIE",
+      companyKey: "siren:552100554",
+      siren: "552100554",
+    });
+    expect(await createTargetCompanies(noDatabase, { register: register([]) }).resolve("  Tisserands   du Rhône ")).toEqual({
+      ok: true,
+      name: "Tisserands du Rhône",
+      companyKey: "name:tisserands du rhone",
+      siren: null,
+    });
+    expect(await createTargetCompanies(noDatabase).resolve("Exemple Industrie")).toMatchObject({ ok: true, name: "Exemple Industrie", siren: null });
+  });
+
+  it("refuses an empty name, and one the register lists as a sole trader's, a private person's (ADR-0007)", async () => {
+    const soleTrader = createTargetCompanies(noDatabase, { register: { search: async () => ({ companies: [], soleTraderNamed: true }) } });
+
+    expect(await soleTrader.resolve("Jean Dupont")).toEqual({ ok: false, error: "not_a_company" });
+    expect(await soleTrader.resolve("  ")).toEqual({ ok: false, error: "invalid" });
+  });
+
+  it("keeps the name given when the register cannot answer", async () => {
+    const down = createTargetCompanies(noDatabase, { register: { search: async () => Promise.reject(new Error("register down")) } });
+
+    expect(await down.resolve("Exemple Industrie")).toMatchObject({ ok: true, name: "Exemple Industrie", companyKey: "name:exemple industrie" });
+  });
+});
+
 describe.skipIf(!connectionString)("Target Companies (needs Postgres: DATABASE_URL)", () => {
   let throwaway: ThrowawayDatabase;
   let database: Pool;

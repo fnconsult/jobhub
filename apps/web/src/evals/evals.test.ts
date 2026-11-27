@@ -1262,3 +1262,34 @@ describe("Eval Cases for answers grounded in the Candidate's own data (#653)", (
     for (const each of cases) expect(each.reply).toBeTruthy();
   });
 });
+
+describe("Eval Cases of a company outside the Applications (ADR-0119 D1, #1157)", () => {
+  const caseOf = (id: string) => AI_COACH_EVAL_CASES.find((each) => each.id === id);
+
+  it("« des contacts chez Exemple Industrie » with no Application there gives the card propose_target_company", () => {
+    expect(caseOf("target-company-contacts-add")).toMatchObject({
+      message: expect.stringMatching(/contacts chez Exemple Industrie/),
+      inView: null,
+      proposes: true,
+      proposal: { action: "propose_target_company", arguments: { name: "Exemple Industrie" } },
+      criteria: expect.stringMatching(/ne la renvoie pas vers la page des entreprises cibles/),
+    });
+    // Its Target Companies, read: Exemple Industrie is not among them.
+    expect(caseOf("target-company-contacts-add")?.objects?.find((object) => object.type === "target_companies")?.text).not.toMatch(/Exemple Industrie/);
+  });
+
+  it("the same request for an existing Target Company gives the contact search, or the dossier's build while it is not built", () => {
+    const search = caseOf("target-company-contacts-search");
+    const dossier = caseOf("target-company-contacts-dossier-first");
+    expect(search).toMatchObject({ proposes: true, proposal: { action: "propose_target_contact_search", arguments: { targetCompanyId: "t-industrie" } }, reads: ["target_companies:p-data-lyon"] });
+    expect(dossier).toMatchObject({ proposes: true, proposal: { action: "propose_target_company_dossier", arguments: { targetCompanyId: "t-industrie" } }, reads: ["target_companies:p-data-lyon"] });
+    expect(search!.message).toBe(dossier!.message);
+    const told = (each: AiCoachEvalCase | undefined) => each?.objects?.find((object) => object.type === "target_companies")?.text ?? "";
+    expect(told(search)).toMatch(/\(id t-industrie\) Exemple Industrie .*dossier entreprise constitué/);
+    expect(told(dossier)).toMatch(/\(id t-industrie\) Exemple Industrie .*aucun dossier entreprise/);
+  });
+
+  it("a spontaneous application asked at a Target Company gives propose_spontaneous_application", () => {
+    expect(caseOf("target-company-spontaneous-application")).toMatchObject({ proposes: true, proposal: { action: "propose_spontaneous_application", arguments: { targetCompanyId: "t-industrie" } } });
+  });
+});

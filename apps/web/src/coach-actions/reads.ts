@@ -22,7 +22,18 @@ export const INDEXED_OBJECT_TYPES = ["profile", "application", "job_search", "jo
 export type IndexedObjectType = (typeof INDEXED_OBJECT_TYPES)[number];
 
 /** What a read reads, by id. */
-export type ReadObjectType = "profile" | "application" | "job_offer" | "job_search" | "job_digest" | "tailored_documents" | "company_dossier" | "enriched_contacts" | "coach_reviews";
+export type ReadObjectType =
+  | "profile"
+  | "application"
+  | "job_offer"
+  | "job_search"
+  | "job_digest"
+  | "tailored_documents"
+  | "company_dossier"
+  | "enriched_contacts"
+  | "coach_reviews"
+  /** A Profile's Target Companies, by the Profile's id (#1157). */
+  | "target_companies";
 
 /** One line of the index: no content, only what tells the object apart. */
 export interface IndexedObject {

@@ -20,9 +20,19 @@ export interface FictionalObject {
 
 /**
  * Text the Candidate did not write: a Job Offer's, or an Application's, Job Search's or Job Digest's that shows one; a
- * Company Dossier, Enriched Contacts' names and roles, Coach Reviews (ADR-0114).
+ * Company Dossier, Enriched Contacts' names and roles, Coach Reviews (ADR-0114); Target Companies' names (#1157).
  */
-const UNTRUSTED: readonly FictionalObject["type"][] = ["application", "job_offer", "job_search", "job_digest", "agenda_item", "company_dossier", "enriched_contacts", "coach_reviews"];
+const UNTRUSTED: readonly FictionalObject["type"][] = [
+  "application",
+  "job_offer",
+  "job_search",
+  "job_digest",
+  "agenda_item",
+  "company_dossier",
+  "enriched_contacts",
+  "coach_reviews",
+  "target_companies",
+];
 const INDEXED: readonly FictionalObject["type"][] = ["profile", "application", "job_search", "job_digest", "agenda_item"];
 
 export function fictionalObjects(objects: readonly FictionalObject[]): CoachObjectReader & { readIds(): string[] } {

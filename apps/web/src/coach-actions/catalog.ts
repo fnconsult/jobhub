@@ -5,7 +5,8 @@
  * (#720), the Documents proposals (#721), the drafts reworked from the conversation (ADR-0109) and the versions of the
  * documents, read and restored (#1079), the Tailored CV read in full and reworked change by change (#1097, ADR-0113),
  * an Application's Exchanges, read and answered (#1099, behind its feature flag); and the employer's side of an
- * Application, its Company Dossier and Enriched Contacts (ADR-0114).
+ * Application, its Company Dossier and Enriched Contacts (ADR-0114); and a company outside the Applications, through the
+ * Target Companies of a Profile (ADR-0119, #1157).
  *
  *   shippedCoachActions(candidateObjects(sources), domain)   // the app's, over the Candidate's objects
  *   shippedCoachActions(NO_OBJECTS)                          // on no one's data: every read finds nothing, nothing to propose on
@@ -23,6 +24,7 @@ import { coachActionCatalog, type CoachAction } from "./index";
 import { profileCoachActions, type ProfileActionSources } from "./profile";
 import { searchCoachActions, type SearchActionSources } from "./job-searches";
 import { readCoachActions, type CoachObjectReader } from "./reads";
+import { targetCompanyCoachActions, type TargetCompanyActionSources } from "./target-companies";
 
 /** The domain modules the proposals go through; a Job Offer's reach is the reads' (`objects`). */
 export type CoachActionDomain = Omit<ApplicationActionSources, "applications" | "reachesJobOffer" | "profiles"> &
@@ -34,8 +36,13 @@ export type CoachActionDomain = Omit<ApplicationActionSources, "applications" | 
   } & Pick<EmployerActionSources, "companyDossiers" | "enrichedContactQuota"> & {
     /** The Tailored CV: proposed (#721), read in full and reworked from the conversation (ADR-0113). */
     tailoredCvs: DocumentActionSources["tailoredCvs"] & TailoredCvActionSources["tailoredCvs"];
-    /** The Enriched Contacts, searched and revealed (ADR-0114), and the one an Outreach Message is addressed to. */
-    enrichedContacts: EmployerActionSources["enrichedContacts"] & DocumentActionSources["enrichedContacts"];
+    /**
+     * The Enriched Contacts, searched and revealed (ADR-0114), the one an Outreach Message is addressed to, and whether
+     * they can be searched at all (a Target Company's, #1157).
+     */
+    enrichedContacts: EmployerActionSources["enrichedContacts"] & DocumentActionSources["enrichedContacts"] & TargetCompanyActionSources["enrichedContacts"];
+    /** A Profile's Target Companies (ADR-0119, #1157): read, added, their dossier, contacts and Spontaneous Application. */
+    targetCompanies: TargetCompanyActionSources["targetCompanies"];
     /** The Documents group's: the drafts launched (#721), and reworked from the conversation (ADR-0109). */
     tailoredDocuments: DocumentActionSources["tailoredDocuments"] & DraftActionSources["tailoredDocuments"];
     followUps: ApplicationActionSources["followUps"] & DraftActionSources["followUps"];
@@ -56,6 +63,7 @@ export function shippedCoachActions(objects: CoachObjectReader, domain: CoachAct
     ...searchCoachActions(domain),
     ...documentCoachActions(domain),
     ...employerCoachActions(domain),
+    ...targetCompanyCoachActions(objects, domain),
     ...draftCoachActions(domain),
     ...documentVersionCoachActions(domain),
     ...tailoredCvCoachActions(domain),
@@ -119,6 +127,13 @@ export const NO_DOMAIN: CoachActionDomain = {
     find: async () => ({ ok: false, error: "not_found" }),
     reveal: async () => ({ ok: false, error: "not_found" }),
     contact: async () => null,
+    availability: () => ({ enabled: false, searchable: false }),
+  },
+  targetCompanies: {
+    onProfile: async () => null,
+    resolve: async () => ({ ok: false, error: "invalid" }),
+    add: async () => ({ ok: false, error: "invalid" }),
+    prepareSpontaneousApplication: async () => ({ ok: false, error: "not_found" }),
   },
   enrichedContactQuota: async () => ({ used: 0, limit: 0, refusal: null }),
   tailoredDocuments: { get: async () => null, rework: async () => ({ ok: false, error: "not_found" }), unrework: async () => ({ ok: false, error: "not_found" }) },

@@ -68,6 +68,28 @@ describe("typed redirects (ADR-0114)", () => {
     expect(await redirects.to("interview_delete", { candidateId: "paul", language: "fr", applicationId: "a-benchling" })).toMatchObject({ href: "/candidatures" });
   });
 
+  it("send a contact search the Plan does not include to « Abonnement », one without a provider to the company's dossier (ADR-0119, #1157)", async () => {
+    const redirects = createRedirects(sources());
+    expect(await redirects.to("plan", { candidateId: "marie", language: "fr" })).toEqual({ page: "Abonnement", section: null, object: "Changer d'offre", href: "/abonnement" });
+    expect(await redirects.to("plan", { candidateId: "marie", language: "en" })).toEqual({ page: "Subscription", section: null, object: "Change plan", href: "/abonnement" });
+    // A Target Company's Spontaneous Application: its Dossier Section.
+    expect(await redirects.to("company_dossier", { candidateId: "marie", language: "fr", applicationId: "a-benchling", profileId: "p-finance" })).toEqual({
+      page: "Candidature Data Analyst · Benchling",
+      section: "Dossier entreprise",
+      object: "Dossier entreprise",
+      href: "/candidatures/a-benchling/dossier",
+    });
+    // None yet: its Profile's Entreprises cibles, never another Candidate's.
+    expect(await redirects.to("company_dossier", { candidateId: "marie", language: "fr", profileId: "p-achats" })).toEqual({
+      page: "Profil Achats",
+      section: "Entreprises cibles",
+      object: "Dossier entreprise",
+      href: "/profils/p-achats/entreprises-cibles",
+    });
+    expect(await redirects.to("company_dossier", { candidateId: "paul", language: "fr", profileId: "p-achats" })).toMatchObject({ href: "/candidatures" });
+    expect(redirectTableText()).toMatch(/- plan : changer d'offre.*tu ne changes jamais d'offre/);
+  });
+
   it("cover every object with no Coach Action, each named in both languages, and nothing else", async () => {
     expect(REDIRECT_TARGETS).toEqual([
       "profile_rename",
@@ -79,9 +101,11 @@ describe("typed redirects (ADR-0114)", () => {
       "search_criteria",
       "job_offer_unpublished",
       "interview_delete",
+      "company_dossier",
       "coach_memory",
       "coach_conversation_delete",
       "account_delete",
+      "plan",
     ]);
     const redirects = createRedirects(sources());
     for (const target of REDIRECT_TARGETS) {

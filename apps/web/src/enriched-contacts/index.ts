@@ -102,6 +102,11 @@ export interface EnrichedContacts {
   reveal(candidateId: string, applicationId: string, contactId: string): Promise<EnrichedContactsResult>;
   /** One Enriched Contact of the Application (revealed), or null. */
   contact(candidateId: string, applicationId: string, contactId: string): Promise<EnrichedContact | null>;
+  /**
+   * Whether Enriched Contacts are on (a provider configured, its DPA signed) and its provider can search for people,
+   * as `get` says it of an Application, said without one (#1157: a Target Company's contact search).
+   */
+  availability(): { enabled: boolean; searchable: boolean };
 }
 
 export interface EnrichedContactsDeps {
@@ -190,11 +195,12 @@ export function createEnrichedContacts(database: Pool, deps: EnrichedContactsDep
   const now = deps.now ?? (() => new Date());
   const COLUMNS = "id, provider, provider_person_id, name, job_title, emails, phones, found_at, retrieved_at";
 
+  const availability = () => ({ enabled: provider !== null, searchable: !!provider?.findPeople });
+
   async function stateOf(applicationId: string): Promise<EnrichedContactsState> {
     const { rows } = await database.query<Row>(`SELECT ${COLUMNS} FROM enriched_contact WHERE application_id = $1 ORDER BY found_at, name`, [applicationId]);
     return {
-      enabled: provider !== null,
-      searchable: !!provider?.findPeople,
+      ...availability(),
       found: rows.filter((row) => !isRevealed(row)).map(foundFrom),
       contacts: rows.filter(isRevealed).map(contactFrom),
     };
@@ -216,6 +222,8 @@ export function createEnrichedContacts(database: Pool, deps: EnrichedContactsDep
   }
 
   return {
+    availability,
+
     async get(candidateId, applicationId) {
       if (!(await ownApplication(candidateId, applicationId))) return null;
       return stateOf(applicationId);

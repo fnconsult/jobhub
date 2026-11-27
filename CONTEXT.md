@@ -214,7 +214,7 @@ A change to a Tailored CV or a Master CV that reorders, cuts or emphasises witho
 _Avoid_: Formatting, cosmetic change
 
 **Typed redirect**:
-Where the AI Coach sends the Candidate when no Coach Action does what they ask: a page, a Section and the object (« Profil Finance › CV de référence › Langues »), returned by the server in a refusal or from the redirect table (one row per object with no Coach Action) and shown under the reply as a link. The AI model never writes the link itself (ADR-0114).
+Where the AI Coach sends the Candidate when no Coach Action does what they ask: a page, a Section and the object (« Profil Finance › CV de référence › Langues »), returned by the server in a refusal or from the redirect table (one row per object with no Coach Action) and shown under the reply as a link. A refusal can carry the Profile or Application it is about; a missing Plan or search provider for a Target Company's contacts is a one-sentence refusal with the `plan` redirect (« Abonnement › Changer d'offre ») or the `company_dossier` one (the Application's Dossier, else the Profile's « Entreprises cibles »), never a card (ADR-0119). The AI model never writes the link itself (ADR-0114).
 _Avoid_: Deep link, « parle-en depuis ton Profil »
 
 **Web lookup**:

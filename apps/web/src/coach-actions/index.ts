@@ -279,8 +279,16 @@ export type CoachActionResult =
       seen?: readonly SeenName[];
     }
   | { ok: false; error: "not_found" }
-  /** `redirect`: the row of the redirect table it sends the Candidate to (ADR-0114), shown under the reply. */
-  | { ok: false; error: "refused"; reason: string; redirect?: { target: RedirectTarget; section?: (typeof MASTER_CV_EDIT_SECTIONS)[number] } };
+  /**
+   * `redirect`: the row of the redirect table it sends the Candidate to (ADR-0114), shown under the reply; with the Profile
+   * or Application it is about when the call named it (#1157), else what is In view.
+   */
+  | {
+      ok: false;
+      error: "refused";
+      reason: string;
+      redirect?: { target: RedirectTarget; section?: (typeof MASTER_CV_EDIT_SECTIONS)[number]; profileId?: string; applicationId?: string };
+    };
 
 export interface CoachAction<Schema extends z.ZodObject = z.ZodObject> {
   /** 1 to 64 letters, digits, `_` or `-`, as every provider takes it. */
@@ -601,7 +609,7 @@ export function createCoachActions(deps: CoachActionsDeps): CoachActions {
         if (!result.ok && result.error === "refused") {
           record(action, started, 422);
           // Its Typed redirect (ADR-0114): where the Candidate makes that change themselves, under the reply.
-          const given = result.redirect ? await redirects.to(result.redirect.target, redirectCall(result.redirect.section ? { section: result.redirect.section } : {})).catch(() => null) : null;
+          const given = result.redirect ? await redirects.to(result.redirect.target, redirectCall(withoutUndefined({ section: result.redirect.section, profileId: result.redirect.profileId, applicationId: result.redirect.applicationId }))).catch(() => null) : null;
           if (given) redirect = given;
           return { content: `${result.reason}${redirectTold(given)}`, error: true };
         }

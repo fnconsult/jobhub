@@ -18,6 +18,7 @@ import { getProfiles } from "@/profiles/server";
 import { readIndustryReference } from "@/reference-data/server";
 import { getTailoredCvs } from "@/tailored-cv/server";
 import { getTailoredDocuments, getTailoredDocumentVersions } from "@/tailored-documents/server";
+import { getTargetCompanies } from "@/target-companies/server";
 import { candidateObjects } from "./candidate-objects";
 import { shippedCoachActions } from "./catalog";
 import { e2eCoachActions } from "./e2e-catalog";
@@ -64,6 +65,8 @@ function shipped(): readonly CoachAction[] {
       companyDossiers: { get: (candidateId, applicationId) => getCompanyDossiers().get(candidateId, applicationId) },
       enrichedContacts: { get: (candidateId, applicationId) => getEnrichedContacts().get(candidateId, applicationId) },
       coachReviews: { reviews: (candidateId, applicationId) => getHumanCoaches().reviews(candidateId, applicationId) },
+      // A Profile's Target Companies (#1157), their dossier and contacts those of their Spontaneous Application.
+      targetCompanies: { onProfile: (candidateId, profileId) => getTargetCompanies().onProfile(candidateId, profileId) },
       industries: readIndustryReference,
     }),
     {
@@ -103,6 +106,14 @@ function shipped(): readonly CoachAction[] {
         find: (candidateId, applicationId) => getEnrichedContacts().find(candidateId, applicationId),
         reveal: (candidateId, applicationId, contactId) => getEnrichedContacts().reveal(candidateId, applicationId, contactId),
         contact: (candidateId, applicationId, contactId) => getEnrichedContacts().contact(candidateId, applicationId, contactId),
+        availability: () => getEnrichedContacts().availability(),
+      },
+      // A company outside the Applications (ADR-0119, #1157), through the Profile's Target Companies.
+      targetCompanies: {
+        onProfile: (candidateId, profileId) => getTargetCompanies().onProfile(candidateId, profileId),
+        resolve: (name) => getTargetCompanies().resolve(name),
+        add: (candidateId, profileId, name) => getTargetCompanies().add(candidateId, profileId, name),
+        prepareSpontaneousApplication: (candidateId, profileId, id) => getTargetCompanies().prepareSpontaneousApplication(candidateId, profileId, id),
       },
       enrichedContactQuota: weeklyQuotaOf(getBilling(), "enrichedContacts"),
     },

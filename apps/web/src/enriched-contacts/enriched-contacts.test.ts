@@ -149,6 +149,9 @@ describe.skipIf(!connectionString)("Enriched Contacts (needs Postgres: DATABASE_
 
     expect(await contacts.get(marie, applicationId)).toEqual({ enabled: false, searchable: false, found: [], contacts: [] });
     expect(await contacts.find(marie, applicationId)).toEqual({ ok: false, error: "disabled" });
+    // Said without an Application (#1157): a Target Company's contact search is not proposed.
+    expect(contacts.availability()).toEqual({ enabled: false, searchable: false });
+    expect(contactsWith(fakeProvider().provider).availability()).toEqual({ enabled: true, searchable: true });
   });
 
   it("finds people at the employer holding the Company Dossier's Suggested Contact Roles", async () => {
@@ -306,6 +309,7 @@ describe.skipIf(!connectionString)("Enriched Contacts (needs Postgres: DATABASE_
     await includeEnrichedContacts(20);
 
     expect(await contacts.get(marie, applicationId)).toMatchObject({ enabled: true, searchable: false });
+    expect(contacts.availability()).toEqual({ enabled: true, searchable: false });
     expect(await contacts.find(marie, applicationId)).toEqual({ ok: false, error: "search_unsupported" });
   });
 

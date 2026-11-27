@@ -10,7 +10,8 @@
 // containing "E2E_REGISTER_DOWN" gets a 429; "Bibendum" finds only two small
 // homonyms, the group being registered as COMPAGNIE GENERALE DES ETABLISSEMENTS
 // BIBENDUM (SIREN 552100557), as for Michelin; SIREN 123456789 gets the
-// all-null record the live register answers it with; anything else finds nothing.
+// all-null record the live register answers it with; a query for "Jeanne Dupontcoach" finds a sole trader (an
+// entrepreneur individuel, a private person's name, #1157, ADR-0007); anything else finds nothing.
 //
 // Perplexity's Search API (POST /search, ADR-0043) and Brave's web search (GET /res/v1/web/search) return the
 // same pages, never written text: for any company, a page about "Globex Robotics" in Germany whose text names a
@@ -113,6 +114,7 @@ const bibendumGroup = {
   tranche_effectif_salarie: "53",
 };
 const emptyRecord = { siren: "123456789", nom_complet: null, nom_raison_sociale: null, sigle: null, siege: {}, dirigeants: [], etat_administratif: null, nature_juridique: null, finances: null };
+const soleTrader = { ...acme, siren: "552100558", nom_complet: "JEANNE DUPONTCOACH", nom_raison_sociale: "JEANNE DUPONTCOACH", nature_juridique: "1000", dirigeants: [], complements: { est_entrepreneur_individuel: true } };
 const noFigures = { ...acme, siren: "552100555", nom_complet: "SANS CHIFFRES", nom_raison_sociale: "SANS CHIFFRES", finances: null };
 
 globalThis.fetch = async (input, init) => {
@@ -126,15 +128,17 @@ globalThis.fetch = async (input, init) => {
         ? [acme]
         : /sans chiffres/i.test(q)
           ? [noFigures]
-          : /grande marque/i.test(q)
-            ? grandeMarque
-            : /bibendum/i.test(q)
-              ? bibendum
-              : digits === bibendumGroup.siren
-                ? [bibendumGroup]
-                : digits === emptyRecord.siren
-                  ? [emptyRecord]
-                  : [];
+          : /jeanne dupontcoach/i.test(q)
+            ? [soleTrader]
+            : /grande marque/i.test(q)
+              ? grandeMarque
+              : /bibendum/i.test(q)
+                ? bibendum
+                : digits === bibendumGroup.siren
+                  ? [bibendumGroup]
+                  : digits === emptyRecord.siren
+                    ? [emptyRecord]
+                    : [];
     return Response.json({ results, total_results: results.length, page: 1, per_page: 10, total_pages: 1 });
   }
   if (url.origin === "https://api.perplexity.ai") {

@@ -388,6 +388,19 @@ describe("a reply with no text never reaches the Candidate empty (#784)", () => 
     expect(system).toContain("N'écris jamais de lien ni d'adresse toi-même.");
   });
 
+  it("is told that a company outside the Applications goes through a Profile's Target Companies, never a redirect to their page (ADR-0119, #1157)", async () => {
+    const { coach, coachCalls } = setUp({ turns: [{ text: "Voici." }] });
+
+    await ask(coach, "Trouve des contacts chez Exemple Industrie.");
+
+    const system = coachCalls()[0]!.system ?? "";
+    expect(system).toContain("Une entreprise chez qui le candidat n'a aucune candidature passe par les entreprises cibles d'un de ses profils");
+    for (const action of ["read_target_companies", "propose_target_company", "propose_target_company_dossier", "propose_target_contact_search", "propose_spontaneous_application"]) expect(system).toContain(action);
+    expect(system).toContain("Ne le renvoie jamais vers la page des entreprises cibles pour le faire lui-même");
+    // Without the Plan or a provider: one sentence and the Typed redirect, never a card.
+    expect(system).toMatch(/sans l'offre ou sans service de contacts.*une phrase et le renvoi typé.*jamais une carte/);
+  });
+
   it("gives the Typed redirect the model asked for with the reply the Candidate sees, the link built by the server (ADR-0114)", async () => {
     const { coach } = setUp({ turns: [{ toolCalls: [{ name: "redirect", arguments: { target: "profile_create" } }] }, { text: "Un profil se crée depuis sa page : je vous y accompagne." }] });
 

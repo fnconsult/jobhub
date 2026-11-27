@@ -16,9 +16,11 @@ import type { JobSearches } from "../job-searches";
 import type { Profiles } from "../profiles";
 import { routes } from "../routes";
 import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
+import type { TargetCompanies } from "../target-companies";
 import type { OutreachChannel, TailoredDocuments } from "../tailored-documents";
 import { coachReviewsText, companyDossierText, enrichedContactsText, type ApplicationReadText } from "./application-reads";
 import { fitted, fittedLines, type CoachObjectReader, type IndexedObject, type ReadObject } from "./reads";
+import { targetCompaniesRead } from "./target-companies";
 
 /** The domain modules the reads go through, each scoped to the Candidate. */
 export interface CandidateObjectSources {
@@ -34,6 +36,8 @@ export interface CandidateObjectSources {
   companyDossiers: Pick<CompanyDossiers, "get">;
   enrichedContacts: Pick<EnrichedContacts, "get">;
   coachReviews: Pick<HumanCoaches, "reviews">;
+  /** A Profile's Target Companies (#1157), each with its Spontaneous Application's dossier and contacts; none: not found. */
+  targetCompanies?: Pick<TargetCompanies, "onProfile">;
   /** The Sectors' and Domains' labels; without them none is named. */
   industries?: () => Promise<IndustryReference>;
   now?: () => Date;
@@ -229,6 +233,10 @@ export function candidateObjects(sources: CandidateObjectSources): CoachObjectRe
           if (!told) return null;
           const page = routes.applicationSection(application.id, SECTION[type]);
           return { text: fitted([told.text], maxTokens), pages: [page], untrusted: told.untrusted, seen: { ...offerSeen(application.jobOffer, page), type: "application" } };
+        }
+        case "target_companies": {
+          if (!sources.targetCompanies) return null;
+          return targetCompaniesRead({ ...sources, targetCompanies: sources.targetCompanies })(candidateId, id, maxTokens);
         }
         default:
           return null;

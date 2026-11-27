@@ -23,8 +23,11 @@ import type { TypedRedirect } from "./redirect-line";
 
 export { readTypedRedirect, redirectLine, typedRedirectSchema, type TypedRedirect } from "./redirect-line";
 
-/** What a row's object is about: a Profile, an Application, the AI Coach's own (« Coach » in the menu), or the Candidate's account. */
-type RedirectScope = "profile" | "application" | "coach" | "account" | "none";
+/**
+ * What a row's object is about: a Profile, an Application, the AI Coach's own (« Coach » in the menu), the Candidate's
+ * account, or their Plan (« Abonnement »).
+ */
+type RedirectScope = "profile" | "application" | "coach" | "account" | "plan" | "none";
 
 /**
  * The redirect table: one row per object the Candidate changes themselves, with no Coach Action (ADR-0114).
@@ -40,9 +43,14 @@ export const REDIRECT_TABLE = {
   search_criteria: { scope: "profile", what: "choisir soi-même un critère de recherche que la carte ne modifie pas (secteur, type de contrat, télétravail…)" },
   job_offer_unpublished: { scope: "application", what: "signaler qu'une offre n'est plus publiée" },
   interview_delete: { scope: "application", what: "supprimer un entretien saisi par erreur" },
+  company_dossier: {
+    scope: "application",
+    what: "lire soi-même le dossier entreprise d'une candidature ou d'une entreprise cible et ses fonctions à contacter, quand la recherche de contacts est indisponible sur Jobbbox",
+  },
   coach_memory: { scope: "coach", what: "modifier ou supprimer un élément de la mémoire du coach, ou y retenir ce que tu ne peux pas proposer" },
   coach_conversation_delete: { scope: "coach", what: "supprimer une conversation (ses actions « … » à côté de son nom, sous « Coach » dans le menu) ou en effacer les messages (« Effacer la conversation »)" },
   account_delete: { scope: "account", what: "supprimer son compte ou ses données" },
+  plan: { scope: "plan", what: "changer d'offre pour ce que la sienne n'inclut pas (les contacts enrichis de l'offre Premium) : tu ne changes jamais d'offre ni ne paies à sa place" },
 } as const satisfies Record<string, { scope: RedirectScope; what: string }>;
 
 export type RedirectTarget = keyof typeof REDIRECT_TABLE;
@@ -121,12 +129,24 @@ export function createRedirects(sources: RedirectSources | null): Redirects {
       // The AI Coach's own, under « Coach » in the menu: the Coach Memory opens beside the conversation.
       if (scope === "coach") return { page: t("coachRedirects.pages.coach"), section: null, object, href: target === "coach_memory" ? routes.coachMemory : routes.home };
       if (scope === "account") return { page: t("coachRedirects.pages.account"), section: t("coachRedirects.sections.data"), object, href: routes.accountData };
+      if (scope === "plan") return { page: t("coachRedirects.pages.subscription"), section: null, object, href: routes.subscription };
       if (scope === "application") {
         const found = await application(call.candidateId, call.applicationId ?? (call.inView?.kind === "application" ? call.inView.id : undefined));
+        // A Target Company's dossier with no Spontaneous Application yet (#1157): its Profile's Entreprises cibles.
+        if (!found && target === "company_dossier" && call.profileId) {
+          const profile = await activeProfile(call.candidateId, call.profileId);
+          if (profile)
+            return {
+              page: t("coachRedirects.pages.profile", { name: profile.name }),
+              section: t("profilePage.sections.entreprises-cibles"),
+              object,
+              href: routes.profileSection(profile.id, "entreprises-cibles"),
+            };
+        }
         // No Application told: the list of them, where the Candidate opens the one they mean.
         if (!found) return { page: t("coachRedirects.pages.applications"), section: null, object, href: routes.applications };
         const page = t("coachRedirects.pages.application", { name: [found.jobOffer.title, found.jobOffer.employer].filter(Boolean).join(" · ") });
-        const section = target === "interview_delete" ? "entretiens" : "offre";
+        const section = target === "interview_delete" ? "entretiens" : target === "company_dossier" ? "dossier" : "offre";
         return { page, section: t(`application.sections.${section}`), object, href: routes.applicationSection(found.id, section) };
       }
       const profile = await profileOf(call);

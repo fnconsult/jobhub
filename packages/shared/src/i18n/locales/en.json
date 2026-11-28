@@ -3100,6 +3100,7 @@
         "MAINTENANCE_EXPECTED_MINUTES": "Expected length of the maintenance, in minutes",
         "COACH_ACTIONS_ENABLED": "Coach Actions switched on (the AI Coach reads and proposes)",
         "COACH_TOOL_ROUNDS_MAX": "Rounds of Coach Action calls per reply, at most",
+        "COACH_WEB_LOOKUP_ENABLED": "AI Coach's web lookup (search_web, never in Production before its legal review)",
         "AI_WEB_SEARCH_PROVIDER": "Web search provider",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fallback provider",
         "DELIVERY_STATUS_EMAIL_TO": "Recipients of Delivery's daily email",

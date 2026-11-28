@@ -66,8 +66,8 @@ const HELP_CENTRE = ["HELP_MEDIA_ORIGIN"];
 /** « Espace coach v2 » (ADR-0107): the Human Coach epic's one switch, off by default. */
 const COACH_SPACE = ["COACH_SPACE_V2"];
 
-/** The Coach Actions (ADR-0077, #713): switched on or off, and how many rounds of calls a reply may make. */
-const COACH = ["COACH_ACTIONS_ENABLED", "COACH_TOOL_ROUNDS_MAX", "CAL_COM_TEAM_ID", "CAL_COM_REMINDERS_DISABLED"];
+/** The Coach Actions (ADR-0077, #713): switched on or off, how many rounds of calls a reply may make, and the Web lookup (#1159). */
+const COACH = ["COACH_ACTIONS_ENABLED", "COACH_TOOL_ROUNDS_MAX", "COACH_WEB_LOOKUP_ENABLED", "CAL_COM_TEAM_ID", "CAL_COM_REMINDERS_DISABLED"];
 
 describe("the Platform Settings catalog", () => {
   it("has « Espace coach v2 » off by default, a confirmed boolean (ADR-0107)", () => {
@@ -193,6 +193,13 @@ describe("the Platform Settings catalog", () => {
     expect(isEditable(enabled) && isEditable(rounds)).toBe(true);
     expect(readSetting({}, "COACH_ACTIONS_ENABLED")).toBe(false);
     expect(readSetting({}, "COACH_TOOL_ROUNDS_MAX")).toBe(2);
+  });
+
+  it("keeps the AI Coach's Web lookup on by default, a boolean Paramètres sets (ADR-0119, #1159)", () => {
+    const setting = platformSetting("COACH_WEB_LOOKUP_ENABLED")!;
+    expect([setting.group, setting.type, setting.default]).toEqual(["coach", { kind: "boolean" }, "true"]);
+    expect(isEditable(setting)).toBe(true);
+    expect(readSetting({}, "COACH_WEB_LOOKUP_ENABLED")).toBe(true);
   });
 
   it("parses a value the way the code parses env: an allowed list, a bounded number, text or a boolean", () => {

@@ -82,6 +82,13 @@ export function coachProposalHandlers(catalog: readonly CoachAction[], now: () =
           const quota = { label: payload.change.quota?.label ?? "", prompt: applied.prompt };
           throw new ActionCardQuota({ ...(card.payload as object), change: { ...payload.change, quota } });
         }
+        // A Send (#1162): the cap reached since, or an email that may have gone. The card stays pending and says so, its
+        // « Envoyer » gone: a Send whose fate is unknown is never sent again.
+        if ((applied.error === "cap" || applied.error === "uncertain") && payload.change.send) {
+          const send = applied.error === "cap" ? { ...payload.change.send, room: applied.room, capReached: true as const } : { ...payload.change.send, uncertain: true as const };
+          throw new ActionCardQuota({ ...(card.payload as object), change: { ...payload.change, send } });
+        }
+        if (applied.error === "failed" || applied.error === "cap" || applied.error === "uncertain") throw new Error(`the card's Send was not sent (${applied.error})`);
         // Gone since (deleted, archived) or changed since: either way, not what was proposed any more.
         throw new ActionCardConflict();
       },

@@ -159,6 +159,24 @@ export interface ProposedChange {
    * messagerie » (`mailto:` to `to`, with `subject` and the text) in place of « Appliquer ». Jobbbox sends nothing.
    */
   handOver?: { to: string; subject: string };
+  /**
+   * An email Jobbbox sends in the Candidate's name on their click (ADR-0119, #1162, `propose_send`): its card « Envoyer à
+   * Prénom N. » shows the recipient (Jobbbox's, never editable), who it goes out as (« Prénom Nom via Jobbbox »), the
+   * Candidate's sign-in email in copy and as Reply-To, and today's Sends of the cap; « Envoyer » in place of « Appliquer »,
+   * no « Annuler ». `capReached`: none left today, no « Envoyer ». `uncertain`: a click whose email may have gone (a
+   * timeout); it is never sent again, the Candidate checks their mailbox, in copy.
+   */
+  send?: SendCard;
+}
+
+/** What a `propose_send` card shows of its Send (#1162). */
+export interface SendCard {
+  to: { email: string; name?: string };
+  as: string;
+  copyTo: string;
+  room: { sentToday: number; cap: number };
+  capReached?: true;
+  uncertain?: true;
 }
 
 /** The kinds of AI action a proposal's card runs in the Candidate's own request (#721): what AI Activity calls them. */
@@ -230,6 +248,16 @@ export const proposedChangeSchema: z.ZodType<ProposedChange> = z.object({
   replaces: z.string().optional(),
   layoutOnly: z.literal(true).optional(),
   handOver: z.object({ to: z.string(), subject: z.string() }).optional(),
+  send: z
+    .object({
+      to: z.object({ email: z.string(), name: z.string().optional() }),
+      as: z.string(),
+      copyTo: z.string(),
+      room: z.object({ sentToday: z.number(), cap: z.number() }),
+      capReached: z.literal(true).optional(),
+      uncertain: z.literal(true).optional(),
+    })
+    .optional(),
 }) as unknown as z.ZodType<ProposedChange>;
 
 /**
@@ -251,7 +279,11 @@ export type ApplyProposalResult =
   | { ok: false; error: "conflict" | "not_found" }
   | { ok: false; error: "invalid"; errors: FieldError[] }
   /** The Plan Quota has no room left since the proposal (#773): its card shows this Upgrade prompt, nothing applied. */
-  | { ok: false; error: "quota"; prompt: UpgradePrompt };
+  | { ok: false; error: "quota"; prompt: UpgradePrompt }
+  /** A Send (#1162): today's cap reached since the proposal; its card says so, nothing sent. */
+  | { ok: false; error: "cap"; room: { sentToday: number; cap: number } }
+  /** A Send (#1162): Brevo refused it, nothing went (`failed`, a new click may send it); or it may have gone (`uncertain`). */
+  | { ok: false; error: "failed" | "uncertain" };
 /**
  * « Annuler »'s outcome. `note`: what it left as it was, said on the card once undone (#770: `status_kept`, an
  * Application Status changed since the card was applied, left as it is).

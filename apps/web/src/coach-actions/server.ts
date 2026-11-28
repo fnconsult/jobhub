@@ -21,12 +21,13 @@ import { readIndustryReference } from "@/reference-data/server";
 import { getTailoredCvs } from "@/tailored-cv/server";
 import { getTailoredDocuments, getTailoredDocumentVersions } from "@/tailored-documents/server";
 import { getTargetCompanies } from "@/target-companies/server";
+import { getSends } from "@/sends/server";
 import { candidateObjects } from "./candidate-objects";
 import { shippedCoachActions } from "./catalog";
 import { e2eCoachActions } from "./e2e-catalog";
 import { createCoachActions, type CoachAction, type CoachActions } from "./index";
 import { jobSearchQuotaOf } from "./job-searches";
-import { coachWebLookupOn } from "./on";
+import { coachSendOn, coachWebLookupOn } from "./on";
 import { createRedirects } from "./redirects";
 import { weeklyQuotaOf } from "./quota";
 import { coachActionsSettings } from "./settings";
@@ -126,6 +127,16 @@ function shipped(): readonly CoachAction[] {
       webLookup: {
         on: coachWebLookupOn,
         search: async (candidateId, query, signal) => (await getAi().lookUpWeb({ candidateId, query, ...(signal ? { signal } : {}) })).pages,
+      },
+      // Sending on the Candidate's click (ADR-0119, #1162): offered while COACH_SEND_ENABLED is on, never in Production
+      // before #1160; sent through Brevo from MAIL_FROM's address, once per card, COACH_SENDS_PER_DAY a day at most.
+      sends: {
+        on: coachSendOn,
+        sends: {
+          sendingAs: (candidateId) => getSends().sendingAs(candidateId),
+          room: (candidateId) => getSends().room(candidateId),
+          send: (candidateId, request) => getSends().send(candidateId, request),
+        },
       },
     },
   );

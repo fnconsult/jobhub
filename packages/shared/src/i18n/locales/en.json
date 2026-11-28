@@ -7424,6 +7424,7 @@
       "status_kept": "The application's status had changed since: it is left as it is."
     },
     "problems": {
+      "sendFailed": "The email did not go. Try again in a moment.",
       "conflict": "The item has changed since the proposal: nothing was applied. Open it to see where it stands.",
       "undoConflict": "The item has changed since you applied the proposal: nothing was undone.",
       "invalid": "What you entered does not fit: check the form.",
@@ -7471,6 +7472,28 @@
     },
     "tailoredCvAnswers": {
       "what": "Answers to the questions"
+    },
+    "send": {
+      "what": "Send to {{to}}",
+      "to": "To: {{to}}",
+      "as": "From: {{as}}, from a jobbbox.ai address",
+      "copy": "Copy and replies: {{copyTo}}",
+      "subject": "Subject: {{subject}}",
+      "room": "Sent today: {{sentToday}} of {{cap}}.",
+      "capReached": "Limit reached: you sent {{cap}} messages from Jobbbox today. Try again tomorrow, or copy the text to send it from your email.",
+      "uncertain": "We do not know whether the email went: it will not be sent again. Check your inbox, you are in copy.",
+      "send": "Send",
+      "edit": "Edit before sending",
+      "sent": "Sent by you at {{time}}: you are in copy, and replies come straight to you.",
+      "noUndo": "Once sent, the email cannot be undone.",
+      "failed": "The email did not go. Try again in a moment.",
+      "sentListTitle": "Sent from Jobbbox",
+      "sentItem": "{{date}} · to {{to}} · {{subject}}",
+      "kinds": {
+        "follow_up": "Follow-up",
+        "outreach_message": "Outreach message",
+        "exchange_reply": "Reply"
+      }
     },
     "handOver": {
       "copy": "Copy",

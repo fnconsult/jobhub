@@ -97,6 +97,8 @@ const CALLS: Record<string, (world: World) => Record<string, unknown>> = {
   propose_target_company_dossier: (w) => ({ profileId: w.daf, targetCompanyId: w.targetId }),
   propose_target_contact_search: (w) => ({ profileId: w.daf, targetCompanyId: w.preparedTargetId }),
   propose_spontaneous_application: (w) => ({ profileId: w.daf, targetCompanyId: w.targetId }),
+  // Sending on the Candidate's click (#1162): proposed, never sent; only « Envoyer » on its card sends.
+  propose_send: (w) => ({ applicationId: w.applicationId, document: "exchange_reply", text: "Bonjour, mardi à 14 h me convient. Marie" }),
 };
 
 const RECORDER = { step: <T>(_step: unknown, run: () => Promise<T>) => run(), site: () => {} };
@@ -298,6 +300,11 @@ describe.skipIf(!connectionString)("a Coach Action never writes: only the Candid
       },
       targetCompanies,
       enrichedContactQuota: async () => ({ used: 0, limit: 5, refusal: null }),
+      // Sending on the Candidate's click (#1162), switched on: proposing never sends.
+      sends: {
+        on: () => true,
+        sends: { sendingAs: async () => ({ name: "Marie Dupont via Jobbbox", copyTo: "marie.dupont@example.fr" }), room: async () => ({ sentToday: 0, cap: 20 }), send: write() as never },
+      },
     };
     // Its sender, subject and text sealed, as the inbound route keeps them.
     const exchangeId = randomUUID();
@@ -321,6 +328,7 @@ describe.skipIf(!connectionString)("a Coach Action never writes: only the Candid
       domain.companyDossiers.confirmEmployer,
       domain.enrichedContacts.find,
       domain.enrichedContacts.reveal,
+      domain.sends!.sends.send,
     ] as unknown as ReturnType<typeof vi.fn>[];
     // A Job Offer is within reach when one of the Candidate's objects shows it: the new one, which her Job Search found.
     const objects: CoachObjectReader = { index: async () => [], read: async (_candidateId, type, id) => (type === "job_offer" && id === world.newOfferId ? ({ text: "" } as never) : null) };

@@ -22,12 +22,13 @@ import { getTailoredCvs } from "@/tailored-cv/server";
 import { getTailoredDocuments, getTailoredDocumentVersions } from "@/tailored-documents/server";
 import { getTargetCompanies } from "@/target-companies/server";
 import { getSends } from "@/sends/server";
+import { getLinkedInReadings } from "@/linkedin-readings/server";
 import { candidateObjects } from "./candidate-objects";
 import { shippedCoachActions } from "./catalog";
 import { e2eCoachActions } from "./e2e-catalog";
 import { createCoachActions, type CoachAction, type CoachActions } from "./index";
 import { jobSearchQuotaOf } from "./job-searches";
-import { coachSendOn, coachWebLookupOn } from "./on";
+import { coachSendOn, coachWebLookupOn, linkedInReadingOn } from "./on";
 import { createRedirects } from "./redirects";
 import { weeklyQuotaOf } from "./quota";
 import { coachActionsSettings } from "./settings";
@@ -138,6 +139,9 @@ function shipped(): readonly CoachAction[] {
           send: (candidateId, request) => getSends().send(candidateId, request),
         },
       },
+      // The LinkedIn page the extension read on the Candidate's click (ADR-0119, #1164): offered while
+      // LINKEDIN_READING_ENABLED is on, never in Production before #1160; Jobbbox's server never reads LinkedIn itself.
+      linkedInReadings: { on: linkedInReadingOn, latest: (candidateId, options) => getLinkedInReadings().latest(candidateId, options) },
     },
   );
 }

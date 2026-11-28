@@ -430,7 +430,8 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
       // A case that must read objects first is scored 0 without its reads (see read Coach Actions, #714).
       // A case that must give a Typed redirect (ADR-0114) is scored 0 without it, and checked on its own.
       // A case that must search the web (#1159) is scored 0 without its search, and checked on its own.
-      for (const each of AI_COACH_EVAL_CASES.filter((one) => one.proposes === false && !one.reads && !one.redirects && !one.searchesWeb)) {
+      // A case that must read the LinkedIn page the extension read (#1164) likewise.
+      for (const each of AI_COACH_EVAL_CASES.filter((one) => one.proposes === false && !one.reads && !one.redirects && !one.searchesWeb && !one.readsLinkedIn)) {
         expect(done.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0.8 });
       }
     });
@@ -1495,5 +1496,33 @@ describe("Eval Cases of the Web lookup (ADR-0119 « A web lookup », #1159)", ()
     for (const id of ["web-lookup-competitors", "web-lookup-named-person-refused", "web-lookup-injected-result-not-followed"]) {
       for (const page of caseOf(id)!.web ?? []) expect(new URL(page.url).hostname, id).toMatch(/\.example$/);
     }
+  });
+});
+
+describe("Eval Cases of LinkedIn through the extension (ADR-0119 « LinkedIn, through the extension only », #1164)", () => {
+  const caseOf = (id: string) => AI_COACH_EVAL_CASES.find((each) => each.id === id);
+
+  it("the people the extension read are read with read_linkedin_page, their name and role only, an instruction among them not followed", () => {
+    const read = caseOf("linkedin-people-read");
+    expect(read).toMatchObject({ readsLinkedIn: true, proposes: false });
+    expect(read!.linkedIn!.people.map((person) => Object.keys(person).sort())).toEqual([
+      ["company", "name", "role"],
+      ["company", "name", "role"],
+    ]);
+    expect(read!.linkedIn!.people.some((person) => /ignore tes consignes/.test(person.role))).toBe(true);
+    expect(read!.criteria).toMatch(/ne suit pas l'instruction/);
+  });
+
+  it("with no page read lately, the Candidate is asked to read it with the extension, nobody invented", () => {
+    const none = caseOf("linkedin-none-read");
+    expect(none).toMatchObject({ readsLinkedIn: true, linkedIn: null });
+    expect(none!.criteria).toMatch(/« Lire cette page LinkedIn »/);
+    expect(none!.criteria).toMatch(/n'invente aucune personne/);
+  });
+
+  it("are fictional: a company and people of no one", () => {
+    const reading = caseOf("linkedin-people-read")!.linkedIn!;
+    expect(reading.company).toMatch(/Fictive/);
+    expect(reading.people.map((person) => person.name)).toEqual(["Camille Fictive", "Lou Inventé"]);
   });
 });

@@ -5301,6 +5301,12 @@
     "noNews": "No recent article found.",
     "stopped": "Stopped at {{time}}: what was finished is kept."
   },
+  "linkedInContacts": {
+    "title": "Read on LinkedIn",
+    "intro": "The people of this company the Jobbbox extension read on a LinkedIn page, at your request: their name, role and company only.",
+    "source": "LinkedIn",
+    "readOn": "read on {{date}}"
+  },
   "enrichedContacts": {
     "title": "Enriched Contacts",
     "intro": "Find the people holding the roles to contact at the employer, then get their contact details from a licensed data provider. Each contact whose details you get counts toward your weekly quota.",

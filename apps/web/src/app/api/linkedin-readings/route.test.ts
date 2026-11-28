@@ -84,4 +84,15 @@ describe.skipIf(!connectionString)("/api/linkedin-readings: what the extension r
     expect((await send(reading)).status).toBe(401);
     expect(await readingsKept()).toBe(0);
   });
+
+  it("sends no request to linkedin.com, nor anywhere else: Jobbbox's server keeps what the extension read, never reads LinkedIn itself", async () => {
+    const fetch = vi.spyOn(globalThis, "fetch");
+    try {
+      expect((await send(reading)).status).toBe(201);
+      expect((await GET()).status).toBe(200);
+      expect(fetch).not.toHaveBeenCalled();
+    } finally {
+      fetch.mockRestore();
+    }
+  });
 });

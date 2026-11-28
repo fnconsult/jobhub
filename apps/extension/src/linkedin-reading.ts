@@ -29,8 +29,8 @@ export async function readLinkedInTab({
   if (!reading) return { state: "unreadable" };
   const kept = await api.keepLinkedInReading(reading);
   if (!kept.ok) return { state: "failed", error: kept.error };
-  const { ok: _ok, ...where } = kept;
-  return { state: "kept", ...where };
+  const { company, peopleRead, peopleKept, filedIn } = kept;
+  return { state: "kept", company, peopleRead, peopleKept, filedIn };
 }
 
 const FAILURES = {

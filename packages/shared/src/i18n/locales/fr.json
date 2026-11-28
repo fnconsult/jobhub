@@ -5301,6 +5301,12 @@
     "noNews": "Aucun article récent trouvé.",
     "stopped": "Arrêté à {{time}} : ce qui était terminé est gardé."
   },
+  "linkedInContacts": {
+    "title": "Lus sur LinkedIn",
+    "intro": "Les personnes de cette entreprise que l'extension Jobbbox a lues sur une page LinkedIn, à votre demande : leur nom, leur fonction et leur entreprise seulement.",
+    "source": "LinkedIn",
+    "readOn": "lu le {{date}}"
+  },
   "enrichedContacts": {
     "title": "Contacts enrichis",
     "intro": "Trouvez les personnes qui occupent les fonctions à contacter chez l'employeur, puis obtenez leurs coordonnées auprès d'un fournisseur de données sous licence. Chaque contact dont vous obtenez les coordonnées compte dans votre quota hebdomadaire.",

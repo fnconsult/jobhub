@@ -13,6 +13,7 @@ import type { HumanCoaches } from "../human-coaches";
 import { applicationDetails, criteriaTextOf, APPLICATION_STATUS, cvText, day, JOB_SEARCH_STATUS, jobDigestLine, jobOfferHeadline, jobOfferText, matchScoreText, scoredResultLine, type CoachAgendaSource } from "../coach/context";
 import type { JobDigests } from "../job-digests";
 import type { JobSearches } from "../job-searches";
+import type { LinkedInReadings } from "../linkedin-readings";
 import type { Profiles } from "../profiles";
 import { routes } from "../routes";
 import type { ApplicationTailoredCv, TailoredCvs } from "../tailored-cv";
@@ -39,6 +40,8 @@ export interface CandidateObjectSources {
   coachReviews: Pick<HumanCoaches, "reviews">;
   /** A Profile's Target Companies (#1157), each with its Spontaneous Application's dossier and contacts; none: not found. */
   targetCompanies?: Pick<TargetCompanies, "onProfile">;
+  /** The people of each Target Company the extension read on LinkedIn (#1164), told with it; none: not told. */
+  linkedInContacts?: Pick<LinkedInReadings, "contactsOfTargetCompanies">;
   /** The Candidate's Plan and the week's Plan Quotas, as Mon abonnement reads them (#1158); none: not found. */
   plan?: PlanSource;
   /** The Sectors' and Domains' labels; without them none is named. */

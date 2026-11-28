@@ -535,7 +535,21 @@
       "terms": "Terms of use"
     },
     "secondStep": "Finish signing in on Jobbbox",
-    "secondStepLink": "Finish signing in"
+    "secondStepLink": "Finish signing in",
+    "linkedIn": {
+      "title": "LinkedIn page",
+      "read": "Read this LinkedIn page",
+      "hint": "Jobbbox keeps only the name, role and company of the people on this page, never their profile. Your LinkedIn terms of use apply to your account.",
+      "reading": "Reading the page…",
+      "kept_one": "{{count}} person kept at {{company}}: {{places}}.",
+      "kept_other": "{{count}} people kept at {{company}}: {{places}}.",
+      "nobodyNamed": "Page read: {{company}}. Nobody is named on it.",
+      "notFiled": "Nobody was kept: {{company}} is the employer of none of your applications nor one of your target companies. Add it as a target company, then read the page again.",
+      "application": "the application “{{name}}”",
+      "targetCompany": "the target company “{{name}}”",
+      "unreadable": "This LinkedIn page cannot be read: open a job offer, a company's page or its people.",
+      "disabled": "Reading LinkedIn pages is not available."
+    }
   },
   "signInEmail": {
     "subject": "Your Jobbbox sign-in link",
@@ -1313,6 +1327,9 @@
     "offersFound_other": "{{count}} job offers found there",
     "noOffers": "No job offer found there yet",
     "offersLabel": "Job offers found at {{name}}",
+    "linkedInFound_one": "{{count}} person read on LinkedIn",
+    "linkedInFound_other": "{{count}} people read on LinkedIn",
+    "linkedInLabel": "The people of {{name}} read on LinkedIn",
     "openDossier": "Company dossier",
     "findContacts": "Enriched contacts",
     "prepareApplication": "Prepare a spontaneous application",
@@ -3092,6 +3109,7 @@
         "EXTENSION_STORE_URL": "Extension's Chrome Web Store page",
         "APP_STORE_URL": "App's App Store page (the landing page's link)",
         "PLAY_STORE_URL": "App's Google Play page (the landing page's link)",
+        "LINKEDIN_READING_ENABLED": "The extension reads a LinkedIn page on the Candidate's click (never in Production before the legal review)",
         "HUMAN_COACH_PAGE_ENABLED": "Human coaches' path on the public site (to switch on with the coach space)",
         "HELP_MEDIA_ORIGIN": "Origin of the help videos (the Help Centre's Explainer Videos)",
         "MAINTENANCE_MODE": "Maintenance on (every page but the Back Office answers 503)",
@@ -5286,6 +5304,12 @@
     "newsNotSearched": "Update the dossier to add the employer's news.",
     "noNews": "No recent article found.",
     "stopped": "Stopped at {{time}}: what was finished is kept."
+  },
+  "linkedInContacts": {
+    "title": "Read on LinkedIn",
+    "intro": "The people of this company the Jobbbox extension read on a LinkedIn page, at your request: their name, role and company only.",
+    "source": "LinkedIn",
+    "readOn": "read on {{date}}"
   },
   "enrichedContacts": {
     "title": "Enriched Contacts",

@@ -736,6 +736,23 @@ _Added by #338, from `docs/research/issue-498.md` § 4, item 11._
 | Retention | Brevo's, per its DPA (not read). |
 | Rights | Through the processing each email serves. |
 
+## Third parties read on LinkedIn by the extension (ADR-0119, #1164)
+
+_Added by #1164. **Draft, not in effect in Production**: behind the Platform Setting `LINKEDIN_READING_ENABLED` (off by default) and the code constant `LINKEDIN_READING_IN_PRODUCTION` (false) until the Legal Review #1160 is done (product owner's decision of 2026-11-27)._
+
+| | |
+| --- | --- |
+| Purpose | On the Candidate's click on « Lire cette page LinkedIn » in the browser extension's Side Panel, read in their own browser a LinkedIn page they opened (a Job Offer, a company's page, or its people filtered by department), and keep the people it names as contacts of the Candidate's Application at that employer or Target Company of that name, for their own job search: shown on that Application's « Contacts », or on that Target Company's card and on the Spontaneous Application prepared there; the AI Coach reads them (`read_linkedin_page`, and with their Target Company in `read_target_companies`) to advise whom to contact. Never in the background, never a profile, never by Jobbbox's server: it never reaches LinkedIn. |
+| Legal basis | For the Candidate: performance of the service they ask for by their click (contract). For the people read: to be settled by #1160 (legitimate interest of the Candidate's own job search; data the person made public on LinkedIn, minimised to name, role and company). LinkedIn's terms apply to the Candidate's own account: to say in the CGU (#1160). |
+| People concerned | Candidates; the people named on the LinkedIn page: employees of a company, a Job Offer's hiring team. |
+| Data | Of each person: their name, their role (LinkedIn's headline or job title) and their company, nothing else: never the profile's address, a photo, a place, a degree of connection, nor anything of their profile (`linkedInReadingOf`, read in the extension and again by the server). Of the page: its kind, its canonical address (a Job Offer's or a company's, never a person's), the company, the department filtered on, how many people it named and when it was read (`linkedin_reading`). With no Application nor Target Company of that company, nobody is kept: the Reading keeps only how many people it named. |
+| Source | The page the Candidate opened on LinkedIn, read by the extension in their browser on their click (activeTab, `scripting`); sent to Jobbbox by the extension (`POST /api/linkedin-readings`, from the extension and a signed-in Candidate only). |
+| Recipients | The AI model of the coaching task (see « Coach Conversations »): the names, roles and companies, as untrusted text, when the AI Coach reads them for the Candidate. No new processor. |
+| Storage | The `linkedin_reading` and `linkedin_contact` tables in the app's Postgres database (EU). |
+| Retention | A person kept: while their Application or Target Company exists, deleted with it or with the account; read again, their row is brought up to date, never doubled. A Reading that files nobody: the Candidate's latest 20 at most, deleted with the account. |
+| Rights | The Candidate: in their Data export (`linkedInReadings`, with each contact and where it is filed), deleted with the Application, the Target Company or the account. A person read: through the Candidate; Jobbbox, which keeps their name, role and company, answers access and erasure requests from them (#1160 to settle the notice). |
+| Limits | 50 people per page at most; one page per click. |
+
 ## Emails sent in the Candidate's name (ADR-0119, #1162)
 
 _Added by #1162, from `docs/research/issue-1162.md`. **Draft, not in effect in Production**: behind the Platform Setting `COACH_SEND_ENABLED` (off by default) and the code constant `SEND_IN_PRODUCTION` (false) until the Legal Review #1160 is done (product owner's decision of 2026-11-27)._

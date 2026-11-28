@@ -15,6 +15,7 @@ import type { AddressedKind } from "@/components/work-pane";
 import { ProfileActions } from "@/components/ProfileActions";
 import { TargetCompanies } from "@/components/TargetCompanies";
 import { getRequestLocale, getServerT } from "@/i18n/server";
+import { getLinkedInReadings } from "@/linkedin-readings/server";
 import { getProfiles, requireOwnProfile } from "@/profiles/server";
 import { PROFILE_SECTIONS, type ProfileSection, routes } from "@/routes";
 import { getTargetCompanies } from "@/target-companies/server";
@@ -178,6 +179,8 @@ async function AtsScore({ page, t }: { page: Page; t: T }) {
 async function TargetCompaniesSection({ page }: { page: Page }) {
   const { candidateId, profile } = page;
   const companies = (await getTargetCompanies().onProfile(candidateId, profile.id)) ?? [];
+  // The people of each the extension read on LinkedIn, on the Candidate's click (ADR-0119, #1164), on its card.
+  const linkedIn = await getLinkedInReadings().contactsOfTargetCompanies(candidateId, companies.map((company) => company.id));
   return (
     <TargetCompanies
       key={`target-companies-${profile.id}`}
@@ -192,6 +195,7 @@ async function TargetCompaniesSection({ page }: { page: Page }) {
         hiringScore: company.hiringScore,
         jobOffers: company.jobOffers,
         spontaneousApplicationId: company.spontaneousApplicationId,
+        linkedInContacts: (linkedIn.get(company.id) ?? []).map(({ id, name, role, company, readAt }) => ({ id, name, role, company, readAt: readAt.toISOString() })),
       }))}
     />
   );

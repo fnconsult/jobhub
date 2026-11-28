@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { snapshotOfSettings } from "../platform-settings/resolver";
-import { coachActionsSettings, coachSendEnabled, coachSendsPerDay, coachWebLookupEnabled, SEND_IN_PRODUCTION, WEB_LOOKUP_IN_PRODUCTION } from "./settings";
+import { coachActionsSettings, coachSendEnabled, coachSendsPerDay, coachWebLookupEnabled, LINKEDIN_READING_IN_PRODUCTION, linkedInReadingEnabled, SEND_IN_PRODUCTION, WEB_LOOKUP_IN_PRODUCTION } from "./settings";
 
 describe("the Coach Actions' Platform Settings (#713)", () => {
   it("are off, with 2 rounds, by default", () => {
@@ -58,5 +58,21 @@ describe("COACH_SEND_ENABLED and COACH_SENDS_PER_DAY, sending on the Candidate's
     expect(coachSendsPerDay(snapshotOfSettings({ COACH_SENDS_PER_DAY: "5" }, {}))).toBe(5);
     expect(coachSendsPerDay(snapshotOfSettings({ COACH_SENDS_PER_DAY: "0" }, {}))).toBe(20);
     expect(coachSendsPerDay(snapshotOfSettings({ COACH_SENDS_PER_DAY: "500" }, {}))).toBe(20);
+  });
+});
+
+describe("the extension's reading of a LinkedIn page, LINKEDIN_READING_ENABLED (ADR-0119, #1164)", () => {
+  it("is off by default, and on once set, on the Beta and in development", () => {
+    for (const env of [{ JOBHUB_TARGET: "staging", NODE_ENV: "production" }, { NODE_ENV: "development" }, { JOBHUB_TARGET: "e2e" }]) {
+      expect(linkedInReadingEnabled(snapshotOfSettings({}, {}), env), JSON.stringify(env)).toBe(false);
+      expect(linkedInReadingEnabled(snapshotOfSettings({ LINKEDIN_READING_ENABLED: "true" }, {}), env), JSON.stringify(env)).toBe(true);
+    }
+  });
+
+  it("stays off in Production, whatever it is set to, until its Legal Review is done (#1160)", () => {
+    expect(LINKEDIN_READING_IN_PRODUCTION).toBe(false);
+    for (const env of [{ JOBHUB_TARGET: "production" }, { NODE_ENV: "production" }]) {
+      expect(linkedInReadingEnabled(snapshotOfSettings({ LINKEDIN_READING_ENABLED: "true" }, {}), env), JSON.stringify(env)).toBe(false);
+    }
   });
 });

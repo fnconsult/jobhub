@@ -7,7 +7,8 @@
  * an Application's Exchanges, read and answered (#1099, behind its feature flag); and the employer's side of an
  * Application, its Company Dossier and Enriched Contacts (ADR-0114); and a company outside the Applications, through the
  * Target Companies of a Profile (ADR-0119, #1157); and the Web lookup, `search_web` (ADR-0119, #1159), behind its setting;
- * and sending on the Candidate's click, `propose_send` (ADR-0119, #1162), behind COACH_SEND_ENABLED.
+ * and sending on the Candidate's click, `propose_send` (ADR-0119, #1162), behind COACH_SEND_ENABLED; and the LinkedIn page
+ * the extension read on the Candidate's click, `read_linkedin_page` (ADR-0119, #1164), behind LINKEDIN_READING_ENABLED.
  *
  *   shippedCoachActions(candidateObjects(sources), domain)   // the app's, over the Candidate's objects
  *   shippedCoachActions(NO_OBJECTS)                          // on no one's data: every read finds nothing, nothing to propose on
@@ -28,6 +29,7 @@ import { readCoachActions, type CoachObjectReader } from "./reads";
 import { targetCompanyCoachActions, type TargetCompanyActionSources } from "./target-companies";
 import { webLookupCoachActions, type WebLookupSources } from "./web-lookup";
 import { sendCoachActions, type SendActionSources } from "./sends";
+import { linkedInReadingCoachActions, type LinkedInReadingSources } from "./linkedin-reading";
 
 /** The domain modules the proposals go through; a Job Offer's reach is the reads' (`objects`). */
 export type CoachActionDomain = Omit<ApplicationActionSources, "applications" | "reachesJobOffer" | "profiles"> &
@@ -57,6 +59,8 @@ export type CoachActionDomain = Omit<ApplicationActionSources, "applications" | 
     webLookup?: WebLookupSources;
     /** Sending on the Candidate's click (#1162), behind COACH_SEND_ENABLED: none, off. */
     sends?: Pick<SendActionSources, "on" | "sends">;
+    /** The LinkedIn pages the extension read on the Candidate's click (#1164), behind LINKEDIN_READING_ENABLED: none, off. */
+    linkedInReadings?: LinkedInReadingSources;
   };
 
 export function shippedCoachActions(objects: CoachObjectReader, domain: CoachActionDomain = NO_DOMAIN): readonly CoachAction[] {
@@ -88,6 +92,7 @@ export function shippedCoachActions(objects: CoachObjectReader, domain: CoachAct
       // An Application's Exchanges only while APPLICATION_EXCHANGES_ENABLED is on (#1099): off, none to answer.
       exchanges: exchangesWhileOn(domain.exchanges),
     }),
+    ...linkedInReadingCoachActions(domain.linkedInReadings ?? NO_LINKEDIN_READINGS),
   ]);
 }
 
@@ -98,6 +103,9 @@ const NOT_FOUND: ApplicationChangeResult = { ok: false, error: "not_found" };
 
 /** No one's web (#1159): every query finds nothing. */
 const NO_WEB: WebLookupSources = { search: async () => [] };
+
+/** No one's LinkedIn Readings (#1164): off, nothing read. */
+const NO_LINKEDIN_READINGS: LinkedInReadingSources = { on: () => false, latest: async () => null };
 
 /** No one's Sends (#1162): no account sends. */
 const NO_SENDS: SendActionSources["sends"] = { sendingAs: async () => null, room: async () => ({ sentToday: 0, cap: 0 }), send: async () => ({ ok: false, error: "not_found" }) };

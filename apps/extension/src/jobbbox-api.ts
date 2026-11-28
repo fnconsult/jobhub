@@ -7,7 +7,7 @@
  * `update` (src/extension-update.ts) and comes back "unreachable": the Side Panel then asks for the update instead.
  * Any other call that fails (4xx, 5xx, the network) is told to `failed`, which reports it to Jobbbox (#924).
  */
-import { distinctLocations, type CvContent, type JobOffer, type MatchScore } from "@jobhub/shared";
+import { distinctLocations, type CvContent, type JobOffer, type LinkedInReading, type MatchScore } from "@jobhub/shared";
 import { API_VERSION_HEADERS, updateRequiredBy, type ExtensionUpdate } from "./extension-update";
 import type { SearchCriteriaDraft } from "./guest-session";
 import type { CguVersion } from "./guest-terms";
@@ -82,6 +82,25 @@ export interface JobbboxApi {
    * everyone: nothing of the Guest's Acceptance is sent.
    */
   cguInEffect(): Promise<Result<{ cgu: CguVersion | null }, "unreachable">>;
+  /**
+   * Whether the signed-in Candidate may read a LinkedIn page from here (ADR-0119, #1164): LINKEDIN_READING_ENABLED, never
+   * in Production before #1160. False for anyone signed out, and whenever the web app does not say yes.
+   */
+  linkedInReading(): Promise<boolean>;
+  /**
+   * Sends what was read of a LinkedIn page on the Candidate's click (src/linkedin-page.ts): Jobbbox keeps each person's
+   * name, role and company as contacts of the Application or Target Company of that company, and says where.
+   * "disabled": the reading is switched off; "refused": not from this installation; "invalid": not a Reading.
+   */
+  keepLinkedInReading(reading: LinkedInReading): Promise<Result<LinkedInReadingKept, "disabled" | "signed_out" | "refused" | "invalid" | "unreachable">>;
+}
+
+/** Where the people of a LinkedIn Reading went: how many the page named, how many were kept, and with what. */
+export interface LinkedInReadingKept {
+  company: string;
+  peopleRead: number;
+  peopleKept: number;
+  filedIn: { kind: "application" | "target_company"; id: string; name: string }[];
 }
 
 /** What a Job Offer is scored against: one of the signed-in Candidate's Profiles, or a CV (with the Search Criteria read from it). */
@@ -216,6 +235,30 @@ export function createJobbboxApi(
       if (reply.status === 401) return { ok: false, error: "signed_out" };
       if (reply.status === 404) return { ok: false, error: "not_found" };
       return { ok: false, error: "failed" };
+    },
+
+    async linkedInReading() {
+      const reply = await request("/api/linkedin-readings", { method: "GET" });
+      return reply?.status === 200 && reply.body.enabled === true;
+    },
+
+    async keepLinkedInReading(reading) {
+      const reply = await postJson("/api/linkedin-readings", reading);
+      if (!reply) return { ok: false, error: "unreachable" };
+      if (reply.status === 201) {
+        const { company, peopleRead, peopleKept, filedIn } = reply.body;
+        return {
+          ok: true,
+          company: String(company ?? reading.company),
+          peopleRead: Number(peopleRead ?? 0),
+          peopleKept: Number(peopleKept ?? 0),
+          filedIn: Array.isArray(filedIn) ? (filedIn as LinkedInReadingKept["filedIn"]) : [],
+        };
+      }
+      if (reply.status === 404) return { ok: false, error: "disabled" };
+      if (reply.status === 401) return { ok: false, error: "signed_out" };
+      if (reply.status === 403) return { ok: false, error: "refused" };
+      return { ok: false, error: "invalid" };
     },
 
     async cguInEffect() {

@@ -99,6 +99,11 @@ function world() {
     prepared: [] as string[],
     searched: [] as string[],
     findResult: null as EnrichedContactsResult | null,
+    /** The people the extension read on LinkedIn (#1164), filed with ACME. */
+    linkedIn: [
+      { id: "l-1", name: "Camille Fictive", role: "Responsable achats", company: "ACME INDUSTRIE", source: "linkedin" as const, readAt: FOUND_AT },
+      { id: "l-2", name: "Lou Inventé", role: "", company: "ACME INDUSTRIE", source: "linkedin" as const, readAt: FOUND_AT },
+    ],
   };
   const mine = (candidateId: string, applicationId: string) => candidateId === "marie" && applicationId === "a-beta";
   const sources: TargetCompanyActionSources = {
@@ -141,6 +146,10 @@ function world() {
     targetCompanies: sources.targetCompanies,
     companyDossiers: sources.companyDossiers,
     enrichedContacts: sources.enrichedContacts,
+    linkedInContacts: {
+      contactsOfTargetCompanies: async (candidateId: string, ids: readonly string[]) =>
+        new Map(candidateId === "marie" && ids.includes("t-acme") && state.linkedIn.length > 0 ? [["t-acme", state.linkedIn]] : []),
+    },
   } as unknown as CandidateObjectSources);
   return { sources, state, reader, actions: targetCompanyCoachActions(reader, sources) };
 }
@@ -192,6 +201,17 @@ describe("the Target Companies' Coach Actions (ADR-0119 D1, #1157)", () => {
       expect(text).toMatch(/entreprise cible \(id t-beta\) BETA LOGISTIQUE · La Bonne Boite, potentiel d'embauche 64\/100 · Vénissieux · candidature spontanée \(id a-beta\) · dossier entreprise constitué le 2026-10-30 · 1 personne trouvée, 1 contact révélé/);
       // Names and roles only, never an Enriched Contact's details.
       expect(text).not.toMatch(/@beta|98 76|Sophie/);
+    });
+
+    it("names the people of a Target Company the extension read on LinkedIn: name and role only, as data read on LinkedIn (#1164)", async () => {
+      const { actions, state } = world();
+
+      const text = ((await run(actions, TARGET_COMPANY_ACTIONS.read, { profileId: "p-daf" })) as { data: string }).data;
+
+      expect(text).toMatch(/\(id t-acme\) ACME INDUSTRIE · .* · 2 personnes lues sur LinkedIn par l'extension : Camille Fictive \(Responsable achats\), Lou Inventé/);
+      expect(text).not.toMatch(/\(id t-beta\).*lues? sur LinkedIn/);
+      state.linkedIn = [];
+      expect(((await run(actions, TARGET_COMPANY_ACTIONS.read, { profileId: "p-daf" })) as { data: string }).data).not.toContain("LinkedIn");
     });
 
     it("says the dossier is to build, and the contacts off, as they are", async () => {

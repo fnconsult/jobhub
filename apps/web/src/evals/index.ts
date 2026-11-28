@@ -36,6 +36,7 @@ import { forEvalRun, type CoachAction } from "../coach-actions";
 import { NO_DOMAIN, shippedCoachActions } from "../coach-actions/catalog";
 import { fictionalObjects } from "../coach-actions/fictional-objects";
 import { fictionalWebLookup } from "../coach-actions/web-lookup";
+import { fictionalLinkedInReadings } from "../coach-actions/linkedin-reading";
 import { asData } from "../coach/context";
 import type { CoachingPlaybooks, PlaybookAgent, PlaybookVersion, ServedKnowledge } from "../coaching-playbooks";
 import type { Queryable } from "../database/pool";
@@ -462,9 +463,11 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
       const coachSpaceV2 = each.coachSpaceV2 ?? false;
       // The case's fictional web (#1159): search_web finds its pages, whatever the query; the queries sent are kept.
       const web = fictionalWebLookup(each.web ?? []);
+      // The LinkedIn page the case's extension read (#1164), whatever the page asked: read_linkedin_page finds it.
+      const linkedIn = fictionalLinkedInReadings(each.linkedIn ?? null);
       const coachActions = deps.coachActions
         ? forEvalRun(deps.coachActions, { coachSpaceV2 })
-        : forEvalRun(shippedCoachActions(objects, { ...NO_DOMAIN, webLookup: web }), { readsPlayed: true, coachSpaceV2 });
+        : forEvalRun(shippedCoachActions(objects, { ...NO_DOMAIN, webLookup: web, linkedInReadings: linkedIn }), { readsPlayed: true, coachSpaceV2 });
       const coach = createCoach({
         ai,
         playbooks: { served: async () => served },
@@ -524,6 +527,11 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
         const reason = each.searchesWeb ? "Le coach n'a fait aucune recherche web là où il en fallait une." : `Le coach a fait une recherche web qu'il ne devait pas faire (« ${web.queries()[0]} »).`;
         return { case: playedCase, reply: replied.reply, consulted, score: 0, reason, costEur: replyCost, responseMs };
       }
+      // Whether it read the LinkedIn page the extension read (#1164) is what read_linkedin_page did: checked exactly.
+      if (each.readsLinkedIn !== undefined && linkedIn.reads() > 0 !== each.readsLinkedIn) {
+        const reason = each.readsLinkedIn ? "Le coach n'a pas lu la page LinkedIn lue par l'extension." : "Le coach a lu une page LinkedIn qu'il ne devait pas lire.";
+        return { case: playedCase, reply: replied.reply, consulted, score: 0, reason, costEur: replyCost, responseMs };
+      }
       if (each.grounded && triggered.includes("ungrounded_answer")) {
         return { case: playedCase, reply: replied.reply, consulted, score: 0, reason: "Le Guardrail « Réponse non fondée sur le profil » s'est déclenché sur la réponse du coach.", costEur: replyCost, responseMs };
       }
@@ -531,6 +539,8 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
       const read = each.objects?.length ? [framed("objets", each.objects.map((object) => object.text).join("\n\n").slice(0, 8_000))] : [];
       // …and the pages its web held (#1159), to judge a reply sourced from them.
       if (each.web?.length) read.push(framed("pages-web", each.web.map((page) => `${page.title} — ${page.url}\n${page.snippet}`).join("\n\n").slice(0, 8_000)));
+      // …and the people the extension read on LinkedIn (#1164), to judge a reply drawn from them.
+      if (each.linkedIn) read.push(framed("lecture-linkedin", [`${each.linkedIn.company} (${each.linkedIn.department ?? ""})`, ...each.linkedIn.people.map((person) => `${person.name} — ${person.role} — ${person.company}`)].join("\n")));
       const call = await ai
         .generate({
           task: "eval",

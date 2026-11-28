@@ -27,6 +27,8 @@ import { exchangesOn, getExchanges } from "@/exchanges/server";
 import { ApplicationExchanges } from "@/components/ApplicationExchanges";
 import { getSends } from "@/sends/server";
 import type { SentEmail } from "@/sends";
+import { getLinkedInReadings } from "@/linkedin-readings/server";
+import type { LinkedInContact } from "@/linkedin-readings";
 import { ABANDON_CARD, FOLLOW_UP_CARD, followUpCardApplies, type FollowUpPayload } from "@/follow-ups";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -70,7 +72,8 @@ function cardView({ id, kind, title, body, payload }: ActionCard, t: T): ActionC
  * order (ADR-0024): Propositions while there are Action Cards, the Tailored
  * Documents once there are some, the Exchanges while they are on (#1099) or once Jobbbox sent an email from it (#1162),
  * the Coach Reviews once there are some, and the
- * Enriched Contacts while a contact-data provider is on or some were found.
+ * Enriched Contacts while a contact-data provider is on or some were found, or once the extension read people of the
+ * employer on LinkedIn (#1164).
  * Sends anonymous visitors to sign in, and answers 404 for an Application that is not theirs.
  */
 export const loadApplicationPage = cache(async (id: string) => {
@@ -90,6 +93,8 @@ export const loadApplicationPage = cache(async (id: string) => {
   const exchanges = exchangesOn() ? await getExchanges().onApplication(candidateId, application.id) : null;
   // The emails Jobbbox sent in the Candidate's name on their click (ADR-0119, #1162), kept on it with their date.
   const sentEmails = await getSends().onApplication(candidateId, application.id);
+  // The people at the employer the extension read on LinkedIn on the Candidate's click (ADR-0119, #1164): name, role, company.
+  const linkedInContacts = await getLinkedInReadings().contactsOf(candidateId, { applicationId: application.id });
   const shownCards = pendingCards.filter((card) => followUpCardApplies(card, application.status));
   const cards = shownCards.map((card) => cardView(card, t));
   const present: Record<ApplicationSection, boolean> = {
@@ -100,7 +105,7 @@ export const loadApplicationPage = cache(async (id: string) => {
     entretiens: true,
     avis: coachReviews.length > 0,
     dossier: true,
-    contacts: Boolean(enrichedContacts && (enrichedContacts.enabled || enrichedContacts.contacts.length > 0)),
+    contacts: Boolean(enrichedContacts && (enrichedContacts.enabled || enrichedContacts.contacts.length > 0)) || linkedInContacts.length > 0,
     offre: true,
   };
   const sections = APPLICATION_SECTIONS.filter((section) => present[section]);
@@ -108,7 +113,7 @@ export const loadApplicationPage = cache(async (id: string) => {
   const now = new Date();
   const allPast = application.interviews.length > 0 && application.interviews.every((interview) => agendaPeriod(interview.scheduledAt, now) === "past");
   const agendaHref = routes.agenda(allPast);
-  return { candidateId, application, t, locale, inView, cards, shownCards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts, coachReviews, exchanges, sentEmails, sections, agendaHref };
+  return { candidateId, application, t, locale, inView, cards, shownCards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts, coachReviews, exchanges, sentEmails, linkedInContacts, sections, agendaHref };
 });
 
 export type ApplicationPageData = Awaited<ReturnType<typeof loadApplicationPage>>;
@@ -224,15 +229,20 @@ function SectionView({ data, section, result }: { data: ApplicationPageData; sec
     case "dossier":
       return <CompanyDossierView applicationId={application.id} state={data.companyDossier} t={t} locale={locale} />;
     case "contacts":
-      return data.enrichedContacts ? (
-        <EnrichedContactsPanel
-          key={`enriched-contacts-${application.id}`}
-          applicationId={application.id}
-          initial={data.enrichedContacts}
-          hasDossier={data.companyDossier?.status === "built"}
-          locale={locale}
-        />
-      ) : null;
+      return (
+        <>
+          {data.enrichedContacts && (data.enrichedContacts.enabled || data.enrichedContacts.contacts.length > 0) ? (
+            <EnrichedContactsPanel
+              key={`enriched-contacts-${application.id}`}
+              applicationId={application.id}
+              initial={data.enrichedContacts}
+              hasDossier={data.companyDossier?.status === "built"}
+              locale={locale}
+            />
+          ) : null}
+          {data.linkedInContacts.length > 0 ? <LinkedInContacts contacts={data.linkedInContacts} t={t} locale={locale} /> : null}
+        </>
+      );
     case "offre":
       // Its facts and its Job Offer Summary come first, then its full text (#603).
       return (
@@ -243,6 +253,29 @@ function SectionView({ data, section, result }: { data: ApplicationPageData; sec
         </>
       );
   }
+}
+
+/**
+ * The people at the employer the extension read on LinkedIn, on the Candidate's click (ADR-0119, #1164), marked
+ * « LinkedIn »: their name, role and company only, and when they were read.
+ */
+function LinkedInContacts({ contacts, t, locale }: { contacts: LinkedInContact[]; t: T; locale: string }) {
+  const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: INTERVIEW_TIME_ZONE });
+  return (
+    <section aria-labelledby="linkedin-contacts-title">
+      <h2 id="linkedin-contacts-title">{t("linkedInContacts.title")}</h2>
+      <p>{t("linkedInContacts.intro")}</p>
+      <ul className="stack">
+        {contacts.map((contact) => (
+          <li key={contact.id}>
+            <Pill>{t("linkedInContacts.source")}</Pill> <strong>{contact.name}</strong>
+            {contact.role ? ` — ${contact.role}` : ""} · {contact.company}{" "}
+            <span className="meta">{t("linkedInContacts.readOn", { date: date.format(contact.readAt) })}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 /** The emails Jobbbox sent from this Application in the Candidate's name (#1162): each with its date, recipient and subject. */

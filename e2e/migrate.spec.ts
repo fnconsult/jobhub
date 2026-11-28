@@ -144,6 +144,8 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "legal_acceptance", // issue #510: the Acceptances of the CGU and CGV, kept by pseudonym after the Account deletion
         "legal_text_notice", // issue #547: the notice of a substantial Legal Text Version sent to each Candidate
         "linked_mailbox_event", // issue #449: the Journal's Linked mailbox events, no Candidate, kept 24 months
+        "linkedin_contact", // issue #1164: a person the extension read on LinkedIn (name, role, company), on an Application or a Target Company
+        "linkedin_reading", // issue #1164: a LinkedIn page the extension read on the Candidate's click
         "master_cv_version",
         "nouveautes_email_sent", // issue #566: the Nouveautés emails sent, one per Candidate and per Version
         "nouveautes_email_subscription", // issue #566: the Candidates who ticked the Nouveautés email, and when
@@ -366,6 +368,12 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         // Job Searches (issue #14) hang off the Candidate and the Profile they search for.
         { from_table: "job_search", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "job_search", from_column: "profile_id", to_table: "profile" },
+        // LinkedIn Readings (issue #1164) go with their Candidate; a person read goes with the Reading, the Application or the Target Company.
+        { from_table: "linkedin_contact", from_column: "application_id", to_table: "application" },
+        { from_table: "linkedin_contact", from_column: "candidate_id", to_table: "candidate" },
+        { from_table: "linkedin_contact", from_column: "reading_id", to_table: "linkedin_reading" },
+        { from_table: "linkedin_contact", from_column: "target_company_id", to_table: "target_company" },
+        { from_table: "linkedin_reading", from_column: "candidate_id", to_table: "candidate" },
         // Acceptances (issue #510) are Jobbbox's proof: the Account deletion sets the Candidate to null, the row stays.
         { from_table: "legal_acceptance", from_column: "candidate_id", to_table: "candidate" },
         // The Legal Text notices (issue #547) follow their Candidate.

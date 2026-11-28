@@ -33,3 +33,4 @@ export * from "./offer-box";
 export * from "./badge-count";
 export * from "./cv-file";
 export * from "./job-search-words";
+export * from "./linkedin-reading";

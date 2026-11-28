@@ -18,6 +18,8 @@ Before your first CV is sent, a box asks you to accept the « terms of use for g
 
 At the end of the panel, the « Detect job offers on every site » box adds the « Analyse this offer » button to employers' own career sites.
 
+Signed in, on a LinkedIn page you opened (a job offer, a company's page or its people), the panel shows « LinkedIn page » and the « Read this LinkedIn page » button: on your click, the extension reads the page in your browser and Jobbbox keeps each person's name, role and company, in that company's application or target company. A person's profile is never read, and your LinkedIn terms of use apply to your account.
+
 The buttons stay at the foot of the panel. Before the calculation: « Compute my Match Score » and, if you already have an account, « I already have an account · Sign in ». After the calculation: « Create my account and keep this job offer », which opens Jobbbox in a new tab, to create your account or sign in; and « Delete my data now », which deletes your CV and the job offer from this browser at once.
 
 At the very foot of the panel, « Help », « Privacy » and « Terms of use » open the Jobbbox site in a new tab: the help on the extension, the privacy policy and the terms of use.

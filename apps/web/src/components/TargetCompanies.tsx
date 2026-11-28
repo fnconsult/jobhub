@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { markOfTool, toolById } from "@jobhub/shared";
 import { routes, type ApplicationSection } from "@/routes";
 import { HelpText } from "@/components/HelpTerm";
+import { Pill } from "@/design/Pill";
 
 /** One of the Profile's Target Companies, as its Section shows it (#409). */
 export interface TargetCompanyItem {
@@ -23,6 +24,8 @@ export interface TargetCompanyItem {
   jobOffers: { id: string; title: string }[];
   /** The Candidate's Spontaneous Application to it, once prepared. */
   spontaneousApplicationId: string | null;
+  /** The people of it the extension read on LinkedIn (ADR-0119, #1164): name, role and company only; `readAt` ISO. */
+  linkedInContacts: { id: string; name: string; role: string; company: string; readAt: string }[];
 }
 
 type AddError = "invalid" | "exists" | "not_a_company";
@@ -35,10 +38,12 @@ const CONTACTS: ApplicationSection = "contacts";
  * « Entreprises cibles » (#409): the Profile's Target Companies, La Bonne Boite's credited to France Travail (its
  * terms ask for its logo), each with what the Candidate can do there: open its Company Dossier, look for Enriched
  * Contacts, prepare a Spontaneous Application (the three happen in that Application), or set it aside for good; and a
- * company added by name, resolved in the company register.
+ * company added by name, resolved in the company register. The people of it the extension read on LinkedIn are on its
+ * card, marked « LinkedIn » (#1164).
  */
 export function TargetCompanies({ profileId, companies }: { profileId: string; companies: TargetCompanyItem[] }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const readOn = new Intl.DateTimeFormat(i18n.language, { dateStyle: "long", timeZone: "Europe/Paris" });
   const router = useRouter();
   const inputId = useId();
   const [name, setName] = useState("");
@@ -170,6 +175,20 @@ export function TargetCompanies({ profileId, companies }: { profileId: string; c
                       </ul>
                     </div>
                   )}
+                  {company.linkedInContacts.length > 0 ? (
+                    <div className="target-company-offers">
+                      <p className="hint">{t("targetCompanies.linkedInFound", { count: company.linkedInContacts.length })}</p>
+                      <ul aria-label={t("targetCompanies.linkedInLabel", { name: company.name })}>
+                        {company.linkedInContacts.map((contact) => (
+                          <li key={contact.id}>
+                            <Pill>{t("linkedInContacts.source")}</Pill> <strong>{contact.name}</strong>
+                            {contact.role ? ` — ${contact.role}` : ""} · {contact.company}{" "}
+                            <span className="meta">{t("linkedInContacts.readOn", { date: readOn.format(new Date(contact.readAt)) })}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                 </div>
                 <div className="row-actions">
                   {toApplication(t("targetCompanies.openDossier"), DOSSIER)}

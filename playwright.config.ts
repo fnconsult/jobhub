@@ -121,7 +121,7 @@ export default defineConfig({
     // « Pour bien commencer » (#1069) publishes the extension for real (EXTENSION_STORE_URL, global to the suite's database),
     // which Mon compte › Outils and the Sidebar read: after every web spec, never beside them, and puts it back.
     { name: "getting-started", testMatch: /\/getting-started\.spec\.ts/, dependencies: ["plan-coach-context"], use: { ...devices["Desktop Chrome"], baseURL: webOrigin, locale: "en-US" } },
-    { name: "extension", testMatch: /extension(-events|-unrecognised|-logo)?\.spec\.ts/, use: { baseURL: webOrigin } },
+    { name: "extension", testMatch: /extension(-events|-unrecognised|-logo|-linkedin)?\.spec\.ts/, use: { baseURL: webOrigin } },
     // The motions' captures (#567, ADR-0066): the test Motion Scripts filmed on the demo Candidate; with MOTIONS_WORK, the
     // `motions` workflow's capture stage (packages/motions, docs/ops/motions.md).
     // After the extension's specs, never beside them: one of those runs the worker's clean-up of Guest captures a day

@@ -887,6 +887,16 @@ A reference image of a screen, drawn in the pinned Playwright image and compared
 The extension's pane docked to the right of the browser's page, beside the job posting the person is reading, where Capture, the Match Score and the extension's other functions live. It replaces the popup and is opened by the toolbar icon or a Job Site's badge; the badge's Capture lands in the Guest session the panel reads. Once open, it follows the **Posting in view**.
 _Avoid_: Popup, sidebar (that is the web app's Sidebar)
 
+**LinkedIn Reading**:
+What the extension read of one LinkedIn page, on the Candidate's click « Lire cette page LinkedIn » in the Side Panel, in their own browser and session (a job offer, a company page or its people page; never a profile, the feed or a people search). Only name, role and company are kept per person, « Membre LinkedIn » and duplicates dropped, at most 50. Jobbbox never requests LinkedIn from its server. Behind the Platform Setting `LINKEDIN_READING_ENABLED` (off by default), which stays off in Production whatever its value (`LINKEDIN_READING_IN_PRODUCTION`) until the Legal Texts it needs are published (#1160, ADR-0121).
+_Avoid_: Scraping, import from LinkedIn
+
+**LinkedIn contact**:
+A person kept from a LinkedIn Reading: name, role and company only, filed as a contact marked « LinkedIn » of each Application at that employer and each Target Company of that name (matched by `nameKey`). With neither, nobody is kept and the reading only records how many people the page named. Read again, nobody is duplicated; deleted with the Application, Target Company or account, and in the Data export (`linkedInReadings`). Not an Enriched Contact: no email, no phone.
+
+**`read_linkedin_page`**:
+The AI Coach's Coach Action that returns the Candidate's last LinkedIn Reading from the past 30 minutes, as untrusted text. With none, it tells the coach to ask the Candidate to open the page and click « Lire cette page LinkedIn »: the web app has no channel to the extension (ADR-0121). Its Provenance links point to the Candidate's own pages, never to LinkedIn; a profile address is refused.
+
 **Posting in view**:
 What the page in the active tab of the Side Panel's window reads as: a Job Site's posting, a page to capture by hand, or no posting. The Side Panel follows it from tab to tab and offers « Offre détectée sur cette page ».
 

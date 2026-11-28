@@ -31,6 +31,8 @@ const ADR_0033 = [
   "APP_STORE_URL",
   "PLAY_STORE_URL",
   "HUMAN_COACH_PAGE_ENABLED",
+  // The extension's reading of a LinkedIn page (#1164, ADR-0119).
+  "LINKEDIN_READING_ENABLED",
 ];
 
 /** The web search's bounded settings (#386, #402), on Paramètres' Recherche web tab. */
@@ -200,6 +202,12 @@ describe("the Platform Settings catalog", () => {
     expect([setting.group, setting.type, setting.default]).toEqual(["coach", { kind: "boolean" }, "true"]);
     expect(isEditable(setting)).toBe(true);
     expect(readSetting({}, "COACH_WEB_LOOKUP_ENABLED")).toBe(true);
+  });
+
+  it("keeps the extension's reading of a LinkedIn page off by default, confirmed, with the extension's settings (ADR-0119, #1164)", () => {
+    const enabled = platformSetting("LINKEDIN_READING_ENABLED")!;
+    expect([enabled.group, enabled.type, enabled.default, enabled.confirm]).toEqual(["extension", { kind: "boolean" }, "false", "true"]);
+    expect(readSetting({}, "LINKEDIN_READING_ENABLED")).toBe(false);
   });
 
   it("keeps sending on the Candidate's click off by default, confirmed, and caps it at 20 a day (ADR-0119, #1162)", () => {

@@ -76,6 +76,7 @@ import { privateJobOffersOf, type ExportedPrivateJobOffer } from "../job-offers"
 import { offerBoxOf, type ExportedOfferBoxEntry } from "../offer-box";
 import { pushNotificationsOf, type ExportedPushNotifications } from "../push-notifications";
 import { legalTextNoticesOf, type ExportedLegalTextNotices } from "../legal-text-notices";
+import { linkedInReadingsOf, type ExportedLinkedInReading } from "../linkedin-readings";
 import { nouveautesEmailOf, type ExportedNouveautesEmail } from "../nouveautes-email";
 import { coachProposalsDisplayOf, type ExportedCoachProposalsDisplay } from "../coach-proposals-display";
 import { consumptionOf, type ConsumptionDay } from "../consumption";
@@ -460,6 +461,12 @@ export interface CandidateDataExport {
    * « Non classée »), its first Arrival and each Arrival source with its date, where it stands and when it was decided.
    */
   offerBox: ExportedOfferBoxEntry[];
+  /**
+   * What the browser extension read on LinkedIn on the Candidate's click (#1164, ADR-0119), oldest first: the page, its
+   * company and department, how many people it named, and the people kept from it (name, role and company only) with the
+   * Application or Target Company each is filed with.
+   */
+  linkedInReadings: ExportedLinkedInReading[];
   /** Oldest first, archived ones included. */
   profiles: ExportedProfile[];
   /** Newest first. */
@@ -554,6 +561,8 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coach_review: "applications[].coachReviews",
   enriched_contact: "applications[].enrichedContacts (no provider identifiers)",
   company_dossier: "applications[].companyDossier (with what served its last build)",
+  linkedin_reading: "linkedInReadings (the LinkedIn page the extension read on the Candidate's click, its company and department, how many people it named, when; #1164)",
+  linkedin_contact: "linkedInReadings[].contacts (each person kept: name, role and company only, and the Application or Target Company they are filed with; #1164)",
   sent_email: "applications[].sentEmails (the emails Jobbbox sent in the Candidate's name on their click: kind, recipient, subject, status, dates, card; never the text, #1162)",
   exchange: "applications[].exchanges (the emails about it kept on it, and those offered to tie to it: sender, date, subject and text; never attachments nor headers, #1099)",
   coach_conversation: "coachConversations (each with its Subject: kind, id and name)",
@@ -1083,6 +1092,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         withdrawals,
         privateJobOffers,
         offerBox,
+        linkedInReadings,
         profiles,
         applications,
       ] = await Promise.all([
@@ -1182,6 +1192,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         withdrawalsOf(database, candidateId),
         privateJobOffersOf(database, candidateId),
         offerBoxOf(database, candidateId),
+        linkedInReadingsOf(database, candidateId),
         exportProfiles(candidateId),
         exportApplications(candidateId),
       ]);
@@ -1252,6 +1263,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
         withdrawals,
         privateJobOffers,
         offerBox,
+        linkedInReadings,
       };
       return (deps.coachSpaceV2?.() ?? true) ? full : asBeforeCoachSpaceV2(full);
     },

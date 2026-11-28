@@ -293,4 +293,39 @@ describe("the Jobbbox API, from the extension", () => {
       { route: "/api/applications", httpStatus: 0 },
     ]);
   });
+
+  describe("a LinkedIn page read on the Candidate's click (ADR-0119, #1164)", () => {
+    const reading = {
+      page: { kind: "people" as const, url: "https://www.linkedin.com/company/exemple-industrie-fictive/people/" },
+      company: "Exemple Industrie Fictive",
+      department: "Achats",
+      people: [{ name: "Camille Fictive", role: "Responsable achats", company: "Exemple Industrie Fictive" }],
+    };
+
+    it("asks whether it may offer the reading, which a signed-out person, an error or the network turn off", async () => {
+      const on = webApp({ "/api/linkedin-readings": Response.json({ enabled: true }) });
+      expect(await createJobbboxApi(WEB_ORIGIN, on.fetch).linkedInReading()).toBe(true);
+      expect(on.calls[0]?.init).toMatchObject({ method: "GET", credentials: "include" });
+      expect(await createJobbboxApi(WEB_ORIGIN, webApp({ "/api/linkedin-readings": Response.json({ enabled: false }) }).fetch).linkedInReading()).toBe(false);
+      expect(await createJobbboxApi(WEB_ORIGIN, webApp({ "/api/linkedin-readings": Response.json({ error: "signed_out" }, { status: 401 }) }).fetch).linkedInReading()).toBe(false);
+      expect(await createJobbboxApi(WEB_ORIGIN, webApp({}).fetch).linkedInReading()).toBe(false);
+    });
+
+    it("sends the Reading, its fields only, and passes on where its people were filed", async () => {
+      const filed = { company: "Exemple Industrie Fictive", peopleRead: 1, peopleKept: 1, filedIn: [{ kind: "application", id: "a-1", name: "Acheteur industriel H/F" }] };
+      const app = webApp({ "/api/linkedin-readings": Response.json(filed, { status: 201 }) });
+
+      expect(await createJobbboxApi(WEB_ORIGIN, app.fetch).keepLinkedInReading(reading)).toEqual({ ok: true, ...filed });
+      expect(app.calls[0]?.init).toMatchObject({ method: "POST", credentials: "include", body: JSON.stringify(reading) });
+    });
+
+    it("says why a Reading was not kept: switched off, signed out, refused, or the web app out of reach", async () => {
+      const replying = (status: number) => webApp({ "/api/linkedin-readings": Response.json({ error: "x" }, { status }) }).fetch;
+      expect(await createJobbboxApi(WEB_ORIGIN, replying(404)).keepLinkedInReading(reading)).toEqual({ ok: false, error: "disabled" });
+      expect(await createJobbboxApi(WEB_ORIGIN, replying(401)).keepLinkedInReading(reading)).toEqual({ ok: false, error: "signed_out" });
+      expect(await createJobbboxApi(WEB_ORIGIN, replying(403)).keepLinkedInReading(reading)).toEqual({ ok: false, error: "refused" });
+      expect(await createJobbboxApi(WEB_ORIGIN, replying(400)).keepLinkedInReading(reading)).toEqual({ ok: false, error: "invalid" });
+      expect(await createJobbboxApi(WEB_ORIGIN, webApp({}).fetch).keepLinkedInReading(reading)).toEqual({ ok: false, error: "unreachable" });
+    });
+  });
 });

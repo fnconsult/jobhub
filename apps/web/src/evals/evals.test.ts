@@ -428,7 +428,8 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
 
       // A case that must read objects first is scored 0 without its reads (see read Coach Actions, #714).
       // A case that must give a Typed redirect (ADR-0114) is scored 0 without it, and checked on its own.
-      for (const each of AI_COACH_EVAL_CASES.filter((one) => one.proposes === false && !one.reads && !one.redirects)) {
+      // A case that must search the web (#1159) is scored 0 without its search, and checked on its own.
+      for (const each of AI_COACH_EVAL_CASES.filter((one) => one.proposes === false && !one.reads && !one.redirects && !one.searchesWeb)) {
         expect(done.results.find((result) => result.case.id === each.id), each.id).toMatchObject({ score: 0.8 });
       }
     });

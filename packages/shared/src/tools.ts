@@ -313,8 +313,11 @@ const ENRICHMENT_SETTINGS = (provider: string): readonly ToolSetting[] => [
   { name: "CONTACT_ENRICHMENT_DPA_SIGNED", enabledWhen: ["true"] },
   { name: `${provider.toUpperCase()}_BILLING_URL` },
 ];
-/** MAIL_TRANSPORT=console writes the emails to the server's log: Brevo is not called. */
-const MAIL_SETTINGS: readonly ToolSetting[] = [{ name: "MAIL_FROM" }, { name: "MAIL_TRANSPORT", disabledWhen: ["console"] }];
+/**
+ * MAIL_TRANSPORT=console writes the emails to the server's log: Brevo is not called. Then whether Jobbbox sends in a Candidate's name on their click, at most
+ * COACH_SENDS_PER_DAY a day (ADR-0119, #1162).
+ */
+const MAIL_SETTINGS: readonly ToolSetting[] = [{ name: "MAIL_FROM" }, { name: "MAIL_TRANSPORT", disabledWhen: ["console"] }, { name: "COACH_SEND_ENABLED" }, { name: "COACH_SENDS_PER_DAY" }];
 /**
  * The groups of Coach Actions (ADR-0077), in the Sidebar's order: each is a « Routes locales » Tool, its calls recorded
  * in `external_api_usage` under the group's id.

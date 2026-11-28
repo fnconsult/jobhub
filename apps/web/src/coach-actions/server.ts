@@ -1,4 +1,5 @@
 import { getAgenda } from "@/agenda/server";
+import { getAi } from "@/ai/server";
 import { getExternalApiLog } from "@/ai-usage/external-api-log";
 import { getApplications } from "@/applications/server";
 import { getBilling } from "@/billing/server";
@@ -25,6 +26,7 @@ import { shippedCoachActions } from "./catalog";
 import { e2eCoachActions } from "./e2e-catalog";
 import { createCoachActions, type CoachAction, type CoachActions } from "./index";
 import { jobSearchQuotaOf } from "./job-searches";
+import { coachWebLookupOn } from "./on";
 import { createRedirects } from "./redirects";
 import { weeklyQuotaOf } from "./quota";
 import { coachActionsSettings } from "./settings";
@@ -119,6 +121,12 @@ function shipped(): readonly CoachAction[] {
         prepareSpontaneousApplication: (candidateId, profileId, id) => getTargetCompanies().prepareSpontaneousApplication(candidateId, profileId, id),
       },
       enrichedContactQuota: weeklyQuotaOf(getBilling(), "enrichedContacts"),
+      // The Web lookup (ADR-0119, #1159): the AI layer's, through the active Search provider and its fallback, recorded in
+      // AI Usage on the web_search task for the Candidate; offered while COACH_WEB_LOOKUP_ENABLED is on, read at each reply.
+      webLookup: {
+        on: coachWebLookupOn,
+        search: async (candidateId, query, signal) => (await getAi().lookUpWeb({ candidateId, query, ...(signal ? { signal } : {}) })).pages,
+      },
     },
   );
 }

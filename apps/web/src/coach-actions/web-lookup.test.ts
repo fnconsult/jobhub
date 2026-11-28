@@ -2,6 +2,7 @@ import { createAiLayer, createProvenanceRecorder, DataResidencyError, WebSearchU
 import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import type { ExternalApiCall } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
+import { NO_DOMAIN, NO_OBJECTS, shippedCoachActions } from "./catalog";
 import { createCoachActions, type CoachAction } from "./index";
 import { fictionalWebLookup, WEB_LOOKUP_ACTION, WEB_LOOKUP_QUERIES_PER_REPLY, webLookupCoachActions, type WebLookupSources } from "./web-lookup";
 
@@ -123,6 +124,33 @@ describe("search_web, the AI Coach's Web lookup (ADR-0119, #1159)", () => {
     const outcome = await reply.runTool(call("Exemple Industrie concurrents"), {});
     expect(outcome.content).toMatch(/Aucune page/);
     expect(reply.narrowed).toBe(false);
+  });
+});
+
+describe("the shipped catalogue's search_web (#1159)", () => {
+  const offeredWith = async (on: boolean) => {
+    const actions = createCoachActions({
+      catalog: shippedCoachActions(NO_OBJECTS, { ...NO_DOMAIN, webLookup: { on: () => on, search: async () => PAGES } }),
+      settings: async () => ({ enabled: true, maxRounds: 2 }),
+      externalApis: { record: () => {} },
+    });
+    const ai = createAiLayer({ providers: [createFakeProvider()], routes: { coaching: "anthropic" }, usage: createMemoryUsageLog() });
+    const reply = await actions.forReply("marie", { recorder: createProvenanceRecorder(ai), untrustedInView: false });
+    return reply!.tools.map((tool) => tool.name);
+  };
+
+  it("is offered while COACH_WEB_LOOKUP_ENABLED is on, and not at all while it is off", async () => {
+    expect(await offeredWith(true)).toContain(WEB_LOOKUP_ACTION);
+    const off = await offeredWith(false);
+    expect(off).not.toContain(WEB_LOOKUP_ACTION);
+    expect(off).toContain("read_plan");
+  });
+
+  it("is offered, copying no text, while a Job Offer is In view", async () => {
+    const actions = createCoachActions({ catalog: shippedCoachActions(NO_OBJECTS), settings: async () => ({ enabled: true, maxRounds: 2 }), externalApis: { record: () => {} } });
+    const ai = createAiLayer({ providers: [createFakeProvider()], routes: { coaching: "anthropic" }, usage: createMemoryUsageLog() });
+    const reply = await actions.forReply("marie", { recorder: createProvenanceRecorder(ai), untrustedInView: true });
+    expect(reply!.tools.map((tool) => tool.name)).toContain(WEB_LOOKUP_ACTION);
   });
 });
 

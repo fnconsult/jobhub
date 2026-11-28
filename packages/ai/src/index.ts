@@ -43,6 +43,8 @@ export type {
   ToolRun,
   ToolRunner,
   ToolRunRecord,
+  WebLookupRequest,
+  WebLookupResult,
   WebSearchRun,
 } from "./ai-layer";
 export { AI_ENV_KEYS, AI_ROUTING_SETTINGS, createAiLayerFromEnv, modelSettingProviders, SEARCH_PROVIDER_IDS, smallModelFromEnv, taskRouteFromEnv } from "./env";
@@ -73,6 +75,8 @@ export { readCompanyFacts } from "./company-facts";
 export type { CompanyFactsRequest } from "./company-facts";
 export type { OfferFields } from "./job-offer-reading";
 export { buildCompanyQuery, buildSearchQuery, COMPANY_FACTS } from "./search-query";
+export { WEB_LOOKUP_MAX_RESULTS, WEB_LOOKUP_QUERY_MAX_LENGTH, webLookupQuery, webLookupRefusal, webPagesIn } from "./web-lookup";
+export type { WebLookupRefusal, WebPage } from "./web-lookup";
 export { buildCompanyNewsQuery, COMPANY_NEWS_MAX_AGE_DAYS, companyNewsIn, MAX_COMPANY_NEWS } from "./company-news";
 export type { CompanyNewsArticle, CompanyNewsRequest } from "./company-news";
 export { DEFAULT_JOB_SEARCH_SHAPE } from "./search-query";

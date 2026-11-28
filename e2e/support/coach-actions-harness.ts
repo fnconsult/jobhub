@@ -24,7 +24,8 @@ import { activityElement } from "../../apps/web/src/ai-activity/pane";
 import type { Application } from "../../apps/web/src/applications";
 import { createCoach, type CoachFocus } from "../../apps/web/src/coach";
 import { candidateObjects } from "../../apps/web/src/coach-actions/candidate-objects";
-import { shippedCoachActions } from "../../apps/web/src/coach-actions/catalog";
+import { NO_DOMAIN, shippedCoachActions } from "../../apps/web/src/coach-actions/catalog";
+import { fictionalWebLookup } from "../../apps/web/src/coach-actions/web-lookup";
 import type { Profile } from "../../apps/web/src/profiles";
 import { coachActionCatalog, createCoachActions, defineCoachAction, forEvalRun, type CoachAction } from "../../apps/web/src/coach-actions";
 import { AI_COACH_EVAL_CASES } from "../../apps/web/src/evals/cases";
@@ -186,29 +187,28 @@ const PROFILES_MODULE = {
   list: async (candidateId: string) => mine(candidateId, PROFILES).map(({ id, name, archived }) => ({ id, name, archived })),
 };
 const APPLICATIONS_GET = async (candidateId: string, id: string) => mine(candidateId, MARIES_APPLICATIONS).find((each) => each.id === id) ?? null;
-const SHIPPED = shippedCoachActions(
-  candidateObjects({
-    profiles: PROFILES_MODULE,
-    applications: {
-      get: APPLICATIONS_GET,
-      list: async (candidateId) =>
-        mine(candidateId, MARIES_APPLICATIONS).map(({ id, status, statusChangedAt, createdAt, jobOffer, profile, interviews }) => ({
-          id,
-          status,
-          statusChangedAt,
-          createdAt,
-          jobOffer,
-          profile: { ...profile, archived: profile.id === "p-archived" },
-          interviews,
-        })),
-    },
-    jobSearches: { get: async () => null, list: async () => [] },
-    jobDigests: { get: async () => null, list: async () => [] },
-    agenda: { upcoming: async () => [] },
-    tailoredDocuments: { get: async () => null },
-    tailoredCvs: { get: async () => null },
-  }),
-);
+const SHIPPED_OBJECTS = candidateObjects({
+  profiles: PROFILES_MODULE,
+  applications: {
+    get: APPLICATIONS_GET,
+    list: async (candidateId) =>
+      mine(candidateId, MARIES_APPLICATIONS).map(({ id, status, statusChangedAt, createdAt, jobOffer, profile, interviews }) => ({
+        id,
+        status,
+        statusChangedAt,
+        createdAt,
+        jobOffer,
+        profile: { ...profile, archived: profile.id === "p-archived" },
+        interviews,
+      })),
+  },
+  jobSearches: { get: async () => null, list: async () => [] },
+  jobDigests: { get: async () => null, list: async () => [] },
+  agenda: { upcoming: async () => [] },
+  tailoredDocuments: { get: async () => null },
+  tailoredCvs: { get: async () => null },
+});
+const SHIPPED = shippedCoachActions(SHIPPED_OBJECTS);
 
 // What leaves the process: the tools each `coaching` request offers, and the tool results it carries.
 const realFetch = globalThis.fetch;
@@ -303,7 +303,11 @@ for (const each of scenario.evalCases ?? []) {
     ai,
     playbooks: { served: async () => ({ coreDigest: null, sources: null, playbooks: [] }) },
     context: async () => `${evalCase.context}\n\n${evalCase.inView ? evalCase.inView.text : ""}`,
-    coachActions: forEvalRun(scenario.shipped ? SHIPPED : CATALOG, { coachSpaceV2: evalCase.coachSpaceV2 ?? false }),
+    // The case's fictional web (#1159): search_web finds its pages, whatever the query, its reads played as an Eval Run plays them.
+    coachActions: forEvalRun(scenario.shipped ? (evalCase.web ? shippedCoachActions(SHIPPED_OBJECTS, { ...NO_DOMAIN, webLookup: fictionalWebLookup(evalCase.web) }) : SHIPPED) : CATALOG, {
+      readsPlayed: scenario.shipped === true && evalCase.web !== undefined,
+      coachSpaceV2: evalCase.coachSpaceV2 ?? false,
+    }),
     warn: () => {},
   });
   const text = each.scripted ? `${evalCase.message} E2E_COACH_TOOL=${each.scripted}` : evalCase.message;

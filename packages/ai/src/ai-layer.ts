@@ -8,6 +8,7 @@ import { effortHandling, type Effort, type EffortHandling } from "./effort";
 import { AiConfigError, AiProviderError, DataResidencyError, WebSearchUnavailable } from "./errors";
 import { redactIdentity, REDACTION_NOTE, type CandidateIdentity, type Redaction } from "./redaction";
 import { euOnly, SEARCH_TASK, searchContractOf, TEXT_TASKS } from "./types";
+import { WEB_LOOKUP_FILTERS, webLookupQuery, webLookupRefusal, webPagesIn, type WebPage } from "./web-lookup";
 import type {
   AiProvider,
   AiTask,
@@ -330,6 +331,23 @@ export interface CompanySearchRequest {
   signal?: AbortSignal;
 }
 
+/**
+ * The AI Coach's Web lookup (ADR-0119, #1159): one query it words itself, checked before it leaves (web-lookup.ts): never
+ * one naming a person nor aimed at LinkedIn.
+ */
+export interface WebLookupRequest {
+  candidateId: string | null;
+  query: string;
+  /** Stops the search (see `GenerateRequest.signal`). */
+  signal?: AbortSignal;
+}
+
+/** The pages a Web lookup found (none on LinkedIn, none naming a person), and the search call that found them. */
+export interface WebLookupResult {
+  pages: WebPage[];
+  call: SearchResult;
+}
+
 export interface SearchResult extends CallFacts {
   answer: string;
   sources: string[];
@@ -356,6 +374,11 @@ export interface AiLayer {
   searchWeb(request: SearchRequest): Promise<SearchResult>;
   /** Searches the web for public facts about an employer, for a Company Dossier. */
   searchCompany(request: CompanySearchRequest): Promise<SearchResult>;
+  /**
+   * The AI Coach's Web lookup (ADR-0119, #1159): its query, through the active Search provider and its fallback, LinkedIn
+   * excluded. A query naming a person or aimed at LinkedIn is never sent: it rejects with DataResidencyError, recorded not sent.
+   */
+  lookUpWeb(request: WebLookupRequest): Promise<WebLookupResult>;
   /**
    * Searches the web for the employer's Company News: up to 5 articles from the last 12 months, newest
    * first, none whose title may name a person (company-news.ts). Never fails: on a failed search, none;
@@ -385,7 +408,7 @@ export interface AiLayer {
   searchModels(): AgentModelChoice[];
   /**
    * Whether a web search can be sent: its Search provider (`route`, a task Playbook's, else the active one) has its key
-   * entered, or else the fallback Search provider has (#399, ADR-0043). When not, `searchWeb`, `searchCompany` and `planJobSearch` reject with WebSearchUnavailable, and
+   * entered, or else the fallback Search provider has (#399, ADR-0043). When not, `searchWeb`, `searchCompany`, `lookUpWeb` and `planJobSearch` reject with WebSearchUnavailable, and
    * `searchCompanyNews` finds none; every other task still works.
    */
   webSearchAvailable(route?: Route): boolean;
@@ -1182,6 +1205,18 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
       });
     },
 
+    async lookUpWeb(request) {
+      const query = webLookupQuery(request.query);
+      const refusal = webLookupRefusal(query);
+      if (refusal) {
+        const error = new DataResidencyError(`A Web lookup's query must name no person nor aim at LinkedIn (${refusal})`);
+        await notSent(error, { candidateId: request.candidateId, task: SEARCH_TASK }, {}, { messages: [] });
+        throw error;
+      }
+      const call = await search({ candidateId: request.candidateId, queries: [query], filters: WEB_LOOKUP_FILTERS, ...(request.signal ? { signal: request.signal } : {}) });
+      return { pages: webPagesIn(call.answer, call.sources), call };
+    },
+
     async searchCompanyNews(request) {
       return (await layer.searchCompanyNewsWithCall(request)).articles;
     },
@@ -1246,6 +1281,7 @@ export function createAiLayer(options: AiLayerOptions): AiLayer {
     planJobSearch: noSearch,
     searchWeb: noSearch,
     searchCompany: noSearch,
+    lookUpWeb: noSearch,
     searchCompanyNews: noSearch,
     searchCompanyNewsWithCall: noSearch,
     agentModels: (task) => layer.agentModels(task),

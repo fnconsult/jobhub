@@ -209,6 +209,8 @@ test.describe("the AI Coach with Coach Actions, end to end on the fake provider 
       "read_tailored_cv",
       "propose_tailored_cv_changes",
       "propose_tailored_cv_answers",
+      // The Web lookup (#1159, ADR-0119), on by default outside Production.
+      "search_web",
       // The Typed redirect (#1096, ADR-0114), built in, offered with every catalogue.
       "redirect",
     ]);

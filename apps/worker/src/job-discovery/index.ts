@@ -951,6 +951,7 @@ function stoppable(ai: AiLayer, signal: AbortSignal | undefined): AiLayer {
     planJobSearch: (request) => ai.planJobSearch(request),
     searchWeb: (request) => ai.searchWeb({ ...request, signal }),
     searchCompany: (request) => ai.searchCompany({ ...request, signal }),
+    lookUpWeb: (request) => ai.lookUpWeb({ ...request, signal }),
     searchCompanyNews: (request) => ai.searchCompanyNews({ ...request, signal }),
     searchCompanyNewsWithCall: (request) => ai.searchCompanyNewsWithCall({ ...request, signal }),
     agentModels: () => ai.agentModels(),
@@ -987,7 +988,8 @@ function costing(ai: AiLayer, spend: (eur: number, item: RunCostItem) => void): 
       spend(result.costEur, "web_search");
       return result;
     },
-    // Only a Company Dossier searches for Company News: Job discovery never does.
+    // Only the AI Coach looks up the web (#1159), and only a Company Dossier searches for Company News: Job discovery never does.
+    lookUpWeb: (request) => ai.lookUpWeb(request),
     searchCompanyNews: (request) => ai.searchCompanyNews(request),
     searchCompanyNewsWithCall: (request) => ai.searchCompanyNewsWithCall(request),
     agentModels: () => ai.agentModels(),

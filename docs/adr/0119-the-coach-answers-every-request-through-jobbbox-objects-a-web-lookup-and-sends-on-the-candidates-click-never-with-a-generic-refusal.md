@@ -44,6 +44,8 @@ The research for #1146 found the causes:
   - At most 3 queries per reply.
   - Each one is recorded in `external_api_usage` and counts toward the monthly web search alert, never toward a Candidate's Plan Quota.
   - All Plans have it, behind a platform setting.
+  - **Closed in Production.** The setting `COACH_WEB_LOOKUP_ENABLED` is on by default, but a code constant (`WEB_LOOKUP_IN_PRODUCTION`, false) keeps the lookup off in Production whatever its value, until the Legal Texts of #1160 are published. Switching the constant belongs in the change that closes #1160.
+  - **Capped per reply.** A Coach Action may declare `maxCallsPerReply`; a refused call does not count.
 - **Keeping the answer.** When the answer is worth keeping, the AI Coach also proposes the Company Dossier.
 
 ### Sending and applying, on the Candidate's click (amends ADR-0005)

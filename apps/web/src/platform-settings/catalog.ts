@@ -147,6 +147,9 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
   { name: "CAL_COM_REMINDERS_DISABLED", group: "coach", type: { kind: "boolean" }, default: "false" },
   { name: "COACH_ACTIONS_ENABLED", group: "coach", type: { kind: "boolean" }, default: "false" },
   { name: "COACH_TOOL_ROUNDS_MAX", group: "coach", type: whole(0, 4), default: "2" },
+  // The AI Coach's Web lookup (`search_web`, ADR-0119, #1159): on by default, for every Plan. Never on in Production
+  // until its Legal Review (#1160) is done, whatever it is set to (coach-actions/settings.ts, WEB_LOOKUP_IN_PRODUCTION).
+  { name: "COACH_WEB_LOOKUP_ENABLED", group: "coach", type: { kind: "boolean" }, default: "true" },
 ];
 
 const BY_NAME = new Map(PLATFORM_SETTINGS.map((setting) => [setting.name, setting]));

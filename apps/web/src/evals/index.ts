@@ -33,8 +33,9 @@ import { isDeepStrictEqual } from "node:util";
 import type { Pool } from "pg";
 import { createCoach, MAX_MESSAGE_LENGTH, type CoachFocus } from "../coach";
 import { forEvalRun, type CoachAction } from "../coach-actions";
-import { shippedCoachActions } from "../coach-actions/catalog";
+import { NO_DOMAIN, shippedCoachActions } from "../coach-actions/catalog";
 import { fictionalObjects } from "../coach-actions/fictional-objects";
+import { fictionalWebLookup } from "../coach-actions/web-lookup";
 import { asData } from "../coach/context";
 import type { CoachingPlaybooks, PlaybookAgent, PlaybookVersion, ServedKnowledge } from "../coaching-playbooks";
 import type { Queryable } from "../database/pool";
@@ -459,7 +460,11 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
       const objects = fictionalObjects(each.objects ?? []);
       // « Espace coach v2 » as the case sets it (#1158): it opens the human_coach Typed redirect.
       const coachSpaceV2 = each.coachSpaceV2 ?? false;
-      const coachActions = deps.coachActions ? forEvalRun(deps.coachActions, { coachSpaceV2 }) : forEvalRun(shippedCoachActions(objects), { readsPlayed: true, coachSpaceV2 });
+      // The case's fictional web (#1159): search_web finds its pages, whatever the query; the queries sent are kept.
+      const web = fictionalWebLookup(each.web ?? []);
+      const coachActions = deps.coachActions
+        ? forEvalRun(deps.coachActions, { coachSpaceV2 })
+        : forEvalRun(shippedCoachActions(objects, { ...NO_DOMAIN, webLookup: web }), { readsPlayed: true, coachSpaceV2 });
       const coach = createCoach({
         ai,
         playbooks: { served: async () => served },
@@ -514,11 +519,18 @@ export function createEvals(database: Pool, deps: EvalsDeps): Evals {
       // Which objects it read (#714) and whether its reply was grounded are what it did, checked exactly.
       const unread = (each.reads ?? []).filter((id) => !objects.readIds().includes(id));
       if (unread.length > 0) return { case: playedCase, reply: replied.reply, consulted, score: 0, reason: `Le coach n'a pas lu ${unread.join(", ")} pour répondre.`, costEur: replyCost, responseMs };
+      // Whether a query reached the web (#1159) is what search_web sent, a refused one never sent: checked exactly.
+      if (each.searchesWeb !== undefined && web.queries().length > 0 !== each.searchesWeb) {
+        const reason = each.searchesWeb ? "Le coach n'a fait aucune recherche web là où il en fallait une." : `Le coach a fait une recherche web qu'il ne devait pas faire (« ${web.queries()[0]} »).`;
+        return { case: playedCase, reply: replied.reply, consulted, score: 0, reason, costEur: replyCost, responseMs };
+      }
       if (each.grounded && triggered.includes("ungrounded_answer")) {
         return { case: playedCase, reply: replied.reply, consulted, score: 0, reason: "Le Guardrail « Réponse non fondée sur le profil » s'est déclenché sur la réponse du coach.", costEur: replyCost, responseMs };
       }
       // The judge sees the objects the AI Coach could read, to judge a reply drawn from them.
       const read = each.objects?.length ? [framed("objets", each.objects.map((object) => object.text).join("\n\n").slice(0, 8_000))] : [];
+      // …and the pages its web held (#1159), to judge a reply sourced from them.
+      if (each.web?.length) read.push(framed("pages-web", each.web.map((page) => `${page.title} — ${page.url}\n${page.snippet}`).join("\n\n").slice(0, 8_000)));
       const call = await ai
         .generate({
           task: "eval",

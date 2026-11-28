@@ -6,7 +6,7 @@
  * documents, read and restored (#1079), the Tailored CV read in full and reworked change by change (#1097, ADR-0113),
  * an Application's Exchanges, read and answered (#1099, behind its feature flag); and the employer's side of an
  * Application, its Company Dossier and Enriched Contacts (ADR-0114); and a company outside the Applications, through the
- * Target Companies of a Profile (ADR-0119, #1157).
+ * Target Companies of a Profile (ADR-0119, #1157); and the Web lookup, `search_web` (ADR-0119, #1159), behind its setting.
  *
  *   shippedCoachActions(candidateObjects(sources), domain)   // the app's, over the Candidate's objects
  *   shippedCoachActions(NO_OBJECTS)                          // on no one's data: every read finds nothing, nothing to propose on
@@ -25,6 +25,7 @@ import { profileCoachActions, type ProfileActionSources } from "./profile";
 import { searchCoachActions, type SearchActionSources } from "./job-searches";
 import { readCoachActions, type CoachObjectReader } from "./reads";
 import { targetCompanyCoachActions, type TargetCompanyActionSources } from "./target-companies";
+import { webLookupCoachActions, type WebLookupSources } from "./web-lookup";
 
 /** The domain modules the proposals go through; a Job Offer's reach is the reads' (`objects`). */
 export type CoachActionDomain = Omit<ApplicationActionSources, "applications" | "reachesJobOffer" | "profiles"> &
@@ -50,6 +51,8 @@ export type CoachActionDomain = Omit<ApplicationActionSources, "applications" | 
     tailoredDocumentVersions: DocumentVersionActionSources["tailoredDocumentVersions"] & TailoredCvActionSources["tailoredDocumentVersions"];
     /** An Application's Exchanges (#1099), behind APPLICATION_EXCHANGES_ENABLED: none, off. */
     exchanges?: Pick<ExchangeActionSources, "exchanges" | "on">;
+    /** The Web lookup (#1159), behind COACH_WEB_LOOKUP_ENABLED: none, a web where nothing is found. */
+    webLookup?: WebLookupSources;
   };
 
 export function shippedCoachActions(objects: CoachObjectReader, domain: CoachActionDomain = NO_DOMAIN): readonly CoachAction[] {
@@ -68,6 +71,7 @@ export function shippedCoachActions(objects: CoachObjectReader, domain: CoachAct
     ...documentVersionCoachActions(domain),
     ...tailoredCvCoachActions(domain),
     ...exchangeCoachActions({ on: () => false, exchanges: NO_EXCHANGES, ...domain.exchanges, applications: domain.applications, profiles: domain.profiles }),
+    ...webLookupCoachActions(domain.webLookup ?? NO_WEB),
   ]);
 }
 
@@ -75,6 +79,9 @@ export function shippedCoachActions(objects: CoachObjectReader, domain: CoachAct
 export const NO_OBJECTS: CoachObjectReader = { index: async () => [], read: async () => null };
 
 const NOT_FOUND: ApplicationChangeResult = { ok: false, error: "not_found" };
+
+/** No one's web (#1159): every query finds nothing. */
+const NO_WEB: WebLookupSources = { search: async () => [] };
 
 /** No one's Exchanges (#1099). */
 const NO_EXCHANGES: ExchangeActionSources["exchanges"] = { onApplication: async () => null, get: async () => null };

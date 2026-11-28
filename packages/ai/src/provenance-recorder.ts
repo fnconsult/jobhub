@@ -190,6 +190,10 @@ function recorderOf(ai: AiLayer, action: Action, wider: readonly Kept[]): Proven
         const sent = stoppable(request);
         return searched(sent, () => ai.searchCompany(sent));
       },
+      lookUpWeb: (request) => {
+        const sent = stoppable(request);
+        return record({ kind: "ai", task: "web_search" }, as("web_search"), () => ai.lookUpWeb(sent), (found) => callStep(found.call), sent.signal);
+      },
       searchCompanyNews: async (request) => (await recordedNews(request)).articles,
       searchCompanyNewsWithCall: (request) => recordedNews(request),
       agentModels: (task) => ai.agentModels(task),

@@ -78,8 +78,8 @@ const EMAIL = /\S+@\S+/g;
 const PHONE = /\+?\d(?:[\s.-]?\d){7,}/g;
 
 /** Free text the Candidate typed (or an AI step wrote): drop anything that looks like contact details, collapse whitespace, cap length. */
-export function clean(text: string): string {
-  return text.replace(EMAIL, " ").replace(PHONE, " ").replace(/\s+/g, " ").trim().slice(0, MAX_FIELD_LENGTH).trim();
+export function clean(text: string, maxLength: number = MAX_FIELD_LENGTH): string {
+  return text.replace(EMAIL, " ").replace(PHONE, " ").replace(/\s+/g, " ").trim().slice(0, maxLength).trim();
 }
 
 /**
@@ -113,7 +113,7 @@ export function buildSearchQuery(
   if (typeof criteria.minSalary === "number" && Number.isFinite(criteria.minSalary) && criteria.minSalary > 0) {
     parts.push(wording.salary(criteria.minSalary));
   }
-  const sectors = industryLabels(criteria, industries, query?.language ?? "fr").sectors.map(clean).filter(Boolean);
+  const sectors = industryLabels(criteria, industries, query?.language ?? "fr").sectors.map((sector) => clean(sector)).filter(Boolean);
   if (sectors.length > 0) parts.push(wording.sectors(anyOf(sectors)));
   return parts.join(", ");
 }
@@ -203,7 +203,7 @@ function titlesIn(reply: string | null): Record<QueryLanguage, string[]> {
 /** Cleaned, non-empty, each once (ignoring case), at most `most`. */
 function distinctTitles(titles: string[], most: number): string[] {
   const kept = new Map<string, string>();
-  for (const title of titles.map(clean)) {
+  for (const title of titles.map((each) => clean(each))) {
     if (title && !kept.has(title.toLocaleLowerCase("fr"))) kept.set(title.toLocaleLowerCase("fr"), title);
   }
   return [...kept.values()].slice(0, most);

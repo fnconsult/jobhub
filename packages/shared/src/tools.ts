@@ -293,7 +293,7 @@ const ENRICHMENT_PURPOSE: Translated = {
 /**
  * A Search provider's settings (ADR-0043): the active one and its fallback, then its own typed settings, and for
  * Perplexity and Tavily AI_WEB_SEARCH_MODEL, which their typed settings replace, read for one more release (#398),
- * then the filters Job discovery sends it (#402).
+ * then the filters Job discovery sends it (#402), and whether the AI Coach's Web lookup searches through it (#1159).
  */
 const WEB_SEARCH_SETTINGS = (...own: string[]): readonly ToolSetting[] => [
   { name: "AI_WEB_SEARCH_PROVIDER" },
@@ -303,6 +303,8 @@ const WEB_SEARCH_SETTINGS = (...own: string[]): readonly ToolSetting[] => [
   { name: "JOB_DISCOVERY_COUNTRY" },
   { name: "JOB_DISCOVERY_MAX_POSTING_AGE_DAYS" },
   { name: "JOB_DISCOVERY_RESULTS_PER_QUERY" },
+  // Whether the AI Coach's Web lookup sends it the queries it words (ADR-0119, #1159).
+  { name: "COACH_WEB_LOOKUP_ENABLED" },
 ];
 const JOB_DISCOVERY_BUDGET: readonly ToolSetting[] = [{ name: "JOB_DISCOVERY_BUDGET_JOB_OFFERS" }, { name: "JOB_DISCOVERY_BUDGET_EUR" }, { name: "JOB_DISCOVERY_BUDGET_SECONDS" }];
 /** Only the chosen provider is called, and only once its data-processing agreement is signed (ADR-0015); then its billing page (#1123). */

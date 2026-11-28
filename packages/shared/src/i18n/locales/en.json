@@ -3101,6 +3101,8 @@
         "COACH_ACTIONS_ENABLED": "Coach Actions switched on (the AI Coach reads and proposes)",
         "COACH_TOOL_ROUNDS_MAX": "Rounds of Coach Action calls per reply, at most",
         "COACH_WEB_LOOKUP_ENABLED": "AI Coach's web lookup (search_web, never in Production before its legal review)",
+        "COACH_SEND_ENABLED": "Sending by Jobbbox on the Candidate's click (propose_send, never in Production before its legal review)",
+        "COACH_SENDS_PER_DAY": "Sends a day per Candidate, at most",
         "AI_WEB_SEARCH_PROVIDER": "Web search provider",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fallback provider",
         "DELIVERY_STATUS_EMAIL_TO": "Recipients of Delivery's daily email",

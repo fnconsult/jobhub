@@ -150,6 +150,11 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
   // The AI Coach's Web lookup (`search_web`, ADR-0119, #1159): on by default, for every Plan. Never on in Production
   // until its Legal Review (#1160) is done, whatever it is set to (coach-actions/settings.ts, WEB_LOOKUP_IN_PRODUCTION).
   { name: "COACH_WEB_LOOKUP_ENABLED", group: "coach", type: { kind: "boolean" }, default: "true" },
+  // Sending on the Candidate's click (`propose_send`, ADR-0119, #1162): off by default, confirmed. Never on in Production
+  // until its Legal Review (#1160) is done, whatever it is set to (coach-actions/settings.ts, SEND_IN_PRODUCTION).
+  // COACH_SENDS_PER_DAY caps the emails Jobbbox sends in one Candidate's name a day (Paris), against abuse.
+  { name: "COACH_SEND_ENABLED", group: "coach", type: { kind: "boolean" }, default: "false", confirm: "true" },
+  { name: "COACH_SENDS_PER_DAY", group: "coach", type: whole(1, 200), default: "20" },
 ];
 
 const BY_NAME = new Map(PLATFORM_SETTINGS.map((setting) => [setting.name, setting]));

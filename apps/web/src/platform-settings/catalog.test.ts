@@ -67,7 +67,7 @@ const HELP_CENTRE = ["HELP_MEDIA_ORIGIN"];
 const COACH_SPACE = ["COACH_SPACE_V2"];
 
 /** The Coach Actions (ADR-0077, #713): switched on or off, how many rounds of calls a reply may make, and the Web lookup (#1159). */
-const COACH = ["COACH_ACTIONS_ENABLED", "COACH_TOOL_ROUNDS_MAX", "COACH_WEB_LOOKUP_ENABLED", "CAL_COM_TEAM_ID", "CAL_COM_REMINDERS_DISABLED"];
+const COACH = ["COACH_ACTIONS_ENABLED", "COACH_TOOL_ROUNDS_MAX", "COACH_WEB_LOOKUP_ENABLED", "COACH_SEND_ENABLED", "COACH_SENDS_PER_DAY", "CAL_COM_TEAM_ID", "CAL_COM_REMINDERS_DISABLED"];
 
 describe("the Platform Settings catalog", () => {
   it("has « Espace coach v2 » off by default, a confirmed boolean (ADR-0107)", () => {
@@ -200,6 +200,15 @@ describe("the Platform Settings catalog", () => {
     expect([setting.group, setting.type, setting.default]).toEqual(["coach", { kind: "boolean" }, "true"]);
     expect(isEditable(setting)).toBe(true);
     expect(readSetting({}, "COACH_WEB_LOOKUP_ENABLED")).toBe(true);
+  });
+
+  it("keeps sending on the Candidate's click off by default, confirmed, and caps it at 20 a day (ADR-0119, #1162)", () => {
+    const enabled = platformSetting("COACH_SEND_ENABLED")!;
+    expect([enabled.group, enabled.type, enabled.default, enabled.confirm]).toEqual(["coach", { kind: "boolean" }, "false", "true"]);
+    expect(readSetting({}, "COACH_SEND_ENABLED")).toBe(false);
+    const perDay = platformSetting("COACH_SENDS_PER_DAY")!;
+    expect([perDay.group, perDay.default]).toEqual(["coach", "20"]);
+    expect(readSetting({}, "COACH_SENDS_PER_DAY")).toBe(20);
   });
 
   it("parses a value the way the code parses env: an allowed list, a bounded number, text or a boolean", () => {

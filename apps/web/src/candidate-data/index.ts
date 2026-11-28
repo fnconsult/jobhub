@@ -221,6 +221,23 @@ export interface ExportedApplication extends Application {
   exchanges: ExportedApplicationExchange[];
   /** Each change of its title (#1130), oldest first: the title before and after, and the Coach proposal card it came from. */
   titleChanges: { before: string; after: string; cardId: string | null; at: Date }[];
+  /**
+   * The emails Jobbbox sent in the Candidate's name on their click (#1162, ADR-0119), oldest first: what it was, to whom,
+   * its subject, its status and dates, and the card it came from; never its text, which its card keeps.
+   */
+  sentEmails: ExportedSentEmail[];
+}
+
+/** An email sent in the Candidate's name from an Application (#1162), as the Data export holds it. */
+export interface ExportedSentEmail {
+  kind: string;
+  to: string;
+  toName: string | null;
+  subject: string;
+  status: string;
+  createdAt: Date;
+  sentAt: Date | null;
+  cardId: string;
 }
 
 /** An Exchange of an Application, as the Data export holds it (#1099). */
@@ -537,6 +554,7 @@ export const EXPORTED_TABLES: Readonly<Record<string, string>> = {
   coach_review: "applications[].coachReviews",
   enriched_contact: "applications[].enrichedContacts (no provider identifiers)",
   company_dossier: "applications[].companyDossier (with what served its last build)",
+  sent_email: "applications[].sentEmails (the emails Jobbbox sent in the Candidate's name on their click: kind, recipient, subject, status, dates, card; never the text, #1162)",
   exchange: "applications[].exchanges (the emails about it kept on it, and those offered to tie to it: sender, date, subject and text; never attachments nor headers, #1099)",
   coach_conversation: "coachConversations (each with its Subject: kind, id and name)",
   coach_message: "coachConversations[].messages (blocked ones marked, a Job Offer card's Job Offer named, each reply's Provenance and focus; no AI costs)",
@@ -809,7 +827,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
   }
 
   async function exportApplications(candidateId: string): Promise<ExportedApplication[]> {
-    const [summaries, followUpsOf, coachReviewsOf, enrichedContactsOf, companyDossiersOf, exchangesOf, titleChangesOf] = await Promise.all([
+    const [summaries, followUpsOf, coachReviewsOf, enrichedContactsOf, companyDossiersOf, exchangesOf, titleChangesOf, sentEmailsOf] = await Promise.all([
       deps.applications.list(candidateId),
       grouped<{ sentAt: Date }>(
       `SELECT s.application_id AS key, s.sent_at AS "sentAt" FROM follow_up_sent s JOIN application a ON a.id = s.application_id
@@ -838,6 +856,11 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
          FROM application_title_change c JOIN application a ON a.id = c.application_id WHERE a.candidate_id = $1 ORDER BY c.changed_at, c.id`,
         candidateId,
       ),
+      grouped<ExportedSentEmail>(
+      `SELECT application_id AS key, kind, recipient_email AS "to", recipient_name AS "toName", subject, status, created_at AS "createdAt", sent_at AS "sentAt", send_key AS "cardId"
+         FROM sent_email WHERE candidate_id = $1 ORDER BY created_at, id`,
+        candidateId,
+      ),
     ]);
     const exported = await Promise.all(
       summaries.map(async ({ id }): Promise<ExportedApplication | null> => {
@@ -864,6 +887,7 @@ export function createCandidateData(database: Pool, deps: CandidateDataDeps): Ca
           companyDossier: exportedDossier(companyDossiersOf(id)[0]),
           exchanges: exchangesOf(id),
           titleChanges: titleChangesOf(id),
+          sentEmails: sentEmailsOf(id),
         };
       }),
     );

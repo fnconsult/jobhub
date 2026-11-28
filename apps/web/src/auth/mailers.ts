@@ -33,6 +33,11 @@ export function parseSender(from: string): { name?: string; email: string } {
   return name ? { name, email: rawEmail.trim() } : { email: rawEmail.trim() };
 }
 
+/** A display name as a header takes it (#1162): no line break, quote, angle bracket nor backslash, at most 100 characters. */
+export function displayName(name: string): string {
+  return name.replace(/[\r\n"<>\\]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 100);
+}
+
 /** Sends emails through Brevo's transactional email API, with an API key (xkeysib-…): both parts, when there is an HTML one. */
 export function brevoApiMailer(apiKey: string, from: string, options: { apiUrl?: string; fetch?: (url: string, init: RequestInit) => Promise<Response> } = {}): Mailer {
   const fetch = options.fetch ?? globalThis.fetch;
@@ -44,8 +49,10 @@ export function brevoApiMailer(apiKey: string, from: string, options: { apiUrl?:
         method: "POST",
         headers: { "api-key": apiKey, "content-type": "application/json", accept: "application/json" },
         body: JSON.stringify({
-          sender,
+          sender: message.fromName && displayName(message.fromName) ? { name: displayName(message.fromName), email: sender.email } : sender,
           to: [{ email: message.to }],
+          ...(message.cc ? { cc: [{ email: message.cc }] } : {}),
+          ...(message.replyTo ? { replyTo: { email: message.replyTo } } : {}),
           subject: message.subject,
           textContent: message.text,
           ...(message.html ? { htmlContent: withSenderAddress(message.html, from) } : {}),
@@ -54,20 +61,32 @@ export function brevoApiMailer(apiKey: string, from: string, options: { apiUrl?:
         signal: AbortSignal.timeout(15_000),
       });
       if (!response.ok) throw new BrevoApiError(response.status, (await response.text().catch(() => "")).slice(0, 200));
+      const answered = (await response.json().catch(() => null)) as { messageId?: unknown } | null;
+      return typeof answered?.messageId === "string" ? { messageId: answered.messageId } : undefined;
     },
   };
 }
 
 /** What an SMTP mailer sends through: nodemailer's transport, by default. */
-export type SmtpTransport = { sendMail(mail: { from: string; to: string; subject: string; text: string; html?: string; headers?: Record<string, string> }): Promise<unknown> };
+export type SmtpTransport = {
+  sendMail(mail: { from: string; to: string; cc?: string; replyTo?: string; subject: string; text: string; html?: string; headers?: Record<string, string> }): Promise<unknown>;
+};
+
+/** MAIL_FROM with another name, its address kept (#1162). */
+function fromNamed(from: string, name: string | undefined): string {
+  const shown = name ? displayName(name) : "";
+  return shown ? `"${shown}" <${parseSender(from).email}>` : from;
+}
 
 /** Sends emails through an SMTP server (an EU provider in production, ADR-0007): multipart/alternative when it has an HTML part. */
 export function smtpMailer(smtpUrl: string, from: string, transport: SmtpTransport = nodemailer.createTransport(smtpUrl)): Mailer {
   return {
     async send(message: MailMessage) {
       await transport.sendMail({
-        from,
+        from: fromNamed(from, message.fromName),
         to: message.to,
+        ...(message.cc ? { cc: message.cc } : {}),
+        ...(message.replyTo ? { replyTo: message.replyTo } : {}),
         subject: message.subject,
         text: message.text,
         ...(message.html ? { html: withSenderAddress(message.html, from) } : {}),
@@ -81,7 +100,9 @@ export function smtpMailer(smtpUrl: string, from: string, transport: SmtpTranspo
 export function consoleMailer(from: string = DEVELOPMENT_MAIL_FROM): Mailer {
   return {
     async send(message: MailMessage) {
-      console.info(`[mail] to ${message.to}: ${message.subject}\nFrom: ${from}\n${message.text}`);
+      const copy = message.cc ? `\nCc: ${message.cc}` : "";
+      const replyTo = message.replyTo ? `\nReply-To: ${message.replyTo}` : "";
+      console.info(`[mail] to ${message.to}: ${message.subject}\nFrom: ${fromNamed(from, message.fromName)}${copy}${replyTo}\n${message.text}`);
     },
   };
 }

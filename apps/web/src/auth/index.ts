@@ -47,11 +47,25 @@ export interface MailMessage {
   html?: string;
   /** Extra headers, e.g. List-Unsubscribe (RFC 8058) on a recurring email. */
   headers?: Record<string, string>;
+  /**
+   * The sender's name in place of MAIL_FROM's, its address kept (ADR-0119, #1162): « Prénom Nom via Jobbbox » for an
+   * email sent in a Candidate's name. Only Jobbbox's own, authenticated address is ever the From.
+   */
+  fromName?: string;
+  /** One address in copy (#1162: the Candidate's sign-in email). */
+  cc?: string;
+  /** Where a reply goes (#1162: the Candidate's sign-in email), not to Jobbbox. */
+  replyTo?: string;
+}
+
+/** What a mailer knows of an email it sent: its provider's message id, when it gives one (Brevo does). */
+export interface SentMail {
+  messageId?: string;
 }
 
 /** Delivers emails. Adapters: Brevo's API or SMTP in production, console in development, a mailbox in tests. */
 export interface Mailer {
-  send(message: MailMessage): Promise<void>;
+  send(message: MailMessage): Promise<SentMail | void>;
 }
 
 /** A person signing in, as the sign-in decisions see them. */

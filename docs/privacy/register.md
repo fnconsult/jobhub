@@ -736,6 +736,23 @@ _Added by #338, from `docs/research/issue-498.md` § 4, item 11._
 | Retention | Brevo's, per its DPA (not read). |
 | Rights | Through the processing each email serves. |
 
+## Emails sent in the Candidate's name (ADR-0119, #1162)
+
+_Added by #1162, from `docs/research/issue-1162.md`. **Draft, not in effect in Production**: behind the Platform Setting `COACH_SEND_ENABLED` (off by default) and the code constant `SEND_IN_PRODUCTION` (false) until the Legal Review #1160 is done (product owner's decision of 2026-11-27)._
+
+| | |
+| --- | --- |
+| Purpose | On the Candidate's click on « Envoyer » in a card of their AI Coach (`propose_send`), send an email in their name to one recipient of one of their Applications: its Follow-up, its Outreach Message, or a reply to one of its Exchanges. Never without that click, whatever the conversation says; never retried by itself. |
+| Legal basis | For the Candidate: performance of the service they ask for by their click (contract). For the recipient: to be settled by #1160 (legitimate interest of the Candidate's own job search, B2B context; CPCE L34-5 to check for an Outreach Message). |
+| People concerned | Candidates; the recipients: recruiters and people at an employer (a revealed Enriched Contact, the contact of an Outreach Message, or the sender of an Exchange). |
+| Data | Sent: the Candidate's name (« Prénom Nom via Jobbbox », as the sender's display name), their sign-in email (in copy and as Reply-To, so the recipient sees it), the recipient's email, the subject and text the Candidate read on the card and may have changed. Kept by Jobbbox (`sent_email`): the kind (Follow-up, Outreach Message, reply), the recipient's email and name, the subject, its status (sending, sent, uncertain), when it was reserved and sent, the card's id and Brevo's message id; **never the text**, which stays on the card (« Applications and their documents »). A Follow-up sent is also a Follow-up sent of the Application (it moves to « Relancée »). |
+| Source | The Candidate (their click, the text they leave); the Application's draft, its Enriched Contacts and Exchanges for the recipient, read by Jobbbox's server, never taken from the request. |
+| Processors | Brevo SAS (France), the same as « Transactional emails »: a new purpose, not a new processor. From Jobbbox's own sending address (MAIL_FROM, its domain authenticated by SPF, DKIM and DMARC), never the Candidate's mailbox (ADR-0050). To check against Brevo's DPA and terms before Production (#1160): sending to recipients who did not opt in to Jobbbox. |
+| Storage | The `sent_email` table in the app's Postgres database (EU); Brevo's logs per its DPA. |
+| Retention | Kept while the Application exists; deleted with it or with the account. Brevo's, per its DPA (not read). |
+| Rights | The Candidate: in their Data export (`applications[].sentEmails`), deleted with the Application or the account. A recipient: through the Candidate, the sender of record; Jobbbox, which keeps their email address and name on `sent_email`, answers access and erasure requests from them (#1160 to settle the notice: the email names Jobbbox in its sender). |
+| Limits | At most `COACH_SENDS_PER_DAY` (20 by default) a day (Paris) per Candidate, against abuse. One recipient, one copy (the Candidate). |
+
 ## Data export and Account deletion (ADR-0010)
 
 _Added by #338, from `docs/research/issue-498.md` § 4, item 13._

@@ -167,7 +167,8 @@ describe("the Tools", () => {
     expect(names("mistral")).toEqual(["AI_IDENTITY_MODEL", "MISTRAL_BILLING_URL"]);
     const search = ["AI_WEB_SEARCH_PROVIDER", "AI_WEB_SEARCH_FALLBACK_PROVIDER"];
     // And the filters Job discovery sends every Search provider (#402).
-    const filters = ["JOB_DISCOVERY_COUNTRY", "JOB_DISCOVERY_MAX_POSTING_AGE_DAYS", "JOB_DISCOVERY_RESULTS_PER_QUERY"];
+    // And whether the AI Coach's Web lookup searches through it (#1159).
+    const filters = ["JOB_DISCOVERY_COUNTRY", "JOB_DISCOVERY_MAX_POSTING_AGE_DAYS", "JOB_DISCOVERY_RESULTS_PER_QUERY", "COACH_WEB_LOOKUP_ENABLED"];
     // Each with the price of its billed unit (#403).
     expect(names("perplexity")).toEqual([...search, "PERPLEXITY_SEARCH_TYPE", "PERPLEXITY_QUERIES_PER_CALL", "AI_WEB_SEARCH_MODEL", "PERPLEXITY_FAST_SEARCH_PRICE_USD", "PERPLEXITY_SEARCH_PRICE_USD", "PERPLEXITY_BILLING_URL", ...filters]);
     expect(names("brave")).toEqual([...search, "BRAVE_MAX_PAGES", "BRAVE_SEARCH_PRICE_USD", "BRAVE_BILLING_URL", ...filters]);

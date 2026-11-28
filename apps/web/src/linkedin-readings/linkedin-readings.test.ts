@@ -4,7 +4,7 @@ import { createApplications, migrateApplications, type Applications } from "../a
 import { connectionString, startTestBilling, type TestBilling } from "../billing/test-support";
 import { createJobOffers, migrateJobOffers, type JobOffers } from "../job-offers";
 import { createProfiles, migrateProfiles, type Profiles } from "../profiles";
-import { migrateTargetCompanies } from "../target-companies";
+import { createTargetCompanies, migrateTargetCompanies } from "../target-companies";
 import { createLinkedInReadings, migrateLinkedInReadings, type LinkedInReadings } from "./index";
 
 const masterCv: MasterCvContent = {
@@ -116,6 +116,42 @@ describe.skipIf(!connectionString)("LinkedIn Readings: the people the extension 
 
     expect(kept).toMatchObject({ ok: true, reading: { filedIn: [{ kind: "target_company", id, name: "Exemple Industrie Fictive", profileId }] } });
     expect((await readings.contactsOf(nathalie, { targetCompanyId: id })).map((contact) => contact.name)).toEqual(["Camille Fictive", "Lou Inventé"]);
+  });
+
+  it("shows a Target Company's LinkedIn contacts on its card, each company with its own, and none of another Candidate's", async () => {
+    const id = await targetCompany(nathalie, "Exemple Industrie Fictive");
+    const other = await targetCompany(nathalie, "Autre Société Fictive");
+    await readings.keep(nathalie, peopleReading());
+
+    const byCompany = await readings.contactsOfTargetCompanies(nathalie, [id, other, "not-an-id"]);
+
+    expect([...byCompany.keys()]).toEqual([id]);
+    expect(byCompany.get(id)).toEqual([
+      { id: expect.any(String), name: "Camille Fictive", role: "Responsable achats", company: "Exemple Industrie Fictive", source: "linkedin", readAt: clock.now },
+      { id: expect.any(String), name: "Lou Inventé", role: "Acheteur projets", company: "Exemple Industrie Fictive", source: "linkedin", readAt: clock.now },
+    ]);
+    expect((await readings.contactsOfTargetCompanies(paul, [id])).size).toBe(0);
+  });
+
+  it("carries a Target Company's LinkedIn contacts to the Spontaneous Application prepared there, without doubling anyone read again", async () => {
+    const id = await targetCompany(nathalie, "Exemple Industrie Fictive");
+    await readings.keep(nathalie, peopleReading());
+    const targets = createTargetCompanies(t.database, { jobOffers, applications });
+
+    const prepared = await targets.prepareSpontaneousApplication(nathalie, profileId, id);
+    if (!prepared.ok) throw new Error("not prepared");
+
+    expect((await readings.contactsOf(nathalie, { applicationId: prepared.applicationId })).map((contact) => contact.name)).toEqual(["Camille Fictive", "Lou Inventé"]);
+    // Read again once prepared, the people are filed with both: the Application still shows each once, as read last.
+    clock.now = new Date("2026-11-29T10:00:00+01:00");
+    const again = await readings.keep(nathalie, peopleReading([{ name: "Camille Fictive", role: "Directrice achats" }]));
+    expect(again.ok && again.reading.filedIn.map((place) => `${place.kind}:${place.id}`).sort()).toEqual([`application:${prepared.applicationId}`, `target_company:${id}`].sort());
+    expect((await readings.contactsOf(nathalie, { applicationId: prepared.applicationId })).map(({ name, role, readAt }) => ({ name, role, readAt }))).toEqual([
+      { name: "Camille Fictive", role: "Directrice achats", readAt: clock.now },
+      { name: "Lou Inventé", role: "Acheteur projets", readAt: new Date("2026-11-28T10:00:00+01:00") },
+    ]);
+    // Another Candidate's Application is never shown Nathalie's Target Company's contacts.
+    expect(await readings.contactsOf(paul, { applicationId: prepared.applicationId })).toEqual([]);
   });
 
   it("keeps no one when the company is neither an Application's employer nor a Target Company: the Reading only says how many it read", async () => {

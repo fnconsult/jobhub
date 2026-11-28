@@ -72,6 +72,8 @@ function shipped(): readonly CoachAction[] {
       coachReviews: { reviews: (candidateId, applicationId) => getHumanCoaches().reviews(candidateId, applicationId) },
       // A Profile's Target Companies (#1157), their dossier and contacts those of their Spontaneous Application.
       targetCompanies: { onProfile: (candidateId, profileId) => getTargetCompanies().onProfile(candidateId, profileId) },
+      // …with the people of each the extension read on LinkedIn, on the Candidate's click (ADR-0119, #1164).
+      linkedInContacts: { contactsOfTargetCompanies: (candidateId, ids) => getLinkedInReadings().contactsOfTargetCompanies(candidateId, ids) },
       // The Candidate's Plan and the week's Plan Quotas (#1158), as Mon abonnement reads them.
       plan: getBilling(),
       industries: readIndustryReference,

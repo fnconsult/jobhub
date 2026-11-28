@@ -111,20 +111,26 @@ test.describe("the extension reads a LinkedIn page the Candidate opened: name, r
     return panel;
   }
 
-  /** A signed-in Candidate with an Application at « Exemple Industrie Fictive », on the web app's page `web`. */
-  async function candidateApplyingThere(): Promise<{ web: Page; applicationId: string }> {
+  /** A new signed-in Candidate with one Profile, on the web app's page `web`. */
+  async function candidateWithProfile(): Promise<{ web: Page; profileId: string }> {
     // Each test's Candidate is new: the earlier one's session is forgotten first (the browser's cookies, not the extension's).
     await context.clearCookies();
     const web = await context.newPage();
     await signInWithMagicLink(web, newAddress("extension-linkedin"));
     const profile = await web.request.post(`${origin}/api/profiles`, { headers: { origin }, data: { masterCv, searchCriteria: { targetRole: "Acheteuse industrielle", locations: ["Lyon"] } } });
     expect(profile.status(), await profile.text()).toBe(201);
+    return { web, profileId: (await profile.json()).id };
+  }
+
+  /** A signed-in Candidate with an Application at « Exemple Industrie Fictive », on the web app's page `web`. */
+  async function candidateApplyingThere(): Promise<{ web: Page; applicationId: string }> {
+    const { web, profileId } = await candidateWithProfile();
     const jobOffer = await web.request.post(`${origin}/api/job-offers`, {
       headers: { origin },
       data: { source: { url: `https://www.welcometothejungle.com/fr/companies/exemple-industrie-fictive/jobs/acheteur-${Date.now()}` }, title: "Acheteur industriel H/F", content: "Vous négociez avec nos fournisseurs de pièces usinées.", employer: "Exemple Industrie Fictive", location: "Lyon" },
     });
     expect(jobOffer.status(), await jobOffer.text()).toBe(200);
-    const application = await web.request.post(`${origin}/api/applications`, { headers: { origin }, data: { jobOfferId: (await jobOffer.json()).id, profileId: (await profile.json()).id } });
+    const application = await web.request.post(`${origin}/api/applications`, { headers: { origin }, data: { jobOfferId: (await jobOffer.json()).id, profileId } });
     expect([200, 201]).toContain(application.status());
     return { web, applicationId: (await application.json()).id };
   }
@@ -186,6 +192,44 @@ test.describe("the extension reads a LinkedIn page the Candidate opened: name, r
     const exported = await (await web.request.get(`${origin}/api/account/export`)).json();
     const contactKeys = exported.linkedInReadings.flatMap((each: { contacts: object[] }) => each.contacts.map((contact) => Object.keys(contact).sort()));
     expect(new Set(contactKeys.map((keys: string[]) => keys.join(",")))).toEqual(new Set(["applicationId,company,name,readAt,role,targetCompanyId"]));
+    await Promise.all([web.close(), panel.close(), linkedIn.close()]);
+  });
+
+  test("a company the Candidate targets, with no Application there: its people are on its card, marked « LinkedIn », and go with the Spontaneous Application prepared there", async () => {
+    const { web, profileId } = await candidateWithProfile();
+    // Added as the Candidate adds one by name (the company register is not reached here).
+    const [{ id: targetCompanyId }] = await query<{ id: string }>(
+      `INSERT INTO target_company (profile_id, candidate_id, company_key, name, origin) SELECT id, candidate_id, 'name:exemple industrie fictive', 'Exemple Industrie Fictive', 'candidate' FROM profile WHERE id = $1 RETURNING id`,
+      [profileId],
+    );
+    const panel = await openPanel();
+    const linkedIn = await context.newPage();
+
+    await linkedIn.goto(PEOPLE_PAGE_URL);
+    await linkedIn.bringToFront();
+    await panel.getByRole("button", { name: texts.read }).click();
+    await expect(panel.getByText(tr(texts.kept_other, { count: 3, company: "Exemple Industrie Fictive", places: tr(texts.targetCompany, { name: "Exemple Industrie Fictive" }) }))).toBeVisible();
+    expect(await query(`SELECT name FROM linkedin_contact WHERE target_company_id = $1 ORDER BY position`, [targetCompanyId])).toEqual([
+      { name: "Camille Fictive" },
+      { name: "Lou Inventé" },
+      { name: "Sacha Exemple" },
+    ]);
+
+    // Where the panel and the AI Coach's Provenance send the Candidate: the Profile's « Entreprises cibles », on its card.
+    await web.goto(`/profils/${profileId}/entreprises-cibles`);
+    const onCard = web.getByRole("list", { name: tr(fr.targetCompanies.linkedInLabel, { name: "Exemple Industrie Fictive" }) });
+    await expect(onCard.getByRole("listitem")).toHaveCount(3);
+    await expect(onCard.getByRole("listitem").first()).toContainText("Camille Fictive");
+    await expect(onCard.getByRole("listitem").first()).toContainText(fr.linkedInContacts.source);
+
+    // The Spontaneous Application prepared there takes them with it, in its « Contacts ».
+    await web.getByRole("button", { name: fr.targetCompanies.prepareApplication }).click();
+    await web.waitForURL(/\/candidatures\/[0-9a-f-]{36}/);
+    const applicationId = new URL(web.url()).pathname.split("/")[2]!;
+    await web.goto(`/candidatures/${applicationId}/contacts`);
+    const contacts = web.getByRole("region", { name: fr.linkedInContacts.title });
+    await expect(contacts.getByRole("listitem")).toHaveCount(3);
+    await expect(contacts.getByRole("listitem").first()).toContainText(fr.linkedInContacts.source);
     await Promise.all([web.close(), panel.close(), linkedIn.close()]);
   });
 

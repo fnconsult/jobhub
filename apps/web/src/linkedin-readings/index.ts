@@ -9,6 +9,7 @@
  *   await readings.latest(candidateId, { since, url? });              // the AI Coach's read: the latest Reading, of that page
  *   await readings.contactsOf(candidateId, { applicationId });        // the LinkedIn contacts an Application's page shows
  *   await readings.contactsOf(candidateId, { targetCompanyId });      // …and a Target Company's
+ *   await readings.contactsOfTargetCompanies(candidateId, ids);       // Map: Target Company id → its contacts, as its card shows them
  *
  * Rules kept here:
  *  - Jobbbox's server never reads LinkedIn: nothing here calls the network. It keeps what the extension sent, read through
@@ -18,6 +19,9 @@
  *    (not set aside), the Candidate's own only, compared without case, accents or legal form. With none, no one is kept:
  *    the Reading says only how many people it read (`peopleRead`), so the AI Coach can propose the Target Company first.
  *  - Read again, a person is not doubled: their role and the date they were read are brought up to date.
+ *  - A Spontaneous Application shows, with its own, the contacts of the Target Company it was prepared from (a Target
+ *    Company's contacts are its Spontaneous Application's, as its dossier is), each person once, as read last: read
+ *    before it was prepared, they are not lost to it.
  *  - Contacts go with their Application or Target Company, and Readings with the Candidate; the Candidate's Readings
  *    beyond their latest KEPT_READINGS that file no one any more are forgotten.
  */
@@ -58,7 +62,10 @@ export interface LinkedInReadings {
   keep(candidateId: string, sent: unknown): Promise<KeepResult>;
   /** The Candidate's latest Reading made at `since` or later; of the page `url` names, when given (any of its tabs). */
   latest(candidateId: string, options: { since: Date; url?: string }): Promise<KeptLinkedInReading | null>;
+  /** An Application's (with those of the Target Company it is the Spontaneous Application of), or a Target Company's. */
   contactsOf(candidateId: string, place: { applicationId: string } | { targetCompanyId: string }): Promise<LinkedInContact[]>;
+  /** The contacts of each of the Candidate's Target Companies `ids` that has some, as their cards show them. */
+  contactsOfTargetCompanies(candidateId: string, ids: readonly string[]): Promise<Map<string, LinkedInContact[]>>;
 }
 
 /** How many of a Candidate's Readings are kept, beyond those whose people are filed somewhere. */
@@ -87,6 +94,8 @@ interface ContactRow {
   read_at: Date;
 }
 
+const contactOf = (row: ContactRow): LinkedInContact => ({ id: row.id, name: row.name, role: row.role, company: row.company, source: "linkedin", readAt: row.read_at });
+
 /** A person told apart in one place: by their name, without case or accents. */
 const personKey = (name: string) => name.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 
@@ -113,6 +122,20 @@ export function createLinkedInReadings(database: Pool, deps: { now?: () => Date 
       ...applications.rows.filter((row) => nameKey(row.employer) === key).map((row): LinkedInReadingPlace => ({ kind: "application", id: row.id, name: row.title })),
       ...targets.rows.filter((row) => nameKey(row.name) === key).map((row): LinkedInReadingPlace => ({ kind: "target_company", id: row.id, name: row.name, profileId: row.profile_id })),
     ];
+  }
+
+  /** The contacts of each of the Candidate's Target Companies `ids` that has some. */
+  async function contactsOfTargetCompanies(candidateId: string, ids: readonly string[]): Promise<Map<string, LinkedInContact[]>> {
+    const valid = ids.filter((id) => UUID.test(id));
+    const byCompany = new Map<string, LinkedInContact[]>();
+    if (!candidateId || valid.length === 0) return byCompany;
+    const { rows } = await database.query<ContactRow>(
+      `SELECT id, reading_id, application_id, target_company_id, name, role, company, read_at FROM linkedin_contact
+        WHERE candidate_id = $1 AND target_company_id = ANY($2::uuid[]) ORDER BY read_at DESC, position, id`,
+      [candidateId, valid],
+    );
+    for (const row of rows) byCompany.set(row.target_company_id!, [...(byCompany.get(row.target_company_id!) ?? []), contactOf(row)]);
+    return byCompany;
   }
 
   /** The Reading `row` with its people and where they are filed. */
@@ -207,15 +230,24 @@ export function createLinkedInReadings(database: Pool, deps: { now?: () => Date 
     },
 
     async contactsOf(candidateId, place) {
-      const [column, id] = "applicationId" in place ? ["application_id", place.applicationId] : ["target_company_id", place.targetCompanyId];
-      if (!candidateId || !UUID.test(id)) return [];
+      if ("targetCompanyId" in place) return (await contactsOfTargetCompanies(candidateId, [place.targetCompanyId])).get(place.targetCompanyId) ?? [];
+      if (!candidateId || !UUID.test(place.applicationId)) return [];
+      // Its own, and those of the Candidate's Target Company it is the Spontaneous Application of: each person once, as read last.
       const { rows } = await database.query<ContactRow>(
-        `SELECT id, reading_id, application_id, target_company_id, name, role, company, read_at FROM linkedin_contact
-          WHERE candidate_id = $1 AND ${column} = $2 ORDER BY read_at DESC, position, id`,
-        [candidateId, id],
+        `SELECT * FROM (
+           SELECT DISTINCT ON (c.name_key) c.id, c.reading_id, c.application_id, c.target_company_id, c.name, c.role, c.company, c.read_at, c.position
+             FROM linkedin_contact c
+            WHERE c.candidate_id = $1
+              AND (c.application_id = $2
+                   OR c.target_company_id IN (SELECT t.id FROM target_company t WHERE t.candidate_id = $1 AND t.spontaneous_application_id = $2))
+            ORDER BY c.name_key, c.read_at DESC, (c.application_id IS NULL), c.id
+         ) shown ORDER BY read_at DESC, position, id`,
+        [candidateId, place.applicationId],
       );
-      return rows.map((row) => ({ id: row.id, name: row.name, role: row.role, company: row.company, source: "linkedin", readAt: row.read_at }));
+      return rows.map(contactOf);
     },
+
+    contactsOfTargetCompanies,
   };
 }
 

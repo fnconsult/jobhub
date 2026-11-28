@@ -18,6 +18,8 @@ Avant l'envoi de votre premier CV, une case vous demande d'accepter les « condi
 
 À la fin du panneau, la case « Détecter les offres sur tous les sites » ajoute le bouton « Analyser cette offre » aux sites carrières des employeurs.
 
+Connecté, sur une page LinkedIn que vous avez ouverte (une offre, la page d'une entreprise ou ses personnes), le panneau affiche « Page LinkedIn » et le bouton « Lire cette page LinkedIn » : à votre clic, l'extension lit la page dans votre navigateur et Jobbbox garde le nom, la fonction et l'entreprise de chaque personne, dans la candidature ou l'entreprise cible de cette entreprise. Le profil d'une personne n'est jamais lu, et vos conditions d'utilisation de LinkedIn s'appliquent à votre compte.
+
 Les boutons restent en bas du panneau. Avant le calcul : « Calculer mon Match Score » et, si vous avez déjà un compte, « J'ai déjà un compte · Se connecter ». Après le calcul : « Créer mon compte et garder cette offre », qui ouvre Jobbbox dans un nouvel onglet, pour créer votre compte ou vous connecter ; et « Effacer mes données maintenant », qui efface tout de suite votre CV et l'offre de ce navigateur.
 
 Tout en bas du panneau, « Aide », « Confidentialité » et « CGU » ouvrent le site Jobbbox dans un nouvel onglet : l'aide sur l'extension, la politique de confidentialité et les conditions d'utilisation.

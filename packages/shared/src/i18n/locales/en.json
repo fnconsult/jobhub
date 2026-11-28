@@ -3106,6 +3106,7 @@
         "EXTENSION_STORE_URL": "Extension's Chrome Web Store page",
         "APP_STORE_URL": "App's App Store page (the landing page's link)",
         "PLAY_STORE_URL": "App's Google Play page (the landing page's link)",
+        "LINKEDIN_READING_ENABLED": "The extension reads a LinkedIn page on the Candidate's click (never in Production before the legal review)",
         "HUMAN_COACH_PAGE_ENABLED": "Human coaches' path on the public site (to switch on with the coach space)",
         "HELP_MEDIA_ORIGIN": "Origin of the help videos (the Help Centre's Explainer Videos)",
         "MAINTENANCE_MODE": "Maintenance on (every page but the Back Office answers 503)",

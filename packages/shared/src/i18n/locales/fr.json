@@ -3106,6 +3106,7 @@
         "EXTENSION_STORE_URL": "Page de l'extension sur le Chrome Web Store",
         "APP_STORE_URL": "Page de l'app sur l'App Store (lien de la page d'accueil)",
         "PLAY_STORE_URL": "Page de l'app sur Google Play (lien de la page d'accueil)",
+        "LINKEDIN_READING_ENABLED": "Lecture d'une page LinkedIn par l'extension, au clic du candidat (jamais en Production avant la revue légale)",
         "HUMAN_COACH_PAGE_ENABLED": "Parcours des coachs humains sur le site public (à activer avec l'espace coach)",
         "HELP_MEDIA_ORIGIN": "Origine des vidéos d'aide (Explainer Videos du centre d'aide)",
         "MAINTENANCE_MODE": "Maintenance en cours (toutes les pages hors Back Office répondent 503)",

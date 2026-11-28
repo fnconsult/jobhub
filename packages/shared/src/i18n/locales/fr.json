@@ -535,7 +535,21 @@
       "terms": "CGU"
     },
     "secondStep": "Terminez votre connexion sur Jobbbox",
-    "secondStepLink": "Terminer la connexion"
+    "secondStepLink": "Terminer la connexion",
+    "linkedIn": {
+      "title": "Page LinkedIn",
+      "read": "Lire cette page LinkedIn",
+      "hint": "Jobbbox garde seulement le nom, la fonction et l'entreprise des personnes de cette page, jamais leur profil. Vos conditions d'utilisation de LinkedIn s'appliquent à votre compte.",
+      "reading": "Lecture de la page…",
+      "kept_one": "{{count}} personne gardée chez {{company}} : {{places}}.",
+      "kept_other": "{{count}} personnes gardées chez {{company}} : {{places}}.",
+      "nobodyNamed": "Page lue : {{company}}. Aucune personne n'y est nommée.",
+      "notFiled": "Personne n'est gardé : {{company}} n'est l'employeur d'aucune de vos candidatures ni l'une de vos entreprises cibles. Ajoutez-la en entreprise cible, puis lisez la page de nouveau.",
+      "application": "la candidature « {{name}} »",
+      "targetCompany": "l'entreprise cible « {{name}} »",
+      "unreadable": "Cette page LinkedIn ne peut pas être lue : ouvrez une offre, la page d'une entreprise ou ses personnes.",
+      "disabled": "La lecture des pages LinkedIn n'est pas disponible."
+    }
   },
   "signInEmail": {
     "subject": "Votre lien de connexion à Jobbbox",

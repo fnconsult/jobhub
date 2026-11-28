@@ -535,7 +535,21 @@
       "terms": "Terms of use"
     },
     "secondStep": "Finish signing in on Jobbbox",
-    "secondStepLink": "Finish signing in"
+    "secondStepLink": "Finish signing in",
+    "linkedIn": {
+      "title": "LinkedIn page",
+      "read": "Read this LinkedIn page",
+      "hint": "Jobbbox keeps only the name, role and company of the people on this page, never their profile. Your LinkedIn terms of use apply to your account.",
+      "reading": "Reading the page…",
+      "kept_one": "{{count}} person kept at {{company}}: {{places}}.",
+      "kept_other": "{{count}} people kept at {{company}}: {{places}}.",
+      "nobodyNamed": "Page read: {{company}}. Nobody is named on it.",
+      "notFiled": "Nobody was kept: {{company}} is the employer of none of your applications nor one of your target companies. Add it as a target company, then read the page again.",
+      "application": "the application “{{name}}”",
+      "targetCompany": "the target company “{{name}}”",
+      "unreadable": "This LinkedIn page cannot be read: open a job offer, a company's page or its people.",
+      "disabled": "Reading LinkedIn pages is not available."
+    }
   },
   "signInEmail": {
     "subject": "Your Jobbbox sign-in link",

@@ -1,6 +1,6 @@
 import { designTokens, followTheme, PREFERS_DARK, renderDesignCss, trackScrolling } from "@jobhub/shared/design";
 import { createI18n } from "@jobhub/shared/i18n";
-import { SECOND_STEP_PATH, type JobOffer, type MatchScore } from "@jobhub/shared";
+import { linkedInPageOf, SECOND_STEP_PATH, type JobOffer, type LinkedInReading, type MatchScore } from "@jobhub/shared";
 import { browser } from "wxt/browser";
 import { ALL_SITES } from "../../src/all-sites-detection";
 import { createApplicationSaving, type ProfileChoice, type SavingFailure, type SavingState } from "../../src/application-saving";
@@ -14,6 +14,7 @@ import { createGuestSession } from "../../src/guest-session";
 import { GUEST_TERMS_LINKS, guestTermsToAccept, sentenceParts, SIDE_PANEL_LINKS, siteHref, siteLanguage, versionDay, type CguVersion } from "../../src/guest-terms";
 import { panelLogo } from "../../src/panel-logo";
 import { createJobbboxApi, type ProfileOption, type ScoreAgainst, type UpgradePrompt } from "../../src/jobbbox-api";
+import { linkedInReadMessage, readLinkedInTab } from "../../src/linkedin-reading";
 import { describeMatchScore, describeRescore, type MatchScoreView } from "../../src/match-score-view";
 import { chooseScoreAgainst, createMatchScoring, type ScoringChoice } from "../../src/match-scoring";
 import type { AnalyseReply, ExtensionMessage } from "../../src/messages";
@@ -326,6 +327,50 @@ async function allSitesOption(): Promise<HTMLElement> {
   return option;
 }
 
+/**
+ * Whether a signed-in Candidate may read a LinkedIn page from here (ADR-0119, #1164): asked once, as the panel opens;
+ * never for a Guest. Then the LinkedIn page in view, its address canonical, null on any other page.
+ */
+const linkedInReadingOn = candidate.signedIn ? await api.linkedInReading() : false;
+let linkedInInView: string | null = null;
+/** The « Page LinkedIn » section shown, kept for its page so that what it said stays from one render to the next. */
+let linkedInShown: { url: string; node: HTMLElement } | null = null;
+
+/** Reads the page of `tabId` (src/linkedin-page.ts), on the Candidate's click only: its Reading, or null. */
+async function readLinkedInPageOf(tabId: number): Promise<LinkedInReading | null> {
+  const [injection] = await browser.scripting.executeScript({ target: { tabId }, files: ["/linkedin-read.js"] });
+  return (injection?.result as LinkedInReading | null | undefined) ?? null;
+}
+
+/** « Lire cette page LinkedIn »: on the click, the page is read once and its people kept by name, role and company only. */
+function linkedInSection(): HTMLElement {
+  const node = element("section", "", "linkedin-reading");
+  const progress = element("p", "", "status");
+  progress.setAttribute("role", "status");
+  const trigger = button(t("extension.linkedIn.read"), async () => {
+    if (trigger.disabled) return;
+    trigger.disabled = true;
+    progress.className = "status";
+    progress.textContent = t("extension.linkedIn.reading");
+    const [tab] = await browser.tabs.query({ active: true, windowId });
+    const outcome = await readLinkedInTab({ read: () => (tab?.id === undefined ? Promise.resolve(null) : readLinkedInPageOf(tab.id)), api });
+    const message = linkedInReadMessage(outcome, t);
+    trigger.disabled = false;
+    progress.className = message.error ? "status error" : "status";
+    progress.setAttribute("role", message.error ? "alert" : "status");
+    progress.textContent = message.text;
+  });
+  node.append(element("h3", t("extension.linkedIn.title"), "label"), element("p", t("extension.linkedIn.hint"), "ds-field__hint"), trigger, progress);
+  return node;
+}
+
+/** The « Page LinkedIn » section for the page in view, while the reading is on and the page is one it may read. */
+function linkedInFor(): HTMLElement[] {
+  if (!linkedInReadingOn || !linkedInInView) return [];
+  if (linkedInShown?.url !== linkedInInView) linkedInShown = { url: linkedInInView, node: linkedInSection() };
+  return [linkedInShown.node];
+}
+
 /** What the extension does besides the Job Offer: Capture by hand, the badge on every site, the account. Built once. */
 const extras = element("section", "", "extras");
 extras.append(await allSitesOption());
@@ -338,7 +383,8 @@ if (candidate.signedIn) {
 function extrasFor(shown?: JobOffer): HTMLElement {
   // A posting in view is analysed from its note; any other page can still be captured by hand.
   const manual = inView?.detected ? [] : [capturePage()];
-  extras.replaceChildren(...manual, ...Array.from(extras.children).filter((child) => !child.classList.contains("capture-page")));
+  const own = (child: Element) => child.classList.contains("capture-page") || child.classList.contains("linkedin-reading");
+  extras.replaceChildren(...manual, ...linkedInFor(), ...Array.from(extras.children).filter((child) => !own(child)));
   void shown;
   return extras;
 }
@@ -805,7 +851,18 @@ const { id: windowId } = await browser.windows.getCurrent();
 watchPostingInView({
   tabs: browser.tabs,
   windowId: windowId!,
-  readTab,
+  async readTab(tabId) {
+    // The LinkedIn page in view, by the tab's address alone (LinkedIn is among the Job Sites): nothing of it is read yet.
+    if (linkedInReadingOn) {
+      const url = await browser.tabs.get(tabId).then((tab) => tab.url ?? "", () => "");
+      const page = linkedInPageOf(url)?.url ?? null;
+      if (page !== linkedInInView) {
+        linkedInInView = page;
+        void render();
+      }
+    }
+    return readTab(tabId);
+  },
   onChange(page) {
     inView = page;
     void render();

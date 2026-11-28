@@ -27,7 +27,7 @@ const FORM: AddressedKind = "form";
  */
 const decisionOf = (change: { id: string }, decisions: Record<string, boolean>): boolean | null => decisions[change.id] ?? null;
 
-type Problem = "conflict" | "undoConflict" | "invalid" | "failed" | "noneAccepted" | "runFailed" | "dossierFailed";
+type Problem = "conflict" | "undoConflict" | "invalid" | "failed" | "noneAccepted" | "runFailed" | "dossierFailed" | "sendFailed";
 
 /** The hour of a decision, « 18:20 », in the Candidate's language. */
 function hourOf(at: string, language: string): string {
@@ -67,6 +67,11 @@ function hourOf(at: string, language: string): string {
  * A reply to an Exchange (#1099, ADR-0115, `handOver`) is the Candidate's to send: its card shows to whom, the subject and
  * the whole text, and offers « Copier » and « Ouvrir dans ma messagerie » (a `mailto:` link) in place of « Appliquer »,
  * each saying it was taken (« Prise par vous à 18:20 »); Jobbbox sends nothing, and the Application Status does not move.
+ * A Send (ADR-0119, #1162, `send`) « Envoyer à Prénom N. » shows the whole text, its subject, the recipient, who it goes
+ * out as (« Prénom Nom via Jobbbox ») and the Candidate's sign-in email in copy and as Reply-To, and today's Sends of the
+ * cap; « Envoyer » sends it, once (its buttons off while it is sent, a second click ignored), « Modifier avant d'envoyer »
+ * opens its subject and text in the Work Pane. Sent, it says so (« Envoyé par vous à 18:20 »), with no « Annuler ». The cap
+ * reached, or an email whose fate is unknown, is said on the card, with no « Envoyer ».
  */
 export function CoachProposalCard({ card, onChange, openOnArrival = false }: { card: Card; onChange: (card: Card) => void; openOnArrival?: boolean }) {
   const { t, i18n } = useTranslation();
@@ -75,6 +80,8 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
   const pane = useWorkPane();
   const titleId = useId();
   const [busy, setBusy] = useState(false);
+  // One decision at a time: a second click while the first is sent is ignored (#1162: a double click sends once).
+  const deciding = useRef(false);
   const [problem, setProblem] = useState<Problem | null>(null);
   // What the Candidate changed in the form, kept while the Work Pane is closed; each opening mounts it afresh.
   const [edits, setEdits] = useState<Record<string, string>>(() => ({ ...card.change.value, ...card.edited }));
@@ -105,13 +112,20 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
   const formHref = `${pathname}#proposition-${card.id}`;
   // A reply the Candidate sends from their own mailbox (#1099): copied or opened there, never sent by Jobbbox.
   const handOver = card.change.handOver;
+  // An email Jobbbox sends in the Candidate's name on their click (#1162); none once the cap is reached or its fate unknown.
+  const sending = card.change.send;
+  const sendable = sending && !sending.capReached && !sending.uncertain;
   const [copied, setCopied] = useState<"copied" | "copyFailed" | null>(null);
   const formShown = pane ? pane.item?.kind === FORM && pane.item.href === formHref : inlineForm;
 
   async function decide(decision: "accept" | "dismiss" | "undo", edited?: Record<string, unknown>): Promise<boolean> {
+    if (deciding.current) return false;
+    deciding.current = true;
     setBusy(true);
     setProblem(null);
-    const { ok, result } = await send(`/api/action-cards/${encodeURIComponent(card.id)}`, "POST", { decision, ...(edited ? { edited } : {}) });
+    const { ok, result } = await send(`/api/action-cards/${encodeURIComponent(card.id)}`, "POST", { decision, ...(edited ? { edited } : {}) }).finally(() => {
+      deciding.current = false;
+    });
     setBusy(false);
     if (ok && result.card) {
       onChange(result.card as Card);
@@ -125,7 +139,7 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
       onChange(result.card as Card);
       return false;
     }
-    setProblem(error === "conflict" ? (decision === "undo" ? "undoConflict" : "conflict") : error === "invalid" ? "invalid" : "failed");
+    setProblem(error === "conflict" ? (decision === "undo" ? "undoConflict" : "conflict") : error === "invalid" ? "invalid" : sending && decision === "accept" ? "sendFailed" : "failed");
     return false;
   }
 
@@ -215,8 +229,8 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
       ))}
       {problem && formShown ? <ProblemNote problem={problem} /> : null}
       <div className="actions">
-        <button className={buttonClass({ variant: "primary", size: "sm" })} type="submit" disabled={busy}>
-          {t("coachProposals.apply")}
+        <button className={buttonClass({ variant: "primary", size: "sm" })} type="submit" disabled={busy || (sending && !sendable)}>
+          {t(sending ? "coachProposals.send.send" : "coachProposals.apply")}
         </button>
       </div>
     </form>
@@ -242,7 +256,19 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
           {change.target.href ? <Link href={change.target.href}>{objectName}</Link> : objectName}
         </h4>
       </div>
-      {handOver ? (
+      {sending ? (
+        <div className="coach-proposal-card__texts">
+          <p className="hint">{t("coachProposals.send.to", { to: sending.to.name ? `${sending.to.name} <${sending.to.email}>` : sending.to.email })}</p>
+          <p className="hint">{t("coachProposals.send.as", { as: sending.as })}</p>
+          <p className="hint">{t("coachProposals.send.copy", { copyTo: sending.copyTo })}</p>
+          <p className="hint">{t("coachProposals.send.subject", { subject: card.edited?.subject && card.status !== "pending" ? card.edited.subject : change.before })}</p>
+          <p className="coach-proposal-card__text">{shownText}</p>
+          {pending && !sending.capReached && !sending.uncertain ? <p className="hint">{t("coachProposals.send.room", sending.room)}</p> : null}
+          {pending ? <p className="hint">{t("coachProposals.send.noUndo")}</p> : null}
+          {pending && sending.capReached ? <p className="notice">{t("coachProposals.send.capReached", { cap: sending.room.cap })}</p> : null}
+          {pending && sending.uncertain ? <p className="notice">{t("coachProposals.send.uncertain")}</p> : null}
+        </div>
+      ) : handOver ? (
         <div className="coach-proposal-card__texts">
           <p className="hint">{t("coachProposals.handOver.to", { to: handOver.to, subject: handOver.subject })}</p>
           <p className="coach-proposal-card__text">{change.after}</p>
@@ -292,7 +318,7 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
       {/* Its decision, said politely as it is made (ADR-0009). */}
       <p className="coach-proposal-card__decision" role="status">
         {card.status === "accepted" && card.decidedAt
-          ? t(handOver ? "coachProposals.handOver.handedOver" : change.launches ? "coachProposals.launched" : "coachProposals.applied", { time: hourOf(card.decidedAt, i18n.language) })
+          ? t(sending ? "coachProposals.send.sent" : handOver ? "coachProposals.handOver.handedOver" : change.launches ? "coachProposals.launched" : "coachProposals.applied", { time: hourOf(card.decidedAt, i18n.language) })
           : null}
         {copied ? ` ${t(`coachProposals.handOver.${copied}`)}` : null}
         {card.status === "dismissed" ? t("coachProposals.dismissed") : null}
@@ -348,7 +374,24 @@ export function CoachProposalCard({ card, onChange, openOnArrival = false }: { c
           ) : null}
         </div>
       ) : null}
-      {pending && !run && !handOver && !change.quota?.prompt ? (
+      {pending && sending ? (
+        <div className="actions">
+          {sendable ? (
+            <>
+              <button className={buttonClass({ variant: "primary", size: "sm" })} type="button" disabled={busy} onClick={() => void decide("accept")}>
+                {t("coachProposals.send.send")}
+              </button>
+              <button ref={editButton} className={buttonClass({ size: "sm" })} type="button" disabled={busy} aria-expanded={pane ? undefined : inlineForm} onClick={openForm}>
+                {t("coachProposals.send.edit")}
+              </button>
+            </>
+          ) : null}
+          <button className={buttonClass({ variant: "quiet", size: "sm" })} type="button" disabled={busy} onClick={() => void decide("dismiss")}>
+            {t("coachProposals.dismiss")}
+          </button>
+        </div>
+      ) : null}
+      {pending && !run && !handOver && !sending && !change.quota?.prompt ? (
         <div className="actions">
           {change.review ? (
             <button ref={editButton} className={buttonClass({ variant: "primary", size: "sm" })} type="button" disabled={busy} aria-expanded={pane ? undefined : inlineForm} onClick={openForm}>

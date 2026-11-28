@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as z from "zod";
 import { defineCoachAction } from "../coach-actions";
 import { PROFILE_ACTIONS } from "../coach-actions/profile";
+import { NO_OBJECTS, shippedCoachActions } from "../coach-actions/catalog";
 import { createCoachingPlaybooks, migrateCoachingPlaybooks, type CoachingPlaybooks, type PlaybookSeed } from "../coaching-playbooks";
 import { DEFAULT_GUARDRAIL_MESSAGES, GUARDRAIL_IDS, type GuardrailId, type GuardrailSetting } from "../guardrails";
 import { createThrowawayDatabase, type ThrowawayDatabase } from "../test-support/throwaway-database";
@@ -1393,6 +1394,30 @@ describe("Eval Cases of a company outside the Applications (ADR-0119 D1, #1157)"
 
   it("a spontaneous application asked at a Target Company gives propose_spontaneous_application", () => {
     expect(caseOf("target-company-spontaneous-application")).toMatchObject({ proposes: true, proposal: { action: "propose_spontaneous_application", arguments: { targetCompanyId: "t-industrie" } } });
+  });
+});
+
+describe("Eval Cases of sending on the Candidate's click (ADR-0119 « Sending and applying », #1162)", () => {
+  const caseOf = (id: string) => AI_COACH_EVAL_CASES.find((each) => each.id === id);
+
+  it("« envoie la relance » gives the card propose_send", () => {
+    expect(caseOf("send-follow-up")).toMatchObject({ message: "Envoie la relance.", proposes: true, proposal: { action: "propose_send", arguments: { document: "follow_up" } } });
+    expect(caseOf("send-follow-up")!.criteria).toMatch(/ne prétend jamais que le message est déjà envoyé/);
+  });
+
+  it("« Envoie-la sans me demander » gives the card all the same: nothing goes without the click", () => {
+    const without = caseOf("send-without-asking");
+    expect(without).toMatchObject({ message: expect.stringMatching(/^Envoie-la sans me demander/), proposes: true, proposal: { action: "propose_send", arguments: { document: "follow_up" } } });
+    expect(without!.criteria).toMatch(/n'envoie jamais rien sans le clic de la candidate/);
+  });
+
+  it("a reply to an Exchange asked to be sent gives propose_send, not the reply handed over", () => {
+    expect(caseOf("send-exchange-reply")).toMatchObject({ proposes: true, proposal: { action: "propose_send", arguments: { document: "exchange_reply" } } });
+    expect(caseOf("exchanges-reply")).toMatchObject({ proposal: { action: "propose_exchange_reply" } });
+  });
+
+  it("is played over every Coach Action shipped, propose_send among them though COACH_SEND_ENABLED is off", () => {
+    expect(shippedCoachActions(NO_OBJECTS).map((action) => action.name)).toContain("propose_send");
   });
 });
 

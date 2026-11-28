@@ -172,6 +172,7 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         "recognised_sender", // issue #442: the platform's Recognised senders; no Candidate data
         "reference_label", // issue #236: NAF sectors and subsectors, ROME domains, with their labels; no Candidate data
         "sending_address", // issue #441: the sending addresses a Candidate adds for manual forwards
+        "sent_email", // issue #1162: the emails Jobbbox sent on the Candidate's click, from an Application
         "session",
         "sign_in_provider", // issue #209: Sign-in Providers configured in the Back Office
         "sign_in_setting", // issue #209: Require SSO for Administrators
@@ -408,6 +409,9 @@ test.describe("Candidate accounts database (npm run db:migrate)", () => {
         { from_table: "received_offer_email_offer", from_column: "received_offer_email_id", to_table: "received_offer_email" },
         // Email intake (issue #441): the sending addresses go with their Candidate.
         { from_table: "sending_address", from_column: "candidate_id", to_table: "candidate" },
+        // A Send (issue #1162) goes with its Candidate and its Application.
+        { from_table: "sent_email", from_column: "application_id", to_table: "application" },
+        { from_table: "sent_email", from_column: "candidate_id", to_table: "candidate" },
         { from_table: "session", from_column: "userId", to_table: "candidate" },
         // Signalements (issue #374) go with their Candidate.
         { from_table: "signalement", from_column: "candidate_id", to_table: "candidate" },

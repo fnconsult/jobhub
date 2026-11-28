@@ -46,6 +46,24 @@ describe("brevoApiMailer", () => {
     await expect(mailer.send({ to: "ada@example.com", subject: "s", text: "t" })).rejects.toBeInstanceOf(BrevoApiError);
   });
 
+  it("sends in a Candidate's name from Jobbbox's own address, their sign-in email in copy and as Reply-To, and gives back Brevo's messageId (ADR-0119, #1162)", async () => {
+    const fetch = vi.fn(async () => reply(201, '{"messageId":"<42@smtp-relay.brevo>"}'));
+    const mailer = brevoApiMailer("xkeysib-test", "Jobbbox <bonjour@jobbbox.ai>", { fetch });
+
+    const sent = await mailer.send({ to: "recruteuse@exemple-conseil.test", subject: "Relance", text: "Bonjour", fromName: "Nathalie Exemple via Jobbbox", cc: "nathalie@example.com", replyTo: "nathalie@example.com" });
+
+    const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toEqual({
+      sender: { name: "Nathalie Exemple via Jobbbox", email: "bonjour@jobbbox.ai" },
+      to: [{ email: "recruteuse@exemple-conseil.test" }],
+      cc: [{ email: "nathalie@example.com" }],
+      replyTo: { email: "nathalie@example.com" },
+      subject: "Relance",
+      textContent: "Bonjour",
+    });
+    expect(sent).toEqual({ messageId: "<42@smtp-relay.brevo>" });
+  });
+
   it("uses BREVO_API_URL when given", async () => {
     const fetch = vi.fn(async () => reply(201));
     await brevoApiMailer("k", "a@b.c", { apiUrl: "http://127.0.0.1:9999/v3/", fetch }).send({ to: "x@y.z", subject: "s", text: "t" });
@@ -61,6 +79,12 @@ describe("smtpMailer", () => {
     expect(sendMail).toHaveBeenCalledWith(expect.objectContaining({ from: "Jobbbox <hello@jobbbox.ai>", to: "ada@example.com", subject: "Votre lien", text: email.text }));
     const [mail] = sendMail.mock.calls[0] as unknown as [{ html: string }];
     expect(mail.html).toMatch(/hello@jobbbox\.ai<\/span>\s*<\/td>/);
+  });
+
+  it("sends in a Candidate's name, with a copy and a Reply-To, from the sender's own address (#1162)", async () => {
+    const sendMail = vi.fn(async () => ({}));
+    await smtpMailer("smtp://relay", "Jobbbox <hello@jobbbox.ai>", { sendMail }).send({ to: "rh@example.test", subject: "s", text: "t", fromName: "Nathalie Exemple via Jobbbox", cc: "n@example.com", replyTo: "n@example.com" });
+    expect(sendMail).toHaveBeenCalledWith({ from: '"Nathalie Exemple via Jobbbox" <hello@jobbbox.ai>', to: "rh@example.test", cc: "n@example.com", replyTo: "n@example.com", subject: "s", text: "t" });
   });
 
   it("sends a text-only email as text alone", async () => {

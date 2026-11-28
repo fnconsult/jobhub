@@ -25,6 +25,8 @@ import { getCompanyDossiers } from "@/company-dossiers/server";
 import { getEnrichedContacts } from "@/enriched-contacts/server";
 import { exchangesOn, getExchanges } from "@/exchanges/server";
 import { ApplicationExchanges } from "@/components/ApplicationExchanges";
+import { getSends } from "@/sends/server";
+import type { SentEmail } from "@/sends";
 import { ABANDON_CARD, FOLLOW_UP_CARD, followUpCardApplies, type FollowUpPayload } from "@/follow-ups";
 import { getHumanCoaches } from "@/human-coaches/server";
 import { getRequestLocale, getServerT } from "@/i18n/server";
@@ -66,7 +68,8 @@ function cardView({ id, kind, title, body, payload }: ActionCard, t: T): ActionC
  * Everything an Application's page shows, loaded once per request (the layout
  * and the Section shown share it), and which of its Sections there are, in
  * order (ADR-0024): Propositions while there are Action Cards, the Tailored
- * Documents once there are some, the Exchanges while they are on (#1099), the Coach Reviews once there are some, and the
+ * Documents once there are some, the Exchanges while they are on (#1099) or once Jobbbox sent an email from it (#1162),
+ * the Coach Reviews once there are some, and the
  * Enriched Contacts while a contact-data provider is on or some were found.
  * Sends anonymous visitors to sign in, and answers 404 for an Application that is not theirs.
  */
@@ -85,13 +88,15 @@ export const loadApplicationPage = cache(async (id: string) => {
   ]);
   // Its Exchanges (#1099, ADR-0115): only while APPLICATION_EXCHANGES_ENABLED is on.
   const exchanges = exchangesOn() ? await getExchanges().onApplication(candidateId, application.id) : null;
+  // The emails Jobbbox sent in the Candidate's name on their click (ADR-0119, #1162), kept on it with their date.
+  const sentEmails = await getSends().onApplication(candidateId, application.id);
   const shownCards = pendingCards.filter((card) => followUpCardApplies(card, application.status));
   const cards = shownCards.map((card) => cardView(card, t));
   const present: Record<ApplicationSection, boolean> = {
     propositions: cards.length > 0,
     documents: Boolean(tailoredCv || drafts),
     correspondance: true,
-    echanges: exchanges !== null,
+    echanges: exchanges !== null || sentEmails.length > 0,
     entretiens: true,
     avis: coachReviews.length > 0,
     dossier: true,
@@ -103,7 +108,7 @@ export const loadApplicationPage = cache(async (id: string) => {
   const now = new Date();
   const allPast = application.interviews.length > 0 && application.interviews.every((interview) => agendaPeriod(interview.scheduledAt, now) === "past");
   const agendaHref = routes.agenda(allPast);
-  return { candidateId, application, t, locale, inView, cards, shownCards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts, coachReviews, exchanges, sections, agendaHref };
+  return { candidateId, application, t, locale, inView, cards, shownCards, profiles, companyDossier, enrichedContacts, tailoredCv, drafts, coachReviews, exchanges, sentEmails, sections, agendaHref };
 });
 
 export type ApplicationPageData = Awaited<ReturnType<typeof loadApplicationPage>>;
@@ -199,14 +204,19 @@ function SectionView({ data, section, result }: { data: ApplicationPageData; sec
     case "correspondance":
       return <MatchScoreView matchScore={application.matchScore} profileName={application.profile.name} t={t} locale={locale} />;
     case "echanges":
-      return data.exchanges ? (
-        <ApplicationExchanges
-          key={`exchanges-${application.id}`}
-          applicationId={application.id}
-          kept={data.exchanges.kept.map(({ id, from, subject, text, sentAt, receivedAt }) => ({ id, from, subject, text, at: (sentAt ?? receivedAt).toISOString() }))}
-          offered={data.exchanges.offered.map(({ id, from, subject, sentAt, receivedAt, employer }) => ({ id, from, subject, employer, at: (sentAt ?? receivedAt).toISOString() }))}
-        />
-      ) : null;
+      return (
+        <>
+          {data.sentEmails.length > 0 ? <SentEmails sent={data.sentEmails} t={t} locale={locale} /> : null}
+          {data.exchanges ? (
+            <ApplicationExchanges
+              key={`exchanges-${application.id}`}
+              applicationId={application.id}
+              kept={data.exchanges.kept.map(({ id, from, subject, text, sentAt, receivedAt }) => ({ id, from, subject, text, at: (sentAt ?? receivedAt).toISOString() }))}
+              offered={data.exchanges.offered.map(({ id, from, subject, sentAt, receivedAt, employer }) => ({ id, from, subject, employer, at: (sentAt ?? receivedAt).toISOString() }))}
+            />
+          ) : null}
+        </>
+      );
     case "entretiens":
       return <Interviews data={data} />;
     case "avis":
@@ -233,6 +243,24 @@ function SectionView({ data, section, result }: { data: ApplicationPageData; sec
         </>
       );
   }
+}
+
+/** The emails Jobbbox sent from this Application in the Candidate's name (#1162): each with its date, recipient and subject. */
+function SentEmails({ sent, t, locale }: { sent: SentEmail[]; t: T; locale: string }) {
+  const date = new Intl.DateTimeFormat(locale, { dateStyle: "long", timeStyle: "short", timeZone: INTERVIEW_TIME_ZONE });
+  return (
+    <section aria-labelledby="sent-emails-title">
+      <h2 id="sent-emails-title">{t("coachProposals.send.sentListTitle")}</h2>
+      <ul className="stack">
+        {sent.map((each) => (
+          <li key={each.id}>
+            <Pill>{t(`coachProposals.send.kinds.${each.kind}`)}</Pill>{" "}
+            {t("coachProposals.send.sentItem", { date: date.format(each.sentAt), to: each.to.name ? `${each.to.name} <${each.to.email}>` : each.to.email, subject: each.subject })}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 /**

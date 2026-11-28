@@ -173,10 +173,10 @@ describe("the Tools", () => {
     expect(names("perplexity")).toEqual([...search, "PERPLEXITY_SEARCH_TYPE", "PERPLEXITY_QUERIES_PER_CALL", "AI_WEB_SEARCH_MODEL", "PERPLEXITY_FAST_SEARCH_PRICE_USD", "PERPLEXITY_SEARCH_PRICE_USD", "PERPLEXITY_BILLING_URL", ...filters]);
     expect(names("brave")).toEqual([...search, "BRAVE_MAX_PAGES", "BRAVE_SEARCH_PRICE_USD", "BRAVE_BILLING_URL", ...filters]);
     expect(names("tavily")).toEqual([...search, "TAVILY_SEARCH_DEPTH", "AI_WEB_SEARCH_MODEL", "TAVILY_CREDIT_PRICE_USD", "TAVILY_BILLING_URL", ...filters]);
-    expect(names("brevo-api")).toEqual(["MAIL_FROM", "MAIL_TRANSPORT"]);
+    expect(names("brevo-api")).toEqual(["MAIL_FROM", "MAIL_TRANSPORT", "COACH_SEND_ENABLED", "COACH_SENDS_PER_DAY"]);
     // Jobbbox's own MTA receives the emails sent to the Forwarding addresses (#580), within Email intake's limits (#442).
     expect(names("email-intake")).toEqual(["EMAIL_INTAKE_DOMAIN", "EMAIL_INTAKE_MTA_IP_RANGES", "EMAIL_INTAKE_DAILY_CAP", "EMAIL_INTAKE_BROAD_FILTER_THRESHOLD", "APPLICATION_EXCHANGES_ENABLED"]);
-    expect(names("brevo-smtp")).toEqual(["MAIL_FROM", "MAIL_TRANSPORT"]);
+    expect(names("brevo-smtp")).toEqual(["MAIL_FROM", "MAIL_TRANSPORT", "COACH_SEND_ENABLED", "COACH_SENDS_PER_DAY"]);
     for (const id of ["lusha", "kaspr", "apollo"]) expect(names(id), id).toEqual(["CONTACT_ENRICHMENT_PROVIDER", "CONTACT_ENRICHMENT_DPA_SIGNED", `${id.toUpperCase()}_BILLING_URL`]);
     expect(names("stripe")).toEqual(["STRIPE_PRICE_STANDARD", "STRIPE_PRICE_PREMIUM", "STRIPE_PRICE_COACHING_SESSION", "STRIPE_PRICE_COACHING_SESSION_PREMIUM"]);
     const budget = ["JOB_DISCOVERY_BUDGET_JOB_OFFERS", "JOB_DISCOVERY_BUDGET_EUR", "JOB_DISCOVERY_BUDGET_SECONDS"];
@@ -203,7 +203,7 @@ describe("the Tools", () => {
       { name: "KASPR_BILLING_URL" },
     ]);
     // MAIL_TRANSPORT=console writes emails to the server's log: Brevo is not called.
-    expect(toolById("brevo-api")?.settings).toEqual([{ name: "MAIL_FROM" }, { name: "MAIL_TRANSPORT", disabledWhen: ["console"] }]);
+    expect(toolById("brevo-api")?.settings).toEqual([{ name: "MAIL_FROM" }, { name: "MAIL_TRANSPORT", disabledWhen: ["console"] }, { name: "COACH_SEND_ENABLED" }, { name: "COACH_SENDS_PER_DAY" }]);
   });
 
   it("are unknown by any other id", () => {

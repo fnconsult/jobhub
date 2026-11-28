@@ -83,6 +83,9 @@ describe("a Tool's status", () => {
     expect(toolStatus(tool("brevo-smtp"), stateOf({ MAIL_TRANSPORT: "console" })).settings).toEqual([
       { name: "MAIL_FROM", value: "Jobbbox <bonjour@localhost>", source: "default", differsFromDefault: false },
       { name: "MAIL_TRANSPORT", value: "console", source: "env", differsFromDefault: false },
+      // Sending in the Candidate's name on their click (#1162), through Brevo: off, 20 a day.
+      { name: "COACH_SEND_ENABLED", value: "false", source: "default", differsFromDefault: false },
+      { name: "COACH_SENDS_PER_DAY", value: "20", source: "default", differsFromDefault: false },
     ]);
   });
 

@@ -66,6 +66,7 @@ import { migrateQuotaReductions } from "./quota-reductions/index";
 import { migrateRecipientList } from "./recipient-list/index";
 import { migrateReferenceData } from "./reference-data/index";
 import { migrateSearchSites } from "./search-sites/index";
+import { migrateSends } from "./sends/index";
 import { migrateSignInProviders } from "./sign-in-providers/index";
 import { migrateSignalements } from "./signalements/index";
 import { migrateAgentKeys } from "./agent-keys/index";
@@ -100,6 +101,7 @@ export async function migrateDatabase(
     ["Company Dossiers are up to date", () => migrateCompanyDossiers(database)],
     ["Enriched Contacts are up to date", () => migrateEnrichedContacts(database)],
     ["Exchanges are up to date", () => migrateExchanges(database)],
+    ["Sends are up to date", () => migrateSends(database)],
     ["Cover Letters and Outreach Messages are up to date", () => migrateTailoredDocuments(database)],
     ["Tailored CVs are up to date", () => migrateTailoredCvs(database)],
     ["Action Cards are up to date", () => migrateActionCards(database)],

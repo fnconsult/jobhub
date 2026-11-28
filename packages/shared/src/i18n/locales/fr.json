@@ -3101,6 +3101,8 @@
         "COACH_ACTIONS_ENABLED": "Coach Actions activées (le coach IA lit et propose)",
         "COACH_TOOL_ROUNDS_MAX": "Tours d'appels de Coach Actions par réponse, au plus",
         "COACH_WEB_LOOKUP_ENABLED": "Lecture web du coach IA (search_web, jamais en Production avant la revue légale)",
+        "COACH_SEND_ENABLED": "Envoi par Jobbbox au clic du candidat (propose_send, jamais en Production avant la revue légale)",
+        "COACH_SENDS_PER_DAY": "Envois par jour et par candidat, au plus",
         "AI_WEB_SEARCH_PROVIDER": "Fournisseur de recherche web",
         "AI_WEB_SEARCH_FALLBACK_PROVIDER": "Fournisseur de secours",
         "DELIVERY_STATUS_EMAIL_TO": "Destinataires de l'e-mail quotidien de Livraison",
@@ -7422,6 +7424,7 @@
       "status_kept": "Le statut de la candidature avait changé depuis : il est laissé tel quel."
     },
     "problems": {
+      "sendFailed": "L'e-mail n'est pas parti. Réessayez dans un instant.",
       "conflict": "L'objet a changé depuis la proposition : rien n'a été appliqué. Ouvrez-le pour voir où il en est.",
       "undoConflict": "L'objet a changé depuis que vous avez appliqué la proposition : rien n'a été annulé.",
       "invalid": "Ce que vous avez saisi ne convient pas : vérifiez le formulaire.",
@@ -7469,6 +7472,28 @@
     },
     "tailoredCvAnswers": {
       "what": "Réponses aux questions"
+    },
+    "send": {
+      "what": "Envoyer à {{to}}",
+      "to": "À : {{to}}",
+      "as": "De : {{as}}, depuis une adresse jobbbox.ai",
+      "copy": "Copie et réponses : {{copyTo}}",
+      "subject": "Objet : {{subject}}",
+      "room": "Envois aujourd'hui : {{sentToday}} sur {{cap}}.",
+      "capReached": "Plafond atteint : vous avez envoyé {{cap}} messages depuis Jobbbox aujourd'hui. Réessayez demain, ou copiez le texte pour l'envoyer depuis votre messagerie.",
+      "uncertain": "Nous ne savons pas si l'e-mail est parti : il ne sera pas renvoyé. Vérifiez votre boîte de réception, vous êtes en copie.",
+      "send": "Envoyer",
+      "edit": "Modifier avant d'envoyer",
+      "sent": "Envoyé par vous à {{time}} : vous êtes en copie, et les réponses vous arrivent directement.",
+      "noUndo": "Une fois envoyé, l'e-mail ne peut pas être annulé.",
+      "failed": "L'e-mail n'est pas parti. Réessayez dans un instant.",
+      "sentListTitle": "Envoyés depuis Jobbbox",
+      "sentItem": "{{date}} · à {{to}} · {{subject}}",
+      "kinds": {
+        "follow_up": "Relance",
+        "outreach_message": "Message d'approche",
+        "exchange_reply": "Réponse"
+      }
     },
     "handOver": {
       "copy": "Copier",

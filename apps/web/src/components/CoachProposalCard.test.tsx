@@ -116,6 +116,82 @@ describe("a reply to an Exchange proposed (#1099, ADR-0115)", () => {
   });
 });
 
+describe("a Send proposed: « Envoyer à Prénom N. », sent on the Candidate's click (ADR-0119, #1162)", () => {
+  const SEND: Card = {
+    ...PENDING,
+    change: {
+      target: { kind: "application", id: "a1", name: "Consultante achats · Exemple Conseil", href: "/candidatures/a1/propositions" },
+      what: "Envoyer à Claire M.",
+      before: "Relance de ma candidature",
+      after: "Bonjour Claire,\n\nJe reviens vers vous.\n\nNathalie",
+      value: { subject: "Relance de ma candidature", text: "Bonjour Claire,\n\nJe reviens vers vous.\n\nNathalie", document: "follow_up" },
+      fields: [
+        { name: "subject", label: "Objet", type: "text" },
+        { name: "text", label: "Texte", type: "textarea" },
+      ],
+      send: { to: { email: "claire.martin@exemple-conseil.test", name: "Claire Martin" }, as: "Nathalie Exemple via Jobbbox", copyTo: "nathalie.exemple@example.fr", room: { sentToday: 2, cap: 20 } },
+    },
+  };
+  const sendCard = () => screen.getByRole("article", { name: /Envoyer à Claire M\./ });
+
+  it("shows the whole text, the recipient, who it goes out as, the copy and today's Sends, with « Envoyer », « Modifier avant d'envoyer » and « Ignorer »", () => {
+    renderInFrench(<Thread card={SEND} />);
+
+    expect(sendCard().querySelector(".coach-proposal-card__text")?.textContent).toBe("Bonjour Claire,\n\nJe reviens vers vous.\n\nNathalie");
+    const text = sendCard().textContent ?? "";
+    expect(text).toContain("À : Claire Martin <claire.martin@exemple-conseil.test>");
+    expect(text).toContain("De : Nathalie Exemple via Jobbbox, depuis une adresse jobbbox.ai");
+    expect(text).toContain("Copie et réponses : nathalie.exemple@example.fr");
+    expect(text).toContain("Objet : Relance de ma candidature");
+    expect(text).toContain("Envois aujourd'hui : 2 sur 20.");
+    expect(text).toContain("Une fois envoyé, l'e-mail ne peut pas être annulé.");
+    expect(within(sendCard()).getAllByRole("button").map((each) => each.textContent)).toEqual(["Envoyer", "Modifier avant d'envoyer", "Ignorer"]);
+  });
+
+  it("« Envoyer » sends one decision, its buttons off while it is sent; then says it was sent, with no « Annuler »", async () => {
+    let answer: (value: Response) => void = () => {};
+    vi.stubGlobal("fetch", (url: string, init: RequestInit) => {
+      sent.push({ url, body: JSON.parse(String(init.body)) });
+      return new Promise<Response>((resolve) => (answer = resolve));
+    });
+    renderInFrench(<Thread card={SEND} />);
+
+    const envoyer = within(sendCard()).getByRole("button", { name: "Envoyer" });
+    await userEvent.click(envoyer);
+    await userEvent.click(envoyer);
+
+    expect(sent).toEqual([{ url: `/api/action-cards/${SEND.id}`, body: { decision: "accept" } }]);
+    expect((envoyer as HTMLButtonElement).disabled).toBe(true);
+    await act(async () => answer(new Response(JSON.stringify({ card: { ...SEND, status: "accepted", decidedAt: "2026-11-27T09:20:00.000Z", undoable: false } }), { status: 200 })));
+    await vi.waitFor(() => expect(within(sendCard()).getByRole("status").textContent).toMatch(/^Envoyé par vous à \d\d:\d\d : vous êtes en copie/));
+    expect(within(sendCard()).queryAllByRole("button")).toEqual([]);
+  });
+
+  it("says the cap reached on the card, with no « Envoyer »", () => {
+    renderInFrench(<Thread card={{ ...SEND, change: { ...SEND.change, send: { ...SEND.change.send!, room: { sentToday: 20, cap: 20 }, capReached: true } } }} />);
+
+    expect(sendCard().textContent).toContain("Plafond atteint : vous avez envoyé 20 messages depuis Jobbbox aujourd'hui.");
+    expect(within(sendCard()).getAllByRole("button").map((each) => each.textContent)).toEqual(["Ignorer"]);
+  });
+
+  it("says an email whose fate is unknown will not be sent again, with no « Envoyer »", () => {
+    renderInFrench(<Thread card={{ ...SEND, change: { ...SEND.change, send: { ...SEND.change.send!, uncertain: true } } }} />);
+
+    expect(sendCard().textContent).toContain("Nous ne savons pas si l'e-mail est parti");
+    expect(within(sendCard()).getAllByRole("button").map((each) => each.textContent)).toEqual(["Ignorer"]);
+  });
+
+  it("says the email did not go when the server could not send it, the card still there to try again", async () => {
+    answers = [{ status: 502, body: { error: "failed" } }];
+    renderInFrench(<Thread card={SEND} />);
+
+    await userEvent.click(within(sendCard()).getByRole("button", { name: "Envoyer" }));
+
+    await vi.waitFor(() => expect(within(sendCard()).getByRole("alert").textContent).toBe("L'e-mail n'est pas parti. Réessayez dans un instant."));
+    expect(within(sendCard()).getByRole("button", { name: "Envoyer" })).toBeTruthy();
+  });
+});
+
 describe("a draft's new text proposed (ADR-0109)", () => {
   const TEXT: Card = {
     ...PENDING,

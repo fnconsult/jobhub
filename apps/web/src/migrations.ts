@@ -73,6 +73,7 @@ import { migrateAgentKeys } from "./agent-keys/index";
 import { migrateTailoredCvs } from "./tailored-cv/index";
 import { migrateTailoredDocuments } from "./tailored-documents/index";
 import { migrateTargetCompanies } from "./target-companies/index";
+import { migrateLinkedInReadings } from "./linkedin-readings/index";
 import { migrateUnansweredQuestions } from "./unanswered-questions/index";
 import { migrateWebSearchAlerts } from "./web-search-alert/index";
 import { migrateToolQuotaAlerts } from "./tool-quota-alert/index";
@@ -112,6 +113,8 @@ export async function migrateDatabase(
     ["Job Digests are up to date", () => migrateJobDigests(database)],
     ["Job discovery runs are up to date", () => migrateDiscoveryRuns(database)],
     ["Target Companies and careers sites are up to date", () => migrateTargetCompanies(database)],
+    // After the Applications and the Target Companies, whose contacts read on LinkedIn they hold (#1164).
+    ["LinkedIn Readings are up to date", () => migrateLinkedInReadings(database)],
     ["Human Coaches, Coach Access and Coaching Sessions are up to date", () => migrateHumanCoaches(database)],
     ["Coach Enrolments are up to date",()=>migrateCoachEnrolments(database)],
     ["Coach Contracts are up to date",()=>migrateCoachContracts(database)],

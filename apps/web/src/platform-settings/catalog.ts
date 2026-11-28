@@ -126,6 +126,10 @@ export const PLATFORM_SETTINGS: readonly PlatformSetting[] = [
   // link to that store.
   { name: "APP_STORE_URL", group: "extension", type: { kind: "url" }, default: "" },
   { name: "PLAY_STORE_URL", group: "extension", type: { kind: "url" }, default: "" },
+  // The extension's reading of a LinkedIn page the Candidate opened, and the AI Coach's read of it (ADR-0119, #1164): off by
+  // default, confirmed. Never on in Production until its Legal Review (#1160) is done, whatever it is set to
+  // (coach-actions/settings.ts, LINKEDIN_READING_IN_PRODUCTION).
+  { name: "LINKEDIN_READING_ENABLED", group: "extension", type: { kind: "boolean" }, default: "false", confirm: "true" },
   // The Human Coaches' path on the public site (ADR-0105): off, its page answers 404 and the landing page offers no
   // « Candidat | Coach humain » choice; to switch on once the coach space's enrolment is live.
   { name: "HUMAN_COACH_PAGE_ENABLED", group: "public_site", type: { kind: "boolean" }, default: "false" },

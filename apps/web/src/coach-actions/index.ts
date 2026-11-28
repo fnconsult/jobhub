@@ -567,7 +567,8 @@ export function createCoachActions(deps: CoachActionsDeps): CoachActions {
         if (call.name === REDIRECT_ACTION) {
           const parsed = redirectSchema.safeParse(call.arguments);
           const given = parsed.success ? await redirects.to(parsed.data.target, redirectCall(withoutUndefined(parsed.data))).catch(() => null) : null;
-          if (!given) return { content: REFUSED.noRedirect(), error: true };
+          // A row closed by its Platform Setting (a Human Coach while « Espace coach v2 » is off): one sentence, no redirect.
+          if (!given) return { content: (parsed.success ? redirects.unavailable(parsed.data.target) : null) ?? REFUSED.noRedirect(), error: true };
           redirect = given;
           return { content: `Renvoi préparé : « ${redirectLine(given)} ». Il s'affiche sous ta réponse, comme un lien : dis en une phrase pourquoi aucun outil ne le fait, sans écrire de lien.` };
         }
@@ -674,17 +675,23 @@ const EVAL_RUN_ROUNDS = 2;
  * The Coach Actions as an Eval Run plays them (ADR-0023, #713): offered as shipped, on no one's data. A read finds
  * nothing (`not_found`), unless `readsPlayed`: the catalogue's reads are then over an Eval Case's fictional objects
  * (#714) and run as given. A proposal with valid arguments is counted, its arguments as what it prepared, never run.
- * Those behind a feature flag of their own (`on`) are offered whatever it is.
+ * Those behind a feature flag of their own (`on`) are offered whatever it is. Its Typed redirects are on no one's data,
+ * « Espace coach v2 » (ADR-0107) as the Eval Case sets it, off by default (#1158).
  * Nothing is recorded: an Eval Run is no Candidate's.
  */
-export function forEvalRun(catalog: readonly CoachAction[], { readsPlayed = false }: { readsPlayed?: boolean } = {}): CoachActions {
+export function forEvalRun(catalog: readonly CoachAction[], { readsPlayed = false, coachSpaceV2 = false }: { readsPlayed?: boolean; coachSpaceV2?: boolean } = {}): CoachActions {
   // Every Coach Action shipped is played, those behind a feature flag of their own too (#1099): an Eval Run is no one's.
   const played = catalog.map((shipped): CoachAction => {
     const action: CoachAction = { ...shipped };
     delete action.on;
     return action.kind === "read" && readsPlayed ? action : { ...action, run: async (args) => (action.kind === "read" ? { ok: false, error: "not_found" } : { ok: true, data: args }) };
   });
-  return createCoachActions({ catalog: played, settings: async () => ({ enabled: true, maxRounds: EVAL_RUN_ROUNDS }), externalApis: { record: () => {} } });
+  return createCoachActions({
+    catalog: played,
+    settings: async () => ({ enabled: true, maxRounds: EVAL_RUN_ROUNDS }),
+    externalApis: { record: () => {} },
+    redirects: createRedirects(null, { coachSpaceV2: () => coachSpaceV2 }),
+  });
 }
 
 /** A Coach Action's Provenance step: its group's Tool and its name, marked as proposing for a proposal. */

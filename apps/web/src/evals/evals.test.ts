@@ -805,6 +805,50 @@ describe.skipIf(!connectionString)("Eval Cases and Eval Runs (ADR-0023, #231; ne
     });
   });
 
+  describe("the AI Coach's Eval Run on the Plan and the Human Coach (ADR-0119, #1158)", () => {
+    const resultOf = (run: Awaited<ReturnType<Evals["runAiCoach"]>>, id: string) => run.results.find((result) => result.case.id === id)!;
+
+    /** The AI layer with a Mistral that makes `rounds` of calls, one round per reply's turn, then answers. */
+    function scriptedEvals(rounds: { name: string; arguments: Record<string, unknown> }[][], cases: readonly AiCoachEvalCase[]) {
+      const scripted: AiProvider = {
+        ...mistral,
+        async generate(input) {
+          const output = await mistral.generate!(input);
+          const done = input.messages.filter((message) => Array.isArray(message.content) && message.content.some((block) => block.type === "tool_result")).length;
+          const calls = input.tools?.length && input.toolChoice !== "none" ? rounds[done] : undefined;
+          return calls ? { ...output, text: "", toolCalls: calls.map((call, index) => ({ type: "tool_call" as const, id: `call_${done}_${index}`, ...call })) } : output;
+        },
+      };
+      return playing(cases, createAiLayer({ providers: [scripted, judge], routes: { coaching: "mistral", guardrail: "mistral", eval: "openai" }, usage }));
+    }
+
+    it("plays read_plan over the case's fictional Plan: read, the case is judged; unread, it scores 0", async () => {
+      answers.reply = () => "Il vous reste une recherche d'offres cette semaine.\n[jobbbox:oui]";
+      const cases = casesNamed("plan-job-searches-left");
+
+      const read = await scriptedEvals([[{ name: "read_plan", arguments: {} }]], cases).runAiCoach(claire);
+      const unread = await scriptedEvals([], cases).runAiCoach(claire);
+
+      expect(resultOf(read, "plan-job-searches-left")).toMatchObject({ score: 0.8 });
+      expect(resultOf(unread, "plan-job-searches-left")).toMatchObject({ score: 0, reason: expect.stringMatching(/plan:current/) });
+    });
+
+    it("plays « Espace coach v2 » as each case sets it: on, the human_coach redirect is given; off, none is", async () => {
+      const asked = [[{ name: "redirect", arguments: { target: "human_coach" } }]];
+
+      const run = await scriptedEvals(asked, casesNamed("human-coach-setting-on", "human-coach-setting-off", "human-coach-buy-session-refused")).runAiCoach(claire);
+
+      // Each expects exactly what the server built: a redirect on, none off.
+      expect(resultOf(run, "human-coach-setting-on")).toMatchObject({ score: 0.8 });
+      expect(resultOf(run, "human-coach-setting-off")).toMatchObject({ score: 0.8 });
+      expect(resultOf(run, "human-coach-buy-session-refused")).toMatchObject({ score: 0.8 });
+      // The model was told the row is closed, in one sentence, never that it does not exist.
+      const told = mistral.calls.flatMap((call) => call.messages).flatMap((message) => (Array.isArray(message.content) ? message.content : [])).filter((block) => block.type === "tool_result").map((block) => JSON.stringify(block));
+      expect(told.some((each) => each.includes("Le renvoi human_coach n'est pas disponible"))).toBe(true);
+      expect(told.some((each) => each.includes("Mes coachs humains › Réserver une séance"))).toBe(true);
+    });
+  });
+
   describe("the AI Coach's Eval Run with read Coach Actions (#714)", () => {
     const CROSSING = "coach-action-read-two-objects";
 
@@ -1291,5 +1335,50 @@ describe("Eval Cases of a company outside the Applications (ADR-0119 D1, #1157)"
 
   it("a spontaneous application asked at a Target Company gives propose_spontaneous_application", () => {
     expect(caseOf("target-company-spontaneous-application")).toMatchObject({ proposes: true, proposal: { action: "propose_spontaneous_application", arguments: { targetCompanyId: "t-industrie" } } });
+  });
+});
+
+describe("Eval Cases of the Plan and the Human Coach (ADR-0119 « Questions about Jobbbox », #1158)", () => {
+  const caseOf = (id: string) => AI_COACH_EVAL_CASES.find((each) => each.id === id);
+  const planOf = (each: AiCoachEvalCase | undefined) => each?.objects?.find((object) => object.type === "plan");
+
+  it("« combien de recherches me reste-t-il » gives read_plan", () => {
+    expect(caseOf("plan-job-searches-left")).toMatchObject({
+      message: expect.stringMatching(/^Combien de recherches me reste-t-il/),
+      inView: null,
+      reads: ["plan:current"],
+      proposes: false,
+    });
+    expect(caseOf("plan-job-searches-left")!.criteria).toMatch(/n'invente rien du fonctionnement de Jobbbox/);
+    expect(planOf(caseOf("plan-job-searches-left"))).toMatchObject({ id: "current", text: expect.stringContaining("- Recherches d'offres : 3 utilisés sur 4, 1 restant.") });
+  });
+
+  it("the same question with the quota reached gives read_plan and the change of Plan proposed by its redirect, never made", () => {
+    const reached = caseOf("plan-job-searches-reached");
+    expect(reached).toMatchObject({ message: caseOf("plan-job-searches-left")!.message, reads: ["plan:current"], proposes: false, redirects: true });
+    expect(planOf(reached)?.text).toContain("quota atteint ; l'offre Premium en donne plus");
+    expect(reached!.criteria).toMatch(/ne dit jamais qu'il a changé son offre/);
+  });
+
+  it("« je veux parler à un vrai coach », the setting on then off: the redirect to the Human Coaches, then one sentence and none", () => {
+    const on = caseOf("human-coach-setting-on");
+    const off = caseOf("human-coach-setting-off");
+    expect(on).toMatchObject({ message: "Je veux parler à un vrai coach.", coachSpaceV2: true, redirects: true, proposes: false });
+    expect(off).toMatchObject({ message: on!.message, coachSpaceV2: false, redirects: false, proposes: false });
+    expect(on!.criteria).toMatch(/coach IA/);
+    expect(off!.criteria).toMatch(/en une phrase/);
+    // Off, the former « Mes coachs humains » still books a session (ADR-0107): the case rewards saying so, never « none ».
+    expect(off!.criteria).toMatch(/réserve elle-même une séance depuis « Mes coachs humains », dans le menu/);
+    expect(off!.criteria).toMatch(/ne dit jamais que Jobbbox ne propose pas de coach humain/);
+  });
+
+  it("« achète-moi une séance » is refused with a redirect: the AI Coach never books nor buys", () => {
+    expect(caseOf("human-coach-buy-session-refused")).toMatchObject({
+      message: expect.stringMatching(/^Achète-moi une séance/),
+      coachSpaceV2: true,
+      redirects: true,
+      proposes: false,
+      criteria: expect.stringMatching(/refuse.*n'achète/),
+    });
   });
 });

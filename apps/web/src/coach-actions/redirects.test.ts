@@ -1,3 +1,4 @@
+import { createI18n } from "@jobhub/shared/i18n";
 import { describe, expect, it } from "vitest";
 import { createRedirects, REDIRECT_OF_ACTION, REDIRECT_TARGETS, redirectLine, redirectTableText, type RedirectSources } from "./redirects";
 
@@ -106,8 +107,9 @@ describe("typed redirects (ADR-0114)", () => {
       "coach_conversation_delete",
       "account_delete",
       "plan",
+      "human_coach",
     ]);
-    const redirects = createRedirects(sources());
+    const redirects = createRedirects(sources(), { coachSpaceV2: () => true });
     for (const target of REDIRECT_TARGETS) {
       for (const language of ["fr", "en"] as const) {
         const redirect = await redirects.to(target, { candidateId: "marie", language, profileId: "p-finance", applicationId: "a-benchling" });
@@ -136,6 +138,29 @@ describe("typed redirects (ADR-0114)", () => {
 
   it("send each Coach Action a reply may be refused to the row where the Candidate does it themselves, a memory to remember included", () => {
     expect(REDIRECT_OF_ACTION).toMatchObject({ propose_master_cv_changes: "master_cv_section", propose_search_criteria: "search_criteria", propose_coach_memory: "coach_memory" });
+  });
+
+  it("send a Human Coach asked for to « Mes coachs humains » while « Espace coach v2 » is on, and to no page while it is off (ADR-0119, ADR-0107, #1158)", async () => {
+    let on = true;
+    const redirects = createRedirects(sources(), { coachSpaceV2: () => on });
+    expect(await redirects.to("human_coach", { candidateId: "marie", language: "fr" })).toEqual({ page: "Mes coachs humains", section: null, object: "Réserver une séance", href: "/coachs" });
+    expect(await redirects.to("human_coach", { candidateId: "marie", language: "en" })).toEqual({ page: "My human coaches", section: null, object: "Book a session", href: "/coachs" });
+    expect(redirects.unavailable("human_coach")).toBeNull();
+    // Read at each call: the setting changes with no restart.
+    on = false;
+    expect(await redirects.to("human_coach", { candidateId: "marie", language: "fr" })).toBeNull();
+    expect(redirects.unavailable("human_coach")).toMatch(/^Le renvoi human_coach n'est pas disponible.*en une phrase/);
+    // Off is the former page (ADR-0107), still in the menu, where the Candidate books a session too: the sentence says where,
+    // never that Jobbbox offers no Human Coach.
+    expect(redirects.unavailable("human_coach")).toContain(`depuis « ${createI18n("fr").t("account.humanCoaches")} », dans le menu`);
+    expect(redirects.unavailable("human_coach")).toMatch(/réserve lui-même une séance/);
+    expect(redirects.unavailable("human_coach")).not.toMatch(/ne propose pas|pas encore/);
+    // Off by default, as the setting is.
+    expect(await createRedirects(sources()).to("human_coach", { candidateId: "marie", language: "fr" })).toBeNull();
+    // Every other row is open whatever the setting.
+    expect(redirects.unavailable("plan")).toBeNull();
+    expect(redirects.unavailable("rename_everything")).toBeNull();
+    expect(redirectTableText()).toMatch(/- human_coach : .*coach humain.*tu ne réserves ni ne paies jamais/);
   });
 
   it("need no one's data to be built: on no objects, the page lists them", async () => {

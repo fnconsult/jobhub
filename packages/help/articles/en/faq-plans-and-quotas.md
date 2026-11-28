@@ -13,4 +13,6 @@ Once signed in, My subscription shows your Plan and what it includes; « Choose 
 
 Why don't I see tokens? Tokens are a technical measure of what an AI model reads and writes, and no plan is paid for in tokens. « Your consumption », on My subscription, therefore counts your uses: each coach reply, job search, score or prepared document is an AI action, counted by tool over the billing period, never in tokens or euros. Tokens stay visible in AI Activity, where they count towards no quota.
 
+Your AI coach can also read your plan: ask it what is left of each quota this week or when it resets. When a quota is reached, it gives you the link to change plan; it never pays for or buys anything on your behalf.
+
 Sessions with a human coach are paid separately, outside the Plans.

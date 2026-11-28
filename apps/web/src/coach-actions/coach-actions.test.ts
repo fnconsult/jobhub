@@ -3,7 +3,7 @@ import { createFakeProvider, createMemoryUsageLog } from "@jobhub/ai/testing";
 import type { ExternalApiCall, ProvenanceEvent } from "@jobhub/shared";
 import { describe, expect, it } from "vitest";
 import * as z from "zod";
-import { coachActionCatalog, createCoachActions, defineCoachAction, MAX_PROPOSALS_PER_REPLY, REDIRECT_ACTION, type CoachAction, type CoachActionsSettings } from "./index";
+import { coachActionCatalog, createCoachActions, defineCoachAction, forEvalRun, MAX_PROPOSALS_PER_REPLY, REDIRECT_ACTION, type CoachAction, type CoachActionsSettings } from "./index";
 import { createRedirects, type RedirectSources } from "./redirects";
 
 /** Marie's Applications, as a domain module scoped to its Candidate gives them: anyone else's id is not found. */
@@ -67,14 +67,14 @@ const REDIRECT_SOURCES = {
 /** A fake Master CV proposal under its shipped name: refused, it sends to the Master CV's page. */
 const proposeMasterCv = defineCoachAction({ ...proposeSummary, name: "propose_master_cv_changes" } as unknown as CoachAction);
 
-function setUp(options: { settings?: Partial<CoachActionsSettings>; catalog?: readonly CoachAction[] } = {}) {
+function setUp(options: { settings?: Partial<CoachActionsSettings>; catalog?: readonly CoachAction[]; coachSpaceV2?: boolean } = {}) {
   const calls: ExternalApiCall[] = [];
   let tick = 0;
   const actions = createCoachActions({
     catalog: options.catalog ?? CATALOG,
     settings: async () => ({ enabled: true, maxRounds: 2, ...options.settings }),
     externalApis: { record: (call) => void calls.push(call) },
-    redirects: createRedirects(REDIRECT_SOURCES),
+    redirects: createRedirects(REDIRECT_SOURCES, { coachSpaceV2: () => options.coachSpaceV2 ?? false }),
     now: () => new Date("2026-11-04T10:00:00Z"),
     clock: () => (tick += 5),
   });
@@ -397,6 +397,34 @@ describe("what the AI Coach cannot do: one true sentence and a Typed redirect (A
 
     expect(refused).toMatchObject({ error: true, content: expect.stringContaining("Ce renvoi n'existe pas") });
     expect(reply.redirect()).toBeNull();
+  });
+
+  it("gives a Human Coach's row while « Espace coach v2 » is on; off, tells the model to say so in one sentence, giving none (ADR-0119, ADR-0107, #1158)", async () => {
+    const on = setUp({ coachSpaceV2: true });
+    const replyOn = (await on.actions.forReply("marie", { recorder: on.recorder, untrustedInView: false }))!;
+    expect(await replyOn.runTool(run(REDIRECT_ACTION, { target: "human_coach" }), {})).toMatchObject({ content: expect.stringContaining("« Mes coachs humains › Réserver une séance »") });
+    expect(replyOn.redirect()).toEqual({ page: "Mes coachs humains", section: null, object: "Réserver une séance", href: "/coachs" });
+
+    const off = setUp({ coachSpaceV2: false });
+    const replyOff = (await off.actions.forReply("marie", { recorder: off.recorder, untrustedInView: false }))!;
+    const refused = await replyOff.runTool(run(REDIRECT_ACTION, { target: "human_coach" }), {});
+    expect(refused.error).toBe(true);
+    expect(refused.content).toMatch(/^Le renvoi human_coach n'est pas disponible, mais Jobbbox propose bien des séances avec un coach humain : le candidat choisit son coach et réserve lui-même une séance depuis « Mes coachs humains », dans le menu\. Dis-le au candidat en une phrase, sans renvoi/);
+    expect(refused.content).not.toMatch(/ne propose pas/);
+    expect(refused.content).not.toContain("Ce renvoi n'existe pas");
+    expect(replyOff.redirect()).toBeNull();
+  });
+
+  it("plays an Eval Case's « Espace coach v2 » on or off, off by default (#1158)", async () => {
+    const recorder = setUp().recorder;
+    const played = async (options?: { coachSpaceV2?: boolean }) => {
+      const reply = (await forEvalRun(CATALOG, options).forReply("eval", { recorder, untrustedInView: false }))!;
+      await reply.runTool(run(REDIRECT_ACTION, { target: "human_coach" }), {});
+      return reply.redirect();
+    };
+    expect(await played({ coachSpaceV2: true })).toMatchObject({ href: "/coachs" });
+    expect(await played({ coachSpaceV2: false })).toBeNull();
+    expect(await played()).toBeNull();
   });
 
   it("gives the Typed redirect of a Coach Action refused once narrowed, the reason being what was read", async () => {

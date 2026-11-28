@@ -13,4 +13,6 @@ Une fois connecté, Mon abonnement montre votre offre et ce qu'elle comprend ; �
 
 Pourquoi ne vois-je pas de jetons ? Les jetons (tokens) sont une mesure technique de ce qu'un modèle d'IA lit et écrit, et aucune offre ne se paie en jetons. « Votre consommation », dans Mon abonnement, compte donc vos utilisations : chaque réponse du coach, recherche d'offres, score ou document préparé est une action IA, comptée par outil sur la période de facturation, jamais en jetons ni en euros. Les jetons restent visibles dans Activité IA, où ils ne sont décomptés d'aucun quota.
 
+Votre coach IA peut aussi lire votre offre : demandez-lui ce qu'il vous reste de chaque quota cette semaine ou quand il repart. Quand un quota est atteint, il vous propose le lien pour changer d'offre ; il ne paie ni n'achète jamais rien à votre place.
+
 Les séances avec un coach humain sont payées à part, en dehors des offres.
